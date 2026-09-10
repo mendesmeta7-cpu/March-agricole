@@ -1,0 +1,422 @@
+"use server";
+
+import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
+import { ProductionStatus } from "@/lib/queries/productions";
+
+export interface ActionResponse {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  productionId?: string;
+}
+
+const ALLOWED_STATUSES: ProductionStatus[] = ["draft", "planned", "growing", "harvested", "cancelled"];
+
+/**
+ * Crée une nouvelle déclaration de production agricole
+ */
+export async function createProductionAction(
+  prevState: ActionResponse | null,
+  formData: FormData
+): Promise<ActionResponse> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Vous devez être connecté pour déclarer une production." };
+  }
+
+  // 1. Récupération de l'entreprise rattachée
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id, name")
+    .eq("created_by", user.id)
+    .maybeSingle();
+
+  if (!company) {
+    return { error: "Entreprise agricole introuvable pour votre compte." };
+  }
+
+  // 2. Extraction et validation des données du formulaire
+  const companyProductId = (formData.get("companyProductId") as string)?.trim();
+  const title = (formData.get("title") as string)?.trim();
+  const description = (formData.get("description") as string)?.trim() || null;
+  const rawQuantity = formData.get("expectedQuantity") as string;
+  const unit = (formData.get("unit") as string)?.trim() || "tonne";
+  const periodStart = (formData.get("periodStart") as string)?.trim();
+  const periodEnd = (formData.get("periodEnd") as string)?.trim() || null;
+  const locationName = (formData.get("locationName") as string)?.trim();
+  const rawStatus = (formData.get("status") as string)?.trim() || "planned";
+  const isPublic = formData.get("isPublic") === "true" || formData.get("isPublic") === "on";
+  const imageFile = formData.get("image") as File | null;
+
+  if (!companyProductId) {
+    return { error: "Veuillez sélectionner un produit cultivé par votre exploitation." };
+  }
+
+  if (!title || title.length < 3) {
+    return { error: "Le titre de la production doit comporter au moins 3 caractères." };
+  }
+
+  const expectedQuantity = Number(rawQuantity);
+  if (isNaN(expectedQuantity) || expectedQuantity <= 0) {
+    return { error: "La quantité planifiée doit être un nombre strictement positif." };
+  }
+
+  if (!periodStart) {
+    return { error: "Veuillez renseigner la date ou période de début de cycle." };
+  }
+
+  if (periodEnd && periodEnd < periodStart) {
+    return { error: "La date de récolte prévue ne peut pas être antérieure au début du cycle." };
+  }
+
+  if (!locationName || locationName.length < 2) {
+    return { error: "Veuillez renseigner la localisation ou le site de l'exploitation." };
+  }
+
+  const status = (ALLOWED_STATUSES.includes(rawStatus as ProductionStatus)
+    ? rawStatus
+    : "planned") as ProductionStatus;
+
+  // 3. Vérification du produit associé à l'entreprise
+  const { data: companyProduct } = await supabase
+    .from("company_products")
+    .select("id, product_id, is_active, products:product_id (id, name, image_url)")
+    .eq("id", companyProductId)
+    .eq("company_id", company.id)
+    .maybeSingle();
+
+  if (!companyProduct) {
+    return { error: "Le produit sélectionné n'est pas associé à votre exploitation." };
+  }
+
+  if (!companyProduct.is_active) {
+    return { error: "Ce produit est actuellement désactivé dans votre catalogue d'exploitation." };
+  }
+
+  // 4. Gestion de l'image (Upload Storage ou fallback image produit)
+  let imageUrl: string | null = null;
+  if (imageFile && imageFile.size > 0) {
+    if (imageFile.size > 5 * 1024 * 1024) {
+      return { error: "La photo de la production ne doit pas dépasser 5 Mo." };
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(imageFile.type)) {
+      return { error: "Format d'image non supporté (utilisez JPG, PNG ou WebP)." };
+    }
+
+    const ext = imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
+    const filePath = `productions/${crypto.randomUUID()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("public-assets")
+      .upload(filePath, imageFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      return { error: `Erreur de téléversement de la photo : ${uploadError.message}` };
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("public-assets")
+      .getPublicUrl(filePath);
+
+    imageUrl = publicUrlData.publicUrl;
+  } else {
+    // Si aucune nouvelle image téléversée, utiliser l'image du produit catalogue si disponible
+    const productInfo = Array.isArray(companyProduct.products)
+      ? companyProduct.products[0]
+      : companyProduct.products;
+    imageUrl = (productInfo as any)?.image_url || null;
+  }
+
+  // La base exige main_image_url NOT NULL
+  if (!imageUrl) {
+    return {
+      error: "Veuillez fournir une photographie principale pour votre cycle de production (culture en champ ou parcelle).",
+    };
+  }
+
+  // 5. Insertion réelle dans la table productions
+  const { data: inserted, error: insertError } = await supabase
+    .from("productions")
+    .insert({
+      company_id: company.id,
+      product_id: companyProduct.product_id,
+      company_product_id: companyProduct.id,
+      title,
+      description,
+      main_image_url: imageUrl,
+      location_name: locationName,
+      expected_quantity: expectedQuantity,
+      unit,
+      period_start: periodStart,
+      period_end: periodEnd,
+      status,
+      is_public: isPublic,
+    })
+    .select("id")
+    .single();
+
+  if (insertError) {
+    return { error: `Erreur lors de l'enregistrement de la production : ${insertError.message}` };
+  }
+
+  revalidatePath("/dashboard/company/productions");
+  revalidatePath("/dashboard/company");
+
+  return {
+    success: true,
+    message: "Production planifiée enregistrée avec succès.",
+    productionId: inserted.id,
+  };
+}
+
+/**
+ * Met à jour une production existante
+ */
+export async function updateProductionAction(
+  prevState: ActionResponse | null,
+  formData: FormData
+): Promise<ActionResponse> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Vous devez être connecté pour modifier cette production." };
+  }
+
+  // 1. Récupération de l'entreprise
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("created_by", user.id)
+    .maybeSingle();
+
+  if (!company) {
+    return { error: "Entreprise agricole introuvable." };
+  }
+
+  const productionId = formData.get("productionId") as string;
+  if (!productionId) {
+    return { error: "Identifiant de production manquant." };
+  }
+
+  // 2. Vérification de propriété
+  const { data: existing } = await supabase
+    .from("productions")
+    .select("id, main_image_url, company_id")
+    .eq("id", productionId)
+    .eq("company_id", company.id)
+    .maybeSingle();
+
+  if (!existing) {
+    return { error: "Production introuvable ou vous n'avez pas l'autorisation de la modifier." };
+  }
+
+  // 3. Extraction des champs modifiables
+  const title = (formData.get("title") as string)?.trim();
+  const description = (formData.get("description") as string)?.trim() || null;
+  const rawQuantity = formData.get("expectedQuantity") as string;
+  const unit = (formData.get("unit") as string)?.trim() || "tonne";
+  const periodStart = (formData.get("periodStart") as string)?.trim();
+  const periodEnd = (formData.get("periodEnd") as string)?.trim() || null;
+  const locationName = (formData.get("locationName") as string)?.trim();
+  const rawStatus = (formData.get("status") as string)?.trim();
+  const isPublic = formData.get("isPublic") === "true" || formData.get("isPublic") === "on";
+  const imageFile = formData.get("image") as File | null;
+
+  if (!title || title.length < 3) {
+    return { error: "Le titre de la production doit comporter au moins 3 caractères." };
+  }
+
+  const expectedQuantity = Number(rawQuantity);
+  if (isNaN(expectedQuantity) || expectedQuantity <= 0) {
+    return { error: "La quantité planifiée doit être un nombre strictement positif." };
+  }
+
+  if (!periodStart) {
+    return { error: "Veuillez renseigner la date de début de cycle." };
+  }
+
+  if (periodEnd && periodEnd < periodStart) {
+    return { error: "La date de fin ne peut pas être antérieure au début du cycle." };
+  }
+
+  if (!locationName || locationName.length < 2) {
+    return { error: "Veuillez renseigner la localisation." };
+  }
+
+  let newImageUrl = existing.main_image_url;
+
+  // Téléversement d'une nouvelle photo si fournie
+  if (imageFile && imageFile.size > 0) {
+    if (imageFile.size > 5 * 1024 * 1024) {
+      return { error: "La photo ne doit pas dépasser 5 Mo." };
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(imageFile.type)) {
+      return { error: "Format non supporté (JPG, PNG, WebP uniquement)." };
+    }
+
+    const ext = imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
+    const filePath = `productions/${crypto.randomUUID()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("public-assets")
+      .upload(filePath, imageFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      return { error: `Erreur d'upload photo : ${uploadError.message}` };
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("public-assets")
+      .getPublicUrl(filePath);
+
+    newImageUrl = publicUrlData.publicUrl;
+  }
+
+  const status = rawStatus && ALLOWED_STATUSES.includes(rawStatus as ProductionStatus)
+    ? (rawStatus as ProductionStatus)
+    : undefined;
+
+  // Mise à jour de la production
+  const updatePayload: Record<string, any> = {
+    title,
+    description,
+    main_image_url: newImageUrl,
+    location_name: locationName,
+    expected_quantity: expectedQuantity,
+    unit,
+    period_start: periodStart,
+    period_end: periodEnd,
+    is_public: isPublic,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (status) {
+    updatePayload.status = status;
+  }
+
+  const { error: updateError } = await supabase
+    .from("productions")
+    .update(updatePayload)
+    .eq("id", productionId)
+    .eq("company_id", company.id);
+
+  if (updateError) {
+    return { error: `Erreur de mise à jour : ${updateError.message}` };
+  }
+
+  revalidatePath("/dashboard/company/productions");
+  revalidatePath(`/dashboard/company/productions/${productionId}`);
+  revalidatePath("/dashboard/company");
+
+  return { success: true, message: "Production mise à jour avec succès." };
+}
+
+/**
+ * Changement rapide de statut d'une production
+ */
+export async function updateProductionStatusAction(
+  productionId: string,
+  newStatus: ProductionStatus
+): Promise<ActionResponse> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Vous devez être connecté pour modifier ce statut." };
+  }
+
+  if (!ALLOWED_STATUSES.includes(newStatus)) {
+    return { error: "Statut de production invalide." };
+  }
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("created_by", user.id)
+    .maybeSingle();
+
+  if (!company) {
+    return { error: "Entreprise agricole introuvable." };
+  }
+
+  const { error } = await supabase
+    .from("productions")
+    .update({
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", productionId)
+    .eq("company_id", company.id);
+
+  if (error) {
+    return { error: `Erreur de modification du statut : ${error.message}` };
+  }
+
+  revalidatePath("/dashboard/company/productions");
+  revalidatePath(`/dashboard/company/productions/${productionId}`);
+  revalidatePath("/dashboard/company");
+
+  return { success: true, message: `Statut passé à « ${newStatus} » avec succès.` };
+}
+
+/**
+ * Basculement de la visibilité publique
+ */
+export async function toggleProductionVisibilityAction(
+  productionId: string,
+  isPublic: boolean
+): Promise<ActionResponse> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Non authentifié." };
+  }
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("created_by", user.id)
+    .maybeSingle();
+
+  if (!company) {
+    return { error: "Entreprise agricole introuvable." };
+  }
+
+  const { error } = await supabase
+    .from("productions")
+    .update({
+      is_public: isPublic,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", productionId)
+    .eq("company_id", company.id);
+
+  if (error) {
+    return { error: `Erreur visibilité : ${error.message}` };
+  }
+
+  revalidatePath("/dashboard/company/productions");
+  revalidatePath(`/dashboard/company/productions/${productionId}`);
+
+  return {
+    success: true,
+    message: isPublic
+      ? "Production rendue visible publiquement (feed revendeurs)."
+      : "Production passée en mode privé (invisible publiquement).",
+  };
+}
