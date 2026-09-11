@@ -32,6 +32,7 @@ interface AppSidebarProps {
   entityName?: string;
   userName?: string;
   userEmail?: string;
+  logoUrl?: string | null;
   onCloseMobile?: () => void;
 }
 
@@ -40,6 +41,7 @@ export default function AppSidebar({
   entityName,
   userName,
   userEmail,
+  logoUrl,
   onCloseMobile,
 }: AppSidebarProps) {
   const pathname = usePathname();
@@ -202,7 +204,15 @@ export default function AppSidebar({
           <div
             className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-2 ${roleThemes[role]}`}
           >
-            {role === "company" && <Building2 className="w-4 h-4" />}
+            {role === "company" && (
+              logoUrl ? (
+                <div className="w-4 h-4 rounded-full overflow-hidden flex-shrink-0 bg-white border border-forest-300">
+                  <img src={logoUrl} alt="" className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <Building2 className="w-4 h-4" />
+              )
+            )}
             {role === "reseller" && <Store className="w-4 h-4" />}
             {role === "admin" && <ShieldCheck className="w-4 h-4 text-emerald-600" />}
             <span>{roleLabels[role]}</span>
@@ -255,8 +265,20 @@ export default function AppSidebar({
       {/* Cartouche Profil en pied de sidebar */}
       <div className="p-4 border-t border-gray-100 bg-gray-50/50">
         <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-gray-200/70 shadow-2xs">
-          <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-gray-600 flex-shrink-0">
-            <User className="w-5 h-5" />
+          <div className="w-9 h-9 rounded-lg bg-gray-100 border border-gray-200/60 flex items-center justify-center text-gray-600 flex-shrink-0 overflow-hidden relative">
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={entityName || "Logo"}
+                className="w-full h-full object-cover"
+              />
+            ) : role === "company" ? (
+              <Building2 className="w-5 h-5 text-forest-700" />
+            ) : role === "reseller" ? (
+              <Store className="w-5 h-5 text-earth-700" />
+            ) : (
+              <User className="w-5 h-5 text-gray-600" />
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-xs font-bold text-gray-900 truncate">

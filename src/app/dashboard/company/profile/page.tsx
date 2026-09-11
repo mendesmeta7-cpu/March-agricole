@@ -48,10 +48,27 @@ export default async function CompanyProfilePage() {
         {/* Colonne gauche : Identité de l'entreprise */}
         <div className="lg:col-span-2 space-y-6">
           <Card padding="md">
-            <h2 className="text-base font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-forest-700" />
-              Renseignements de l&apos;Exploitation
-            </h2>
+            <div className="flex items-center gap-3.5 mb-4 pb-3 border-b border-gray-100">
+              <div className="w-12 h-12 rounded-xl bg-forest-100 border border-forest-200/80 flex items-center justify-center text-forest-800 flex-shrink-0 shadow-xs overflow-hidden relative">
+                {company?.logo_url ? (
+                  <img
+                    src={company.logo_url}
+                    alt={company.name || "Logo"}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Building2 className="w-6 h-6 text-forest-700" />
+                )}
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900">
+                  Renseignements de l&apos;Exploitation
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Identité visuelle et informations légales
+                </p>
+              </div>
+            </div>
 
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

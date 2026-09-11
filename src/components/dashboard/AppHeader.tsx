@@ -9,6 +9,7 @@ interface AppHeaderProps {
   entityName?: string;
   locationInfo?: string;
   userName?: string;
+  logoUrl?: string | null;
   onToggleMobileMenu: () => void;
 }
 
@@ -17,6 +18,7 @@ export default function AppHeader({
   entityName,
   locationInfo,
   userName,
+  logoUrl,
   onToggleMobileMenu,
 }: AppHeaderProps) {
   return (
@@ -35,8 +37,16 @@ export default function AppHeader({
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
           <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
             {role === "company" && (
-              <span className="w-8 h-8 rounded-lg bg-forest-100 text-forest-800 flex items-center justify-center">
-                <Building2 className="w-4 h-4" />
+              <span className="w-8 h-8 rounded-lg bg-forest-100 text-forest-800 flex items-center justify-center overflow-hidden flex-shrink-0 border border-forest-200/80">
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt={entityName || "Logo"}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Building2 className="w-4 h-4" />
+                )}
               </span>
             )}
             {role === "reseller" && (

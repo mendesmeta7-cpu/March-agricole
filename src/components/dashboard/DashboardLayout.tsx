@@ -12,6 +12,7 @@ interface DashboardLayoutProps {
   userName?: string;
   userEmail?: string;
   locationInfo?: string;
+  logoUrl?: string | null;
 }
 
 export default function DashboardLayout({
@@ -21,6 +22,7 @@ export default function DashboardLayout({
   userName,
   userEmail,
   locationInfo,
+  logoUrl,
 }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -56,6 +58,7 @@ export default function DashboardLayout({
           entityName={entityName}
           userName={userName}
           userEmail={userEmail}
+          logoUrl={logoUrl}
         />
       </aside>
 
@@ -85,6 +88,7 @@ export default function DashboardLayout({
               entityName={entityName}
               userName={userName}
               userEmail={userEmail}
+              logoUrl={logoUrl}
               onCloseMobile={() => setMobileMenuOpen(false)}
             />
           </div>
@@ -98,6 +102,7 @@ export default function DashboardLayout({
           entityName={entityName}
           userName={userName}
           locationInfo={locationInfo}
+          logoUrl={logoUrl}
           onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
         />
 

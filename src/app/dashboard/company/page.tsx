@@ -78,8 +78,16 @@ export default async function CompanyDashboardPage() {
       <Card padding="md" className="border-forest-100 bg-gradient-to-r from-white to-forest-50/30">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5 sm:gap-4">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-forest-100 border border-forest-200/80 flex items-center justify-center text-forest-800 flex-shrink-0 shadow-xs">
-              <Building2 className="w-6 h-6 sm:w-7 sm:h-7" />
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-forest-100 border border-forest-200/80 flex items-center justify-center text-forest-800 flex-shrink-0 shadow-xs overflow-hidden relative">
+              {company?.logo_url ? (
+                <img
+                  src={company.logo_url}
+                  alt={company.name || "Logo"}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Building2 className="w-6 h-6 sm:w-7 sm:h-7" />
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <h2 className="text-base sm:text-lg font-bold text-gray-900 truncate">

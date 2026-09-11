@@ -43,6 +43,7 @@ export default async function CompanyLayout({
       userName={profile?.full_name}
       userEmail={user.email}
       locationInfo={locationInfo}
+      logoUrl={company?.logo_url}
     >
       {children}
     </DashboardLayout>
