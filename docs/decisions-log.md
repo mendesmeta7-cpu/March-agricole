@@ -157,7 +157,28 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 
 ---
 
-## 8. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
+## 8. DÉCISIONS TECHNIQUES DE LA PHASE 6 (DEMANDES ET ANALYSE TERRITORIALE V1)
+
+### ADR-020 : Sécurisation RLS des Demandes, Anonymat Total et Vue Décloisonnée v_market_demands_aggregated
+* **Date** : 2026-09-11 | **Statut** : Validé et Appliqué
+* **Contexte** : Assurer la collecte et l'agrégation territoriale des besoins formulés par les revendeurs tout en protégeant leur identité commerciale, en interdisant toute fuite de coordonnées directes vers les producteurs concurrents et en respectant le découplage territorial complet.
+* **Décision** :
+  1. **Protection RLS Stricte sur la Table Brute `demands`** :
+     - Suppression de la politique générale `status = 'active'` qui ouvrait la lecture des demandes brutes.
+     - Un revendeur ne peut requêter (`SELECT`) que ses propres enregistrements (`auth.uid() = reseller_id`).
+     - Les entreprises agricoles n'ont **aucun droit d'accès direct** à l'endpoint `/rest/v1/demands`.
+  2. **Anonymat Garanti via la Vue `v_market_demands_aggregated`** :
+     - Les entreprises consultent les besoins du marché exclusivement via la vue PostgreSQL consolidée.
+     - La vue agrège les volumes actifs par quadruplet `(product_id, country_id, province_id, unit)`.
+     - Aucune information nominative, identifiant revendeur (`reseller_id`), numéro de téléphone ou note privée n'est exposée.
+  3. **Découplage Territorial et Indépendance Métier** :
+     - Les revendeurs sont libres d'exprimer une demande sur n'importe quel territoire (pays, province, ville), indépendamment des zones de chalandise actuelles des entreprises.
+     - Une demande ne déclenche aucune réservation de stock, ne génère aucun lot physique et ne crée aucune commande ni campagne.
+* **Justification** : Conformité stricte aux Règles d'Or 2 et 3, protection de la vie privée des revendeurs, prévention du contournement de la plateforme et intégrité relationnelle.
+
+---
+
+## 9. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
 
 | Réf. | Fonctionnalité Reportée | Motif du Report / Échéance |
 | :--- | :--- | :--- |
@@ -171,3 +192,4 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 | **FUT-08** | **PostGIS complexe (polygones)** | Le modèle relationnel Pays/Province/Ville suffit en V1. |
 | **FUT-09** | **Notifications WhatsApp Cloud API** | Reporté post-pilote ; V1 intègre le centre interne et emails. |
 | **FUT-10** | **Application Mobile Flutter** | L'application web responsive Next.js couvre les cas d'usage mobiles initiaux. |
+

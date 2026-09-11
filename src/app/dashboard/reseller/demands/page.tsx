@@ -1,39 +1,47 @@
-import PageHeader from "@/components/ui/PageHeader";
-import EmptyState from "@/components/ui/EmptyState";
-import Badge from "@/components/ui/Badge";
-import { TrendingUp, ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { getResellerDemands } from "@/lib/queries/demands";
+import { getCatalogProducts } from "@/lib/queries/products";
+import ResellerDemandsView from "@/components/demands/ResellerDemandsView";
 
-export default function ResellerDemandsPage() {
+export default async function ResellerDemandsPage() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login?redirect=/dashboard/reseller/demands");
+  }
+
+  // 1. Récupération des données du revendeur
+  const { data: reseller } = await supabase
+    .from("resellers")
+    .select("id, business_name, province_id, country_id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  // 2. Chargement simultané des données réelles
+  const [demands, catalogProducts, countriesRes, provincesRes, companiesRes] = await Promise.all([
+    getResellerDemands(user.id),
+    getCatalogProducts(),
+    supabase.from("countries").select("id, code, name, currency_code").eq("is_active", true).order("name"),
+    supabase.from("provinces").select("id, country_id, code, name").order("name"),
+    supabase.from("companies").select("id, name").eq("is_active", true).order("name"),
+  ]);
+
+  const countries = countriesRes.data || [];
+  const provinces = provincesRes.data || [];
+  const companies = companiesRes.data || [];
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-sm text-gray-500">
-        <Link href="/dashboard/reseller" className="hover:text-earth-800 flex items-center gap-1">
-          <ArrowLeft className="w-4 h-4" />
-          Retour à l&apos;accueil revendeur
-        </Link>
-      </div>
-
-      <PageHeader
-        title="Mes Demandes d'Approvisionnement"
-        description="Exprimez vos besoins d'achat réels pour informer les producteurs agricoles de la demande solvable sur votre territoire."
-        badge={<Badge variant="neutral">Jalon Phase 6</Badge>}
-      />
-
-      <EmptyState
-        title="Module Demandes en cours de jalonnement"
-        description="Ce module sera activé lors de la Phase 6 (Gestion des Demandes). Vous pourrez formuler des prévisions de volume (en tonnes ou sacs) sans engagement financier ni réservation de stock, afin de susciter l'offre des producteurs."
-        phaseBadge="Phase 6 — À Venir"
-        icon={<TrendingUp className="w-8 h-8 text-earth-700" />}
-        action={
-          <Link
-            href="/dashboard/reseller"
-            className="px-4 py-2 rounded-xl bg-earth-700 text-white font-medium text-sm hover:bg-earth-800 transition-all shadow-xs"
-          >
-            Revenir à la vue principale
-          </Link>
-        }
-      />
-    </div>
+    <ResellerDemandsView
+      initialDemands={demands}
+      catalogProducts={catalogProducts}
+      provinces={provinces}
+      countries={countries}
+      companies={companies}
+      resellerProvinceId={reseller?.province_id}
+      resellerCountryId={reseller?.country_id}
+      businessName={reseller?.business_name}
+    />
   );
 }

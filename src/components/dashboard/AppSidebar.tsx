@@ -65,8 +65,6 @@ export default function AppSidebar({
       label: "Demandes du Marché",
       href: "/dashboard/company/demands",
       icon: <TrendingUp className="w-5 h-5" />,
-      badge: "Phase 6",
-      badgeVariant: "neutral",
     },
     {
       label: "Campagnes de Vente",
@@ -106,8 +104,6 @@ export default function AppSidebar({
       label: "Mes Demandes d'Achat",
       href: "/dashboard/reseller/demands",
       icon: <TrendingUp className="w-5 h-5" />,
-      badge: "Phase 6",
-      badgeVariant: "neutral",
     },
     {
       label: "Mes Commandes",

@@ -3,6 +3,42 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [0.7.0-demands] - 2026-09-11
+### Implémentation Complète du Module Demandes et Analyse Territoriale V1 (Phase 6)
+
+#### Ajouté
+* **Principe Fondamental et Découplage Métier (Règles d'Or 2 et 3)** :
+  - Respect absolu de l'indépendance des concepts : $\text{Demande} \neq \text{Commande} \neq \text{Réservation} \neq \text{Campagne} \neq \text{Stock} \neq \text{Livraison}$.
+  - Une demande revendeur exprime un besoin prévisionnel volumique et temporel sans impacter les stocks, sans réserver de lots et sans créer de commande.
+  - Découplage territorial total : le revendeur peut émettre un besoin sur n'importe quel territoire géographique (pays, province, ville), indépendamment des zones de livraison couvertes par les entreprises.
+* **Sécurisation RLS et Confidentialité Stricte (Migration 12 / ADR-020)** :
+  - `supabase/migrations/20260911000012_secure_demands_rls_and_aggregation.sql` :
+    * Suppression de la politique ouverte `demands_select` (`status = 'active'`).
+    * Restriction d'accès direct sur la table brute `demands` : un revendeur lit uniquement ses propres demandes (`auth.uid() = reseller_id`) et les administrateurs bénéficient d'un accès de supervision.
+    * Interdiction d'accès direct aux entreprises sur `/rest/v1/demands` afin de garantir l'anonymat intégral des revendeurs.
+    * Vue d'agrégation décloisonnée `v_market_demands_aggregated` accessible aux entreprises authentifiées et utilisateurs publics : fournit les métriques consolidées (`total_demands`, `total_quantity`, `unique_resellers_count`, `min_needed_date`, `max_needed_date`) par produit, pays, province et unité, sans divulguer d'identifiants, téléphones ou notes privées.
+* **Couche Applicative et Server Actions (`src/lib/`)** :
+  - `src/lib/queries/demands.ts` : `getResellerDemands(resellerId)` pour l'historique personnel et `getAggregatedMarketDemands(filters)` pour l'analyse macro-marché.
+  - `src/lib/actions/demands.ts` :
+    * `createDemandAction` : Création de besoin avec validation des quantités (> 0), cohérence des dates (`delivery_deadline >= needed_from`), contrôle d'authentification et ciblage optionnel d'exploitation.
+    * `updateDemandAction` : Modification sécurisée de ses propres demandes actives.
+    * `cancelDemandAction` : Annulation douce (`status = 'cancelled'`) pour préserver l'historique sans impact destructif.
+* **Composants d'Interface Dédiés (`src/components/demands/`)** :
+  - `DemandStatusBadge.tsx` : Badges visuels de statut (`active`, `converted`, `cancelled`, `expired`).
+  - `ResellerDemandCard.tsx` : Carte interactive revendeur avec volume, géographie ciblée, délais, producteur ciblé et actions contextuelles.
+  - `DemandFormModal.tsx` : Boîte de dialogue responsive (mobile-friendly) de saisie/modification de besoin avec sélecteur de produit, territoire, dates et mention d'avertissement de non-réservation.
+  - `ResellerDemandsView.tsx` : Espace revendeur avec 4 cartouches d'indicateurs dynamiques réels, filtres par statut et recherche live, et état vide soigné sans mock data.
+  - `MarketDemandsAnalysisView.tsx` : Espace d'intelligence économique pour les entreprises agricoles présentant les volumes demandés par produit et province, note de confidentialité, indicateurs de tendance et filtres géographiques.
+* **Pages et Routes Déployées** :
+  - `src/app/dashboard/reseller/demands/page.tsx` : Gestion et suivi des besoins par le revendeur.
+  - `src/app/dashboard/company/demands/page.tsx` : Vue d'analyse de marché macroscopique pour l'entreprise agricole.
+  - `src/app/dashboard/reseller/page.tsx` : Activation du module "Mes Demandes" (statut Actif).
+  - `src/components/dashboard/AppSidebar.tsx` : Retrait du badge "Phase 6" sur les liens Revendeur et Entreprise.
+* **Suite de Tests de Validation (`supabase/tests/phase6_demands_test.sql`)** :
+  - Tests transactionnels validant les contraintes de base de données, la non-création d'artefacts tiers (0 stock, 0 campagne, 0 commande), le recalcul dynamique des agrégats dans la vue et l'isolation RLS.
+
+---
+
 ## [0.6.0-productions] - 2026-09-10
 ### Implémentation Complète de la Gestion des Productions V1 (Phase 5)
 

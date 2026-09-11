@@ -164,7 +164,7 @@ export default async function ResellerDashboardPage() {
           </div>
         </Card>
 
-        {/* État vide Demandes d'approvisionnement */}
+        {/* Module Demandes d'approvisionnement (Actif - Phase 6) */}
         <Card padding="md" className="flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
@@ -172,17 +172,16 @@ export default async function ResellerDashboardPage() {
                 <TrendingUp className="w-4 h-4 text-earth-700" />
                 Vos Expressions de Besoins
               </h3>
-              <Badge variant="neutral" size="sm">Phase 6</Badge>
+              <Badge variant="success" size="sm">Actif</Badge>
             </div>
             {demandsCount === 0 ? (
               <EmptyState
                 title="Vous n'avez encore exprimé aucune demande"
-                description="Dans la Phase 6 (Gestion des Demandes), vous pourrez spécifier les tonnages et denrées que vous recherchez pour inciter les producteurs à approvisionner votre territoire."
-                phaseBadge="Phase 6 — Expression de Demandes"
+                description="Publiez les tonnages et denrées que vous recherchez pour inciter les producteurs à orienter leurs récoltes et leurs campagnes vers votre province."
                 className="py-6 sm:py-8 bg-earth-50/20"
               />
             ) : (
-              <p className="text-sm text-gray-600">Vous avez {demandsCount} demande(s) enregistrée(s).</p>
+              <p className="text-sm text-gray-600">Vous avez {demandsCount} expression(s) de besoin enregistrée(s).</p>
             )}
           </div>
 
@@ -191,7 +190,7 @@ export default async function ResellerDashboardPage() {
               href="/dashboard/reseller/demands"
               className="text-xs font-semibold text-earth-700 hover:text-earth-800 inline-flex items-center gap-1"
             >
-              Voir mes demandes
+              Gérer mes demandes
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
