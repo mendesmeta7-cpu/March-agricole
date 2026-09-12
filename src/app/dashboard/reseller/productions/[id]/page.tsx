@@ -144,8 +144,11 @@ export default async function ResellerProductionDetailPage({
             </h3>
 
             <div className="space-y-4">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-forest-50 border border-forest-200/80 flex items-center justify-center text-forest-800 flex-shrink-0 overflow-hidden relative shadow-2xs">
+              <Link
+                href={`/dashboard/reseller/companies/${production.company.id}`}
+                className="group/comp flex items-center gap-3.5 p-2 -m-2 rounded-xl hover:bg-forest-50/50 transition-colors"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-forest-50 border border-forest-200/80 flex items-center justify-center text-forest-800 flex-shrink-0 overflow-hidden relative shadow-2xs group-hover/comp:border-forest-400 transition-colors">
                   {production.company.logo_url ? (
                     <img
                       src={production.company.logo_url}
@@ -158,20 +161,28 @@ export default async function ResellerProductionDetailPage({
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <span className="font-bold text-gray-900 text-sm block truncate">
+                  <span className="font-bold text-gray-900 text-sm block truncate group-hover/comp:text-forest-700 transition-colors">
                     {production.company.name}
                   </span>
                   <span className="text-xs text-gray-500 block truncate">
                     {provinceName}, {countryName}
                   </span>
                 </div>
-              </div>
+              </Link>
 
-              <div className="pt-3 border-t border-gray-100">
+              <div className="pt-3 border-t border-gray-100 space-y-3">
                 <span className="text-xs text-forest-700 bg-forest-50 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 font-medium border border-forest-200/60">
                   <Sparkles className="w-3.5 h-3.5 text-forest-600" />
                   Producteur vérifié sur la plateforme
                 </span>
+
+                <Link
+                  href={`/dashboard/reseller/companies/${production.company.id}`}
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-forest-50 text-forest-800 hover:bg-forest-700 hover:text-white transition-all duration-150 border border-forest-200/80"
+                >
+                  <span>Consulter le profil de l&apos;exploitation</span>
+                  <span aria-hidden="true">&rarr;</span>
+                </Link>
               </div>
             </div>
           </Card>
@@ -194,16 +205,16 @@ export default async function ResellerProductionDetailPage({
                 </span>
               </div>
 
-              {/* Volume prévu */}
+              {/* Quantité planifiée */}
               <div className="p-3 rounded-xl bg-forest-50/70 border border-forest-100">
                 <span className="text-[11px] text-forest-700 block uppercase font-semibold">
-                  Volume planifié
+                  Quantité planifiée
                 </span>
                 <span className="text-base font-extrabold text-forest-950 block mt-0.5">
                   {production.expected_quantity.toLocaleString("fr-FR")} {production.unit}
                 </span>
                 <span className="text-[10px] text-forest-600 block mt-0.5">
-                  (Estimation prévisionnelle déclarée)
+                  (Estimation prévisionnelle déclarée — Aucun stock physique disponible)
                 </span>
               </div>
 

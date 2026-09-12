@@ -2,23 +2,51 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FeedProductionItem } from "@/lib/queries/feed";
+import { CompanyPublicProductionItem } from "@/lib/queries/companies";
 import ProductionStatusBadge from "@/components/productions/ProductionStatusBadge";
 import {
   MapPin,
   Calendar,
-  Building2,
   Tractor,
   ArrowRight,
   Sprout,
   ImageOff,
+  PackageOpen,
 } from "lucide-react";
 
-interface FeedProductionCardProps {
-  production: FeedProductionItem;
+interface CompanyPublicProductionsListProps {
+  productions: CompanyPublicProductionItem[];
 }
 
-export default function FeedProductionCard({ production }: FeedProductionCardProps) {
+export default function CompanyPublicProductionsList({
+  productions,
+}: CompanyPublicProductionsListProps) {
+  if (productions.length === 0) {
+    return (
+      <div className="bg-white rounded-3xl border border-gray-200/80 p-8 sm:p-12 text-center shadow-xs">
+        <div className="w-14 h-14 mx-auto rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 mb-4">
+          <PackageOpen className="w-7 h-7" />
+        </div>
+        <h3 className="text-base font-bold text-gray-900 mb-1">
+          Aucune production publique disponible
+        </h3>
+        <p className="text-sm text-gray-500 max-w-md mx-auto">
+          Cette entreprise n&apos;a encore aucune production publique.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {productions.map((prod) => (
+        <ProductionItemCard key={prod.id} production={prod} />
+      ))}
+    </div>
+  );
+}
+
+function ProductionItemCard({ production }: { production: CompanyPublicProductionItem }) {
   const [imgError, setImgError] = useState(false);
 
   // Formatage des dates du cycle
@@ -38,15 +66,9 @@ export default function FeedProductionCard({ production }: FeedProductionCardPro
   const formattedStart = formatDate(production.period_start);
   const formattedEnd = formatDate(production.period_end);
 
-  const provinceName = (production.company as any)?.provinces?.name || "";
-  const countryName = (production.company as any)?.countries?.name || "RDC";
-  const locationDisplay = [production.location_name, provinceName, countryName]
-    .filter(Boolean)
-    .join(", ");
-
   return (
     <div className="group bg-white rounded-2xl border border-gray-200/80 hover:border-forest-300 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col overflow-hidden">
-      {/* 1. Photo principale dominante */}
+      {/* 1. Photo principale */}
       <div className="relative w-full aspect-16/10 sm:aspect-16/9 bg-gray-100 overflow-hidden">
         {production.main_image_url && !imgError ? (
           <img
@@ -63,12 +85,12 @@ export default function FeedProductionCard({ production }: FeedProductionCardPro
           </div>
         )}
 
-        {/* Badge de statut cultural en superposition */}
+        {/* Statut cultural */}
         <div className="absolute top-3 right-3 z-10">
           <ProductionStatusBadge status={production.status} size="sm" />
         </div>
 
-        {/* Catégorie de produit en superposition */}
+        {/* Catégorie */}
         <div className="absolute top-3 left-3 z-10">
           <span className="px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-xs text-white text-[11px] font-medium tracking-wide uppercase">
             {production.product.category}
@@ -76,33 +98,10 @@ export default function FeedProductionCard({ production }: FeedProductionCardPro
         </div>
       </div>
 
-      {/* 2. Corps de la carte */}
+      {/* 2. Contenu */}
       <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
         <div className="space-y-3">
-          {/* Identité Entreprise Productrice */}
-          <Link
-            href={`/dashboard/reseller/companies/${production.company.id}`}
-            className="group/comp flex items-center gap-2.5 hover:opacity-80 transition-opacity"
-          >
-            <div className="w-7 h-7 rounded-lg bg-forest-50 border border-forest-200/80 flex items-center justify-center text-forest-800 flex-shrink-0 overflow-hidden relative">
-              {production.company.logo_url ? (
-                <img
-                  src={production.company.logo_url}
-                  alt={production.company.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <Building2 className="w-4 h-4 text-forest-700" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <span className="text-xs font-bold text-gray-900 truncate block group-hover/comp:text-forest-700 transition-colors">
-                {production.company.name}
-              </span>
-            </div>
-          </Link>
-
-          {/* Titre et culture */}
+          {/* Titre & culture */}
           <div>
             <h3 className="text-base font-bold text-gray-900 line-clamp-1 group-hover:text-forest-800 transition-colors">
               {production.title}
@@ -114,10 +113,12 @@ export default function FeedProductionCard({ production }: FeedProductionCardPro
           </div>
 
           {/* Localisation */}
-          <div className="flex items-center gap-1.5 text-xs text-gray-500">
-            <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-            <span className="truncate">{locationDisplay}</span>
-          </div>
+          {production.location_name && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              <span className="truncate">{production.location_name}</span>
+            </div>
+          )}
 
           {/* Période prévisionnelle */}
           <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50/80 px-2.5 py-1.5 rounded-lg border border-gray-100">
@@ -129,7 +130,7 @@ export default function FeedProductionCard({ production }: FeedProductionCardPro
           </div>
         </div>
 
-        {/* 3. Pied de carte : Quantité planifiée + Action */}
+        {/* 3. Pied de carte : Quantité planifiée (Règle d'Or 3) + Bouton consultation */}
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
           <div>
             <span className="text-[11px] text-gray-500 block uppercase font-medium">
@@ -145,7 +146,7 @@ export default function FeedProductionCard({ production }: FeedProductionCardPro
             href={`/dashboard/reseller/productions/${production.id}`}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-forest-50 hover:bg-forest-700 text-forest-800 hover:text-white text-xs font-semibold transition-all duration-150 shadow-2xs group/btn"
           >
-            <span>Voir la production</span>
+            <span>Détail</span>
             <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
           </Link>
         </div>
