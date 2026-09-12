@@ -4,6 +4,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { Building2, MapPin, Mail, Phone, ShieldCheck, Clock, User, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import EditCompanyProfileModal from "@/components/company/EditCompanyProfileModal";
 
 export default async function CompanyProfilePage() {
   const supabase = createClient();
@@ -34,7 +35,7 @@ export default async function CompanyProfilePage() {
 
       <PageHeader
         title="Profil de l'Entreprise Agricole"
-        description="Consultez les informations juridiques, géographiques et les contacts de votre exploitation."
+        description="Consultez et mettez à jour les informations juridiques, géographiques et le logo de votre exploitation."
         badge={
           company?.verification_status === "verified" ? (
             <Badge variant="success">Vérifiée</Badge>
@@ -42,6 +43,7 @@ export default async function CompanyProfilePage() {
             <Badge variant="warning" icon={<Clock className="w-3 h-3" />}>En attente de vérification</Badge>
           )
         }
+        action={company ? <EditCompanyProfileModal company={company as any} /> : undefined}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -110,7 +110,7 @@ export default async function CompanyDashboardPage() {
             href="/dashboard/company/profile"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-xl bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all shadow-2xs whitespace-nowrap min-h-[44px]"
           >
-            Consulter le profil &rarr;
+            Gérer le profil & logo &rarr;
           </Link>
         </div>
       </Card>
