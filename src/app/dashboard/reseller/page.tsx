@@ -33,13 +33,15 @@ export default async function ResellerDashboardPage() {
     .maybeSingle();
 
   // 2. Comptages réels depuis la base de données
-  const [dRes, oRes] = await Promise.all([
+  const [dRes, oRes, pRes] = await Promise.all([
     supabase.from("demands").select("*", { count: "exact", head: true }).eq("reseller_id", user!.id),
     supabase.from("orders").select("*", { count: "exact", head: true }).eq("reseller_id", user!.id),
+    supabase.from("productions").select("*", { count: "exact", head: true }).eq("is_public", true).in("status", ["planned", "growing", "harvested"]),
   ]);
 
   const demandsCount = dRes.count || 0;
   const ordersCount = oRes.count || 0;
+  const productionsCount = pRes.count || 0;
 
   const resellerTypeLabels: Record<string, string> = {
     wholesaler: "Grossiste",
@@ -110,6 +112,13 @@ export default async function ResellerDashboardPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard
+            label="Productions Publiques Disponibles"
+            value={productionsCount}
+            icon={<Compass className="w-5 h-5 text-forest-700" />}
+            variant="forest"
+            helper={productionsCount === 0 ? "0 production publiée" : `${productionsCount} cycle(s) en ligne`}
+          />
+          <StatCard
             label="Besoins & Demandes Enregistrées"
             value={demandsCount}
             icon={<TrendingUp className="w-5 h-5 text-earth-700" />}
@@ -119,38 +128,41 @@ export default async function ResellerDashboardPage() {
           <StatCard
             label="Commandes Fermes Récentes"
             value={ordersCount}
-            icon={<ShoppingBag className="w-5 h-5 text-forest-700" />}
-            variant="forest"
-            helper={ordersCount === 0 ? "0 commande en cours" : `${ordersCount} commande(s)`}
-          />
-          <StatCard
-            label="Territoire d'Intervention"
-            value={(reseller as any)?.provinces?.name || "RDC"}
-            icon={<MapPin className="w-5 h-5 text-gray-700" />}
+            icon={<ShoppingBag className="w-5 h-5 text-gray-700" />}
             variant="default"
-            helper="Province pivot de commande"
+            helper={ordersCount === 0 ? "0 commande en cours" : `${ordersCount} commande(s)`}
           />
         </div>
       </div>
 
-      {/* Grille des états vides explicatifs */}
+      {/* Grille des modules d'activité */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* État vide Feed des productions */}
+        {/* Module Feed des productions (Actif - Phase 7) */}
         <Card padding="md" className="flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
               <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
                 <Compass className="w-4 h-4 text-forest-700" />
-                Flux des Récoltes Disponibles
+                Flux des Productions & Récoltes
               </h3>
-              <Badge variant="neutral" size="sm">Phase 7</Badge>
+              <Badge variant="success" size="sm">Actif</Badge>
             </div>
-            <EmptyState
-              title="Flux de découverte en cours de jalonnement"
-              description="Dans la Phase 7 (Feed Revendeur), vous découvrirez les productions agricoles certifiées avec photos de récoltes et contact direct avec les fermes de votre région."
-              phaseBadge="Phase 7 — Feed d'Offres Agricoles"
-              className="py-6 sm:py-8 bg-forest-50/20"
-            />
+            {productionsCount === 0 ? (
+              <EmptyState
+                title="Aucune production publiée pour le moment"
+                description="Les exploitations partenaires n'ont pas encore publié de récoltes publiques. Consultez régulièrement le flux pour découvrir les denrées disponibles."
+                className="py-6 sm:py-8 bg-forest-50/20"
+              />
+            ) : (
+              <div className="space-y-2 py-4">
+                <p className="text-sm text-gray-700">
+                  <span className="font-bold text-forest-900">{productionsCount}</span> production(s) agricole(s) sont actuellement visibles sur la plateforme.
+                </p>
+                <p className="text-xs text-gray-500">
+                  Découvrez les volumes planifiés, les cultures et les dates de récolte déclarées par les fermes.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
@@ -158,7 +170,7 @@ export default async function ResellerDashboardPage() {
               href="/dashboard/reseller/feed"
               className="text-xs font-semibold text-forest-700 hover:text-forest-800 inline-flex items-center gap-1"
             >
-              Consulter le flux
+              Consulter le flux des productions
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>

@@ -3,6 +3,37 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [0.8.0-feed] - 2026-09-12
+### Implémentation Complète du Feed Revendeur V1 (Phase 7)
+
+#### Ajouté
+* **Principe Fondamental et Séparation des Entités (Règles d'Or 2 et 3)** :
+  - Respect absolu de l'indépendance des concepts : $\text{Production} \neq \text{Campagne} \neq \text{Commande} \neq \text{Stock} \neq \text{Réservation}$.
+  - Les publications du feed représentent des **productions déclarées** par les exploitations agricoles (`is_public = TRUE` et statuts `planned`, `growing`, `harvested`).
+  - Étiquetage strict des tonnages : *"Production prévue : X tonnes"* (jamais *"Stock disponible"*).
+  - Absence absolue de prix commercial ou de bouton "Commander" dans le feed (réservés aux futures phases Campagne et Commande).
+* **Isolation RLS & Confidentialité** :
+  - Seules les productions publiques actives sont lisibles par les revendeurs connectés.
+  - Les brouillons (`draft`), productions privées (`is_public = FALSE`) et productions annulées (`cancelled`) sont totalement invisibles aux acheteurs.
+  - Données administratives internes des producteurs (documents RCCM, membres de l'entreprise) non exposées.
+* **Couche Applicative et Requêtes Data (`src/lib/queries/feed.ts`)** :
+  - `getPublicFeedProductions(filters)` : extraction paginée des productions publiques réelles avec filtres multicritères (recherche textuelle par culture/exploitation, filtre par catégorie de produit, filtre par province/pays).
+  - `getPublicProductionDetail(id)` : fiche unitaire publique d'une production avec informations culturales, exploitation et calendrier prévisionnel.
+* **Composants d'Interface Dédiés (`src/components/feed/`)** :
+  - `FeedProductionCard.tsx` : carte de publication avec photographie réelle dominante, avatar/logo d'exploitation, badge de statut cultural, localisation géographique, calendrier de récolte, volume prévisionnel et lien d'exploration.
+  - `FeedFilters.tsx` : barre de filtres interactive (recherche instantanée, sélecteurs catégorie et province, réinitialisation).
+  - `FeedSkeleton.tsx` : squelettes de chargement animés.
+  - `FeedView.tsx` : vue réactive avec compteur dynamique réel, rafraîchissement instantané et état vide soigné sans mock data (*Règle d'Or 2*).
+* **Pages et Navigation** :
+  - `src/app/dashboard/reseller/feed/page.tsx` : page principale du flux public des productions.
+  - `src/app/dashboard/reseller/productions/[id]/page.tsx` : page de consultation détaillée pour les revendeurs.
+  - `src/app/dashboard/reseller/page.tsx` : mise à jour du tableau de bord d'accueil avec compteur en temps réel et accès direct au Feed.
+  - `src/components/dashboard/AppSidebar.tsx` : retrait du badge temporaire "Phase 7".
+* **Suite de Tests de Validation (`supabase/tests/phase7_feed_test.sql`)** :
+  - Tests transactionnels validant la visibilité RLS des productions sous rôle `authenticated`, l'invisibilité des brouillons et annulations, le rejet strict des modifications par un revendeur et les invariants (0 stock, 0 campagne, 0 commande créés).
+
+---
+
 ## [0.7.0-demands] - 2026-09-11
 ### Implémentation Complète du Module Demandes et Analyse Territoriale V1 (Phase 6)
 

@@ -178,7 +178,27 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 
 ---
 
-## 9. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
+## 9. DÉCISIONS TECHNIQUES DE LA PHASE 7 (FEED REVENDEUR V1)
+
+### ADR-021 : Architecture du Feed Revendeur, Visibilité Publique et Découplage des Offres Commerciales
+* **Date** : 2026-09-12 | **Statut** : Validé et Appliqué
+* **Contexte** : Fournir aux revendeurs connectés un flux dynamique de découverte des productions agricoles réelles publiées par les exploitations, tout en garantissant l'étanchéité des données privées des producteurs et la non-confusion avec les campagnes et stocks.
+* **Décision** :
+  1. **Découplage Strict Production / Offre Commerciale** :
+     - Les publications du feed reflètent fidèlement les **productions déclarées** (`is_public = TRUE` et statut parmi `planned`, `growing`, `harvested`).
+     - Les tonnages affichés sont qualifiés de **"Production prévue"** et ne confèrent aucun droit de réservation immédiat ni engagement ferme de stock.
+     - Aucun prix de vente ni bouton "Commander" n'est présent dans le feed (réservés aux campagnes commerciales en Phase 9 et commandes en Phase 10).
+  2. **Filtrage Multicritères Réactif & Exploration Décloisonnée** :
+     - Le feed n'est pas restreint arbitrairement à la province d'inscription du revendeur, lui permettant d'explorer librement les opportunités nationales.
+     - Prise en charge des filtres par recherche textuelle (culture, exploitation), par catégorie de produit et par province/pays.
+  3. **Protection des Données Privées & Sécurité RLS** :
+     - Les productions `draft`, `cancelled` et `is_public = FALSE` sont strictement inaccessibles aux revendeurs.
+     - Les documents légaux (RCCM), coordonnées privées et identités des membres d'exploitation ne sont pas inclus dans les jointures publiques du feed.
+* **Justification** : Conformité aux Règles d'Or 2 et 3, protection de la vie privée des exploitants et cohérence architecturale.
+
+---
+
+## 10. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
 
 | Réf. | Fonctionnalité Reportée | Motif du Report / Échéance |
 | :--- | :--- | :--- |
@@ -192,4 +212,5 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 | **FUT-08** | **PostGIS complexe (polygones)** | Le modèle relationnel Pays/Province/Ville suffit en V1. |
 | **FUT-09** | **Notifications WhatsApp Cloud API** | Reporté post-pilote ; V1 intègre le centre interne et emails. |
 | **FUT-10** | **Application Mobile Flutter** | L'application web responsive Next.js couvre les cas d'usage mobiles initiaux. |
+
 

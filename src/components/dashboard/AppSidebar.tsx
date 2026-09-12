@@ -99,8 +99,6 @@ export default function AppSidebar({
       label: "Flux des Productions",
       href: "/dashboard/reseller/feed",
       icon: <Compass className="w-5 h-5" />,
-      badge: "Phase 7",
-      badgeVariant: "neutral",
     },
     {
       label: "Mes Demandes d'Achat",
