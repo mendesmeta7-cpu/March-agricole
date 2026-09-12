@@ -111,45 +111,43 @@ export async function registerCompanyAction(
     return { error: "Erreur lors de la création du compte." };
   }
 
-  // Si une session est ouverte et qu'un logo a été fourni, tentative d'upload
+  // S'assurer que la session est active afin de satisfaire les politiques RLS (storage.objects et companies_update)
+  if (!authData.session) {
+    await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+  }
+
+  // Upload du logo vers Storage public-assets et mise à jour de companies.logo_url
   if (logoFile && logoFile.size > 0 && logoFile.name) {
     try {
       const fileExt = logoFile.name.split(".").pop();
       const filePath = `logos/${authData.user.id}-${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage
         .from("public-assets")
-        .upload(filePath, logoFile);
+        .upload(filePath, logoFile, { upsert: true });
 
       if (!uploadError) {
         const { data: { publicUrl } } = supabase.storage
           .from("public-assets")
           .getPublicUrl(filePath);
 
-        // Mettre à jour l'URL du logo sur la compagnie
-        await supabase
+        // Mettre à jour l'URL du logo sur l'entreprise
+        const { error: updateError } = await supabase
           .from("companies")
           .update({ logo_url: publicUrl })
           .eq("created_by", authData.user.id);
+
+        if (updateError) {
+          console.error("Erreur mise à jour companies.logo_url:", updateError);
+        }
+      } else {
+        console.error("Erreur upload Storage public-assets:", uploadError);
       }
     } catch (e) {
       console.warn("Upload logo échoué:", e);
     }
-  }
-
-  // Si la session n'est pas immédiate (confirmation requise), inviter à se connecter
-  if (!authData.session) {
-    // Tenter de se connecter directement
-    const { data: loginData } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (loginData?.session) {
-      redirect("/dashboard/company");
-    }
-    return {
-      success: true,
-      error: undefined,
-    };
   }
 
   redirect("/dashboard/company");
