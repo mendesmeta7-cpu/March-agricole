@@ -198,7 +198,29 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 
 ---
 
-## 10. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
+## 10. DÉCISIONS TECHNIQUES DE LA PHASE 8 (DÉTAIL PRODUCTION ET PROFIL PUBLIC ENTREPRISE V1)
+
+### ADR-022 : Profil Public Entreprise et Découplage de l'Espace Privé
+* **Date** : 2026-09-15 | **Statut** : Validé et Appliqué
+* **Contexte** : Permettre aux revendeurs et visiteurs de consulter la fiche détaillée d'une production déclarée et le profil public d'une exploitation agricole, tout en interdisant formellement l'accès à l'espace d'administration privé de l'entreprise et en maintenant l'absence de tout prix, commande ou stock prématuré.
+* **Décision** :
+  1. **Séparation Stricte Profil Public vs Dashboard Privé** :
+     - Le dashboard privé (`/dashboard/company`) conserve l'exclusivité de la gestion interne (catalogue, parcelles, productions privées/brouillons, demandes, documents administratifs et membres).
+     - Le profil public (`/dashboard/reseller/companies/[id]` et `/companies/[id]`) est servi par une requête dédiée `getPublicCompanyProfile` qui n'extrait que les informations institutionnelles publiques (raison sociale, logo, description, localisation géographique, statut de vérification, date d'inscription).
+     - Les téléphones privés, emails internes, documents RCCM et identités des membres ne sont jamais transmis.
+  2. **Filtrage Étanche des Productions Publiques de l'Exploitation** :
+     - La fonction `getCompanyPublicProductions` n'expose que les productions actives (`is_public = TRUE` et statuts `planned`, `growing`, `harvested`).
+     - Les brouillons (`draft`), productions privées (`is_public = FALSE`) et annulations (`cancelled`) sont rigoureusement invisibles pour les acheteurs et visiteurs.
+  3. **Étiquetage Strict "Quantité planifiée" & Respect des Invariants** :
+     - Tout volume prévisionnel d'une culture déclarée est explicitement qualifié de **"Quantité planifiée"** (jamais *"Stock disponible"* ni *"Quantité disponible"*).
+     - Aucun prix de vente commercial, aucune campagne, aucune commande et aucune réservation de stock ne sont créés ou affichés dans ces fiches d'information.
+  4. **Navigation Fluide et Bidirectionnelle** :
+     - Feed Revendeur $\rightarrow$ Fiche Détail Production $\rightarrow$ Profil Public Entreprise $\rightarrow$ Détail Production $\rightarrow$ Retour au Feed.
+* **Justification** : Respect absolu des Règles d'Or 1, 2 et 3, protection de la vie privée des producteurs, sécurité RLS et absence de promesses de stock infondées.
+
+---
+
+## 11. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
 
 | Réf. | Fonctionnalité Reportée | Motif du Report / Échéance |
 | :--- | :--- | :--- |

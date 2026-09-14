@@ -3,6 +3,37 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [0.9.0-profile] - 2026-09-15
+### Implémentation Complète du Détail Production et Profil Public Entreprise V1 (Phase 8)
+
+#### Ajouté
+* **Principe Fondamental et Séparation Métier (Règles d'Or 2 et 3)** :
+  - Respect strict de l'indépendance des concepts : $\text{Production} \neq \text{Campagne} \neq \text{Commande} \neq \text{Stock} \neq \text{Réservation}$.
+  - La fiche détaillée de production présente la culture déclarée avec l'étiquetage explicite : **"Quantité planifiée : X [unité]"** (exclusion formelle des termes trompeurs *"Stock disponible"* ou *"Quantité disponible"*).
+  - Absence absolue de prix commercial ou de bouton "Commander" (réservés aux Campagnes et Commandes des Phases 9 et 10).
+  - Le profil public d'entreprise est strictement dissocié du tableau de bord privé d'exploitation : aucune fuite de documents RCCM, pièces d'identité, notes internes, liste des membres, emails ou téléphones privés.
+* **Sécurisation RLS & Isolation Données Publiques / Privées** :
+  - Seules les entreprises enregistrées et actives (`is_active = TRUE`) sont consultables publiquement.
+  - Seules les productions avec `is_public = TRUE` et un statut cultural actif (`planned`, `growing`, `harvested`) apparaissent sur le profil public de l'entreprise.
+  - Les brouillons (`draft`), productions privées (`is_public = FALSE`) et productions annulées (`cancelled`) restent rigoureusement invisibles.
+  - RLS protège l'intégrité : un revendeur connecté ne peut en aucun cas altérer une entreprise ou une production.
+* **Couche Applicative et Requêtes Data (`src/lib/queries/companies.ts`)** :
+  - `getPublicCompanyProfile(companyId)` : extraction sécurisée des informations publiques de l'entreprise (raison sociale, logo, description, ville, province, pays, badge vérifié, date d'enregistrement).
+  - `getCompanyPublicProductions(companyId)` : chargement paginé et filtré des productions publiques réelles rattachées à l'exploitation.
+* **Composants d'Interface Dédiés (`src/components/companies/`)** :
+  - `CompanyPublicHeader.tsx` : en-tête institutionnel avec logo réel de l'entreprise (fallback icône neutre), badge de vérification officiel, localisation hiérarchique, date d'ancienneté et présentation culturale.
+  - `CompanyPublicProductionsList.tsx` : grille de fiches de productions publiques réelles avec photos réelles, statuts culturaux, quantités planifiées clairement identifiées, calendrier cultural et lien de redirection unitaire. État vide élégant sans fausses données (*Règle d'Or 2*) : *"Cette entreprise n'a encore aucune production publique."*
+  - `CompanyPublicProfileView.tsx` : vue d'assemblage intégrant le compteur dynamique réel de productions, lien de retour contextuel et encarts de sensibilisation revendeur.
+* **Pages et Navigation Bidirectionnelle** :
+  - `src/app/dashboard/reseller/companies/[id]/page.tsx` : profil public de l'exploitation dans l'espace revendeur.
+  - `src/app/companies/[id]/page.tsx` : route publique universelle pour la consultation du profil par tout visiteur.
+  - `src/app/dashboard/reseller/productions/[id]/page.tsx` : fiche de détail de production enrichie avec encadré producteur cliquable vers son profil public, bouton *"Consulter le profil de l'exploitation →"*, étiquette stricte "Quantité planifiée" et lien de retour au flux des productions.
+  - `src/components/feed/FeedProductionCard.tsx` : lien direct depuis le logo et le nom d'entreprise de chaque carte du feed vers `/dashboard/reseller/companies/[id]`.
+* **Suite de Tests de Validation (`supabase/tests/phase8_detail_and_profile_test.sql`)** :
+  - Tests transactionnels automatisés validant la visibilité RLS de l'entreprise active, l'invisibilité de l'entreprise suspendue, la sélection exclusive des productions publiques actives, l'exclusion absolue des brouillons/privées/annulées, le rejet d'écriture pour les revendeurs et les invariants (0 campagne, 0 commande, 0 réservation de stock).
+
+---
+
 ## [0.8.0-feed] - 2026-09-12
 ### Implémentation Complète du Feed Revendeur V1 (Phase 7)
 
