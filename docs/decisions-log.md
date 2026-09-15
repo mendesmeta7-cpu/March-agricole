@@ -243,7 +243,33 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 
 ---
 
-## 12. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
+## 12. DÉCISIONS TECHNIQUES DE LA PHASE 10 (COMMANDES ET RÉSERVATION V1)
+
+### ADR-024 : Commandes Fermes, Réservation Atomique et Protection Anti-Surbooking
+* **Date** : 2026-09-15 | **Statut** : Validé et Appliqué
+* **Contexte** : Permettre à un revendeur authentifié et éligible territorialement de passer commande ferme sur une campagne commerciale ouverte, d'isoler la réservation atomique de stock sous forte concurrence (protection anti-surbooking), de figer le prix contractuel et de gérer le cycle de vie des commandes jusqu'à la libération des stocks en cas d'annulation.
+* **Décision** :
+  1. **Contrôle d'Éligibilité Territoriale Strict** :
+     - Vérification obligatoire que la province de livraison (`delivery_province_id`) est présente dans les zones desservies de la campagne (`campaign_delivery_zones`). Rejet d'erreur côté PostgreSQL et côté Server Action si inéligible.
+  2. **Verrouillage Pessimiste et Anti-Surbooking Atomique (`create_order_with_reservation` RPC)** :
+     - La procédure SQL applique un `SELECT ... FOR UPDATE` sur la ligne de campagne.
+     - Calcul du stock disponible en temps réel : $\text{Stock Disponible} = \text{marketable\_quantity} - \sum(\text{stock\_reservations actives})$.
+     - Si $\text{quantité commandée} > \text{Stock Disponible}$, la transaction est immédiatement levée en exception sans création de commande partielle ou fantôme.
+  3. **Immuabilité Contractuelle du Snapshot de Prix** :
+     - Le prix unitaire (`unit_price`) et le montant total (`total_amount`) sont figés au moment exact de la passation de commande dans `order_items` et `orders`.
+     - Toute modification ultérieure de prix sur la campagne mère n'altère en rien les commandes déjà émises.
+  4. **Cycle de Statuts et Libération Automatique de Réservation** :
+     - Statuts de commande supportés : `pending` (en attente), `confirmed` (confirmée), `preparing` (en préparation), `ready` (prête pour livraison), `delivered` (livrée), `cancelled` (annulée).
+     - Lors d'une annulation (`cancel_order_and_release_reservation` RPC), la réservation passe à `released` et restitue instantanément le stock disponible à la campagne.
+  5. **Isolation RLS Multi-Tenant & Absence Totale de Mock Data** :
+     - Un revendeur ne peut consulter que ses propres commandes.
+     - Une entreprise ne peut consulter et mettre à jour que les commandes rattachées à ses campagnes.
+     - Les calculs de stock reposent exclusivement sur les enregistrements de la base de données PostgreSQL.
+* **Justification** : Conformité absolue aux Règles d'Or 1, 2 et 3, intégrité transactionnelle ACID, zéro surbooking possible et sécurité multi-tenant.
+
+---
+
+## 13. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
 
 | Réf. | Fonctionnalité Reportée | Motif du Report / Échéance |
 | :--- | :--- | :--- |

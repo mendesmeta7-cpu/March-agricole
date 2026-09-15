@@ -22,6 +22,8 @@ export interface CompanyCampaignItem {
   title: string;
   description: string | null;
   marketable_quantity: number;
+  reserved_quantity: number;
+  available_quantity: number;
   unit: string;
   unit_price: number;
   currency: string;
@@ -89,7 +91,7 @@ export interface CampaignFilterParams {
 }
 
 /**
- * Récupère l'ensemble des campagnes d'une entreprise agricole
+ * Récupère l'ensemble des campagnes d'une entreprise agricole avec stock réservé réel
  */
 export async function getCompanyCampaigns(
   companyId: string
@@ -143,6 +145,11 @@ export async function getCompanyCampaigns(
           name,
           code
         )
+      ),
+      stock_reservations (
+        id,
+        quantity,
+        status
       )
     `)
     .eq("company_id", companyId)
@@ -153,25 +160,35 @@ export async function getCompanyCampaigns(
     return [];
   }
 
-  return (data || []).map((item: any) => ({
-    ...item,
-    marketable_quantity: Number(item.marketable_quantity),
-    unit_price: Number(item.unit_price),
-    min_order_quantity: Number(item.min_order_quantity || 1),
-    product: Array.isArray(item.product) ? item.product[0] : item.product,
-    production: {
-      ...(Array.isArray(item.production) ? item.production[0] : item.production),
-      expected_quantity: Number(item.production?.expected_quantity || 0),
-    },
-    delivery_zones: (item.delivery_zones || []).map((zone: any) => ({
-      ...zone,
-      provinces: Array.isArray(zone.provinces) ? zone.provinces[0] : zone.provinces,
-    })),
-  })) as CompanyCampaignItem[];
+  return (data || []).map((item: any) => {
+    const marketableQty = Number(item.marketable_quantity);
+    const reservedQty = (item.stock_reservations || [])
+      .filter((sr: any) => sr.status === "active")
+      .reduce((acc: number, curr: any) => acc + Number(curr.quantity), 0);
+    const availableQty = Math.max(0, marketableQty - reservedQty);
+
+    return {
+      ...item,
+      marketable_quantity: marketableQty,
+      reserved_quantity: reservedQty,
+      available_quantity: availableQty,
+      unit_price: Number(item.unit_price),
+      min_order_quantity: Number(item.min_order_quantity || 1),
+      product: Array.isArray(item.product) ? item.product[0] : item.product,
+      production: {
+        ...(Array.isArray(item.production) ? item.production[0] : item.production),
+        expected_quantity: Number(item.production?.expected_quantity || 0),
+      },
+      delivery_zones: (item.delivery_zones || []).map((zone: any) => ({
+        ...zone,
+        provinces: Array.isArray(zone.provinces) ? zone.provinces[0] : zone.provinces,
+      })),
+    };
+  });
 }
 
 /**
- * Récupère les productions réelles de l'entreprise éligibles à l'adossement d'une campagne
+ * Récupère les productions actives de l'entreprise éligibles pour l'adossement
  */
 export async function getCompanyEligibleProductions(
   companyId: string
@@ -190,8 +207,7 @@ export async function getCompanyEligibleProductions(
       period_end,
       status,
       main_image_url,
-      product:products!inner (
-        id,
+      product:products (
         name,
         category
       )
@@ -224,7 +240,7 @@ export async function getCompanyEligibleProductions(
 }
 
 /**
- * Récupère le détail d'une campagne de l'entreprise
+ * Récupère le détail d'une campagne de l'entreprise avec stock réel
  */
 export async function getCompanyCampaignById(
   campaignId: string,
@@ -279,6 +295,11 @@ export async function getCompanyCampaignById(
           name,
           code
         )
+      ),
+      stock_reservations (
+        id,
+        quantity,
+        status
       )
     `)
     .eq("id", campaignId)
@@ -291,9 +312,17 @@ export async function getCompanyCampaignById(
   }
 
   const rawItem = data as any;
+  const marketableQty = Number(rawItem.marketable_quantity);
+  const reservedQty = (rawItem.stock_reservations || [])
+    .filter((sr: any) => sr.status === "active")
+    .reduce((acc: number, curr: any) => acc + Number(curr.quantity), 0);
+  const availableQty = Math.max(0, marketableQty - reservedQty);
+
   return {
     ...rawItem,
-    marketable_quantity: Number(rawItem.marketable_quantity),
+    marketable_quantity: marketableQty,
+    reserved_quantity: reservedQty,
+    available_quantity: availableQty,
     unit_price: Number(rawItem.unit_price),
     min_order_quantity: Number(rawItem.min_order_quantity || 1),
     product: Array.isArray(rawItem.product) ? rawItem.product[0] : rawItem.product,
@@ -310,7 +339,7 @@ export async function getCompanyCampaignById(
 
 /**
  * Récupère les campagnes ouvertes pour les revendeurs (status = 'active')
- * Calcule l'éligibilité géographique en fonction de la province du revendeur.
+ * Calcule l'éligibilité géographique et le stock restant réel
  */
 export async function getResellerCampaigns(
   resellerProvinceId?: string,
@@ -375,6 +404,11 @@ export async function getResellerCampaigns(
           name,
           code
         )
+      ),
+      stock_reservations (
+        id,
+        quantity,
+        status
       )
     `)
     .eq("status", "active")
@@ -414,9 +448,17 @@ export async function getResellerCampaigns(
       ? deliveryZones.some((z: any) => z.province_id === resellerProvinceId)
       : false;
 
+    const marketableQty = Number(item.marketable_quantity);
+    const reservedQty = (item.stock_reservations || [])
+      .filter((sr: any) => sr.status === "active")
+      .reduce((acc: number, curr: any) => acc + Number(curr.quantity), 0);
+    const availableQty = Math.max(0, marketableQty - reservedQty);
+
     return {
       ...item,
-      marketable_quantity: Number(item.marketable_quantity),
+      marketable_quantity: marketableQty,
+      reserved_quantity: reservedQty,
+      available_quantity: availableQty,
       unit_price: Number(item.unit_price),
       min_order_quantity: Number(item.min_order_quantity || 1),
       company,

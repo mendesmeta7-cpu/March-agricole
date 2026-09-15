@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ResellerCampaignItem } from "@/lib/queries/campaigns";
 import ResellerCampaignCard from "./ResellerCampaignCard";
+import OrderFormModal from "@/components/orders/OrderFormModal";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import {
@@ -14,22 +15,32 @@ import {
   Info,
   TrendingUp,
   ArrowLeft,
+  ShoppingBag,
 } from "lucide-react";
 import Link from "next/link";
 
 interface ResellerCampaignsViewProps {
   initialCampaigns: ResellerCampaignItem[];
+  resellerProvinceId?: string;
   resellerProvinceName?: string;
+  resellerCity?: string;
+  resellerAddress?: string;
 }
 
 export default function ResellerCampaignsView({
   initialCampaigns,
+  resellerProvinceId,
   resellerProvinceName,
+  resellerCity = "",
+  resellerAddress = "",
 }: ResellerCampaignsViewProps) {
   const [campaigns] = useState<ResellerCampaignItem[]>(initialCampaigns);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [eligibleOnly, setEligibleOnly] = useState(false);
+
+  // État du modal de commande
+  const [orderingCampaign, setOrderingCampaign] = useState<ResellerCampaignItem | null>(null);
 
   // Catégories uniques
   const categories = Array.from(
@@ -67,7 +78,7 @@ export default function ResellerCampaignsView({
 
       <PageHeader
         title="Campagnes & Offres Commerciales"
-        description="Découvrez les productions mises en vente active par les exploitations agricoles avec prix fermes et zones de livraison."
+        description="Découvrez les productions mises en vente active par les exploitations agricoles avec prix fermes, volumes garantis et zones de livraison."
       />
 
       {/* 2. Note d'information revendeur */}
@@ -80,7 +91,7 @@ export default function ResellerCampaignsView({
                 Éligibilité territoriale ({resellerProvinceName || "Votre Province"}) :
               </span>
               <p className="text-forest-800 text-xs leading-relaxed">
-                Les offres sont étiquetées selon les territoires desservis par chaque producteur. Vous pouvez commander uniquement si votre province de rattachement est couverte.
+                Les offres sont étiquetées selon les territoires desservis. Cliquez sur <strong>Commander</strong> pour réserver un volume de manière atomique si votre province est couverte.
               </p>
             </div>
           </div>
@@ -166,9 +177,26 @@ export default function ResellerCampaignsView({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredCampaigns.map((camp) => (
-            <ResellerCampaignCard key={camp.id} campaign={camp} />
+            <ResellerCampaignCard
+              key={camp.id}
+              campaign={camp}
+              onOrderClick={(c) => setOrderingCampaign(c)}
+            />
           ))}
         </div>
+      )}
+
+      {/* Modal de passation de commande */}
+      {orderingCampaign && (
+        <OrderFormModal
+          isOpen={!!orderingCampaign}
+          onClose={() => setOrderingCampaign(null)}
+          campaign={orderingCampaign}
+          resellerProvinceId={resellerProvinceId}
+          resellerProvinceName={resellerProvinceName}
+          defaultCity={resellerCity}
+          defaultAddress={resellerAddress}
+        />
       )}
     </div>
   );

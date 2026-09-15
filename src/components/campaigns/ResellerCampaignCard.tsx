@@ -1,29 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
 import { ResellerCampaignItem } from "@/lib/queries/campaigns";
 import CampaignStatusBadge from "./CampaignStatusBadge";
+import Link from "next/link";
+import Image from "next/image";
 import {
+  Building2,
   Calendar,
   MapPin,
   Tag,
-  Building2,
   Layers,
-  CheckCircle2,
-  AlertTriangle,
-  ImageOff,
-  TrendingUp,
   Sparkles,
+  TrendingUp,
+  ImageOff,
+  ShoppingBag,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 interface ResellerCampaignCardProps {
   campaign: ResellerCampaignItem;
+  onOrderClick?: (campaign: ResellerCampaignItem) => void;
 }
 
-export default function ResellerCampaignCard({ campaign }: ResellerCampaignCardProps) {
-  const [imgError, setImgError] = useState(false);
-
+export default function ResellerCampaignCard({
+  campaign,
+  onOrderClick,
+}: ResellerCampaignCardProps) {
+  // Formatage des dates de disponibilité
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return null;
     try {
@@ -40,63 +44,79 @@ export default function ResellerCampaignCard({ campaign }: ResellerCampaignCardP
   const formattedStart = formatDate(campaign.start_date);
   const formattedEnd = formatDate(campaign.end_date);
 
-  const mainImage = campaign.production.main_image_url || campaign.product.image_url;
+  const availableQty = campaign.available_quantity ?? campaign.marketable_quantity;
+  const isOutOfStock = availableQty <= 0;
 
   return (
-    <div className="group bg-white rounded-2xl border border-gray-200/80 shadow-2xs hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col justify-between">
+    <div
+      className={`group bg-white rounded-2xl border transition-all duration-200 overflow-hidden flex flex-col justify-between shadow-xs hover:shadow-md ${
+        campaign.is_eligible
+          ? "border-forest-200/90 hover:border-forest-400"
+          : "border-gray-200/80 hover:border-gray-300 opacity-90"
+      }`}
+    >
+      {/* 1. Visuel de production & Badges */}
       <div>
-        {/* 1. Visuel réel de la production adossée */}
-        <div className="relative w-full aspect-16/10 sm:aspect-16/9 bg-gray-100 overflow-hidden">
-          {mainImage && !imgError ? (
-            <img
-              src={mainImage}
+        <div className="relative h-44 w-full bg-gray-100 overflow-hidden">
+          {campaign.production.main_image_url ? (
+            <Image
+              src={campaign.production.main_image_url}
               alt={campaign.title}
-              onError={() => setImgError(true)}
-              className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
-              loading="lazy"
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400 p-4 text-center">
-              <ImageOff className="w-8 h-8 text-gray-300 mb-1.5" />
-              <span className="text-xs font-medium text-gray-500">Aucune photo</span>
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
+              <ImageOff className="w-8 h-8 mb-1" />
+              <span className="text-[11px]">Visuel non disponible</span>
             </div>
           )}
 
-          {/* Catégorie */}
-          <div className="absolute top-3 left-3 z-10">
-            <span className="px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-xs text-white text-[11px] font-medium tracking-wide uppercase">
-              {campaign.product.category}
-            </span>
-          </div>
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-          {/* Badge d'éligibilité territoriale en superposition */}
-          <div className="absolute top-3 right-3 z-10">
+          {/* Badge d'éligibilité territorial en superposition */}
+          <div className="absolute top-3 left-3">
             {campaign.is_eligible ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600/90 backdrop-blur-xs text-white text-xs font-bold shadow-xs">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Province desservie
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600/90 backdrop-blur-xs text-white text-[11px] font-bold shadow-xs">
+                <Sparkles className="w-3 h-3" />
+                Votre province est desservie
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600/90 backdrop-blur-xs text-white text-xs font-medium shadow-xs">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                Hors territoire
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-800/80 backdrop-blur-xs text-gray-200 text-[11px] font-medium shadow-xs">
+                Non desservie
               </span>
             )}
           </div>
+
+          {/* Statut de l'offre */}
+          <div className="absolute top-3 right-3">
+            <CampaignStatusBadge status={campaign.status} size="sm" />
+          </div>
+
+          {/* Catégorie du produit */}
+          <div className="absolute bottom-3 left-3">
+            <span className="px-2 py-0.5 rounded-md bg-white/90 backdrop-blur-xs text-forest-900 text-[11px] font-bold shadow-2xs">
+              {campaign.product.category}
+            </span>
+          </div>
         </div>
 
-        {/* 2. Contenu commercial */}
-        <div className="p-4 sm:p-5 space-y-4">
+        {/* 2. Corps de la carte */}
+        <div className="p-4 space-y-3.5">
           {/* Exploitation productrice */}
           <Link
             href={`/dashboard/reseller/companies/${campaign.company_id}`}
-            className="group/comp flex items-center gap-2.5 hover:opacity-85 transition-opacity"
+            className="flex items-center gap-2 group/comp hover:opacity-80 transition-opacity"
           >
-            <div className="w-7 h-7 rounded-lg bg-forest-50 border border-forest-200 flex items-center justify-center text-forest-800 flex-shrink-0 overflow-hidden relative">
+            <div className="w-6 h-6 rounded-md bg-forest-50 border border-forest-100 flex items-center justify-center overflow-hidden flex-shrink-0">
               {campaign.company.logo_url ? (
-                <img
+                <Image
                   src={campaign.company.logo_url}
                   alt={campaign.company.name}
+                  width={24}
+                  height={24}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -120,7 +140,7 @@ export default function ResellerCampaignCard({ campaign }: ResellerCampaignCardP
             </span>
           </div>
 
-          {/* Données financières et volumiques */}
+          {/* Données financières et volumiques réelles */}
           <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-forest-50/50 border border-forest-100">
             <div>
               <span className="text-[11px] text-forest-700 block uppercase font-medium">
@@ -135,11 +155,11 @@ export default function ResellerCampaignCard({ campaign }: ResellerCampaignCardP
 
             <div>
               <span className="text-[11px] text-forest-700 block uppercase font-medium">
-                Quantité Offerte
+                Stock Restant Réel
               </span>
               <span className="text-base font-extrabold text-gray-900 flex items-center gap-1 mt-0.5">
                 <Layers className="w-4 h-4 text-earth-600 inline" />
-                {campaign.marketable_quantity.toLocaleString("fr-FR")} {campaign.unit}
+                {availableQty.toLocaleString("fr-FR")} {campaign.unit}
               </span>
             </div>
           </div>
@@ -172,15 +192,26 @@ export default function ResellerCampaignCard({ campaign }: ResellerCampaignCardP
         </div>
       </div>
 
-      {/* 3. Pied de carte & Action éligibilité */}
+      {/* 3. Pied de carte & Action Commande */}
       <div className="p-4 bg-gray-50/80 border-t border-gray-100 space-y-2">
         {campaign.is_eligible ? (
-          <div className="flex items-center justify-between gap-2 text-xs">
-            <span className="text-emerald-700 font-semibold flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              Offre ouverte à votre province
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Offre ouverte
             </span>
-            <span className="text-[11px] text-gray-400">Commandes en Phase 10</span>
+
+            {onOrderClick && (
+              <button
+                type="button"
+                onClick={() => onOrderClick(campaign)}
+                disabled={isOutOfStock}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-forest-700 text-white font-bold text-xs hover:bg-forest-800 transition-all shadow-xs disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                {isOutOfStock ? "Stock épuisé" : "Commander"}
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-1.5 text-xs">

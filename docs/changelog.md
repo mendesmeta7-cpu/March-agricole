@@ -3,6 +3,49 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [0.11.0-orders] - 2026-09-15
+### Implémentation Complète des Commandes et de la Réservation de Stock V1 (Phase 10)
+
+#### Ajouté
+* **Principe Fondamental et Séparation des Entités (Règles d'Or 2 et 3)** :
+  - Respect absolu de l'indépendance des concepts : $\text{Production} \neq \text{Campagne} \neq \text{Commande} \neq \text{Réservation} \neq \text{Livraison}$.
+  - Une commande matérialise un engagement contractuel ferme passé par un revendeur sur une campagne ouverte.
+  - La réservation de stock est un enregistrement transactionnel atomique bloquant une part de la quantité commercialisable.
+  - Absence intégrale de données fictives (*Règle d'Or 2*) : l'état des stocks disponibles et le calcul des totaux s'appuient exclusivement sur les requêtes réelles exécutées en base.
+* **Procédures Stockées Atomiques et Anti-Surbooking (`supabase/migrations/20260915000013_enhance_orders_and_reservations_rpc.sql`)** :
+  - Procédure `public.create_order_with_reservation` (`SECURITY DEFINER`) :
+    * Contrôle de statut de la campagne (`active`), de validité des dates (`start_date <= CURRENT_DATE` et `end_date >= CURRENT_DATE`).
+    * Contrôle d'éligibilité territoriale : vérification de la présence de `delivery_province_id` dans `campaign_delivery_zones`.
+    * Verrouillage pessimiste atomique (`SELECT ... FOR UPDATE`) sur la campagne évitant toute collision concurrente.
+    * Calcul en temps réel du stock disponible : $\text{marketable\_quantity} - \sum(\text{réservations actives})$. Rejet si $\text{quantité} > \text{disponible}$ ou $\text{quantité} < \text{min\_order\_quantity}$.
+    * Insertion atomique de `orders` avec numéro généré `ORD-YYYYMMDD-XXXX`, de `order_items` avec snapshot immuable de `unit_price`, et de `stock_reservations` (`status = 'active'`).
+  - Procédure `public.cancel_order_and_release_reservation` (`SECURITY DEFINER`) :
+    * Annulation de commande (`status = 'cancelled'`) et libération immédiate de la réservation associée (`status = 'released'`), restituant le stock instantanément.
+  - Procédure `public.get_campaign_stock_summary` :
+    * Calcul agrégé `marketable_quantity`, `reserved_quantity` et `available_quantity`.
+* **Couche Applicative et Server Actions (`src/lib/`)** :
+  - `src/lib/queries/orders.ts` : `getResellerOrders`, `getResellerOrderById`, `getCompanyOrders`, `getCompanyOrderById`, `getCampaignAvailableStock`.
+  - `src/lib/actions/orders.ts` : `createOrderAction`, `cancelOrderAction`, `updateOrderStatusAction`.
+  - `src/lib/queries/campaigns.ts` : calcul dynamique du stock restant disponible sur les campagnes.
+* **Composants d'Interface Dédiés (`src/components/orders/` & `src/components/campaigns/`)** :
+  - `OrderStatusBadge.tsx` : badges visuels distinctifs pour chaque statut (`pending`, `confirmed`, `preparing`, `ready`, `delivered`, `cancelled`).
+  - `OrderFormModal.tsx` : modal de commande avec vérification de stock dynamique, sélection de province de livraison filtrée par zone autorisée, calcul automatique du montant et notes.
+  - `ResellerOrderCard.tsx` : carte de suivi revendeur avec volume, exploitation productrice, date et statut.
+  - `ResellerOrdersView.tsx` : espace revendeur avec compteurs dynamiques réels, filtres et état vide sans fausses données.
+  - `ResellerOrderDetailView.tsx` : vue unitaire de commande revendeur avec traçabilité du cycle de statut et action d'annulation.
+  - `CompanyOrdersView.tsx` : espace de gestion des commandes reçues avec statistiques de ventes, filtres et recherche.
+  - `CompanyOrderDetailView.tsx` : vue unitaire de traitement des commandes reçues avec changement de statut et coordonnées de livraison.
+  - `ResellerCampaignCard.tsx` : affichage du volume restant disponible et bouton d'action "Commander" ouvrant la modal.
+* **Pages et Navigation Déployées** :
+  - `src/app/dashboard/reseller/orders/page.tsx` & `[id]/page.tsx` : suivi des commandes passées par le revendeur.
+  - `src/app/dashboard/company/orders/page.tsx` & `[id]/page.tsx` : gestion des commandes reçues par l'entreprise.
+  - `src/components/dashboard/AppSidebar.tsx` : retrait des badges Phase 10 sur les liens Commandes.
+  - `src/app/dashboard/company/page.tsx` : activation de la carte module Commandes Reçues.
+* **Suite de Tests de Validation (`supabase/tests/phase10_orders_and_reservations_test.sql`)** :
+  - 8 tests transactionnels validés à 100% sur Supabase : commande normale + snapshot du prix, anti-surbooking sous concurrence, rejet territoire inéligible, rejet quantités invalides, rejet campagne expirée/brouillon, immuabilité du prix contractuel, annulation et libération de stock, étanchéité RLS multi-tenant.
+
+---
+
 ## [0.10.0-campaigns] - 2026-09-15
 ### Implémentation Complète des Campagnes Commerciales V1 (Phase 9)
 

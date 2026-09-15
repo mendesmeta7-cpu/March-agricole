@@ -255,7 +255,40 @@ export default async function CompanyDashboardPage() {
             </Link>
           </div>
         </Card>
+
+        {/* Module Commandes Reçues (Actif - Phase 10) */}
+        <Card padding="md" className="flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h3 className="font-bold text-gray-900 text-sm sm:text-base flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4 text-forest-700 flex-shrink-0" />
+                Commandes Reçues & Réservations
+              </h3>
+              <Badge variant="success" size="sm">Actif</Badge>
+            </div>
+            {ordersCount === 0 ? (
+              <EmptyState
+                title="Aucune commande reçue pour l'instant"
+                description="Les engagements fermes et les réservations de stocks effectués par les revendeurs sur vos campagnes s'afficheront ici."
+                className="py-4 sm:py-6 bg-forest-50/20"
+              />
+            ) : (
+              <p className="text-xs sm:text-sm text-gray-600">Vous avez {ordersCount} commande(s) d&apos;achat ferme(s) enregistrée(s).</p>
+            )}
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end">
+            <Link
+              href="/dashboard/company/orders"
+              className="text-xs font-semibold text-forest-700 hover:text-forest-800 inline-flex items-center gap-1 min-h-[38px] items-center"
+            >
+              Gérer mes commandes
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </Card>
       </div>
     </div>
   );
 }
+

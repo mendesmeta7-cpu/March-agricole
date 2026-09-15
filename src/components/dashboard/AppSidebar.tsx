@@ -77,8 +77,6 @@ export default function AppSidebar({
       label: "Commandes Reçues",
       href: "/dashboard/company/orders",
       icon: <ShoppingBag className="w-5 h-5" />,
-      badge: "Phase 10",
-      badgeVariant: "neutral",
     },
     {
       label: "Profil Entreprise",
@@ -112,8 +110,6 @@ export default function AppSidebar({
       label: "Mes Commandes",
       href: "/dashboard/reseller/orders",
       icon: <ShoppingBag className="w-5 h-5" />,
-      badge: "Phase 10",
-      badgeVariant: "neutral",
     },
     {
       label: "Mon Profil Revendeur",

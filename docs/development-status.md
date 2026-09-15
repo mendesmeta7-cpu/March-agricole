@@ -15,62 +15,57 @@
 | **5** | **Gestion des Productions** | 🟢 **TERMINÉ** | Cycle cultural complet, distinction stricte Produit != Production != Stock != Campagne, liaison obligatoire `company_products`, upload Storage `public-assets/productions`, RLS, page détail. |
 | **6** | **Gestion des Demandes** | 🟢 **TERMINÉ** | Expression de besoins revendeurs, décloisonnement territorial, vue d'agrégation `v_market_demands_aggregated`, tableau de bord macro pour producteurs, anonymat RLS. |
 | **7** | **Feed Revendeur** | 🟢 **TERMINÉ** | Flux de découverte des productions publiques réelles (`/dashboard/reseller/feed`), photos dominantes, filtres réactifs produit/province, pagination, états vides sans mock data, page détail `/dashboard/reseller/productions/[id]`. |
-| **8** | **Détail Production & Profil Public** | 🟢 **TERMINÉ** | Page détaillée de production enrichie, profil public d'entreprise agricole, liste des productions publiques actives, étanchéité RLS absolue, suite de tests validée. |
-| **9** | **Campagnes Commerciales** | 🟢 **TERMINÉ** | Création de campagne adossée à une production, fixation quantité/prix/dates, territoires desservis (`campaign_delivery_zones`), exploration revendeur avec badges d'éligibilité, suite de 7 tests validée. |
-| **10** | **Commandes et Réservation de Stock** | ⚪ *À VENIR* | Contrôle d'éligibilité géographique, transaction atomique de réservation anti-surréservation, cycle de statut des commandes. |
+| **8** | **Détail Production & Profil Public** | 🟢 **TERMINÉ** | Page détaillée de production enrichie, profil public d'entreprise agricole, liste des produ| **9** | **Campagnes Commerciales** | 🟢 **TERMINÉ** | Création de campagne adossée à une production, fixation quantité/prix/dates, territoires desservis (`campaign_delivery_zones`), exploration revendeur avec badges d'éligibilité, suite de 7 tests validée. |
+| **10** | **Commandes et Réservation de Stock** | 🟢 **TERMINÉ** | Contrôle d'éligibilité territoriale, réservation atomique pessimiste anti-surbooking (`create_order_with_reservation`), snapshot de prix immuable, cycle de statuts, annulation et libération de stock, vues revendeur/entreprise, suite de 8 tests validée. |
 | **11** | **Tests, Sécurité RLS et Recette V1** | ⚪ *À VENIR* | Recette de bout en bout de la boucle réelle, audit RLS, tests de concurrence de réservation, validation finale V1. |
 
 ---
 
-## 2. BILAN DÉTAILLÉ DE LA PHASE 9 — CAMPAGNES COMMERCIALES V1
+## 2. BILAN DÉTAILLÉ DE LA PHASE 10 — COMMANDES ET RÉSERVATION V1
 
 * **Date de réalisation** : 2026-09-15
-* **Stack appliquée** : Next.js 14+ (App Router), TypeScript, Tailwind CSS, Lucide Icons, PostgreSQL (PL/pgSQL), Supabase Auth SSR, `@supabase/ssr`.
+* **Stack appliquée** : Next.js 14+ (App Router), TypeScript, Tailwind CSS, Lucide Icons, PostgreSQL 17 (PL/pgSQL), Supabase Auth SSR.
 * **Résultats obtenus** :
   - [x] **Respect strict du principe fondamental de séparation (Règles d'Or 2 et 3)** :
-    * $\text{Production} \neq \text{Campagne} \neq \text{Commande} \neq \text{Stock} \neq \text{Réservation}$.
-    * Une campagne est une **offre commerciale ferme**, obligatoirement adossée à une production existante de l'entreprise authentifiée.
-    * La création d'une campagne ne réserve aucun stock, ne décrémente aucun lot et ne crée aucune commande (invariants strictement validés).
-    * **Scénario 30 validé** : Une demande existante dans une province ciblée par une nouvelle campagne reste 100% autonome, active et non altérée.
-  - [x] **Intégrité Métier et Règles de Validation (`src/lib/actions/campaigns.ts`)** :
-    * Volume commercialisable strictement positif ($> 0$) et plafonné à la quantité prévisionnelle de la production associée.
-    * Prix unitaire ferme obligatoirement supérieur à 0 avec devise (`USD` / `CDF`).
-    * Cohérence temporelle (`end_date >= start_date`).
-    * Territoire de livraison : sélection obligatoire d'au moins une province de desserte (`campaign_delivery_zones`).
-    * Assistance indicative de la demande du marché (issue de `v_market_demands_aggregated`) lors de la configuration sans liaison contraignante.
-    * Gestion complète du cycle de vie (`draft`, `active`, `paused`, `completed`, `cancelled`).
-  - [x] **Sécurisation RLS & Isolation Multi-Tenant** :
-    * Les campagnes brouillons (`draft`) sont strictement invisibles aux revendeurs et aux tiers.
-    * Les campagnes actives (`active`) sont consultables publiquement par tous les acheteurs authentifiés.
-    * Une entreprise ne peut modifier ou supprimer que ses propres campagnes.
-    * Le revendeur ne dispose d'aucun droit de modification ou de création sur les campagnes.
-  - [x] **Couche de Données (`src/lib/queries/campaigns.ts`)** :
-    * `getCompanyCampaigns(companyId)` : liste exhaustive des campagnes de l'exploitation avec compteurs par statut et volumes.
-    * `getCompanyEligibleProductions(companyId)` : productions actives éligibles pour l'adossement de nouvelles campagnes.
-    * `getResellerCampaigns(resellerId, filters)` : exploration des offres avec calcul d'éligibilité territoriale pour le revendeur.
-  - [x] **Composants d'Interface Dédiés (`src/components/campaigns/`)** :
-    * `CampaignStatusBadge.tsx` : badges visuels distincts pour chaque statut (`draft`, `active`, `paused`, `completed`, `cancelled`).
-    * `CompanyCampaignCard.tsx` : fiche de gestion entreprise avec métriques commerciales, zones couvertes, indicateur de rattachement cultural et boutons d'actions contextuelles (activer, mettre en pause, clôturer, modifier).
-    * `CampaignFormModal.tsx` : formulaire interactif avec sélection de production, quantité, prix/devise, dates, sélecteur multi-provinces avec boutons de commodité (*Toutes / Kinshasa seule / Effacer*), et volet d'intelligence de marché affichant la demande agrégée réelle.
-    * `CompanyCampaignsView.tsx` : tableau de bord de gestion avec 4 compteurs réactifs réels, filtres et état vide soigné sans mock data.
-    * `ResellerCampaignCard.tsx` : carte d'exploration commerciale valorisant la photo réelle de production, le prix unitaire, le volume offert, les dates, l'exploitation productrice et le **badge d'éligibilité territoriale** (*"Votre province est desservie"* vs *"Non desservie"*). Mention claire d'anticipation de la Phase 10 pour l'ouverture des commandes.
-    * `ResellerCampaignsView.tsx` : espace de découverte revendeur avec filtres par produit, province et statut de desserte.
+    * $\text{Production} \neq \text{Campagne} \neq \text{Commande} \neq \text{Réservation} \neq \text{Livraison}$.
+    * Une commande est un engagement contractuel ferme passé par un revendeur sur une campagne commerciale ouverte.
+    * La réservation de stock est un mécanisme comptable atomique adossé à la commande bloquant le volume sur la campagne.
+    * Zéro mock data : calculs de stock et affichages strictement dérivés des transactions réelles en base de données.
+  - [x] **Base de Données et Procédures Atomiques RPC (`supabase/migrations/20260915000013_enhance_orders_and_reservations_rpc.sql`)** :
+    * `create_order_with_reservation` : contrôle d'éligibilité territoriale (`delivery_province_id` dans `campaign_delivery_zones`), statut actif de la campagne, dates de validité commerciale, verrouillage pessimiste `FOR UPDATE` sur la campagne, calcul du stock disponible en temps réel, création atomique de `orders`, `order_items` et `stock_reservations` avec snapshot contractuel du prix unitaire.
+    * `cancel_order_and_release_reservation` : passage du statut de commande à `cancelled` et de la réservation à `released`, restituant immédiatement le volume disponible.
+    * `get_campaign_stock_summary` : fonction helper calculant `marketable_quantity`, `reserved_quantity` et `available_quantity`.
+  - [x] **Couche de Données & Server Actions (`src/lib/`)** :
+    * `src/lib/queries/orders.ts` : `getResellerOrders`, `getResellerOrderById`, `getCompanyOrders`, `getCompanyOrderById`, `getCampaignAvailableStock`.
+    * `src/lib/actions/orders.ts` : `createOrderAction`, `cancelOrderAction`, `updateOrderStatusAction`.
+    * `src/lib/queries/campaigns.ts` : enrichissement avec calcul en direct de `reserved_quantity` et `available_quantity` via jointure sur `stock_reservations`.
+  - [x] **Composants d'Interface Dédiés (`src/components/orders/` & `src/components/campaigns/`)** :
+    * `OrderStatusBadge.tsx` : badges visuels distincts par statut (`pending`, `confirmed`, `preparing`, `ready`, `delivered`, `cancelled`).
+    * `OrderFormModal.tsx` : modal ergonomique de passation de commande avec récapitulatif de campagne, contrôle de stock disponible en temps réel, calcul du montant total, sélection de province de livraison filtrée par éligibilité, adresse et notes.
+    * `ResellerOrderCard.tsx` : carte de commande revendeur avec détails du produit, exploitation venderesse, volume, prix figé, date et statut.
+    * `ResellerOrdersView.tsx` : vue de suivi revendeur avec compteurs dynamiques réels, filtres par statut et état vide élégant.
+    * `ResellerOrderDetailView.tsx` : fiche unitaire de commande revendeur avec progression du cycle de vie et bouton d'annulation si éligible.
+    * `CompanyOrdersView.tsx` : espace de gestion des commandes reçues pour l'entreprise avec statistiques de chiffre d'affaires et de volume, filtres et recherche.
+    * `CompanyOrderDetailView.tsx` : fiche de traitement des commandes reçues avec sélecteur de transition de statut et coordonnées de livraison du revendeur.
+    * `ResellerCampaignCard.tsx` : affichage du stock restant réel et bouton contextuel "Commander" déclenchant la modal.
   - [x] **Pages et Navigation** :
-    * `src/app/dashboard/company/campaigns/page.tsx` : page complète de gestion des campagnes de l'entreprise.
-    * `src/app/dashboard/reseller/campaigns/page.tsx` : page complète d'exploration des offres commerciales pour les revendeurs.
-    * `src/components/dashboard/AppSidebar.tsx` : activation du lien "Offres Commerciales" pour le revendeur et retrait du badge Phase 9.
-    * `src/app/dashboard/company/page.tsx` & `src/app/dashboard/reseller/page.tsx` : compteurs dynamiques réels d'offres actives et cartes modules activées.
-  - [x] **Validation SQL & Tests Transactionnels (`supabase/tests/phase9_campaigns_test.sql`)** :
-    * 7 suites de tests automatisés validées à 100% sur Supabase : contraintes CHECK (quantité > 0, prix > 0, dates cohérentes), adossement obligatoire, étanchéité RLS, isolation multi-tenant, Scénario 30 (indépendance absolue demande/campagne), invariants (0 commande, 0 réservation de stock).
+    * `src/app/dashboard/reseller/orders/page.tsx` & `[id]/page.tsx` : espace complet des commandes revendeur.
+    * `src/app/dashboard/company/orders/page.tsx` & `[id]/page.tsx` : espace complet des commandes reçues par l'entreprise.
+    * `src/components/dashboard/AppSidebar.tsx` : retrait des badges Phase 10 sur les liens Commandes.
+    * `src/app/dashboard/company/page.tsx` : activation de la carte module "Commandes Reçues".
+  - [x] **Validation SQL & Tests Transactionnels (`supabase/tests/phase10_orders_and_reservations_test.sql`)** :
+    * 8 suites de tests automatisés validées à 100% sur Supabase : commande normale + snapshot du prix, anti-surbooking sous concurrence, rejet territoire non desservi, rejet quantités invalides, rejet campagne non active/expirée, immuabilité du prix contractuel, annulation et libération instantanée du stock, isolation RLS multi-tenant.
 
 ---
 
 ## 3. PROCHAINE ÉTAPE
 
-### PHASE 10 — COMMANDES ET RÉSERVATION DE STOCK V1
-* **Déclencheur** : En attente de l'instruction utilisateur explicite (**Prompt 10**).
-* **Objectifs de la Phase 10** :
-  - Contrôle transactionnel d'éligibilité géographique du revendeur lors du passage de commande ;
-  - Transaction atomique de réservation de stock avec verrouillage optimiste/pessimiste (`reserve_stock` RPC) contre la surréservation ;
+### PHASE 11 — TESTS, SÉCURITÉ RLS ET RECETTE V1
+* **Déclencheur** : En attente de l'instruction utilisateur explicite (**Prompt 11**).
+* **Objectifs de la Phase 11** :
+  - Audit complet de sécurité et d'étanchéité des politiques Row Level Security (RLS) sur les 17 tables du schéma ;
+  - Recette de bout en bout de la boucle de valeur V1 (Inscription $\rightarrow$ Produit $\rightarrow$ Production $\rightarrow$ Demande $\rightarrow$ Campagne $\rightarrow$ Commande & Réservation) ;
+  - Validation des flux nominaux et des cas limites d'erreur ;
+  - Préparation du rapport d'homologation technique de la V1 Expérimentale.réservation ;
   - Gestion du cycle de vie des commandes (`pending`, `confirmed`, `preparing`, `ready`, `delivered`, `cancelled`) ;
   - Tableau de bord des commandes côté entreprise et côté revendeur.

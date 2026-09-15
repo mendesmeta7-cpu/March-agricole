@@ -1,16 +1,24 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import { getCompanyOrders } from "@/lib/queries/orders";
-import CompanyOrdersView from "@/components/orders/CompanyOrdersView";
+import { redirect, notFound } from "next/navigation";
+import { getCompanyOrderById } from "@/lib/queries/orders";
+import CompanyOrderDetailView from "@/components/orders/CompanyOrderDetailView";
 
-export default async function CompanyOrdersPage() {
+interface CompanyOrderDetailPageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default async function CompanyOrderDetailPage({
+  params,
+}: CompanyOrderDetailPageProps) {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?redirect=/dashboard/company/orders");
+    redirect(`/login?redirect=/dashboard/company/orders/${params.id}`);
   }
 
   // 1. Récupération de l'entreprise rattachée
@@ -35,8 +43,11 @@ export default async function CompanyOrdersPage() {
     redirect("/dashboard/company");
   }
 
-  // 2. Chargement des commandes reçues
-  const orders = await getCompanyOrders(companyId);
+  const order = await getCompanyOrderById(params.id, companyId);
 
-  return <CompanyOrdersView initialOrders={orders} />;
+  if (!order) {
+    notFound();
+  }
+
+  return <CompanyOrderDetailView order={order} />;
 }
