@@ -72,8 +72,6 @@ export default function AppSidebar({
       label: "Campagnes de Vente",
       href: "/dashboard/company/campaigns",
       icon: <Megaphone className="w-5 h-5" />,
-      badge: "Phase 9",
-      badgeVariant: "neutral",
     },
     {
       label: "Commandes Reçues",
@@ -99,6 +97,11 @@ export default function AppSidebar({
       label: "Flux des Productions",
       href: "/dashboard/reseller/feed",
       icon: <Compass className="w-5 h-5" />,
+    },
+    {
+      label: "Offres Commerciales",
+      href: "/dashboard/reseller/campaigns",
+      icon: <Megaphone className="w-5 h-5" />,
     },
     {
       label: "Mes Demandes d'Achat",

@@ -3,6 +3,46 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [0.10.0-campaigns] - 2026-09-15
+### Implémentation Complète des Campagnes Commerciales V1 (Phase 9)
+
+#### Ajouté
+* **Principe Fondamental et Séparation Métier (Règles d'Or 2 et 3)** :
+  - Respect absolu de l'indépendance des concepts : $\text{Production} \neq \text{Campagne} \neq \text{Commande} \neq \text{Stock} \neq \text{Réservation}$.
+  - Une campagne commerciale matérialise une offre de vente ferme émise par une entreprise agricole, adossée obligatoirement à une production réelle de son exploitation.
+  - La création d'une campagne ne réserve aucun stock, ne décrémente aucun volume et ne génère aucune commande.
+  - **Scénario 30 (Indépendance Demande / Campagne)** : Une demande de revendeur émise sur une province reste 100% active, autonome et non altérée par la création d'une campagne ciblant cette même province.
+* **Intégrité Métier et Règles de Validation (`src/lib/actions/campaigns.ts`)** :
+  - `createCampaignAction` : création d'une offre avec validation du volume ($> 0$ et $\le \text{expected\_quantity}$ de la production), prix unitaire ($> 0$), devise (`USD` / `CDF`), cohérence des dates (`end_date >= start_date`), et rattachement d'au moins une province de desserte (`campaign_delivery_zones`).
+  - `updateCampaignAction` : modification des paramètres commerciaux par l'entreprise propriétaire.
+  - `updateCampaignStatusAction` : cycle de vie des campagnes (`draft`, `active`, `paused`, `completed`, `cancelled`).
+* **Sécurisation RLS & Isolation Multi-Tenant** :
+  - Seules les campagnes avec `status = 'active'` sont consultables publiquement par les revendeurs connectés.
+  - Les brouillons (`draft`), suspendues (`paused`), achevées (`completed`) et annulées (`cancelled`) restent strictement privées pour les tiers.
+  - Isolation multi-tenant étanche : une entreprise ne peut ni lire les brouillons d'une concurrente ni altérer ses campagnes.
+  - Les revendeurs ont un droit de lecture strict sur les campagnes actives (aucun droit d'écriture).
+* **Couche de Données (`src/lib/queries/campaigns.ts`)** :
+  - `getCompanyCampaigns(companyId)` : chargement complet des campagnes de l'entreprise avec compteurs réactifs par statut.
+  - `getCompanyEligibleProductions(companyId)` : extraction des productions actives de l'exploitation pouvant servir d'adossement.
+  - `getCompanyCampaignById(campaignId, companyId)` : fiche unitaire de campagne pour l'administration.
+  - `getResellerCampaigns(resellerId, filters)` : exploration paginée et filtrée des offres actives avec calcul dynamique de l'éligibilité territoriale (*desservie* vs *non desservie*).
+* **Composants d'Interface Dédiés (`src/components/campaigns/`)** :
+  - `CampaignStatusBadge.tsx` : badges visuels distinctifs par statut.
+  - `CompanyCampaignCard.tsx` : carte de gestion producteur avec indicateurs de volume, prix, dates, zones couvertes, production rattachée et boutons d'action rapide.
+  - `CampaignFormModal.tsx` : modal ergonomique avec sélecteur de production adossée, assistance indicative affichant la demande agrégée réelle du marché issue de `v_market_demands_aggregated`, sélecteur multi-provinces avec boutons de présélection (*Toutes, Kinshasa seule, Effacer*).
+  - `CompanyCampaignsView.tsx` : vue d'ensemble avec 4 métriques en temps réel, filtres réactifs et état vide sans mock data.
+  - `ResellerCampaignCard.tsx` : carte d'offre pour revendeur avec photographie réelle de culture, prix unitaire en devise, volume offert, calendrier de disponibilité, badge d'éligibilité géographique et mention d'ouverture prochaine des commandes (Phase 10).
+  - `ResellerCampaignsView.tsx` : interface d'exploration avec filtres par produit, province et statut de desserte.
+* **Pages et Navigation Déployées** :
+  - `src/app/dashboard/company/campaigns/page.tsx` : espace complet de gestion des campagnes pour les entreprises.
+  - `src/app/dashboard/reseller/campaigns/page.tsx` : espace de découverte des offres pour les revendeurs.
+  - `src/components/dashboard/AppSidebar.tsx` : activation du lien "Offres Commerciales" pour le revendeur et retrait des badges temporaires.
+  - `src/app/dashboard/company/page.tsx` & `src/app/dashboard/reseller/page.tsx` : compteurs réels d'offres actives intégrés sur les tableaux de bord d'accueil.
+* **Suite de Tests de Validation (`supabase/tests/phase9_campaigns_test.sql`)** :
+  - 7 tests automatisés validés : contraintes CHECK (quantité > 0, prix > 0, dates), adossement obligatoire, invisibilité RLS des brouillons, rejet d'écriture par les revendeurs, isolation multi-tenant, validation du Scénario 30 et respect des invariants V1 (0 commande, 0 réservation de stock).
+
+---
+
 ## [0.9.0-profile] - 2026-09-15
 ### Implémentation Complète du Détail Production et Profil Public Entreprise V1 (Phase 8)
 

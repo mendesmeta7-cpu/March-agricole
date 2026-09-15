@@ -220,7 +220,30 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 
 ---
 
-## 11. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
+## 11. DÉCISIONS TECHNIQUES DE LA PHASE 9 (CAMPAGNES COMMERCIALES V1)
+
+### ADR-023 : Campagnes Commerciales, Fixation des Prix et Territoires de Chalandise
+* **Date** : 2026-09-15 | **Statut** : Validé et Appliqué
+* **Contexte** : Permettre aux entreprises agricoles de formuler des offres commerciales fermes sur la base de leurs productions existantes, en fixant des volumes dédiés, des prix unitaires fermes, des calendriers de vente et des territoires géographiques de livraison, tout en permettant aux revendeurs de découvrir ces opportunités avec calcul d'éligibilité sans créer prématurément de commandes ou de réservations.
+* **Décision** :
+  1. **Adossement Obligatoire à une Production Existante** :
+     - Une campagne (`campaigns`) ne peut pas exister de manière autonome sans faire référence à une production (`productions`) de l'exploitation.
+     - Le volume commercialisable (`marketable_quantity`) est borné ($> 0$ et $\le \text{expected\_quantity}$ de la production).
+  2. **Indépendance Absolue Demande / Campagne (Scénario 30)** :
+     - La création d'une offre commerciale par une entreprise ne lie pas automatiquement les demandes de marché existantes.
+     - Les demandes de revendeurs restent intactes, actives et autonomes ; aucun stock n'est décrémenté et aucune commande n'est créée sans accord explicite ultérieur.
+  3. **Territoires de Desserte Explicites (`campaign_delivery_zones`)** :
+     - Chaque campagne spécifie au moins une province de desserte. L'interface revendeur calcule dynamiquement la compatibilité avec sa province déclarée à l'inscription (*"Votre province est desservie"* / *"Non desservie"*).
+  4. **Cycle de Vie et Visibilité RLS** :
+     - Seules les campagnes avec le statut `active` sont lisibles par les revendeurs.
+     - Les brouillons (`draft`), mises en pause (`paused`), achevées (`completed`) et annulées (`cancelled`) restent privées pour l'exploitation propriétaire.
+  5. **Découplage Temporel Commande / Réservation (Phase 10)** :
+     - Les cartes d'exploration revendeur affichent les conditions commerciales complètes et indiquent expressément l'ouverture prochaine du module de commande ferme en Phase 10.
+* **Justification** : Conformité aux Règles d'Or 2 et 3, intégrité transactionnelle, respect des invariants et préparation de la boucle de réservation atomique de la Phase 10.
+
+---
+
+## 12. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
 
 | Réf. | Fonctionnalité Reportée | Motif du Report / Échéance |
 | :--- | :--- | :--- |
