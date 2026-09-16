@@ -89,6 +89,7 @@ export async function associateCatalogProductAction(
 
       revalidatePath("/dashboard/company/products");
       revalidatePath("/dashboard/company");
+  revalidatePath("/dashboard/admin/products");
       return { success: true, message: "Produit réactivé avec succès dans votre exploitation." };
     }
   }
@@ -108,6 +109,7 @@ export async function associateCatalogProductAction(
 
   revalidatePath("/dashboard/company/products");
   revalidatePath("/dashboard/company");
+  revalidatePath("/dashboard/admin/products");
   return { success: true, message: "Produit associé avec succès à votre exploitation." };
 }
 
@@ -197,6 +199,7 @@ export async function createAndAssociateProductAction(
 
   revalidatePath("/dashboard/company/products");
   revalidatePath("/dashboard/company");
+  revalidatePath("/dashboard/admin/products");
 
   const isExisting = (data as any)?.was_already_in_catalog;
   const msg = isExisting
@@ -289,6 +292,7 @@ export async function toggleCompanyProductStatusAction(
 
   revalidatePath("/dashboard/company/products");
   revalidatePath("/dashboard/company");
+  revalidatePath("/dashboard/admin/products");
 
   return {
     success: true,

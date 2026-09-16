@@ -104,6 +104,7 @@ export async function updateCompanyProfileAction(
     }
 
     revalidatePath("/dashboard/company");
+  revalidatePath("/dashboard/admin/companies");
     revalidatePath("/dashboard/company/profile");
 
     return { success: true };

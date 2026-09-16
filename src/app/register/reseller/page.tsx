@@ -5,10 +5,36 @@ import Link from "next/link";
 import { registerResellerAction } from "@/lib/actions/auth";
 import GeographySelector from "@/components/GeographySelector";
 import SubmitButton from "@/components/SubmitButton";
-import { Store, AlertCircle, ArrowLeft, MapPin } from "lucide-react";
+import { Store, AlertCircle, ArrowLeft, MapPin, MailCheck } from "lucide-react";
 
 export default function RegisterResellerPage() {
   const [state, formAction] = useFormState(registerResellerAction, null);
+
+  if (state?.emailSent) {
+    return (
+      <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-earth-50/50 flex flex-col justify-center">
+        <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-earth-100 p-8 text-center">
+          <div className="w-16 h-16 bg-earth-100 text-earth-700 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <MailCheck className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Vérifiez votre boîte mail</h1>
+          <p className="text-gray-600 mb-8 leading-relaxed">
+            Nous vous avons envoyé un email contenant un lien pour confirmer la création de votre compte professionnel.
+          </p>
+          <div className="p-4 bg-gray-50 rounded-xl mb-8">
+            <p className="text-xs text-gray-500 font-medium">Sécurité propulsée par</p>
+            <p className="text-sm font-bold text-slate-800 tracking-wider">SYNAPTA Identity</p>
+          </div>
+          <Link
+            href="/login"
+            className="inline-block w-full py-3 px-4 rounded-xl bg-earth-700 hover:bg-earth-800 text-white font-semibold shadow-sm transition-colors"
+          >
+            Aller à la page de connexion
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-earth-50/50">

@@ -103,6 +103,7 @@ export async function createOrderAction(
     revalidatePath("/dashboard/company/campaigns");
     revalidatePath("/dashboard/reseller");
     revalidatePath("/dashboard/company");
+  revalidatePath("/dashboard/admin/orders");
 
     return {
       success: true,

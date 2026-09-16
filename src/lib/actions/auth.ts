@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 export interface AuthActionResult {
   success?: boolean;
+  emailSent?: boolean;
   error?: string;
 }
 
@@ -111,30 +112,28 @@ export async function registerCompanyAction(
     return { error: "Erreur lors de la création du compte." };
   }
 
-  // S'assurer que la session est active afin de satisfaire les politiques RLS (storage.objects et companies_update)
-  if (!authData.session) {
-    await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-  }
-
   // Upload du logo vers Storage public-assets et mise à jour de companies.logo_url
   if (logoFile && logoFile.size > 0 && logoFile.name) {
     try {
+      const { createClient: createSupabaseClient } = require("@supabase/supabase-js");
+      const supabaseAdmin = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
       const fileExt = logoFile.name.split(".").pop();
       const filePath = `logos/${authData.user.id}-${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabaseAdmin.storage
         .from("public-assets")
         .upload(filePath, logoFile, { upsert: true });
 
       if (!uploadError) {
-        const { data: { publicUrl } } = supabase.storage
+        const { data: { publicUrl } } = supabaseAdmin.storage
           .from("public-assets")
           .getPublicUrl(filePath);
 
         // Mettre à jour l'URL du logo sur l'entreprise
-        const { error: updateError } = await supabase
+        const { error: updateError } = await supabaseAdmin
           .from("companies")
           .update({ logo_url: publicUrl })
           .eq("created_by", authData.user.id);
@@ -148,6 +147,11 @@ export async function registerCompanyAction(
     } catch (e) {
       console.warn("Upload logo échoué:", e);
     }
+  }
+
+  // Si la session n'est pas active, cela signifie que la confirmation d'email est requise
+  if (!authData.session) {
+    return { success: true, emailSent: true };
   }
 
   redirect("/dashboard/company");
@@ -207,18 +211,7 @@ export async function registerResellerAction(
   }
 
   if (!authData.session) {
-    // Tenter de se connecter directement
-    const { data: loginData } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (loginData?.session) {
-      redirect("/dashboard/reseller");
-    }
-    return {
-      success: true,
-      error: undefined,
-    };
+    return { success: true, emailSent: true };
   }
 
   redirect("/dashboard/reseller");

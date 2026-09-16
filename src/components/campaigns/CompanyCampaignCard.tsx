@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { CompanyCampaignItem } from "@/lib/queries/campaigns";
 import CampaignStatusBadge from "./CampaignStatusBadge";
 import { updateCampaignStatusAction } from "@/lib/actions/campaigns";
@@ -28,7 +28,7 @@ export default function CompanyCampaignCard({
   campaign,
   onEdit,
 }: CompanyCampaignCardProps) {
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const formatDate = (dateStr?: string | null) => {
@@ -44,19 +44,18 @@ export default function CompanyCampaignCard({
     }
   };
 
-  const handleStatusChange = async (newStatus: any) => {
-    setLoading(true);
+  const handleStatusChange = (newStatus: any) => {
     setErrorMsg(null);
-    try {
-      const res = await updateCampaignStatusAction(campaign.id, newStatus);
-      if (!res.success) {
-        setErrorMsg(res.error || "Erreur lors du changement de statut.");
+    startTransition(async () => {
+      try {
+        const res = await updateCampaignStatusAction(campaign.id, newStatus);
+        if (!res.success) {
+          setErrorMsg(res.error || "Erreur lors du changement de statut.");
+        }
+      } catch (err: any) {
+        setErrorMsg(err.message || "Erreur réseau.");
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || "Erreur réseau.");
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const formattedStart = formatDate(campaign.start_date);
@@ -167,56 +166,56 @@ export default function CompanyCampaignCard({
 
       {/* 3. Actions Opérationnelles */}
       <div className="p-4 bg-gray-50/80 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
-        <button
-          onClick={() => onEdit(campaign)}
-          disabled={loading || campaign.status === "completed" || campaign.status === "cancelled"}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors shadow-2xs disabled:opacity-50"
-        >
-          <Edit className="w-3.5 h-3.5 text-gray-500" />
-          Modifier
-        </button>
+          <button
+            onClick={() => onEdit(campaign)}
+            disabled={isPending || campaign.status === "completed" || campaign.status === "cancelled"}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors shadow-2xs disabled:opacity-50"
+          >
+            <Edit className="w-3.5 h-3.5 text-gray-500" />
+            Modifier
+          </button>
 
-        <div className="flex items-center gap-1.5">
-          {/* Si Brouillon ou Suspendue -> Ouvrir */}
-          {(campaign.status === "draft" || campaign.status === "paused") && (
-            <button
-              onClick={() => handleStatusChange("active")}
-              disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-forest-700 text-white hover:bg-forest-800 transition-colors shadow-2xs disabled:opacity-50"
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              {campaign.status === "draft" ? "Ouvrir l'offre" : "Réactiver"}
-            </button>
-          )}
-
-          {/* Si Active -> Suspendre ou Clôturer */}
-          {campaign.status === "active" && (
-            <>
+          <div className="flex items-center gap-1.5">
+            {/* Si Brouillon ou Suspendue -> Ouvrir */}
+            {(campaign.status === "draft" || campaign.status === "paused") && (
               <button
-                onClick={() => handleStatusChange("paused")}
-                disabled={loading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-amber-100 text-amber-900 hover:bg-amber-200 transition-colors shadow-2xs disabled:opacity-50"
+                onClick={() => handleStatusChange("active")}
+                disabled={isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-forest-700 text-white hover:bg-forest-800 transition-colors shadow-2xs disabled:opacity-50"
               >
-                <Pause className="w-3.5 h-3.5" />
-                Suspendre
+                <Play className="w-3.5 h-3.5 fill-current" />
+                {campaign.status === "draft" ? "Ouvrir l'offre" : "Réactiver"}
               </button>
+            )}
 
+            {/* Si Active -> Suspendre ou Clôturer */}
+            {campaign.status === "active" && (
+              <>
+                <button
+                  onClick={() => handleStatusChange("paused")}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-amber-100 text-amber-900 hover:bg-amber-200 transition-colors shadow-2xs disabled:opacity-50"
+                >
+                  <Pause className="w-3.5 h-3.5" />
+                  Suspendre
+                </button>
+
+                <button
+                  onClick={() => handleStatusChange("completed")}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-blue-100 text-blue-900 hover:bg-blue-200 transition-colors shadow-2xs disabled:opacity-50"
+                >
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  Clôturer
+                </button>
+              </>
+            )}
+
+            {/* Annuler si non terminée */}
+            {campaign.status !== "completed" && campaign.status !== "cancelled" && (
               <button
-                onClick={() => handleStatusChange("completed")}
-                disabled={loading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-blue-100 text-blue-900 hover:bg-blue-200 transition-colors shadow-2xs disabled:opacity-50"
-              >
-                <CheckCircle className="w-3.5 h-3.5" />
-                Clôturer
-              </button>
-            </>
-          )}
-
-          {/* Annuler si non terminée */}
-          {campaign.status !== "completed" && campaign.status !== "cancelled" && (
-            <button
-              onClick={() => handleStatusChange("cancelled")}
-              disabled={loading}
+                onClick={() => handleStatusChange("cancelled")}
+                disabled={isPending}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-xl text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50"
               title="Annuler définitivement la campagne"
             >

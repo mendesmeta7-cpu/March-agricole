@@ -101,6 +101,7 @@ export async function createDemandAction(
 
   revalidatePath("/dashboard/reseller/demands");
   revalidatePath("/dashboard/reseller");
+  revalidatePath("/dashboard/admin/demands");
   revalidatePath("/dashboard/company/demands");
 
   return {
@@ -192,6 +193,7 @@ export async function updateDemandAction(
 
   revalidatePath("/dashboard/reseller/demands");
   revalidatePath("/dashboard/reseller");
+  revalidatePath("/dashboard/admin/demands");
   revalidatePath("/dashboard/company/demands");
 
   return { success: true, message: "Demande mise à jour avec succès." };
@@ -223,6 +225,7 @@ export async function cancelDemandAction(demandId: string): Promise<ActionRespon
 
   revalidatePath("/dashboard/reseller/demands");
   revalidatePath("/dashboard/reseller");
+  revalidatePath("/dashboard/admin/demands");
   revalidatePath("/dashboard/company/demands");
 
   return {

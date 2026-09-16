@@ -188,6 +188,7 @@ export async function createProductionAction(
 
   revalidatePath("/dashboard/company/productions");
   revalidatePath("/dashboard/company");
+  revalidatePath("/dashboard/admin/productions");
 
   return {
     success: true,
@@ -336,6 +337,7 @@ export async function updateProductionAction(
   revalidatePath("/dashboard/company/productions");
   revalidatePath(`/dashboard/company/productions/${productionId}`);
   revalidatePath("/dashboard/company");
+  revalidatePath("/dashboard/admin/productions");
 
   return { success: true, message: "Production mise à jour avec succès." };
 }
@@ -380,6 +382,7 @@ export async function updateProductionStatusAction(
   revalidatePath("/dashboard/company/productions");
   revalidatePath(`/dashboard/company/productions/${productionId}`);
   revalidatePath("/dashboard/company");
+  revalidatePath("/dashboard/admin/productions");
 
   return { success: true, message: `Statut passé à « ${newStatus} » avec succès.` };
 }

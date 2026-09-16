@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import {
   EligibleProductionOption,
   CompanyCampaignItem,
@@ -53,7 +53,7 @@ export default function CampaignFormModal({
   const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
   const [status, setStatus] = useState<"draft" | "active">("draft");
 
-  const [submitting, setSubmitting] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Initialisation lors de l'ouverture ou du changement de campagne à éditer
@@ -145,40 +145,38 @@ export default function CampaignFormModal({
       return;
     }
 
-    setSubmitting(true);
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.append("production_id", productionId);
+        formData.append("title", title);
+        formData.append("description", description);
+        formData.append("marketable_quantity", marketableQuantity.toString());
+        formData.append("unit_price", unitPrice.toString());
+        formData.append("currency", currency);
+        formData.append("min_order_quantity", (minOrderQuantity || 1).toString());
+        formData.append("start_date", startDate);
+        if (endDate) formData.append("end_date", endDate);
+        if (availabilityPeriod) formData.append("availability_period", availabilityPeriod);
+        formData.append("status", status);
 
-    try {
-      const formData = new FormData();
-      formData.append("production_id", productionId);
-      formData.append("title", title);
-      formData.append("description", description);
-      formData.append("marketable_quantity", marketableQuantity.toString());
-      formData.append("unit_price", unitPrice.toString());
-      formData.append("currency", currency);
-      formData.append("min_order_quantity", (minOrderQuantity || 1).toString());
-      formData.append("start_date", startDate);
-      if (endDate) formData.append("end_date", endDate);
-      if (availabilityPeriod) formData.append("availability_period", availabilityPeriod);
-      formData.append("status", status);
+        selectedProvinces.forEach((pId) => {
+          formData.append("province_ids", pId);
+        });
 
-      selectedProvinces.forEach((pId) => {
-        formData.append("province_ids", pId);
-      });
+        const res = isEditing
+          ? await updateCampaignAction(campaignToEdit.id, formData)
+          : await createCampaignAction(formData);
 
-      const res = isEditing
-        ? await updateCampaignAction(campaignToEdit.id, formData)
-        : await createCampaignAction(formData);
-
-      if (res.success) {
-        onClose();
-      } else {
-        setErrorMessage(res.error || "Une erreur est survenue.");
+        if (res.success) {
+          onClose();
+        } else {
+          setErrorMessage(res.error || "Une erreur est survenue.");
+        }
+      } catch (err: any) {
+        setErrorMessage(err.message || "Erreur de connexion.");
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || "Erreur de connexion.");
-    } finally {
-      setSubmitting(false);
-    }
+    });
   };
 
   return (
@@ -515,17 +513,17 @@ export default function CampaignFormModal({
             <button
               type="button"
               onClick={onClose}
-              disabled={submitting}
+              disabled={isPending}
               className="px-4 py-2 rounded-xl text-gray-600 hover:bg-gray-100 font-medium transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
-              disabled={submitting || eligibleProductions.length === 0}
+              disabled={isPending || eligibleProductions.length === 0}
               className="px-5 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white font-semibold transition-all shadow-xs disabled:opacity-50 flex items-center gap-2"
             >
-              {submitting ? "Enregistrement..." : isEditing ? "Mettre à jour l'offre" : "Enregistrer la campagne"}
+              {isPending ? "Enregistrement..." : isEditing ? "Mettre à jour l'offre" : "Enregistrer la campagne"}
             </button>
           </div>
         </form>
