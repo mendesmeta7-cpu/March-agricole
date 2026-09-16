@@ -12,6 +12,29 @@ export interface CampaignActionResult {
 }
 
 /**
+ * Récupère l'ID d'entreprise associée à un utilisateur (via membership ou créateur)
+ */
+async function getCompanyIdForUser(supabase: any, userId: string): Promise<string | null> {
+  const { data: memberData } = await supabase
+    .from("company_members")
+    .select("company_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (memberData?.company_id) {
+    return memberData.company_id;
+  }
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("created_by", userId)
+    .maybeSingle();
+
+  return company?.id || null;
+}
+
+/**
  * Crée une nouvelle campagne commerciale adossée à une production existante
  */
 export async function createCampaignAction(
@@ -29,17 +52,11 @@ export async function createCampaignAction(
   }
 
   // 2. Récupération de l'entreprise rattachée à l'utilisateur
-  const { data: memberData } = await supabase
-    .from("company_members")
-    .select("company_id, role")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const companyId = await getCompanyIdForUser(supabase, user.id);
 
-  if (!memberData?.company_id) {
+  if (!companyId) {
     return { success: false, error: "Aucune entreprise agricole associée à votre compte." };
   }
-
-  const companyId = memberData.company_id;
 
   // 3. Extraction et assainissement des données du formulaire
   const productionId = formData.get("production_id") as string;
@@ -199,17 +216,11 @@ export async function updateCampaignAction(
     return { success: false, error: "Vous devez être authentifié." };
   }
 
-  const { data: memberData } = await supabase
-    .from("company_members")
-    .select("company_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const companyId = await getCompanyIdForUser(supabase, user.id);
 
-  if (!memberData?.company_id) {
+  if (!companyId) {
     return { success: false, error: "Exploitation introuvable." };
   }
-
-  const companyId = memberData.company_id;
 
   // Vérification préalable de la campagne
   const { data: currentCampaign } = await supabase
@@ -338,13 +349,9 @@ export async function updateCampaignStatusAction(
     return { success: false, error: "Vous devez être authentifié." };
   }
 
-  const { data: memberData } = await supabase
-    .from("company_members")
-    .select("company_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const companyId = await getCompanyIdForUser(supabase, user.id);
 
-  if (!memberData?.company_id) {
+  if (!companyId) {
     return { success: false, error: "Exploitation introuvable." };
   }
 
@@ -367,7 +374,7 @@ export async function updateCampaignStatusAction(
     .from("campaigns")
     .update({ status: newStatus })
     .eq("id", campaignId)
-    .eq("company_id", memberData.company_id);
+    .eq("company_id", companyId);
 
   if (error) {
     return { success: false, error: `Erreur lors du changement de statut: ${error.message}` };

@@ -14,6 +14,29 @@ export interface ActionResponse {
 const ALLOWED_STATUSES: ProductionStatus[] = ["draft", "planned", "growing", "harvested", "cancelled"];
 
 /**
+ * Récupère l'ID d'entreprise associée à un utilisateur (via membership ou créateur)
+ */
+async function getCompanyIdForUser(supabase: any, userId: string): Promise<string | null> {
+  const { data: memberData } = await supabase
+    .from("company_members")
+    .select("company_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (memberData?.company_id) {
+    return memberData.company_id;
+  }
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("created_by", userId)
+    .maybeSingle();
+
+  return company?.id || null;
+}
+
+/**
  * Crée une nouvelle déclaration de production agricole
  */
 export async function createProductionAction(
@@ -28,13 +51,9 @@ export async function createProductionAction(
   }
 
   // 1. Récupération de l'entreprise rattachée
-  const { data: company } = await supabase
-    .from("companies")
-    .select("id, name")
-    .eq("created_by", user.id)
-    .maybeSingle();
+  const companyId = await getCompanyIdForUser(supabase, user.id);
 
-  if (!company) {
+  if (!companyId) {
     return { error: "Entreprise agricole introuvable pour votre compte." };
   }
 
@@ -85,7 +104,7 @@ export async function createProductionAction(
     .from("company_products")
     .select("id, product_id, is_active, products:product_id (id, name, image_url)")
     .eq("id", companyProductId)
-    .eq("company_id", company.id)
+    .eq("company_id", companyId)
     .maybeSingle();
 
   if (!companyProduct) {
@@ -146,7 +165,7 @@ export async function createProductionAction(
   const { data: inserted, error: insertError } = await supabase
     .from("productions")
     .insert({
-      company_id: company.id,
+      company_id: companyId,
       product_id: companyProduct.product_id,
       company_product_id: companyProduct.id,
       title,
@@ -192,13 +211,9 @@ export async function updateProductionAction(
   }
 
   // 1. Récupération de l'entreprise
-  const { data: company } = await supabase
-    .from("companies")
-    .select("id")
-    .eq("created_by", user.id)
-    .maybeSingle();
+  const companyId = await getCompanyIdForUser(supabase, user.id);
 
-  if (!company) {
+  if (!companyId) {
     return { error: "Entreprise agricole introuvable." };
   }
 
@@ -212,7 +227,7 @@ export async function updateProductionAction(
     .from("productions")
     .select("id, main_image_url, company_id")
     .eq("id", productionId)
-    .eq("company_id", company.id)
+    .eq("company_id", companyId)
     .maybeSingle();
 
   if (!existing) {
@@ -312,7 +327,7 @@ export async function updateProductionAction(
     .from("productions")
     .update(updatePayload)
     .eq("id", productionId)
-    .eq("company_id", company.id);
+    .eq("company_id", companyId);
 
   if (updateError) {
     return { error: `Erreur de mise à jour : ${updateError.message}` };
@@ -343,13 +358,9 @@ export async function updateProductionStatusAction(
     return { error: "Statut de production invalide." };
   }
 
-  const { data: company } = await supabase
-    .from("companies")
-    .select("id")
-    .eq("created_by", user.id)
-    .maybeSingle();
+  const companyId = await getCompanyIdForUser(supabase, user.id);
 
-  if (!company) {
+  if (!companyId) {
     return { error: "Entreprise agricole introuvable." };
   }
 
@@ -360,7 +371,7 @@ export async function updateProductionStatusAction(
       updated_at: new Date().toISOString(),
     })
     .eq("id", productionId)
-    .eq("company_id", company.id);
+    .eq("company_id", companyId);
 
   if (error) {
     return { error: `Erreur de modification du statut : ${error.message}` };
@@ -387,13 +398,9 @@ export async function toggleProductionVisibilityAction(
     return { error: "Non authentifié." };
   }
 
-  const { data: company } = await supabase
-    .from("companies")
-    .select("id")
-    .eq("created_by", user.id)
-    .maybeSingle();
+  const companyId = await getCompanyIdForUser(supabase, user.id);
 
-  if (!company) {
+  if (!companyId) {
     return { error: "Entreprise agricole introuvable." };
   }
 
@@ -404,7 +411,7 @@ export async function toggleProductionVisibilityAction(
       updated_at: new Date().toISOString(),
     })
     .eq("id", productionId)
-    .eq("company_id", company.id);
+    .eq("company_id", companyId);
 
   if (error) {
     return { error: `Erreur visibilité : ${error.message}` };

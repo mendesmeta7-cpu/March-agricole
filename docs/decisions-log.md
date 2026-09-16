@@ -292,7 +292,25 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 
 ---
 
-## 14. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
+## 14. DÉCISIONS TECHNIQUES DE LA PHASE 12 (STABILISATION ET CORRECTIONS POST-VALIDATION V1)
+
+### ADR-026 : Harmonisation Multi-Tenant et Durcissement Post-Audit
+* **Date** : 2026-09-16 | **Statut** : Validé et Appliqué
+* **Contexte** : Corriger les anomalies mineures identifiées lors de l'audit de la Phase 11 sans étendre le périmètre fonctionnel ni introduire de nouvelles fonctionnalités futures.
+* **Décision** :
+  1. **Harmonisation de la Résolution `company_id` (`getCompanyIdForUser`)** :
+     - Uniformisation dans tous les Server Actions (`products.ts`, `productions.ts`, `campaigns.ts`, `company.ts`) pour résoudre l'identifiant d'entreprise via `company_members` (collaborateurs, délégués et owners) avec repli systématique sur `companies.created_by`.
+  2. **Interception et Convivialité des Exceptions RPC (`orders.ts`)** :
+     - Traduction des messages techniques PostgreSQL en formulations métier explicites à destination de l'utilisateur final.
+  3. **Vérification de Non-Régression** :
+     - Maintien du zéro mock data, certification du typage TypeScript (`tsc --noEmit`), et validation intégrale du build de production Next.js 14+ (30 routes générées).
+  4. **Classification Officielle** :
+     - Homologation du système en **Classe A — STABLE** pour son exploitation en V1 Expérimentale.
+* **Justification** : Conformité aux 4 Règles d'Or et stabilité opérationnelle garantie.
+
+---
+
+## 15. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
 
 | Réf. | Fonctionnalité Reportée | Motif du Report / Échéance |
 | :--- | :--- | :--- |

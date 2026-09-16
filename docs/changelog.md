@@ -3,6 +3,27 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [1.1.0-stab] - 2026-09-16
+### Stabilisation et Corrections Post-Validation V1 (Phase 12)
+
+#### Modifié & Corrigé
+* **Harmonisation Multi-Tenant des Server Actions (`src/lib/actions/`)** :
+  - Standardisation de l'identification de l'exploitation via la fonction helper `getCompanyIdForUser` dans `products.ts`, `productions.ts`, `campaigns.ts` et `company.ts`.
+  - Prise en charge transparente et conjointe des membres rattachés via `company_members` (rôles `owner`, `admin`, `member`) et du créateur direct `companies.created_by`.
+  - Correction du bug résiduel de nommage de variable `company.id` vers `companyId` dans `associateCatalogProductAction`.
+* **Convivialité des Exceptions SQL (`src/lib/actions/orders.ts`)** :
+  - Interception des erreurs de contraintes PostgreSQL levées par la fonction RPC `create_order_with_reservation` et mapping en messages métier compréhensibles pour l'utilisateur final.
+* **Durcissement des Autorisations Profil Entreprise (`src/lib/actions/company.ts`)** :
+  - Autorisation de modification du profil de l'exploitation étendue aux administrateurs et owners enregistrés dans `company_members`.
+* **Bilan de Non-Régression & Homologation** :
+  - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
+  - Build Next.js 14+ de production (`npm run build`) : 30 routes générées sans avertissement bloquant.
+  - Zéro donnée fictive (Règle d'Or 2 certifiée).
+  - Classification finale : **Classe A — STABLE (Prête pour Expérimentation)**.
+  - Création du rapport officiel `docs/v1-stabilization-report.md`.
+
+---
+
 ## [1.0.0-v1] - 2026-09-16
 ### Homologation Globale, Audit RLS et Validation Finale V1 (Phase 11)
 

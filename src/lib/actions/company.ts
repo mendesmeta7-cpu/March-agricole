@@ -68,11 +68,35 @@ export async function updateCompanyProfileAction(
       updatePayload.logo_url = logoUrl;
     }
 
+    // Vérification que l'utilisateur est soit le créateur soit membre admin/owner
+    const { data: member } = await supabase
+      .from("company_members")
+      .select("company_id, role")
+      .eq("company_id", companyId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const isMemberAdmin = member && (member.role === "owner" || member.role === "admin");
+
+    let isCreator = false;
+    if (!isMemberAdmin) {
+      const { data: comp } = await supabase
+        .from("companies")
+        .select("id")
+        .eq("id", companyId)
+        .eq("created_by", user.id)
+        .maybeSingle();
+      isCreator = !!comp;
+    }
+
+    if (!isMemberAdmin && !isCreator) {
+      return { error: "Vous n'avez pas les droits nécessaires pour modifier cette exploitation." };
+    }
+
     const { error: updateError } = await supabase
       .from("companies")
       .update(updatePayload)
-      .eq("id", companyId)
-      .eq("created_by", user.id);
+      .eq("id", companyId);
 
     if (updateError) {
       console.error("Erreur mise à jour company:", updateError);

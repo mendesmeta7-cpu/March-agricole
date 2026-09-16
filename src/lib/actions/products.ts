@@ -10,6 +10,29 @@ export interface ActionResponse {
 }
 
 /**
+ * Récupère l'ID d'entreprise associée à un utilisateur (via membership ou créateur)
+ */
+async function getCompanyIdForUser(supabase: any, userId: string): Promise<string | null> {
+  const { data: memberData } = await supabase
+    .from("company_members")
+    .select("company_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (memberData?.company_id) {
+    return memberData.company_id;
+  }
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("created_by", userId)
+    .maybeSingle();
+
+  return company?.id || null;
+}
+
+/**
  * Associe un produit existant du catalogue général à l'entreprise agricole
  */
 export async function associateCatalogProductAction(
@@ -23,14 +46,9 @@ export async function associateCatalogProductAction(
     return { error: "Vous devez être connecté pour effectuer cette action." };
   }
 
-  // Récupérer l'entreprise de l'utilisateur
-  const { data: company } = await supabase
-    .from("companies")
-    .select("id")
-    .eq("created_by", user.id)
-    .maybeSingle();
+  const companyId = await getCompanyIdForUser(supabase, user.id);
 
-  if (!company) {
+  if (!companyId) {
     return { error: "Entreprise agricole introuvable pour cet utilisateur." };
   }
 
@@ -46,7 +64,7 @@ export async function associateCatalogProductAction(
   const { data: existing } = await supabase
     .from("company_products")
     .select("id, is_active")
-    .eq("company_id", company.id)
+    .eq("company_id", companyId)
     .eq("product_id", productId)
     .maybeSingle();
 
@@ -77,7 +95,7 @@ export async function associateCatalogProductAction(
 
   // Création de la nouvelle association
   const { error: insertErr } = await supabase.from("company_products").insert({
-    company_id: company.id,
+    company_id: companyId,
     product_id: productId,
     custom_name: customName,
     description: description,
@@ -107,14 +125,9 @@ export async function createAndAssociateProductAction(
     return { error: "Vous devez être connecté pour effectuer cette action." };
   }
 
-  // Récupérer l'entreprise de l'utilisateur
-  const { data: company } = await supabase
-    .from("companies")
-    .select("id")
-    .eq("created_by", user.id)
-    .maybeSingle();
+  const companyId = await getCompanyIdForUser(supabase, user.id);
 
-  if (!company) {
+  if (!companyId) {
     return { error: "Entreprise agricole introuvable pour cet utilisateur." };
   }
 
@@ -168,7 +181,7 @@ export async function createAndAssociateProductAction(
 
   // Appel de la procédure atomique
   const { data, error } = await supabase.rpc("create_custom_product_and_associate", {
-    p_company_id: company.id,
+    p_company_id: companyId,
     p_name: name,
     p_category: category,
     p_default_unit: defaultUnit,
@@ -215,13 +228,9 @@ export async function updateCompanyProductAction(
     return { error: "Identifiant du produit manquant." };
   }
 
-  const { data: company } = await supabase
-    .from("companies")
-    .select("id")
-    .eq("created_by", user.id)
-    .maybeSingle();
+  const companyId = await getCompanyIdForUser(supabase, user.id);
 
-  if (!company) {
+  if (!companyId) {
     return { error: "Entreprise introuvable." };
   }
 
@@ -233,7 +242,7 @@ export async function updateCompanyProductAction(
       updated_at: new Date().toISOString(),
     })
     .eq("id", companyProductId)
-    .eq("company_id", company.id);
+    .eq("company_id", companyId);
 
   if (updateErr) {
     return { error: `Erreur de mise à jour : ${updateErr.message}` };
@@ -257,13 +266,9 @@ export async function toggleCompanyProductStatusAction(
     return { error: "Session expirée." };
   }
 
-  const { data: company } = await supabase
-    .from("companies")
-    .select("id")
-    .eq("created_by", user.id)
-    .maybeSingle();
+  const companyId = await getCompanyIdForUser(supabase, user.id);
 
-  if (!company) {
+  if (!companyId) {
     return { error: "Entreprise introuvable." };
   }
 
@@ -276,7 +281,7 @@ export async function toggleCompanyProductStatusAction(
       updated_at: new Date().toISOString(),
     })
     .eq("id", companyProductId)
-    .eq("company_id", company.id);
+    .eq("company_id", companyId);
 
   if (error) {
     return { error: error.message };
