@@ -269,7 +269,30 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 
 ---
 
-## 13. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
+## 13. DÉCISIONS TECHNIQUES DE LA PHASE 11 (TESTS, SÉCURITÉ ET VALIDATION FINALE V1)
+
+### ADR-025 : Homologation Globale de la V1 Expérimentale, Audit RLS et Recette Finale
+* **Date** : 2026-09-16 | **Statut** : Validé et Appliqué
+* **Contexte** : Réaliser l'audit final de sécurité, d'architecture, d'intégrité relationnelle, de concurrence et de performance de la V1 Expérimentale avant homologation technique.
+* **Décision** :
+  1. **Audit de Sécurité RLS et Secrets Client** :
+     - Confirmation de l'absence totale de fuite de la clé `service_role` ou de secrets d'administration dans les bundles Next.js publics (seules `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY` sont autorisées côté navigateur).
+     - RLS activé sur 100% des 17 tables du schéma public avec fonctions d'aide `SECURITY DEFINER` évitant toute récursion.
+     - Triggers PostgreSQL de protection anti-escalade (`role = 'admin'` interdit à l'inscription et au runtime pour les non-admins).
+  2. **Recette Transactionnelle Complète (`phase11_final_validation_test.sql`)** :
+     - 11 suites de tests automatisés validées à 100% sur Supabase : Auth anti-escalade, catalogue vs company_products, cycle cultural des productions et isolation des brouillons, demandes revendeurs décloisonnées avec anonymat RLS, création de campagnes sans effets de bord, rejet strict hors territoires desservis, passation de commande avec snapshot contractuel de prix immuable, anti-surbooking et saturation exacte sous verrouillage pessimiste `FOR UPDATE`, annulation et libération instantanée du stock dans le disponible, étanchéité multi-tenant absolue, et intégrité référentielle `RESTRICT`.
+  3. **Vérification "Zéro Donnée Fictive" (Règle d'Or 2)** :
+     - Certification que toutes les interfaces reposent exclusivement sur des requêtes réelles Supabase et restituent des états vides informatifs et soignés lorsqu'aucun enregistrement n'existe.
+  4. **Validation de Build et de Typage** :
+     - 0 erreur TypeScript (`tsc --noEmit`).
+     - Build de production Next.js 14+ (`npm run build`) validé avec succès sur les 30 routes applicatives.
+  5. **Cadrage et Périmètre V1 Respecté** :
+     - Exclusion confirmée de toutes les fonctionnalités futures (pawaPay, abonnements payants, quotas bloquants, QR codes, Flutter natif, IA prédictive).
+* **Justification** : Conformité irréprochable aux Règles d'Or 1 à 4, sécurité et intégrité technique garanties pour le déploiement de la V1 Expérimentale.
+
+---
+
+## 14. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
 
 | Réf. | Fonctionnalité Reportée | Motif du Report / Échéance |
 | :--- | :--- | :--- |

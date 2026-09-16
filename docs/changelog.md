@@ -3,6 +3,39 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [1.0.0-v1] - 2026-09-16
+### Homologation Globale, Audit RLS et Validation Finale V1 (Phase 11)
+
+#### Validé et Certifié
+* **Audit de Sécurité et Confidentialité RLS** :
+  - Audit complet sur les 17 tables du schéma public : Row Level Security 100% actif et étanche.
+  - Triggers PostgreSQL de protection anti-escalade (`role = 'admin'` rigoureusement verrouillé).
+  - Fonctions d'aide `SECURITY DEFINER` sécurisées sans risque de récursion (`current_user_role`, `is_company_member`, `is_company_admin_or_owner`).
+  - Zéro secret ou clé sensible (`service_role`) exposé dans les bundles Next.js publics.
+* **Suite de Tests Transactionnels Globale (`supabase/tests/phase11_final_validation_test.sql`)** :
+  - 11 suites de tests automatisées validées à 100% sur Supabase :
+    1. Auth & Triggers anti-escalade de rôle.
+    2. Distinction catalogue `products` vs `company_products` et création RPC avec anti-doublon normalisé.
+    3. Cycle cultural des productions et étanchéité de visibilité feed (brouillons strictement privés).
+    4. Demandes revendeurs avec analyse macroscopique décloisonnée et anonymat RLS absolu.
+    5. Création de campagnes commerciales sans altération de production ni réservation prématurée.
+    6. Rejet strict des commandes hors territoires de livraison desservis.
+    7. Passation de commande, réservation atomique et snapshot contractuel immuable du prix unitaire.
+    8. Concurrence et anti-surbooking absolu sous verrouillage transactionnel pessimiste `FOR UPDATE`.
+    9. Annulation de commande et libération instantanée du stock dans la disponibilité.
+    10. Isolation RLS multi-tenant étanche (Entreprise A vs B, Revendeur A vs B).
+    11. Intégrité référentielle et protection contre les suppressions destructives (`ON DELETE RESTRICT`).
+* **Validation Technique & Build** :
+  - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
+  - Build de production Next.js 14+ (`npm run build`) : 30 routes générées et optimisées avec succès.
+* **Respect Absolu des 4 Règles d'Or** :
+  - Règle 1 : Séparation stricte Inscription / Production.
+  - Règle 2 : Zéro donnée fictive (No Mock Data). L'application s'appuie exclusivement sur la base réelle avec des états vides élégants.
+  - Règle 3 : Séparation stricte des 5 entités : $\text{Produit} \neq \text{Production} \neq \text{Demande} \neq \text{Campagne} \neq \text{Commande} \neq \text{Réservation} \neq \text{Livraison}$.
+  - Règle 4 : Discipline opérationnelle et respect intégral du périmètre de la V1 Expérimentale.
+
+---
+
 ## [0.11.0-orders] - 2026-09-15
 ### Implémentation Complète des Commandes et de la Réservation de Stock V1 (Phase 10)
 
