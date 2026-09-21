@@ -342,9 +342,21 @@ BEGIN
         INSERT INTO auth.users (
             id,
             instance_id,
+            aud,
+            role,
             email,
             encrypted_password,
             email_confirmed_at,
+            confirmation_token,
+            recovery_token,
+            email_change_token_new,
+            email_change,
+            email_change_token_current,
+            reauthentication_token,
+            phone_change,
+            phone_change_token,
+            is_sso_user,
+            is_anonymous,
             raw_app_meta_data,
             raw_user_meta_data,
             created_at,
@@ -352,17 +364,57 @@ BEGIN
         ) VALUES (
             v_admin_id,
             '00000000-0000-0000-0000-000000000000',
+            'authenticated',
+            'authenticated',
             v_admin_email,
-            crypt('AdminAgri2026!', gen_salt('bf')),
+            crypt('AdminAgri2026!', gen_salt('bf', 10)),
             NOW(),
-            '{"provider":"email","providers":["email"]}',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            false,
+            false,
+            '{"provider":"email","providers":["email"]}'::jsonb,
             json_build_object(
+                'sub', 'a0000000-0000-0000-0000-000000000001',
+                'email', v_admin_email,
                 'role', 'admin',
-                'full_name', 'Administrateur Plateforme'
+                'full_name', 'Administrateur Plateforme',
+                'email_verified', true
             ),
             NOW(),
             NOW()
         );
+
+        INSERT INTO auth.identities (
+            id,
+            user_id,
+            identity_data,
+            provider,
+            provider_id,
+            last_sign_in_at,
+            created_at,
+            updated_at
+        ) VALUES (
+            gen_random_uuid(),
+            v_admin_id,
+            json_build_object(
+                'sub', v_admin_id,
+                'email', v_admin_email,
+                'role', 'admin',
+                'full_name', 'Administrateur Plateforme'
+            ),
+            'email',
+            v_admin_id::TEXT,
+            NOW(),
+            NOW(),
+            NOW()
+        ) ON CONFLICT (provider, provider_id) DO NOTHING;
 
         -- Attribution explicite et sécurisée du rôle 'admin'
         UPDATE public.profiles 
