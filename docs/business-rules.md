@@ -44,11 +44,20 @@
 
 ---
 
-## 4. CATALOGUE ET PRODUITS AGRICOLES (`Product`)
+## 4. CATALOGUE ET PRODUITS AGRICOLES (`Product` & `CompanyProduct`)
 
-* **BR-PROD-01** : Un produit représente une denrée agricole de base (ex. : Maïs blanc, Manioc, Soja, Tomate, Huile de palme, Haricot sec).
-* **BR-PROD-02** : Le catalogue général des produits est administré de manière centralisée (nom, catégorie agronomique, unité de mesure par défaut, visuel générique) afin d'assurer l'homogénéité des données.
-* **BR-PROD-03** : Une entreprise agricole sélectionne dans le catalogue les produits qu'elle cultive et commercialise. Elle peut préciser des caractéristiques spécifiques (variété, calibre, conditionnement habituel).
+* **BR-PROD-01 (Catalogue Global Officiel)** : Un produit du catalogue global représente une denrée agricole de base de référence (`is_global = TRUE`, `created_by_company_id = NULL`). Il est administré exclusivement par l'administrateur centralisé via `/dashboard/admin/products`.
+* **BR-PROD-02 (Produits Personnalisés d'Entreprise)** : Lorsqu'une culture spécifique n'existe pas dans le catalogue officiel, une entreprise peut créer un produit personnalisé (`is_global = FALSE`, `created_by_company_id = company_id`). Ce produit est **strictement privé** à l'entreprise créatrice et n'apparaît jamais dans le catalogue global des autres exploitations.
+* **BR-PROD-03 (Configuration d'Exploitation `company_products`)** : Une entreprise associe un produit (global ou privé) à son exploitation. Cette liaison porte ses spécificités locales :
+  - Dénomination personnalisée / variété (`custom_name`) ;
+  - Unité de mesure spécifique de l'exploitation (`unit`) ;
+  - Notes et pratiques agronomiques (`notes`) ;
+  - **Photo personnalisée de l'exploitation** (`image_url`).
+* **BR-PROD-04 (Indépendance Stricte des Visuels)** : La photo configurée par une entreprise est enregistrée dans `company_products.image_url`. Elle n'écrase **JAMAIS** la photo officielle du catalogue (`products.image_url`) et n'affecte en aucun cas les autres exploitations. Le trigger `trg_protect_global_product_images` et les politiques RLS interdisent toute modification des images officielles par les entreprises.
+* **BR-PROD-05 (Parcours d'Ajout en 2 Étapes)** :
+  - **Étape 1 (Recherche)** : L'exploitant recherche dans le catalogue global officiel. Si le produit n'existe pas, un bouton dédié permet la création exceptionnelle d'un produit privé.
+  - **Étape 2 (Configuration)** : L'exploitant affine la dénomination, l'unité, les notes et téléverse sa propre photo (avec prévisualisation par défaut de la photo officielle du catalogue si disponible).
+* **BR-PROD-06 (Flux Revendeur comme Accueil)** : L'espace revendeur `/dashboard/reseller` affiche directement le flux des productions réelles (`FeedView`) avec recherche textuelle instantanée, sélecteur de catégories sous forme de « pills » horizontaux scrollables sur mobile, et filtres par province et statut cultural.
 
 ---
 

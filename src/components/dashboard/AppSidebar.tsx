@@ -87,13 +87,8 @@ export default function AppSidebar({
 
   const resellerNavItems: NavItem[] = [
     {
-      label: "Accueil & Territoire",
-      href: "/dashboard/reseller",
-      icon: <LayoutDashboard className="w-5 h-5" />,
-    },
-    {
       label: "Flux des Productions",
-      href: "/dashboard/reseller/feed",
+      href: "/dashboard/reseller",
       icon: <Compass className="w-5 h-5" />,
     },
     {

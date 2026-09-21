@@ -102,7 +102,7 @@ export async function createProductionAction(
   // 3. Vérification du produit associé à l'entreprise
   const { data: companyProduct } = await supabase
     .from("company_products")
-    .select("id, product_id, is_active, products:product_id (id, name, image_url)")
+    .select("id, product_id, is_active, image_url, products:product_id (id, name, image_url)")
     .eq("id", companyProductId)
     .eq("company_id", companyId)
     .maybeSingle();
@@ -151,7 +151,7 @@ export async function createProductionAction(
     const productInfo = Array.isArray(companyProduct.products)
       ? companyProduct.products[0]
       : companyProduct.products;
-    imageUrl = (productInfo as any)?.image_url || null;
+    imageUrl = companyProduct.image_url || (productInfo as any)?.image_url || null;
   }
 
   // La base exige main_image_url NOT NULL

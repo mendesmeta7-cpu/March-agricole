@@ -132,23 +132,31 @@ erDiagram
 
 ### 2.3 Catalogue et Productions Agricoles
 
-#### `products` (Catalogue Général)
+#### `products` (Catalogue Général & Produits Privés)
 * `id` : `UUID PRIMARY KEY DEFAULT gen_random_uuid()`
-* `name` : `VARCHAR(150) NOT NULL UNIQUE`
+* `name` : `VARCHAR(150) NOT NULL`
 * `category` : `VARCHAR(100) NOT NULL`
 * `description` : `TEXT`
 * `default_unit` : `VARCHAR(30) NOT NULL DEFAULT 'tonne'`
-* `image_url` : `TEXT`
+* `image_url` : `TEXT` (Photo officielle si global, ou photo privée d'origine si créé par entreprise)
 * `is_active` : `BOOLEAN NOT NULL DEFAULT TRUE`
+* `is_global` : `BOOLEAN NOT NULL DEFAULT FALSE` (TRUE pour le catalogue officiel admin, FALSE pour les produits privés société)
+* `created_by_company_id` : `UUID REFERENCES companies(id) ON DELETE CASCADE` (NULL pour les produits globaux officiels)
 * `created_at`, `updated_at` : `TIMESTAMPTZ NOT NULL DEFAULT NOW()`
-* *Index* : `idx_products_category`, `idx_products_is_active`
-* *Trigger* : `trg_products_updated_at`
+* *Contraintes & Index* :
+  - `idx_products_global_name_unique` : `UNIQUE (LOWER(TRIM(name))) WHERE is_global = TRUE`
+  - `idx_products_custom_name_unique` : `UNIQUE (created_by_company_id, LOWER(TRIM(name))) WHERE is_global = FALSE`
+  - `idx_products_category`, `idx_products_is_active`, `idx_products_is_global`
+* *Triggers* : `trg_products_updated_at`, `trg_protect_global_product_images` (interdit l'écrasement des images officielles)
 
 #### `company_products` (Produits configurés par l'Entreprise)
 * `id` : `UUID PRIMARY KEY DEFAULT gen_random_uuid()`
 * `company_id` : `UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE`
 * `product_id` : `UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT`
-* `custom_name` : `VARCHAR(150)`
+* `custom_name` : `VARCHAR(150)` (Dénomination d'exploitation / variété locale)
+* `image_url` : `TEXT` (Photo personnalisée de l'entreprise — strictly distincte de l'image catalogue)
+* `unit` : `VARCHAR(30)` (Unité propre à l'exploitation, par défaut hérite de `default_unit`)
+* `notes` : `TEXT` (Notes agronomiques ou commerciales de l'exploitation)
 * `description` : `TEXT`
 * `is_active` : `BOOLEAN NOT NULL DEFAULT TRUE`
 * `created_at`, `updated_at` : `TIMESTAMPTZ NOT NULL DEFAULT NOW()`

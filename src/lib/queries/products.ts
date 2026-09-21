@@ -8,6 +8,8 @@ export interface CatalogProduct {
   default_unit: string;
   image_url: string | null;
   is_active: boolean;
+  is_global: boolean;
+  created_by_company_id?: string | null;
 }
 
 export interface CompanyProductItem {
@@ -16,6 +18,9 @@ export interface CompanyProductItem {
   product_id: string;
   custom_name: string | null;
   description: string | null;
+  image_url: string | null;
+  unit: string | null;
+  notes: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -23,13 +28,14 @@ export interface CompanyProductItem {
 }
 
 /**
- * Récupère l'intégralité du catalogue général des produits actifs
+ * Récupère l'intégralité du catalogue officiel des produits actifs (is_global = true)
  */
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("products")
-    .select("id, name, category, description, default_unit, image_url, is_active")
+    .select("id, name, category, description, default_unit, image_url, is_active, is_global, created_by_company_id")
+    .eq("is_global", true)
     .eq("is_active", true)
     .order("name", { ascending: true });
 
@@ -38,7 +44,33 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
     return [];
   }
 
-  return data || [];
+  return (data || []).map((item: any) => ({
+    ...item,
+    is_global: item.is_global ?? true,
+  })) as CatalogProduct[];
+}
+
+/**
+ * Récupère l'ensemble du catalogue officiel pour la supervision Administrateur (actifs et inactifs)
+ */
+export async function getAdminCatalogProducts(): Promise<CatalogProduct[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, name, category, description, default_unit, image_url, is_active, is_global, created_by_company_id")
+    .eq("is_global", true)
+    .order("category", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("Erreur récupération catalogue admin:", error);
+    return [];
+  }
+
+  return (data || []).map((item: any) => ({
+    ...item,
+    is_global: item.is_global ?? true,
+  })) as CatalogProduct[];
 }
 
 /**
@@ -54,6 +86,9 @@ export async function getCompanyProducts(companyId: string): Promise<CompanyProd
       product_id,
       custom_name,
       description,
+      image_url,
+      unit,
+      notes,
       is_active,
       created_at,
       updated_at,
@@ -64,7 +99,9 @@ export async function getCompanyProducts(companyId: string): Promise<CompanyProd
         description,
         default_unit,
         image_url,
-        is_active
+        is_active,
+        is_global,
+        created_by_company_id
       )
     `)
     .eq("company_id", companyId)
@@ -76,8 +113,14 @@ export async function getCompanyProducts(companyId: string): Promise<CompanyProd
   }
 
   // Normalisation du type retourné par Supabase
-  return (data || []).map((item: any) => ({
-    ...item,
-    product: Array.isArray(item.product) ? item.product[0] : item.product,
-  })) as CompanyProductItem[];
+  return (data || []).map((item: any) => {
+    const rawProd = Array.isArray(item.product) ? item.product[0] : item.product;
+    return {
+      ...item,
+      product: {
+        ...rawProd,
+        is_global: rawProd?.is_global ?? true,
+      },
+    };
+  }) as CompanyProductItem[];
 }

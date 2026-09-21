@@ -34,6 +34,8 @@ async function getCompanyIdForUser(supabase: any, userId: string): Promise<strin
 
 /**
  * Associe un produit existant du catalogue général à l'entreprise agricole
+ * Enregistre les spécificités de l'exploitation (dénomination, unité, notes, photo propre)
+ * sans JAMAIS altérer la référence du catalogue officiel.
  */
 export async function associateCatalogProductAction(
   prevState: ActionResponse | null,
@@ -55,15 +57,50 @@ export async function associateCatalogProductAction(
   const productId = formData.get("productId") as string;
   const customName = (formData.get("customName") as string)?.trim() || null;
   const description = (formData.get("description") as string)?.trim() || null;
+  const unit = (formData.get("unit") as string)?.trim() || "tonne";
+  const notes = (formData.get("notes") as string)?.trim() || null;
+  const imageFile = formData.get("customImage") as File | null;
 
   if (!productId) {
     return { error: "Veuillez sélectionner un produit dans le catalogue." };
   }
 
+  // Upload optionnel de la photo personnalisée de la société
+  let customImageUrl: string | null = null;
+  if (imageFile && imageFile.size > 0) {
+    if (imageFile.size > 5 * 1024 * 1024) {
+      return { error: "La photo personnalisée ne doit pas dépasser 5 Mo." };
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(imageFile.type)) {
+      return { error: "Format d'image non supporté (utilisez JPG, PNG ou WebP)." };
+    }
+
+    const ext = imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
+    const filePath = `company-products/${crypto.randomUUID()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("public-assets")
+      .upload(filePath, imageFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      return { error: `Erreur de téléversement : ${uploadError.message}` };
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("public-assets")
+      .getPublicUrl(filePath);
+    customImageUrl = publicUrlData.publicUrl;
+  }
+
   // Vérifier si une association existe déjà
   const { data: existing } = await supabase
     .from("company_products")
-    .select("id, is_active")
+    .select("id, is_active, image_url")
     .eq("company_id", companyId)
     .eq("product_id", productId)
     .maybeSingle();
@@ -79,6 +116,9 @@ export async function associateCatalogProductAction(
           is_active: true,
           custom_name: customName,
           description: description,
+          unit: unit,
+          notes: notes,
+          image_url: customImageUrl || existing.image_url,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing.id);
@@ -89,17 +129,20 @@ export async function associateCatalogProductAction(
 
       revalidatePath("/dashboard/company/products");
       revalidatePath("/dashboard/company");
-  revalidatePath("/dashboard/admin/products");
+      revalidatePath("/dashboard/admin/products");
       return { success: true, message: "Produit réactivé avec succès dans votre exploitation." };
     }
   }
 
-  // Création de la nouvelle association
+  // Création de la nouvelle association dans company_products
   const { error: insertErr } = await supabase.from("company_products").insert({
     company_id: companyId,
     product_id: productId,
     custom_name: customName,
     description: description,
+    unit: unit,
+    notes: notes,
+    image_url: customImageUrl,
     is_active: true,
   });
 
@@ -110,11 +153,12 @@ export async function associateCatalogProductAction(
   revalidatePath("/dashboard/company/products");
   revalidatePath("/dashboard/company");
   revalidatePath("/dashboard/admin/products");
-  return { success: true, message: "Produit associé avec succès à votre exploitation." };
+  return { success: true, message: "Produit configuré et associé avec succès à votre exploitation." };
 }
 
 /**
- * Ajoute un nouveau produit inexistant au catalogue et l'associe immédiatement à l'entreprise
+ * Ajoute un produit personnalisé privé (absent du catalogue global) et l'associe à l'entreprise.
+ * Ce produit est STRICTEMENT PRIVÉ à l'exploitation et n'apparaît pas dans le catalogue officiel.
  */
 export async function createAndAssociateProductAction(
   prevState: ActionResponse | null,
@@ -149,7 +193,7 @@ export async function createAndAssociateProductAction(
     return { error: "Veuillez spécifier la catégorie agronomique du produit." };
   }
 
-  // Upload optionnel de photo
+  // Upload optionnel de photo propre à l'exploitation
   let imageUrl: string | null = null;
   if (imageFile && imageFile.size > 0) {
     if (imageFile.size > 5 * 1024 * 1024) {
@@ -162,7 +206,7 @@ export async function createAndAssociateProductAction(
     }
 
     const ext = imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
-    const filePath = `products/${crypto.randomUUID()}.${ext}`;
+    const filePath = `company-products/${crypto.randomUUID()}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from("public-assets")
@@ -181,7 +225,7 @@ export async function createAndAssociateProductAction(
     }
   }
 
-  // Appel de la procédure atomique
+  // Appel de la procédure atomique révisée (is_global = FALSE, strictly private)
   const { data, error } = await supabase.rpc("create_custom_product_and_associate", {
     p_company_id: companyId,
     p_name: name,
@@ -199,18 +243,16 @@ export async function createAndAssociateProductAction(
 
   revalidatePath("/dashboard/company/products");
   revalidatePath("/dashboard/company");
-  revalidatePath("/dashboard/admin/products");
 
-  const isExisting = (data as any)?.was_already_in_catalog;
-  const msg = isExisting
-    ? `Le produit "${name}" existait déjà dans le catalogue général et a été automatiquement rattaché à votre exploitation.`
-    : `Nouveau produit "${name}" enregistré au catalogue général et associé à votre exploitation.`;
-
-  return { success: true, message: msg };
+  return {
+    success: true,
+    message: `Produit personnalisé "${name}" enregistré pour votre exploitation (non partagé dans le catalogue global).`,
+  };
 }
 
 /**
  * Modifie les données propres à l'entreprise pour un produit associé
+ * (y compris dénomination ferme, notes d'exploitation, unité et photo personnalisée)
  */
 export async function updateCompanyProductAction(
   prevState: ActionResponse | null,
@@ -226,6 +268,10 @@ export async function updateCompanyProductAction(
   const companyProductId = formData.get("companyProductId") as string;
   const customName = (formData.get("customName") as string)?.trim() || null;
   const description = (formData.get("description") as string)?.trim() || null;
+  const unit = (formData.get("unit") as string)?.trim() || "tonne";
+  const notes = (formData.get("notes") as string)?.trim() || null;
+  const imageFile = formData.get("customImage") as File | null;
+  const removeCustomImage = formData.get("removeCustomImage") === "true";
 
   if (!companyProductId) {
     return { error: "Identifiant du produit manquant." };
@@ -237,13 +283,50 @@ export async function updateCompanyProductAction(
     return { error: "Entreprise introuvable." };
   }
 
+  const updatePayload: Record<string, any> = {
+    custom_name: customName,
+    description: description,
+    unit: unit,
+    notes: notes,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Upload d'une nouvelle photo personnalisée si fournie
+  if (imageFile && imageFile.size > 0) {
+    if (imageFile.size > 5 * 1024 * 1024) {
+      return { error: "La photo personnalisée ne doit pas dépasser 5 Mo." };
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(imageFile.type)) {
+      return { error: "Format d'image non supporté (utilisez JPG, PNG ou WebP)." };
+    }
+
+    const ext = imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
+    const filePath = `company-products/${crypto.randomUUID()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("public-assets")
+      .upload(filePath, imageFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      return { error: `Erreur d'upload : ${uploadError.message}` };
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("public-assets")
+      .getPublicUrl(filePath);
+    updatePayload.image_url = publicUrlData.publicUrl;
+  } else if (removeCustomImage) {
+    updatePayload.image_url = null;
+  }
+
   const { error: updateErr } = await supabase
     .from("company_products")
-    .update({
-      custom_name: customName,
-      description: description,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", companyProductId)
     .eq("company_id", companyId);
 
@@ -252,7 +335,8 @@ export async function updateCompanyProductAction(
   }
 
   revalidatePath("/dashboard/company/products");
-  return { success: true, message: "Informations du produit mises à jour." };
+  revalidatePath("/dashboard/company");
+  return { success: true, message: "Configuration du produit mise à jour avec succès." };
 }
 
 /**
@@ -292,7 +376,6 @@ export async function toggleCompanyProductStatusAction(
 
   revalidatePath("/dashboard/company/products");
   revalidatePath("/dashboard/company");
-  revalidatePath("/dashboard/admin/products");
 
   return {
     success: true,

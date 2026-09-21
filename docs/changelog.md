@@ -3,6 +3,36 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [1.2.0-catalog-feed] - 2026-09-21
+### Catalogue Global Admin, Produits Société, Photos Indépendantes et Flux Revendeur (Phase 14)
+
+#### Ajouté & Amélioré
+* **Découplage Strict Catalogue Global vs Configurations d'Exploitation** :
+  - `products.is_global` (`BOOLEAN NOT NULL DEFAULT FALSE`) et `products.created_by_company_id` (`UUID REFERENCES companies(id)`).
+  - Semence d'un catalogue officiel de référence de 73 produits agricoles couvrant 7 filières (Céréales, Tubercules, Légumes, Fruits, Légumineuses, Oléagineux, Cultures de rente).
+  - Index d'unicité partiels : `idx_products_global_name_unique` sur les produits globaux et `idx_products_custom_name_unique` par entreprise pour les produits privés.
+* **Indépendance Totale des Photos Officielles et Personnalisées** :
+  - Colonne `company_products.image_url` dédiée : la photo téléversée par une entreprise reste confinée à son exploitation et n'altère jamais la photo officielle du catalogue (`products.image_url`).
+  - Déploiement du trigger `trg_protect_global_product_images` interdisant toute modification des photos globales par les utilisateurs non-administrateurs.
+  - Priorisation en cascade lors de la création d'une production : photo spécifique téléversée > photo d'exploitation (`company_products.image_url`) > photo officielle du catalogue (`products.image_url`).
+* **Parcours d'Ajout de Produit en Deux Étapes (`/dashboard/company/products`)** :
+  - Étape 1 : Recherche instantanée dans le catalogue officiel de référence ; si absent, proposition claire de création d'un produit privé hors-catalogue.
+  - Étape 2 : Configuration d'exploitation avec dénomination locale, unité de mesure, notes agronomiques, et photo personnalisée (avec prévisualisation par défaut du visuel de référence).
+* **Espace d'Administration du Catalogue Dédié (`/dashboard/admin/products`)** :
+  - Création du compte administrateur dédié `admin@marcheagricole.cd`.
+  - Interface complète d'administration : ajout, édition, activation/désactivation de produits de référence officiels avec téléversement de photos officielles.
+  - Connexion via la route standard `/login` sans exposition d'accès admin sur la vitrine publique.
+* **Flux des Productions comme Accueil Revendeur (`/dashboard/reseller`)** :
+  - Remplacement de la page statique de statistiques par le flux direct des productions réelles (`FeedView`).
+  - Filtrage dynamique avec barre de recherche, pills scrollables horizontalement pour les catégories sur mobile, filtres par province et statut cultural.
+  - Redirection automatique de `/dashboard/reseller/feed` vers `/dashboard/reseller` et mise à jour de la barre latérale de navigation.
+* **Validation & Homologation** :
+  - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
+  - Suite de tests SQL (`supabase/tests/phase14_catalog_and_feed_test.sql`) validée avec succès sur la base de données.
+  - Intégrité absolue des données existantes (Entreprise Mendes meta, produit Manioc doux, production de Matadi).
+
+---
+
 ## [1.1.0-stab] - 2026-09-16
 ### Stabilisation et Corrections Post-Validation V1 (Phase 12)
 

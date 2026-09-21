@@ -29,6 +29,7 @@ export default function FeedView({
 }: FeedViewProps) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
+  const [status, setStatus] = useState("all");
   const [provinceId, setProvinceId] = useState("all");
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -53,18 +54,24 @@ export default function FeedView({
         return false;
       }
 
-      // 3. Filtre par province
+      // 3. Filtre par statut
+      if (status !== "all" && item.status !== status) {
+        return false;
+      }
+
+      // 4. Filtre par province
       if (provinceId !== "all" && item.company.province_id !== provinceId) {
         return false;
       }
 
       return true;
     });
-  }, [initialItems, search, category, provinceId]);
+  }, [initialItems, search, category, status, provinceId]);
 
   const handleResetFilters = () => {
     setSearch("");
     setCategory("all");
+    setStatus("all");
     setProvinceId("all");
   };
 
@@ -76,12 +83,14 @@ export default function FeedView({
 
   return (
     <div className="space-y-6">
-      {/* 1. Barre de filtres */}
+      {/* 1. Barre de filtres réactive */}
       <FeedFilters
         search={search}
         onSearchChange={setSearch}
         category={category}
         onCategoryChange={setCategory}
+        status={status}
+        onStatusChange={setStatus}
         provinceId={provinceId}
         onProvinceChange={setProvinceId}
         onReset={handleResetFilters}
@@ -96,8 +105,8 @@ export default function FeedView({
             {filteredItems.length}{" "}
             {filteredItems.length > 1 ? "productions publiées" : "production publiée"}
           </span>
-          {(search || category !== "all" || provinceId !== "all") && (
-            <span className="text-xs text-forest-700 bg-forest-50 px-2 py-0.5 rounded-full border border-forest-200">
+          {(search || category !== "all" || status !== "all" || provinceId !== "all") && (
+            <span className="text-xs text-forest-700 bg-forest-50 px-2 py-0.5 rounded-full border border-forest-200 font-medium">
               Filtres actifs
             </span>
           )}
@@ -111,7 +120,7 @@ export default function FeedView({
             type="button"
             onClick={handleRefresh}
             disabled={isPending}
-            className="text-xs text-gray-500 hover:text-forest-700 inline-flex items-center gap-1 transition-colors"
+            className="text-xs text-gray-500 hover:text-forest-700 inline-flex items-center gap-1 transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isPending ? "animate-spin" : ""}`} />
             <span>Actualiser</span>
@@ -131,22 +140,22 @@ export default function FeedView({
       ) : (
         <EmptyState
           title={
-            search || category !== "all" || provinceId !== "all"
+            search || category !== "all" || status !== "all" || provinceId !== "all"
               ? "Aucune production ne correspond à vos filtres"
               : "Aucune production publiée pour le moment"
           }
           description={
-            search || category !== "all" || provinceId !== "all"
+            search || category !== "all" || status !== "all" || provinceId !== "all"
               ? "Essayez d'élargir vos critères de recherche géographique ou de sélectionner une autre catégorie de denrée."
               : "Les exploitations agricoles partenaires n'ont pas encore publié de cycle de culture public. Revenez régulièrement pour découvrir les prochaines récoltes."
           }
           icon={<Compass className="w-8 h-8 text-forest-700" />}
           action={
-            search || category !== "all" || provinceId !== "all" ? (
+            search || category !== "all" || status !== "all" || provinceId !== "all" ? (
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="px-4 py-2 rounded-xl bg-forest-700 text-white text-xs sm:text-sm font-semibold hover:bg-forest-800 transition-all shadow-xs"
+                className="px-4 py-2 rounded-xl bg-forest-700 text-white text-xs sm:text-sm font-semibold hover:bg-forest-800 transition-all shadow-xs cursor-pointer"
               >
                 Réinitialiser les filtres
               </button>

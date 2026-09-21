@@ -2,10 +2,25 @@
 
 import { useState } from "react";
 import { CatalogProduct } from "@/lib/queries/products";
-import { associateCatalogProductAction, createAndAssociateProductAction, ActionResponse } from "@/lib/actions/products";
+import {
+  associateCatalogProductAction,
+  createAndAssociateProductAction,
+  ActionResponse,
+} from "@/lib/actions/products";
 import SubmitButton from "@/components/SubmitButton";
-import Badge from "@/components/ui/Badge";
-import { X, Search, Sparkles, PackagePlus, AlertCircle, CheckCircle2, Image as ImageIcon, Layers } from "lucide-react";
+import {
+  X,
+  Search,
+  Check,
+  Package,
+  ArrowLeft,
+  Image as ImageIcon,
+  AlertCircle,
+  CheckCircle2,
+  Sparkles,
+  Info,
+  Layers,
+} from "lucide-react";
 
 interface AddProductModalProps {
   isOpen: boolean;
@@ -13,15 +28,16 @@ interface AddProductModalProps {
   catalogProducts: CatalogProduct[];
 }
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   "Céréales",
-  "Tubercules & Racines",
-  "Légumineuses & Protéagineux",
-  "Maraîchage & Légumes",
+  "Légumineuses",
+  "Tubercules et racines",
+  "Légumes",
+  "Légumes-feuilles / Produits locaux",
   "Fruits",
-  "Oléagineux & Cultures pérennes",
-  "Plantes à épices & Aromates",
-  "Autres denrées agricoles",
+  "Oléagineux",
+  "Épices et aromates",
+  "Autres productions agricoles",
 ];
 
 const UNITS = [
@@ -39,18 +55,41 @@ export default function AddProductModal({
   onClose,
   catalogProducts,
 }: AddProductModalProps) {
-  const [activeTab, setActiveTab] = useState<"catalog" | "custom">("catalog");
+  // Navigation du modal : "search" (Étape 1) | "configure" (Étape 2A) | "custom" (Étape 2B)
+  const [step, setStep] = useState<"search" | "configure" | "custom">("search");
   const [searchCatalog, setSearchCatalog] = useState("");
   const [selectedCatalogProduct, setSelectedCatalogProduct] = useState<CatalogProduct | null>(null);
+
+  // État de prévisualisation d'image personnalisée
+  const [customImagePreview, setCustomImagePreview] = useState<string | null>(null);
+
   const [state, setState] = useState<ActionResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
-  const filteredCatalog = catalogProducts.filter((p) =>
-    p.name.toLowerCase().includes(searchCatalog.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchCatalog.toLowerCase())
-  );
+  // Filtrage du catalogue officiel
+  const filteredCatalog = catalogProducts.filter((p) => {
+    const q = searchCatalog.toLowerCase();
+    return (
+      p.name.toLowerCase().includes(q) ||
+      p.category.toLowerCase().includes(q)
+    );
+  });
+
+  const handleSelectProduct = (prod: CatalogProduct) => {
+    setSelectedCatalogProduct(prod);
+    setCustomImagePreview(null);
+    setState(null);
+    setStep("configure");
+  };
+
+  const handleCustomImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCustomImagePreview(URL.createObjectURL(file));
+    }
+  };
 
   async function handleAssociate(formData: FormData) {
     setIsSubmitting(true);
@@ -61,8 +100,7 @@ export default function AddProductModal({
       if (res.success) {
         setTimeout(() => {
           onClose();
-          setState(null);
-          setSelectedCatalogProduct(null);
+          resetModal();
         }, 1200);
       }
     } catch (err: any) {
@@ -72,7 +110,7 @@ export default function AddProductModal({
     }
   }
 
-  async function handleCreateNew(formData: FormData) {
+  async function handleCreateCustom(formData: FormData) {
     setIsSubmitting(true);
     setState(null);
     try {
@@ -81,7 +119,7 @@ export default function AddProductModal({
       if (res.success) {
         setTimeout(() => {
           onClose();
-          setState(null);
+          resetModal();
         }, 1200);
       }
     } catch (err: any) {
@@ -91,340 +129,504 @@ export default function AddProductModal({
     }
   }
 
+  const resetModal = () => {
+    setStep("search");
+    setSearchCatalog("");
+    setSelectedCatalogProduct(null);
+    setCustomImagePreview(null);
+    setState(null);
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full max-h-[94vh] sm:max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:fade-in sm:zoom-in-95 duration-200">
-        {/* En-tête du modal */}
-        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 flex-shrink-0">
-          <div className="min-w-0 flex-1 pr-2">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2 truncate">
-              <PackagePlus className="w-5 h-5 text-forest-700 flex-shrink-0" />
-              <span className="truncate">Associer un Produit</span>
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5 truncate sm:whitespace-normal">
-              Sélectionnez ou créez une denrée agricole.
-            </p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* En-tête */}
+        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-forest-50/50 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            {step !== "search" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("search");
+                  setState(null);
+                }}
+                className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-white transition-colors"
+                title="Retour à la recherche"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-gray-950">
+                {step === "search" && "Ajouter un produit à votre exploitation"}
+                {step === "configure" && `Configurer : ${selectedCatalogProduct?.name}`}
+                {step === "custom" && "Ajouter un produit personnalisé privé"}
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {step === "search" && "Étape 1 sur 2 : Rechercher et sélectionner dans le catalogue officiel"}
+                {step === "configure" && "Étape 2 sur 2 : Personnaliser l'unité, la dénomination et votre photo"}
+                {step === "custom" && "Ce produit sera strictement privé à votre ferme"}
+              </p>
+            </div>
           </div>
           <button
-            onClick={onClose}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex-shrink-0 min-h-[44px] min-w-[44px]"
-            aria-label="Fermer"
+            type="button"
+            onClick={() => {
+              onClose();
+              resetModal();
+            }}
+            className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Onglets de sélection */}
-        <div className="flex border-b border-gray-100 px-3 sm:px-6 bg-white overflow-x-auto flex-shrink-0 gap-1">
-          <button
-            onClick={() => {
-              setActiveTab("catalog");
-              setState(null);
-            }}
-            className={`py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold border-b-2 flex items-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap min-h-[44px] ${
-              activeTab === "catalog"
-                ? "border-forest-700 text-forest-800"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            <Layers className="w-4 h-4 flex-shrink-0" />
-            <span>Catalogue ({catalogProducts.length})</span>
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab("custom");
-              setState(null);
-            }}
-            className={`py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold border-b-2 flex items-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap min-h-[44px] ${
-              activeTab === "custom"
-                ? "border-forest-700 text-forest-800"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            <Sparkles className="w-4 h-4 flex-shrink-0" />
-            <span>Produit Absent ? Ajouter</span>
-          </button>
-        </div>
-
-        {/* Messages d'état */}
+        {/* Message de feedback */}
         {state?.error && (
-          <div className="mx-4 sm:mx-6 mt-3 p-3 sm:p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5 flex-shrink-0">
-            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 text-red-600 mt-0.5" />
+          <div className="mx-6 mt-4 p-3.5 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2 text-red-800 text-xs">
+            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
             <span>{state.error}</span>
           </div>
         )}
+
         {state?.success && (
-          <div className="mx-4 sm:mx-6 mt-3 p-3 sm:p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm flex items-start gap-2.5 flex-shrink-0">
-            <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 text-emerald-600 mt-0.5" />
-            <span>{state.message || "Opération réalisée avec succès."}</span>
+          <div className="mx-6 mt-4 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-2 text-emerald-800 text-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span>{state.message}</span>
           </div>
         )}
 
-        {/* Contenu de l'onglet */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
-          {activeTab === "catalog" ? (
-            /* Onglet 1 : Sélection dans le catalogue existant */
-            <form action={handleAssociate} className="space-y-4 sm:space-y-5 flex flex-col min-h-full">
-              {catalogProducts.length > 0 ? (
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 mb-1.5">
-                    Rechercher dans le catalogue national
-                  </label>
-                  <div className="relative mb-2.5">
-                    <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                    <input
-                      type="text"
-                      placeholder="Filtrer par nom (ex. Maïs, Manioc)..."
-                      value={searchCatalog}
-                      onChange={(e) => setSearchCatalog(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-forest-600/30 focus:border-forest-700"
-                    />
-                  </div>
-
-                  {/* Liste des produits filtrés */}
-                  <div className="max-h-40 sm:max-h-48 overflow-y-auto border border-gray-200 rounded-2xl divide-y divide-gray-100">
-                    {filteredCatalog.length === 0 ? (
-                      <div className="p-4 text-center text-xs sm:text-sm text-gray-500">
-                        Aucun produit trouvé.
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveTab("custom");
-                            setSearchCatalog("");
-                          }}
-                          className="block mx-auto mt-2 text-xs font-semibold text-forest-700 hover:underline"
-                        >
-                          + Ajouter ce produit au catalogue
-                        </button>
-                      </div>
-                    ) : (
-                      filteredCatalog.map((prod) => (
-                        <div
-                          key={prod.id}
-                          onClick={() => setSelectedCatalogProduct(prod)}
-                          className={`p-3 flex items-center justify-between cursor-pointer hover:bg-forest-50/50 transition-colors min-h-[44px] ${
-                            selectedCatalogProduct?.id === prod.id
-                              ? "bg-forest-50 border-l-4 border-forest-700"
-                              : ""
-                          }`}
-                        >
-                          <div className="min-w-0 flex-1 pr-2">
-                            <div className="font-semibold text-gray-900 text-xs sm:text-sm truncate">{prod.name}</div>
-                            <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5">
-                              <span className="text-[11px] sm:text-xs text-gray-500 truncate">{prod.category}</span>
-                              <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0">
-                                {prod.default_unit}
-                              </span>
-                            </div>
-                          </div>
-                          {selectedCatalogProduct?.id === prod.id && (
-                            <Badge variant="forest" size="sm">Sélectionné</Badge>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
-                  Le catalogue général est actuellement vide. Vous pouvez enregistrer une première denrée via l&apos;onglet <strong>&quot;Produit Absent ? Ajouter&quot;</strong>.
-                </div>
-              )}
-
-              {/* Champ caché de l'ID produit sélectionné */}
+        {/* ======================================================== */}
+        {/* ÉTAPE 1 : RECHERCHE DANS LE CATALOGUE GLOBAL */}
+        {/* ======================================================== */}
+        {step === "search" && (
+          <div className="p-6 flex-1 flex flex-col overflow-hidden space-y-4">
+            {/* Barre de recherche */}
+            <div className="relative flex-shrink-0">
+              <Search className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
-                type="hidden"
-                name="productId"
-                value={selectedCatalogProduct?.id || ""}
+                type="text"
+                autoFocus
+                value={searchCatalog}
+                onChange={(e) => setSearchCatalog(e.target.value)}
+                placeholder="Rechercher un produit (ex: Tomate, Maïs, Manioc, Haricot...)"
+                className="w-full pl-11 pr-4 py-3 rounded-2xl border border-gray-300 text-sm focus:ring-2 focus:ring-forest-600 focus:border-transparent outline-none transition-all shadow-2xs"
               />
+            </div>
 
-              {selectedCatalogProduct && (
-                <div className="p-3.5 sm:p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-3 animate-in fade-in">
-                  <div className="text-xs font-semibold text-gray-500 uppercase">
-                    Configuration pour votre exploitation
+            {/* Liste des résultats */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[260px] max-h-[380px]">
+              {filteredCatalog.length > 0 ? (
+                filteredCatalog.map((prod) => (
+                  <div
+                    key={prod.id}
+                    className="p-3.5 rounded-2xl border border-gray-200/90 hover:border-forest-400 bg-white hover:bg-forest-50/40 transition-all flex items-center justify-between gap-4 group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-12 h-12 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
+                        {prod.image_url ? (
+                          <img
+                            src={prod.image_url}
+                            alt={prod.name}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <Package className="w-6 h-6 text-gray-400" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-gray-950 truncate">
+                            {prod.name}
+                          </h4>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 flex-shrink-0">
+                            {prod.category}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5 truncate">
+                          Unité standard : {prod.default_unit}
+                          {prod.description && ` — ${prod.description}`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectProduct(prod)}
+                      className="px-4 py-2 rounded-xl bg-forest-700 hover:bg-forest-800 text-white text-xs font-semibold shadow-2xs transition-all flex-shrink-0"
+                    >
+                      Sélectionner
+                    </button>
+                  </div>
+                ))
+              ) : (
+                /* PARTIE 6 : Aucun produit correspondant trouvé */
+                <div className="py-12 px-4 text-center space-y-3 bg-gray-50/60 rounded-2xl border border-dashed border-gray-200">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center mx-auto">
+                    <AlertCircle className="w-6 h-6" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Dénomination spécifique (Optionnel)
-                    </label>
-                    <input
-                      type="text"
-                      name="customName"
-                      placeholder={`Ex. ${selectedCatalogProduct.name} Blanc Premium`}
-                      className="w-full px-3.5 py-2 text-sm rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-forest-600/30"
-                    />
-                    <p className="text-[11px] text-gray-500 mt-1">
-                      Précisez si vous commercialisez une variété spécifique.
+                    <p className="text-sm font-bold text-gray-900">
+                      Aucun produit correspondant n&apos;a été trouvé dans le catalogue.
+                    </p>
+                    <p className="text-xs text-gray-500 max-w-md mx-auto mt-1">
+                      Le produit que vous cultivez ne figure pas encore dans le référentiel officiel centralisé.
                     </p>
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Notes agronomiques ou descriptif (Optionnel)
-                    </label>
-                    <textarea
-                      name="description"
-                      rows={2}
-                      placeholder="Ex. Culture plein champ biologique, variété locale..."
-                      className="w-full px-3.5 py-2 text-sm rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-forest-600/30"
-                    />
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep("custom");
+                        setState(null);
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white text-xs font-semibold shadow-xs transition-all inline-flex items-center gap-2"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Ajouter un produit personnalisé</span>
+                    </button>
                   </div>
                 </div>
               )}
+            </div>
 
-              <div className="pt-3 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3 mt-auto">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors text-center min-h-[44px]"
-                >
-                  Annuler
-                </button>
-                <SubmitButton
-                  disabled={!selectedCatalogProduct || isSubmitting}
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-forest-700 text-white text-sm font-semibold hover:bg-forest-800 disabled:opacity-50 transition-all shadow-xs min-h-[44px] flex items-center justify-center"
-                  loadingText="Association en cours..."
-                >
-                  Associer à mon exploitation
-                </SubmitButton>
-              </div>
-            </form>
-          ) : (
-            /* Onglet 2 : Ajout d'un nouveau produit au catalogue général */
-            <form action={handleCreateNew} className="space-y-3.5 sm:space-y-4">
-              <div className="p-3 sm:p-3.5 rounded-2xl bg-forest-50/60 border border-forest-100 text-forest-900 text-xs flex items-start gap-2">
-                <Sparkles className="w-4 h-4 text-forest-700 flex-shrink-0 mt-0.5" />
-                <span>
-                  Ce produit sera ajouté au <strong>catalogue général officiel</strong> et associé à votre exploitation avec contrôle anti-doublon.
-                </span>
-              </div>
+            {/* Note informative en pied */}
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+              <span>{catalogProducts.length} références disponibles dans le catalogue officiel.</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("custom");
+                  setState(null);
+                }}
+                className="text-forest-700 hover:underline font-medium"
+              >
+                Créer un produit personnalisé &rarr;
+              </button>
+            </div>
+          </div>
+        )}
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                  Nom officiel du produit <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  placeholder="Ex. Maïs jaune, Manioc doux, Soja..."
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-forest-600/30 focus:border-forest-700"
-                />
-              </div>
+        {/* ======================================================== */}
+        {/* ÉTAPE 2A : CONFIGURATION D'UN PRODUIT DU CATALOGUE */}
+        {/* ======================================================== */}
+        {step === "configure" && selectedCatalogProduct && (
+          <form action={handleAssociate} className="p-6 overflow-y-auto space-y-4 flex-1">
+            <input type="hidden" name="productId" value={selectedCatalogProduct.id} />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                    Catégorie agronomique <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="category"
-                    required
-                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-forest-600/30 min-h-[40px]"
-                  >
-                    <option value="">Sélectionner une catégorie</option>
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                    Unité de mesure par défaut <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="defaultUnit"
-                    required
-                    defaultValue="tonne"
-                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-forest-600/30 min-h-[40px]"
-                  >
-                    {UNITS.map((u) => (
-                      <option key={u.value} value={u.value}>
-                        {u.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                  Description générale du produit (Optionnel)
-                </label>
-                <textarea
-                  name="productDescription"
-                  rows={2}
-                  placeholder="Description agronomique générale de la denrée..."
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-forest-600/30"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                  Photo illustrative (Optionnel, Max 5 Mo)
-                </label>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 cursor-pointer text-xs font-medium text-gray-700 transition-colors min-h-[40px]">
-                    <ImageIcon className="w-4 h-4 text-forest-700" />
-                    <span>Choisir une image</span>
-                    <input
-                      type="file"
-                      name="image"
-                      accept="image/jpeg,image/png,image/webp"
-                      className="hidden"
+            {/* Fiche récapitulative du produit catalogue */}
+            <div className="p-3.5 rounded-2xl bg-forest-50/70 border border-forest-200/80 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-white border border-forest-200 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
+                  {selectedCatalogProduct.image_url ? (
+                    <img
+                      src={selectedCatalogProduct.image_url}
+                      alt={selectedCatalogProduct.name}
+                      className="w-full h-full object-cover"
                     />
-                  </label>
-                  <span className="text-xs text-gray-400">JPG, PNG ou WebP</span>
-                </div>
-              </div>
-
-              <div className="pt-2 sm:pt-3 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Dénomination spécifique à votre ferme (Optionnel)
-                  </label>
-                  <input
-                    type="text"
-                    name="customName"
-                    placeholder="Ex. Récolte Spéciale Nord"
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-forest-600/30"
-                  />
+                  ) : (
+                    <Package className="w-6 h-6 text-forest-700" />
+                  )}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Notes d&apos;exploitation (Optionnel)
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-forest-950">
+                      {selectedCatalogProduct.name}
+                    </span>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white text-forest-800 border border-forest-200">
+                      {selectedCatalogProduct.category}
+                    </span>
+                  </div>
+                  <p className="text-xs text-forest-800/80 mt-0.5">
+                    Référence officielle du catalogue commun
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStep("search")}
+                className="text-xs font-semibold text-forest-800 hover:underline"
+              >
+                Changer
+              </button>
+            </div>
+
+            {/* Dénomination spécifique à la ferme */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Dénomination spécifique à votre ferme (optionnelle)
+              </label>
+              <input
+                type="text"
+                name="customName"
+                placeholder={`Ex: ${selectedCatalogProduct.name} de la Vallée, Variété F1...`}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-forest-600 focus:border-transparent outline-none transition-all"
+              />
+              <p className="text-[11px] text-gray-500 mt-1">
+                Nom commercial propre à votre exploitation (distinguera vos récoltes).
+              </p>
+            </div>
+
+            {/* Unité de mesure */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Unité de mesure principale de l&apos;exploitation *
+              </label>
+              <select
+                name="unit"
+                defaultValue={selectedCatalogProduct.default_unit || "tonne"}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-forest-600 focus:border-transparent outline-none bg-white transition-all"
+              >
+                {UNITS.map((u) => (
+                  <option key={u.value} value={u.value}>
+                    {u.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Description générale de votre produit */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Description de votre produit (optionnelle)
+              </label>
+              <textarea
+                name="description"
+                rows={2}
+                placeholder="Précisez les qualités gustatives, le calibre, le type de sol..."
+                className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-forest-600 focus:border-transparent outline-none transition-all resize-none"
+              />
+            </div>
+
+            {/* Notes d'exploitation privées */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Notes d&apos;exploitation (internes, optionnelles)
+              </label>
+              <textarea
+                name="notes"
+                rows={2}
+                placeholder="Notes techniques, parcelles dédiées, consignes de stockage..."
+                className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-forest-600 focus:border-transparent outline-none transition-all resize-none"
+              />
+            </div>
+
+            {/* PARTIES 4 & 5 : Photo personnalisée de la société */}
+            <div className="pt-2">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Photo personnalisée de votre produit (optionnelle)
+              </label>
+              <div className="p-4 rounded-2xl border border-gray-200 bg-gray-50/60 space-y-3">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl bg-white border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
+                    {customImagePreview ? (
+                      <img
+                        src={customImagePreview}
+                        alt="Photo personnalisée"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : selectedCatalogProduct.image_url ? (
+                      <img
+                        src={selectedCatalogProduct.image_url}
+                        alt="Photo par défaut du catalogue"
+                        className="w-full h-full object-cover opacity-80"
+                      />
+                    ) : (
+                      <ImageIcon className="w-6 h-6 text-gray-300" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-gray-900">
+                      {customImagePreview
+                        ? "Nouvelle photo personnalisée prête à être enregistrée"
+                        : selectedCatalogProduct.image_url
+                        ? "Photo officielle du catalogue utilisée par défaut"
+                        : "Aucune photo par défaut"}
+                    </p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      {customImagePreview
+                        ? "Cette photo sera propre à votre exploitation et apparaîtra sur vos récoltes."
+                        : "Vous pouvez conserver ce visuel ou importer une photo de votre propre production."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-gray-200/80 flex items-center justify-between">
                   <input
-                    type="text"
-                    name="companyDescription"
-                    placeholder="Ex. Parcelle 3, sol volcanique"
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-forest-600/30"
+                    type="file"
+                    name="customImage"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleCustomImageChange}
+                    className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-forest-700 file:text-white hover:file:bg-forest-800 cursor-pointer"
+                  />
+                  {customImagePreview && (
+                    <button
+                      type="button"
+                      onClick={() => setCustomImagePreview(null)}
+                      className="text-xs text-red-600 hover:underline flex-shrink-0 ml-2"
+                    >
+                      Annuler
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Boutons d'action */}
+            <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setStep("search")}
+                className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Retour
+              </button>
+              <SubmitButton
+                className="px-5 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white text-sm font-semibold shadow-xs"
+                loadingText="Enregistrement..."
+              >
+                Enregistrer dans mon exploitation
+              </SubmitButton>
+            </div>
+          </form>
+        )}
+
+        {/* ======================================================== */}
+        {/* ÉTAPE 2B : PRODUIT PERSONNALISÉ PRIVÉ (INEXISTANT DU CATALOGUE) */}
+        {/* ======================================================== */}
+        {step === "custom" && (
+          <form action={handleCreateCustom} className="p-6 overflow-y-auto space-y-4 flex-1">
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-amber-900 text-xs">
+              <Info className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong>Produit personnalisé privé :</strong> Ce produit sera utilisable exclusivement par votre exploitation pour déclarer vos productions et récoltes. Il ne sera ni partagé ni proposé aux autres sociétés.
+              </div>
+            </div>
+
+            {/* Nom du produit */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Nom du produit personnalisé *
+              </label>
+              <input
+                type="text"
+                name="name"
+                required
+                defaultValue={searchCatalog}
+                placeholder="Ex: Arachide rouge de Bandundu, Soja local..."
+                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-forest-600 focus:border-transparent outline-none transition-all"
+              />
+            </div>
+
+            {/* Catégorie et Unité */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Catégorie agronomique *
+                </label>
+                <select
+                  name="category"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-forest-600 focus:border-transparent outline-none bg-white transition-all"
+                >
+                  {DEFAULT_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Unité de mesure par défaut *
+                </label>
+                <select
+                  name="defaultUnit"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-forest-600 focus:border-transparent outline-none bg-white transition-all"
+                >
+                  {UNITS.map((u) => (
+                    <option key={u.value} value={u.value}>
+                      {u.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Dénomination spécifique ferme */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Dénomination spécifique ferme (optionnelle)
+              </label>
+              <input
+                type="text"
+                name="customName"
+                placeholder="Dénomination interne ou commerciale..."
+                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-forest-600 focus:border-transparent outline-none transition-all"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Description générale (optionnelle)
+              </label>
+              <textarea
+                name="productDescription"
+                rows={2}
+                placeholder="Description du produit et de ses caractéristiques..."
+                className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-forest-600 focus:border-transparent outline-none transition-all resize-none"
+              />
+            </div>
+
+            {/* Photo propre */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Photo personnalisée de votre produit (optionnelle)
+              </label>
+              <div className="flex items-center gap-4 p-3.5 rounded-2xl border border-gray-200 bg-gray-50/50">
+                <div className="w-14 h-14 rounded-xl bg-white border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
+                  {customImagePreview ? (
+                    <img
+                      src={customImagePreview}
+                      alt="Aperçu"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <ImageIcon className="w-6 h-6 text-gray-300" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <input
+                    type="file"
+                    name="image"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleCustomImageChange}
+                    className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-forest-700 file:text-white hover:file:bg-forest-800 cursor-pointer"
                   />
                 </div>
               </div>
+            </div>
 
-              <div className="pt-3 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors text-center min-h-[44px]"
-                >
-                  Annuler
-                </button>
-                <SubmitButton
-                  disabled={isSubmitting}
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-forest-700 text-white text-sm font-semibold hover:bg-forest-800 disabled:opacity-50 transition-all shadow-xs min-h-[44px] flex items-center justify-center"
-                  loadingText="Enregistrement..."
-                >
-                  Créer et associer le produit
-                </SubmitButton>
-              </div>
-            </form>
-          )}
-        </div>
+            {/* Pied du formulaire */}
+            <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setStep("search")}
+                className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Retour à la recherche
+              </button>
+              <SubmitButton
+                className="px-5 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white text-sm font-semibold shadow-xs"
+                loadingText="Création..."
+              >
+                Créer et ajouter à mon exploitation
+              </SubmitButton>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

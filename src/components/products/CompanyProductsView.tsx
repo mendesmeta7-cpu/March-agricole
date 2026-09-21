@@ -280,44 +280,75 @@ export default function CompanyProductsView({
                     </div>
 
                     {/* Visuel + Titres */}
-                    <div className="flex items-start gap-3 mb-3">
-                      {item.product.image_url ? (
-                        <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden relative flex-shrink-0 border border-gray-200">
-                          <Image
-                            src={item.product.image_url}
-                            alt={item.product.name}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-12 h-12 rounded-xl bg-forest-50 border border-forest-100 text-forest-700 flex items-center justify-center flex-shrink-0 font-bold">
-                          <Package className="w-6 h-6" />
-                        </div>
-                      )}
+                    {(() => {
+                      const displayImage = item.image_url || item.product.image_url;
+                      const displayUnit = item.unit || item.product.default_unit;
+                      const isCustomProduct = !item.product.is_global;
 
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm sm:text-base font-bold text-gray-900 truncate">
-                          {item.custom_name || item.product.name}
-                        </h3>
-                        {item.custom_name && (
-                          <div className="text-xs text-gray-500 truncate mt-0.5">
-                            Réf. catalogue : <span className="font-medium text-gray-700">{item.product.name}</span>
+                      return (
+                        <>
+                          <div className="flex items-start gap-3 mb-3">
+                            {displayImage ? (
+                              <div className="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden relative flex-shrink-0 border border-gray-200">
+                                <img
+                                  src={displayImage}
+                                  alt={item.custom_name || item.product.name}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                                {item.image_url && (
+                                  <span className="absolute bottom-0 inset-x-0 bg-forest-900/80 text-white text-[9px] text-center font-medium py-0.5 leading-tight">
+                                    Propre
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="w-14 h-14 rounded-xl bg-forest-50 border border-forest-100 text-forest-700 flex items-center justify-center flex-shrink-0 font-bold">
+                                <Package className="w-7 h-7" />
+                              </div>
+                            )}
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h3 className="text-sm sm:text-base font-bold text-gray-900 truncate">
+                                  {item.custom_name || item.product.name}
+                                </h3>
+                                {isCustomProduct && (
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                                    Privé
+                                  </span>
+                                )}
+                              </div>
+                              {item.custom_name && (
+                                <div className="text-xs text-gray-500 truncate mt-0.5">
+                                  Réf. catalogue : <span className="font-medium text-gray-700">{item.product.name}</span>
+                                </div>
+                              )}
+                              <div className="inline-flex items-center gap-1 text-xs text-forest-800 font-medium mt-1">
+                                <Scale className="w-3 h-3 text-forest-600" />
+                                Unité : {displayUnit}
+                              </div>
+                            </div>
                           </div>
-                        )}
-                        <div className="inline-flex items-center gap-1 text-xs text-forest-800 font-medium mt-1">
-                          <Scale className="w-3 h-3 text-forest-600" />
-                          Unité : {item.product.default_unit}
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Description ou notes */}
-                    {(item.description || item.product.description) && (
-                      <p className="text-xs text-gray-600 line-clamp-2 mt-2 leading-relaxed bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                        {item.description || item.product.description}
-                      </p>
-                    )}
+                          {/* Description ou notes */}
+                          {(item.description || item.notes || item.product.description) && (
+                            <div className="space-y-1.5 mt-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100 text-xs text-gray-600">
+                              {(item.description || item.product.description) && (
+                                <p className="line-clamp-2 leading-relaxed">
+                                  {item.description || item.product.description}
+                                </p>
+                              )}
+                              {item.notes && (
+                                <p className="text-[11px] text-gray-500 italic line-clamp-1 border-t border-gray-200/60 pt-1">
+                                  Notes : {item.notes}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Actions en pied de carte */}

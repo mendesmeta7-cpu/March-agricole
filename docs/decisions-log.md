@@ -310,7 +310,44 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 
 ---
 
-## 15. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
+## 15. DÉCISIONS TECHNIQUES DE LA PHASE 13 (CORRECTIONS ADMIN ET UX V1)
+
+### ADR-026 : Espace Admin MVP, Skeleton Screens et Optimisation du Rendu
+* **Date** : 2026-09-17 | **Statut** : Validé et Appliqué
+* **Contexte** : Assurer l'accessibilité de l'espace administration système prévu dans le MVP et éliminer les ressentis de lenteur lors des navigations entre sections des dashboards.
+* **Décision** :
+  1. Implémentation des skeleton screens sur toutes les transitions des sections des dashboards.
+  2. Sécurisation et fiabilisation des routes `/dashboard/admin`.
+* **Justification** : Ergonomie et conformité MVP.
+
+---
+
+## 16. DÉCISIONS TECHNIQUES DE LA PHASE 14 (CATALOGUE GLOBAL, PRODUITS SOCIÉTÉ ET FLUX REVENDEUR)
+
+### ADR-027 : Découplage Strict Catalogue Global vs Configuration Société, Indépendance des Visuels et Flux Revendeur Direct
+* **Date** : 2026-09-21 | **Statut** : Validé et Appliqué
+* **Contexte** : Correction d'une erreur de conception où les ajouts de produits par des sociétés polluaient le catalogue global et où les photos se contaminaient mutuellement.
+* **Décision** :
+  1. **Découplage Structurel** :
+     - Les produits de référence sont strictement globaux (`is_global = TRUE`, `created_by_company_id = NULL`), gérés exclusivement par l'Admin via `/dashboard/admin/products`.
+     - Les produits hors catalogue créés exceptionnellement par une entreprise sont strictement privés (`is_global = FALSE`, `created_by_company_id = company_id`).
+     - Les personnalisations d'exploitation résident dans `company_products` (`custom_name`, `unit`, `notes`, `image_url`).
+  2. **Indépendance des Photos et Guardrails de Sécurité** :
+     - La photo d'exploitation est isolée dans `company_products.image_url`. Elle n'écrase jamais `products.image_url`.
+     - Déploiement du trigger `trg_protect_global_product_images` et verrouillage RLS empêchant tout écrasement des visuels officiels.
+  3. **Parcours en 2 Étapes** :
+     - Étape 1 : Recherche dans le catalogue global officiel (avec proposition de création privée si absent).
+     - Étape 2 : Configuration d'exploitation avec prévisualisation du visuel officiel par défaut et téléversement optionnel.
+  4. **Compte Administrateur Dédié** :
+     - Création de `admin@marcheagricole.cd` (role: `admin`).
+     - Connexion via la route standard `/login` avec redirection automatique vers `/dashboard/admin`. Pas de lien d'administration sur la page d'accueil publique.
+  5. **Flux Revendeur Direct** :
+     - La page `/dashboard/reseller` affiche directement le flux des productions (`FeedView`) avec recherche textuelle instantanée, sélection des catégories par « pills » horizontaux scrollables sur mobile, et filtres par province et statut.
+* **Justification** : Qualité des données, étanchéité multi-tenant, zéro contamination de visuels et clarté du flux revendeur.
+
+---
+
+## 17. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
 
 | Réf. | Fonctionnalité Reportée | Motif du Report / Échéance |
 | :--- | :--- | :--- |
