@@ -437,7 +437,7 @@ export default function ResellerOrderDetailView({
       <QRCodeModal
         isOpen={showQRModal}
         onClose={() => setShowQRModal(false)}
-        qrCodeToken={order.qr_code_token || order.id}
+        qrCodeToken={order.qr_code_token || order.order_number}
         orderNumber={order.order_number}
         productName={order.order_items[0]?.product.name || order.campaign.title}
         quantity={order.order_items[0]?.quantity || 0}

@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { CompanyProductItem } from "@/lib/queries/products";
-import { updateCompanyProductAction, ActionResponse } from "@/lib/actions/products";
+import {
+  updateCompanyProductAction,
+  toggleCompanyProductStatusAction,
+  deleteCompanyProductAction,
+  ActionResponse,
+} from "@/lib/actions/products";
 import SubmitButton from "@/components/SubmitButton";
 import Badge from "@/components/ui/Badge";
 import {
@@ -13,6 +18,8 @@ import {
   Lock,
   Image as ImageIcon,
   Trash2,
+  Power,
+  PowerOff,
 } from "lucide-react";
 
 interface EditProductModalProps {
@@ -38,6 +45,7 @@ export default function EditProductModal({
 }: EditProductModalProps) {
   const [state, setState] = useState<ActionResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isActionPending, setIsActionPending] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(
     productItem?.image_url || null
   );
@@ -56,6 +64,53 @@ export default function EditProductModal({
   const handleRemoveCustomImage = () => {
     setImagePreview(null);
     setRemoveCustomImage(true);
+  };
+
+  const handleToggleStatus = async () => {
+    if (!productItem) return;
+    setIsActionPending(true);
+    setState(null);
+    try {
+      const res = await toggleCompanyProductStatusAction(productItem.id, productItem.is_active);
+      setState(res);
+      if (res.success) {
+        setTimeout(() => {
+          onClose();
+          setState(null);
+        }, 1200);
+      }
+    } catch (err: any) {
+      setState({ error: err.message || "Erreur de changement d'état." });
+    } finally {
+      setIsActionPending(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!productItem) return;
+    if (
+      !confirm(
+        `Êtes-vous certain de vouloir supprimer la configuration de « ${productItem.custom_name || productItem.product.name} » ? Cette action est bloquée si des productions y sont rattachées.`
+      )
+    ) {
+      return;
+    }
+    setIsActionPending(true);
+    setState(null);
+    try {
+      const res = await deleteCompanyProductAction(productItem.id);
+      setState(res);
+      if (res.success) {
+        setTimeout(() => {
+          onClose();
+          setState(null);
+        }, 1200);
+      }
+    } catch (err: any) {
+      setState({ error: err.message || "Erreur lors de la suppression." });
+    } finally {
+      setIsActionPending(false);
+    }
   };
 
   async function handleSubmit(formData: FormData) {
@@ -260,21 +315,58 @@ export default function EditProductModal({
             </div>
           </div>
 
-          {/* Pied */}
-          <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2.5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors"
-            >
-              Annuler
-            </button>
-            <SubmitButton
-              className="px-5 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white text-xs sm:text-sm font-semibold shadow-xs"
-              loadingText="Enregistrement..."
-            >
-              Enregistrer les modifications
-            </SubmitButton>
+          {/* Pied : Modifier + Désactiver + Supprimer */}
+          <div className="pt-3 border-t border-gray-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleToggleStatus}
+                disabled={isActionPending || isSubmitting}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold border inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  productItem.is_active
+                    ? "border-amber-200 text-amber-700 hover:bg-amber-50"
+                    : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                }`}
+              >
+                {productItem.is_active ? (
+                  <>
+                    <PowerOff className="w-3.5 h-3.5" />
+                    <span>Désactiver</span>
+                  </>
+                ) : (
+                  <>
+                    <Power className="w-3.5 h-3.5" />
+                    <span>Réactiver</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isActionPending || isSubmitting}
+                className="px-3 py-2 rounded-xl text-xs font-semibold border border-red-200 text-red-600 hover:bg-red-50 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Supprimer</span>
+              </button>
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Annuler
+              </button>
+              <SubmitButton
+                className="px-5 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white text-xs sm:text-sm font-semibold shadow-xs"
+                loadingText="Enregistrement..."
+              >
+                Enregistrer
+              </SubmitButton>
+            </div>
           </div>
         </form>
       </div>

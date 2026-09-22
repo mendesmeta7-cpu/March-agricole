@@ -16,6 +16,7 @@ export interface OrderItemDetail {
   unit: string;
   unit_price: number;
   subtotal: number;
+  product_name_snapshot?: string | null;
   created_at: string;
   product: {
     id: string;
@@ -38,7 +39,9 @@ export interface OrderDetail {
   order_number: string;
   reseller_id: string;
   company_id: string;
-  campaign_id: string;
+  campaign_id: string | null;
+  production_id?: string | null;
+  origin_type?: string;
   total_amount: number;
   currency: string;
   delivery_province_id: string;
@@ -51,6 +54,9 @@ export interface OrderDetail {
   delivered_quantity: number | null;
   delivered_by: string | null;
   delivery_notes: string | null;
+  company_name_snapshot?: string | null;
+  campaign_title_snapshot?: string | null;
+  production_title_snapshot?: string | null;
   created_at: string;
   updated_at: string;
   company: {
@@ -115,6 +121,8 @@ export async function getResellerOrders(
       reseller_id,
       company_id,
       campaign_id,
+      production_id,
+      origin_type,
       total_amount,
       currency,
       delivery_province_id,
@@ -122,6 +130,14 @@ export async function getResellerOrders(
       delivery_address,
       status,
       notes,
+      qr_code_token,
+      delivered_at,
+      delivered_quantity,
+      delivered_by,
+      delivery_notes,
+      company_name_snapshot,
+      campaign_title_snapshot,
+      production_title_snapshot,
       created_at,
       updated_at,
       company:companies!inner (
@@ -146,7 +162,7 @@ export async function getResellerOrders(
         name,
         code
       ),
-      campaign:campaigns!inner (
+      campaign:campaigns (
         id,
         title,
         unit,
@@ -167,6 +183,7 @@ export async function getResellerOrders(
         unit,
         unit_price,
         subtotal,
+        product_name_snapshot,
         created_at,
         product:products (
           id,
@@ -217,6 +234,8 @@ export async function getResellerOrderById(
       reseller_id,
       company_id,
       campaign_id,
+      production_id,
+      origin_type,
       total_amount,
       currency,
       delivery_province_id,
@@ -224,6 +243,14 @@ export async function getResellerOrderById(
       delivery_address,
       status,
       notes,
+      qr_code_token,
+      delivered_at,
+      delivered_quantity,
+      delivered_by,
+      delivery_notes,
+      company_name_snapshot,
+      campaign_title_snapshot,
+      production_title_snapshot,
       created_at,
       updated_at,
       company:companies!inner (
@@ -248,7 +275,7 @@ export async function getResellerOrderById(
         name,
         code
       ),
-      campaign:campaigns!inner (
+      campaign:campaigns (
         id,
         title,
         unit,
@@ -269,6 +296,7 @@ export async function getResellerOrderById(
         unit,
         unit_price,
         subtotal,
+        product_name_snapshot,
         created_at,
         product:products (
           id,
@@ -314,6 +342,8 @@ export async function getCompanyOrders(
       reseller_id,
       company_id,
       campaign_id,
+      production_id,
+      origin_type,
       total_amount,
       currency,
       delivery_province_id,
@@ -321,6 +351,14 @@ export async function getCompanyOrders(
       delivery_address,
       status,
       notes,
+      qr_code_token,
+      delivered_at,
+      delivered_quantity,
+      delivered_by,
+      delivery_notes,
+      company_name_snapshot,
+      campaign_title_snapshot,
+      production_title_snapshot,
       created_at,
       updated_at,
       company:companies!inner (
@@ -345,7 +383,7 @@ export async function getCompanyOrders(
         name,
         code
       ),
-      campaign:campaigns!inner (
+      campaign:campaigns (
         id,
         title,
         unit,
@@ -366,6 +404,7 @@ export async function getCompanyOrders(
         unit,
         unit_price,
         subtotal,
+        product_name_snapshot,
         created_at,
         product:products (
           id,
@@ -420,6 +459,8 @@ export async function getCompanyOrderById(
       reseller_id,
       company_id,
       campaign_id,
+      production_id,
+      origin_type,
       total_amount,
       currency,
       delivery_province_id,
@@ -427,6 +468,14 @@ export async function getCompanyOrderById(
       delivery_address,
       status,
       notes,
+      qr_code_token,
+      delivered_at,
+      delivered_quantity,
+      delivered_by,
+      delivery_notes,
+      company_name_snapshot,
+      campaign_title_snapshot,
+      production_title_snapshot,
       created_at,
       updated_at,
       company:companies!inner (
@@ -451,7 +500,7 @@ export async function getCompanyOrderById(
         name,
         code
       ),
-      campaign:campaigns!inner (
+      campaign:campaigns (
         id,
         title,
         unit,
@@ -472,6 +521,7 @@ export async function getCompanyOrderById(
         unit,
         unit_price,
         subtotal,
+        product_name_snapshot,
         created_at,
         product:products (
           id,
@@ -546,20 +596,31 @@ function formatOrderRecord(item: any): OrderDetail {
     ? item.stock_reservations[0]
     : item.stock_reservations;
 
-  const orderItems: OrderItemDetail[] = (item.order_items || []).map((oi: any) => ({
-    id: oi.id,
-    order_id: oi.order_id,
-    product_id: oi.product_id,
-    quantity: Number(oi.quantity),
-    unit: oi.unit,
-    unit_price: Number(oi.unit_price),
-    subtotal: Number(oi.subtotal),
-    created_at: oi.created_at,
-    product: Array.isArray(oi.product) ? oi.product[0] : oi.product,
-  }));
+  const orderItems: OrderItemDetail[] = (item.order_items || []).map((oi: any) => {
+    const rawProd = Array.isArray(oi.product) ? oi.product[0] : oi.product;
+    return {
+      id: oi.id,
+      order_id: oi.order_id,
+      product_id: oi.product_id,
+      quantity: Number(oi.quantity),
+      unit: oi.unit,
+      unit_price: Number(oi.unit_price),
+      subtotal: Number(oi.subtotal),
+      product_name_snapshot: oi.product_name_snapshot || null,
+      created_at: oi.created_at,
+      product: rawProd || {
+        id: oi.product_id,
+        name: oi.product_name_snapshot || "Produit agricole",
+        category: "Agricole",
+        default_unit: oi.unit,
+        image_url: null,
+      },
+    };
+  });
 
   const company = {
     ...rawCompany,
+    name: rawCompany?.name || item.company_name_snapshot || "Entreprise agricole",
     provinces: Array.isArray(rawCompany?.provinces)
       ? rawCompany.provinces[0]
       : rawCompany?.provinces,
@@ -579,12 +640,19 @@ function formatOrderRecord(item: any): OrderDetail {
   };
 
   const campaign = {
-    ...rawCampaign,
-    unit_price: Number(rawCampaign?.unit_price || 0),
+    id: rawCampaign?.id || item.campaign_id || "",
+    title: rawCampaign?.title || item.campaign_title_snapshot || "Offre commerciale",
+    unit: rawCampaign?.unit || item.order_items?.[0]?.unit || "tonne",
+    currency: rawCampaign?.currency || item.currency || "USD",
+    unit_price: Number(rawCampaign?.unit_price || item.order_items?.[0]?.unit_price || 0),
     marketable_quantity: Number(rawCampaign?.marketable_quantity || 0),
     production: Array.isArray(rawCampaign?.production)
       ? rawCampaign.production[0]
-      : rawCampaign?.production,
+      : rawCampaign?.production || (item.production_title_snapshot ? {
+          id: item.production_id || "",
+          title: item.production_title_snapshot,
+          main_image_url: null,
+        } : null),
   };
 
   return {
@@ -592,7 +660,9 @@ function formatOrderRecord(item: any): OrderDetail {
     order_number: item.order_number,
     reseller_id: item.reseller_id,
     company_id: item.company_id,
-    campaign_id: item.campaign_id,
+    campaign_id: item.campaign_id || null,
+    production_id: item.production_id || null,
+    origin_type: item.origin_type || "campaign",
     total_amount: Number(item.total_amount),
     currency: item.currency,
     delivery_province_id: item.delivery_province_id,
@@ -605,6 +675,9 @@ function formatOrderRecord(item: any): OrderDetail {
     delivered_quantity: item.delivered_quantity ? Number(item.delivered_quantity) : null,
     delivered_by: item.delivered_by || null,
     delivery_notes: item.delivery_notes || null,
+    company_name_snapshot: item.company_name_snapshot || null,
+    campaign_title_snapshot: item.campaign_title_snapshot || null,
+    production_title_snapshot: item.production_title_snapshot || null,
     created_at: item.created_at,
     updated_at: item.updated_at,
     company,

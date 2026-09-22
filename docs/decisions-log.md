@@ -347,7 +347,36 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 
 ---
 
-## 17. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
+## 17. DÉCISIONS TECHNIQUES DE LA PHASE 18 (STABILISATION, INTÉGRITÉ HISTORIQUE ET COHÉRENCE DES WORKFLOWS)
+
+### ADR-028 : Préservation Absolue de l'Historique Commercial, Snapshots Immuables et Cohérence Transversale des Flux
+* **Date** : 2026-09-22 | **Statut** : Validé et Appliqué
+* **Contexte** : Constat de disparitions de commandes dans l'historique lors de modifications/désactivations de productions ou campagnes parentes, échec de scan QR lié au non-sélection de `qr_code_token`, erreur 404 sur `/dashboard/company/campaigns/new`, déconnexion entre le feed revendeur et les campagnes actives, et absence de notification société lors de l'expression de demandes.
+* **Décision** :
+  1. **Snapshots Immuables & Autonomie des Commandes** :
+     - Ajout des colonnes de dénormalisation figées : `orders.company_name_snapshot`, `orders.campaign_title_snapshot`, `orders.production_title_snapshot`, et `order_items.product_name_snapshot`.
+     - Déploiement de triggers PostgreSQL automatiques (`trg_orders_snapshots`, `trg_order_items_snapshots`) garantissant le remplissage à la création.
+     - Remplacement des `INNER JOIN` par des `LEFT JOIN` sur les requêtes de commandes avec affichage prioritaire de la donnée liée et repli systématique sur le snapshot en cas d'altération de l'entité parente.
+  2. **Garde-fous de Suppression et Archivage Doux** :
+     - Interdiction stricte de supprimer physiquement une production (`deleteProductionAction`) ou un produit configuré d'exploitation (`deleteCompanyProductAction`) s'il existe des commandes, campagnes, demandes ou réservations actives.
+     - Introduction de l'archivage/désactivation douce (`archiveProductionAction`, `is_active = FALSE`). Le catalogue global `products` reste inviolable et ne peut en aucun cas être affecté.
+  3. **Ajustement des Politiques RLS de Lecture Historique** :
+     - Élargissement des politiques de lecture sur `campaigns`, `productions` et `company_products` pour autoriser les revendeurs à consulter les entités liées à leurs commandes ou demandes passées, même si l'entité devient inactive ou non publique.
+  4. **Résolution de l'Erreur 404 de Campagne** :
+     - Création de la page `/dashboard/company/campaigns/new` avec préchargement des données d'exploitation et ouverture automatique de `CampaignFormModal` avec la production parente présélectionnée.
+  5. **Bascule Dynamique du Feed et Fiches Revendeurs en Campagne Active** :
+     - Les productions adossées à une campagne active affichent le badge `CAMPAGNE EN COURS`, les conditions tarifaires et de volume, et substituent le bouton de demande par `[ 🛒 Commander ]` reliant directement au flux de commande ferme.
+  6. **Centre de Notifications & Ciblage Précis** :
+     - Émission automatique de notifications `DEMANDE_GENERALE_RECUE` et `DEMANDE_PRODUCTION_RECUE` vers les exploitants ciblés via la RPC `notify_company_on_demand_received`.
+     - Rectification du broadcast d'ouverture de campagne : notification strictement restreinte aux revendeurs ayant formulé une demande préalable sur la production concernée.
+  7. **Unification et Robustesse du QR Code de Livraison** :
+     - Sélection systématique de `qr_code_token` dans les requêtes de commandes.
+     - Procédure RPC `lookup_order_for_delivery` et widget `CompanyOrderLookupWidget` unifiés pour résoudre identiquement le jeton opaque, le numéro de commande lisible (`CMD-...`), l'UUID ou une URL scannée.
+* **Justification** : Intégrité comptable et commerciale absolue, zéro perte de données, fluidité du cycle cultural vers la vente, et respect strict des règles d'or V1.
+
+---
+
+## 18. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
 
 | Réf. | Fonctionnalité Reportée | Motif du Report / Échéance |
 | :--- | :--- | :--- |

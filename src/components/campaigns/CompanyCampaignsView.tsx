@@ -30,6 +30,8 @@ interface CompanyCampaignsViewProps {
   eligibleProductions: EligibleProductionOption[];
   provinces: Province[];
   marketDemands: AggregatedDemandItem[];
+  initialModalOpen?: boolean;
+  defaultProductionId?: string;
 }
 
 export default function CompanyCampaignsView({
@@ -37,11 +39,13 @@ export default function CompanyCampaignsView({
   eligibleProductions,
   provinces,
   marketDemands,
+  initialModalOpen = false,
+  defaultProductionId,
 }: CompanyCampaignsViewProps) {
   const [campaigns] = useState<CompanyCampaignItem[]>(initialCampaigns);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(initialModalOpen);
   const [campaignToEdit, setCampaignToEdit] = useState<CompanyCampaignItem | null>(null);
 
   // Filtrage réactif
@@ -262,6 +266,7 @@ export default function CompanyCampaignsView({
         provinces={provinces}
         marketDemands={marketDemands}
         campaignToEdit={campaignToEdit}
+        defaultProductionId={defaultProductionId}
       />
     </div>
   );

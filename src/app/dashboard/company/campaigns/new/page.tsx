@@ -7,23 +7,22 @@ import {
 import { getAggregatedMarketDemands } from "@/lib/queries/demands";
 import CompanyCampaignsView from "@/components/campaigns/CompanyCampaignsView";
 
-interface CompanyCampaignsPageProps {
+interface NewCampaignPageProps {
   searchParams?: {
     production_id?: string;
-    new?: string;
   };
 }
 
-export default async function CompanyCampaignsPage({
+export default async function NewCompanyCampaignPage({
   searchParams,
-}: CompanyCampaignsPageProps) {
+}: NewCampaignPageProps) {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?redirect=/dashboard/company/campaigns");
+    redirect("/login?redirect=/dashboard/company/campaigns/new");
   }
 
   // 1. Récupération de l'entreprise rattachée
@@ -80,7 +79,7 @@ export default async function CompanyCampaignsPage({
       eligibleProductions={eligibleProductions}
       provinces={provinces}
       marketDemands={marketDemands}
-      initialModalOpen={!!searchParams?.production_id || searchParams?.new === "true"}
+      initialModalOpen={true}
       defaultProductionId={searchParams?.production_id}
     />
   );

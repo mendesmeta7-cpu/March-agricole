@@ -62,6 +62,8 @@ export default function NotificationsView({
   const getTypeIcon = (type: NotificationType) => {
     switch (type) {
       case "DEMANDE_REPONSE":
+      case "DEMANDE_GENERALE_RECUE":
+      case "DEMANDE_PRODUCTION_RECUE":
         return <TrendingUp className="w-5 h-5 text-emerald-600" />;
       case "CAMPAGNE_OUVERTE":
         return <Megaphone className="w-5 h-5 text-amber-600" />;
@@ -75,6 +77,9 @@ export default function NotificationsView({
   const getTargetUrl = (notif: NotificationItem) => {
     if (notif.action_url) return notif.action_url;
     switch (notif.type) {
+      case "DEMANDE_GENERALE_RECUE":
+      case "DEMANDE_PRODUCTION_RECUE":
+        return "/dashboard/company/demands";
       case "DEMANDE_REPONSE":
         return userRole === "reseller"
           ? "/dashboard/reseller/demands"
@@ -92,6 +97,9 @@ export default function NotificationsView({
 
   const getActionLabel = (notif: NotificationItem) => {
     switch (notif.type) {
+      case "DEMANDE_GENERALE_RECUE":
+      case "DEMANDE_PRODUCTION_RECUE":
+        return "Consulter la demande reçue";
       case "DEMANDE_REPONSE":
         return "Consulter la proposition";
       case "CAMPAGNE_OUVERTE":

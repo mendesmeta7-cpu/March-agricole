@@ -57,7 +57,11 @@ export default function CompanyOrdersView({
 
   // Liste des campagnes uniques
   const uniqueCampaigns = Array.from(
-    new Map(orders.map((o) => [o.campaign_id, o.campaign.title])).entries()
+    new Map(
+      orders
+        .filter((o): o is OrderDetail & { campaign_id: string } => !!o.campaign_id)
+        .map((o) => [o.campaign_id, o.campaign.title])
+    ).entries()
   );
 
   const filteredOrders = orders.filter((order) => {

@@ -382,3 +382,66 @@ export async function toggleCompanyProductStatusAction(
     message: newStatus ? "Produit réactivé dans votre exploitation." : "Produit archivé (désactivé).",
   };
 }
+
+/**
+ * Supprime une configuration de produit de l'entreprise (uniquement si aucune production n'y est rattachée)
+ * RÈGLE D'OR : Ne supprime JAMAIS le produit global du catalogue public.
+ */
+export async function deleteCompanyProductAction(
+  companyProductId: string
+): Promise<ActionResponse> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Session expirée." };
+  }
+
+  const companyId = await getCompanyIdForUser(supabase, user.id);
+  if (!companyId) {
+    return { error: "Entreprise introuvable." };
+  }
+
+  // 1. Vérification de l'existence et appartenance
+  const { data: item } = await supabase
+    .from("company_products")
+    .select("id, custom_name, product_id")
+    .eq("id", companyProductId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  if (!item) {
+    return { error: "Produit d'exploitation introuvable ou accès refusé." };
+  }
+
+  // 2. Vérification des productions historiques rattachées
+  const { count: prodCount } = await supabase
+    .from("productions")
+    .select("id", { count: "exact", head: true })
+    .eq("company_product_id", companyProductId);
+
+  if (prodCount && prodCount > 0) {
+    return {
+      error: `Impossible de supprimer ce produit : ${prodCount} production(s) historique(s) y sont rattachées dans votre exploitation. Pour préserver votre historique agronomique, vous pouvez désactiver ce produit au lieu de le supprimer.`,
+    };
+  }
+
+  // 3. Suppression STRICTE de la configuration d'exploitation uniquement
+  const { error: delErr } = await supabase
+    .from("company_products")
+    .delete()
+    .eq("id", companyProductId)
+    .eq("company_id", companyId);
+
+  if (delErr) {
+    return { error: `Erreur lors de la suppression : ${delErr.message}` };
+  }
+
+  revalidatePath("/dashboard/company/products");
+  revalidatePath("/dashboard/company");
+
+  return {
+    success: true,
+    message: "Produit retiré de votre exploitation avec succès.",
+  };
+}

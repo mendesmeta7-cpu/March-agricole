@@ -21,11 +21,29 @@ export default function CompanyOrderLookupWidget({
   const [isPending, startTransition] = useTransition();
 
   const handlePerformLookup = (identifier: string) => {
-    if (!identifier.trim()) return;
+    let clean = identifier.trim();
+    if (!clean) return;
+
+    // Si une URL a été scannée (ex: https://.../orders/CMD-1234), extraire le token ou numéro
+    if (clean.includes("/") || clean.includes("?")) {
+      try {
+        const urlObj = new URL(clean);
+        const pathSegments = urlObj.pathname.split("/").filter(Boolean);
+        if (pathSegments.length > 0) {
+          clean = pathSegments[pathSegments.length - 1];
+        }
+      } catch {
+        const parts = clean.split("?")[0].split("/").filter(Boolean);
+        if (parts.length > 0) {
+          clean = parts[parts.length - 1];
+        }
+      }
+    }
+
     setLookupError(null);
 
     startTransition(async () => {
-      const res = await lookupOrderForDeliveryAction(identifier);
+      const res = await lookupOrderForDeliveryAction(clean);
 
       if (!res.success || !res.data) {
         setLookupError(res.error || "Commande introuvable.");

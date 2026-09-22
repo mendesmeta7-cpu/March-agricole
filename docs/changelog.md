@@ -3,6 +3,42 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [1.5.0-stabilization] - 2026-09-22
+### Stabilisation, Intégrité Historique et Correction des Régressions (Phase 18)
+
+#### Ajouté & Amélioré
+* **Préservation Absolue de l'Historique Commercial (Snapshots Immuables)** :
+  - Ajout des colonnes figées dans `orders` (`company_name_snapshot`, `campaign_title_snapshot`, `production_title_snapshot`) et `order_items` (`product_name_snapshot`).
+  - Migration 17 (`20260922000017_stabilization_and_historical_integrity.sql`) rétro-remplissant l'historique existant.
+  - Déploiement des triggers PostgreSQL automatiques `trg_orders_snapshots` et `trg_order_items_snapshots` garantissant la capture de snapshot sur chaque nouvelle commande.
+  - Transformation des requêtes SQL de commandes en `LEFT JOIN` avec repli automatique sur les snapshots en cas d'altération de l'entité parente.
+* **Sécurisation RLS & Données Historiques** :
+  - Ajustement des politiques RLS sur `campaigns`, `productions` et `company_products` pour permettre aux revendeurs de consulter les données liées à leurs commandes ou demandes antérieures, même en cas de passage à inactif ou non public.
+* **Garde-fous de Suppression & Protection du Catalogue** :
+  - Protection absolue des productions avec historique commercial (`orders`, `campaigns`, `demands`, `stock_reservations`) : refus explicite de suppression dans `deleteProductionAction` avec guidage vers l'archivage doux (`archiveProductionAction`).
+  - Protection absolue du catalogue global : `deleteCompanyProductAction` restreint strictement la suppression à l'association `company_products` de l'exploitation et ne supprime jamais le produit global de référence dans `products`.
+* **Résolution de l'Erreur 404 Campagne** :
+  - Création de la page `/dashboard/company/campaigns/new` supportant le paramètre d'URL `production_id`.
+  - Pré-remplissage et ouverture automatique de la modal `CampaignFormModal` adossée à la production récoltée sélectionnée.
+* **Bascule Dynamique du Feed Revendeur en Campagne Active** :
+  - Détection automatique des campagnes actives dans `getPublicFeedProductions` et `getPublicProductionDetail`.
+  - Affichage du badge `CAMPAGNE EN COURS` et des conditions tarifaires/stock dans `FeedProductionCard`.
+  - Remplacement dynamique du bouton de demande par un CTA vert prioritaire `[ 🛒 Commander ]` dans la carte et sur la fiche détaillée `/dashboard/reseller/productions/[id]`, ouvrant directement `OrderFormModal`.
+* **Notifications des Demandes Reçues & Ciblage Précis** :
+  - Déploiement de la RPC `notify_company_on_demand_received` déclenchée sur `createGeneralDemandAction` et `createProductionDemandAction`.
+  - Types `DEMANDE_GENERALE_RECUE` et `DEMANDE_PRODUCTION_RECUE` intégrés à la contrainte PostgreSQL et au centre de notifications (`NotificationsView`).
+  - Rectification de `notify_resellers_on_campaign_opened` : ciblage strictement limité aux revendeurs ayant exprimé une demande préalable sur la production.
+* **Robustesse de la Recherche et du Scan QR de Livraison** :
+  - Inclusion systématique de `qr_code_token` dans les queries de commandes.
+  - Nettoyage automatique des URL et extraction d'identifiants dans `CompanyOrderLookupWidget`.
+  - Support unifié et tolérant de la RPC `lookup_order_for_delivery` (jeton opaque, numéro `CMD-...`, UUID ou fallback de snapshot).
+* **Validation & Homologation** :
+  - Suite de tests SQL `phase18_stabilization_and_coherence_test.sql` exécutée avec succès sur Supabase.
+  - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
+  - Compilation Next.js de production (`npm run build`) : 34/34 routes compilées avec succès.
+
+---
+
 ## [1.4.0-qr-delivery] - 2026-09-22
 ### QR Code, Recherche Rapide & Confirmation de Livraison (Phase 16)
 

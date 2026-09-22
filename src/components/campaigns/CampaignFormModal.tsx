@@ -28,6 +28,7 @@ interface CampaignFormModalProps {
   provinces: Province[];
   marketDemands: AggregatedDemandItem[];
   campaignToEdit?: CompanyCampaignItem | null;
+  defaultProductionId?: string;
 }
 
 export default function CampaignFormModal({
@@ -37,6 +38,7 @@ export default function CampaignFormModal({
   provinces,
   marketDemands,
   campaignToEdit,
+  defaultProductionId,
 }: CampaignFormModalProps) {
   const isEditing = !!campaignToEdit;
 
@@ -73,10 +75,16 @@ export default function CampaignFormModal({
       setStatus(campaignToEdit.status === "active" ? "active" : "draft");
     } else {
       // Création
-      setProductionId(eligibleProductions[0]?.id || "");
-      setTitle("");
+      const initialProdId =
+        (defaultProductionId && eligibleProductions.some((p) => p.id === defaultProductionId))
+          ? defaultProductionId
+          : eligibleProductions[0]?.id || "";
+      const prod = eligibleProductions.find((p) => p.id === initialProdId);
+
+      setProductionId(initialProdId);
+      setTitle(prod ? `Campagne ${prod.title}` : "");
       setDescription("");
-      setMarketableQuantity("");
+      setMarketableQuantity(prod?.expected_quantity || "");
       setUnitPrice("");
       setCurrency("USD");
       setMinOrderQuantity(1);
@@ -87,7 +95,7 @@ export default function CampaignFormModal({
       setStatus("draft");
     }
     setErrorMessage(null);
-  }, [campaignToEdit, eligibleProductions, isOpen]);
+  }, [campaignToEdit, eligibleProductions, isOpen, defaultProductionId]);
 
   if (!isOpen) return null;
 

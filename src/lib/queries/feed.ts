@@ -21,6 +21,16 @@ export interface FeedCompany {
   countries?: { name: string } | null;
 }
 
+export interface FeedCampaignSummary {
+  id: string;
+  title: string;
+  marketable_quantity: number;
+  unit_price: number;
+  currency: string;
+  min_order_quantity: number;
+  status: string;
+}
+
 export interface FeedProductionItem {
   id: string;
   company_id: string;
@@ -37,6 +47,7 @@ export interface FeedProductionItem {
   created_at: string;
   product: FeedProduct;
   company: FeedCompany;
+  active_campaign?: FeedCampaignSummary | null;
 }
 
 export interface FeedFilterParams {
@@ -102,6 +113,15 @@ export async function getPublicFeedProductions(
         province_id,
         provinces (name),
         countries (name)
+      ),
+      campaigns (
+        id,
+        title,
+        marketable_quantity,
+        unit_price,
+        currency,
+        min_order_quantity,
+        status
       )
     `, { count: "exact" })
     .eq("is_public", true)
@@ -153,11 +173,23 @@ export async function getPublicFeedProductions(
       countries: Array.isArray(rawCompany?.countries) ? rawCompany.countries[0] : rawCompany?.countries,
     };
 
+    const rawCampaigns = Array.isArray(item.campaigns) ? item.campaigns : (item.campaigns ? [item.campaigns] : []);
+    const activeCampaign = rawCampaigns.find((c: any) => c.status === "active") || null;
+
     return {
       ...item,
       expected_quantity: Number(item.expected_quantity),
       product: Array.isArray(item.product) ? item.product[0] : item.product,
       company,
+      active_campaign: activeCampaign ? {
+        id: activeCampaign.id,
+        title: activeCampaign.title,
+        marketable_quantity: Number(activeCampaign.marketable_quantity),
+        unit_price: Number(activeCampaign.unit_price),
+        currency: activeCampaign.currency || "USD",
+        min_order_quantity: Number(activeCampaign.min_order_quantity || 1),
+        status: activeCampaign.status,
+      } : null,
     } as unknown as FeedProductionItem;
   });
 
@@ -214,6 +246,15 @@ export async function getPublicProductionDetail(
         province_id,
         provinces (name),
         countries (name)
+      ),
+      campaigns (
+        id,
+        title,
+        marketable_quantity,
+        unit_price,
+        currency,
+        min_order_quantity,
+        status
       )
     `)
     .eq("id", productionId)
@@ -234,10 +275,22 @@ export async function getPublicProductionDetail(
     countries: Array.isArray(rawCompany?.countries) ? rawCompany.countries[0] : rawCompany?.countries,
   };
 
+  const rawCampaigns = Array.isArray(rawItem.campaigns) ? rawItem.campaigns : (rawItem.campaigns ? [rawItem.campaigns] : []);
+  const activeCampaign = rawCampaigns.find((c: any) => c.status === "active") || null;
+
   return {
     ...rawItem,
     expected_quantity: Number(rawItem.expected_quantity),
     product: Array.isArray(rawItem.product) ? rawItem.product[0] : rawItem.product,
     company,
+    active_campaign: activeCampaign ? {
+      id: activeCampaign.id,
+      title: activeCampaign.title,
+      marketable_quantity: Number(activeCampaign.marketable_quantity),
+      unit_price: Number(activeCampaign.unit_price),
+      currency: activeCampaign.currency || "USD",
+      min_order_quantity: Number(activeCampaign.min_order_quantity || 1),
+      status: activeCampaign.status,
+    } : null,
   } as unknown as FeedProductionItem;
 }

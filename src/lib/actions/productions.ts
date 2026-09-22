@@ -469,11 +469,35 @@ export async function deleteProductionAction(
 
   if (campaignsCount && campaignsCount > 0) {
     return {
-      error: `Impossible de supprimer cette production : ${campaignsCount} campagne(s) commerciale(s) y sont rattachées. Vous pouvez passer son statut à 'annulée' ou désactiver sa visibilité publique.`,
+      error: `Impossible de supprimer cette production : ${campaignsCount} offre(s) commerciale(s) y sont rattachées. Pour préserver l'historique commercial, veuillez la désactiver (rendre privée) ou passer son statut à « annulée ».`,
     };
   }
 
-  // 3. Vérification des propositions commerciales / commandes / réservations
+  // 3. Vérification des commandes directes rattachées
+  const { count: ordersCount } = await supabase
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("production_id", productionId);
+
+  if (ordersCount && ordersCount > 0) {
+    return {
+      error: `Impossible de supprimer cette production : ${ordersCount} commande(s) ferme(s) y sont associées. Pour préserver l'historique, désactivez la production.`,
+    };
+  }
+
+  // 4. Vérification des demandes formulées sur cette production
+  const { count: demandsCount } = await supabase
+    .from("demands")
+    .select("id", { count: "exact", head: true })
+    .eq("production_id", productionId);
+
+  if (demandsCount && demandsCount > 0) {
+    return {
+      error: `Impossible de supprimer cette production : ${demandsCount} demande(s) de revendeurs y sont rattachées. Veuillez désactiver sa visibilité ou passer son statut à « annulée ».`,
+    };
+  }
+
+  // 5. Vérification des propositions commerciales / réponses
   const { count: responsesCount } = await supabase
     .from("demand_responses")
     .select("id", { count: "exact", head: true })
@@ -481,11 +505,23 @@ export async function deleteProductionAction(
 
   if (responsesCount && responsesCount > 0) {
     return {
-      error: `Impossible de supprimer cette production : des propositions commerciales ou commandes y sont associées.`,
+      error: `Impossible de supprimer cette production : des propositions commerciales y sont associées.`,
     };
   }
 
-  // 4. Suppression
+  // 6. Vérification des réservations de stock
+  const { count: reservationsCount } = await supabase
+    .from("stock_reservations")
+    .select("id", { count: "exact", head: true })
+    .eq("production_id", productionId);
+
+  if (reservationsCount && reservationsCount > 0) {
+    return {
+      error: `Impossible de supprimer cette production : des réservations de stock y sont actives.`,
+    };
+  }
+
+  // 7. Suppression physique autorisée si aucune dépendance
   const { error: deleteErr } = await supabase
     .from("productions")
     .delete()
@@ -501,4 +537,47 @@ export async function deleteProductionAction(
   revalidatePath("/dashboard/admin/productions");
 
   return { success: true, message: "Production supprimée avec succès." };
+}
+
+/**
+ * Désactivation / Archivage propre d'une production (conserve l'historique commercial intact)
+ */
+export async function archiveProductionAction(
+  productionId: string
+): Promise<ActionResponse> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Non authentifié." };
+  }
+
+  const companyId = await getCompanyIdForUser(supabase, user.id);
+  if (!companyId) {
+    return { error: "Entreprise agricole introuvable." };
+  }
+
+  const { error } = await supabase
+    .from("productions")
+    .update({
+      is_public: false,
+      status: "cancelled",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", productionId)
+    .eq("company_id", companyId);
+
+  if (error) {
+    return { error: `Erreur d'archivage : ${error.message}` };
+  }
+
+  revalidatePath("/dashboard/company/productions");
+  revalidatePath(`/dashboard/company/productions/${productionId}`);
+  revalidatePath("/dashboard/company");
+  revalidatePath("/dashboard/reseller");
+
+  return {
+    success: true,
+    message: "Production archivée et retirée du flux public avec succès. L'historique des commandes reste intact.",
+  };
 }

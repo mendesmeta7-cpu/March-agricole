@@ -479,3 +479,129 @@ export async function getResellerCampaigns(
 
   return campaigns;
 }
+
+/**
+ * Récupère la campagne active associée à une production (vue revendeur)
+ */
+export async function getActiveCampaignByProductionId(
+  productionId: string,
+  resellerProvinceId?: string
+): Promise<ResellerCampaignItem | null> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select(`
+      id,
+      company_id,
+      production_id,
+      product_id,
+      title,
+      description,
+      marketable_quantity,
+      unit,
+      unit_price,
+      currency,
+      min_order_quantity,
+      start_date,
+      end_date,
+      availability_period,
+      status,
+      created_at,
+      updated_at,
+      company:companies!inner (
+        id,
+        name,
+        slug,
+        logo_url,
+        city,
+        verification_status,
+        provinces (name),
+        countries (name)
+      ),
+      product:products!inner (
+        id,
+        name,
+        category,
+        default_unit,
+        image_url
+      ),
+      production:productions!inner (
+        id,
+        title,
+        main_image_url,
+        expected_quantity,
+        unit,
+        period_start,
+        period_end,
+        status
+      ),
+      delivery_zones:campaign_delivery_zones (
+        id,
+        campaign_id,
+        country_id,
+        province_id,
+        provinces (
+          id,
+          name,
+          code
+        )
+      ),
+      stock_reservations (
+        id,
+        quantity,
+        status
+      )
+    `)
+    .eq("production_id", productionId)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    if (error) console.error("Erreur récupération campagne active par production:", error);
+    return null;
+  }
+
+  const rawItem = data as any;
+  const rawCompany = Array.isArray(rawItem.company) ? rawItem.company[0] : rawItem.company;
+  const company = {
+    ...rawCompany,
+    provinces: Array.isArray(rawCompany?.provinces) ? rawCompany.provinces[0] : rawCompany?.provinces,
+    countries: Array.isArray(rawCompany?.countries) ? rawCompany.countries[0] : rawCompany?.countries,
+  };
+
+  const deliveryZones = (rawItem.delivery_zones || []).map((zone: any) => ({
+    ...zone,
+    provinces: Array.isArray(zone.provinces) ? zone.provinces[0] : zone.provinces,
+  }));
+
+  const isEligible = resellerProvinceId
+    ? deliveryZones.some((z: any) => z.province_id === resellerProvinceId)
+    : false;
+
+  const marketableQty = Number(rawItem.marketable_quantity);
+  const reservedQty = (rawItem.stock_reservations || [])
+    .filter((sr: any) => sr.status === "active")
+    .reduce((acc: number, curr: any) => acc + Number(curr.quantity), 0);
+  const availableQty = Math.max(0, marketableQty - reservedQty);
+
+  return {
+    ...rawItem,
+    marketable_quantity: marketableQty,
+    reserved_quantity: reservedQty,
+    available_quantity: availableQty,
+    unit_price: Number(rawItem.unit_price),
+    min_order_quantity: Number(rawItem.min_order_quantity || 1),
+    company,
+    product: Array.isArray(rawItem.product) ? rawItem.product[0] : rawItem.product,
+    production: {
+      ...(Array.isArray(rawItem.production) ? rawItem.production[0] : rawItem.production),
+      expected_quantity: Number(rawItem.production?.expected_quantity || 0),
+    },
+    delivery_zones: deliveryZones,
+    is_eligible: isEligible,
+  };
+}
+

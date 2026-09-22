@@ -1,4 +1,5 @@
 import { getPublicProductionDetail } from "@/lib/queries/feed";
+import { getActiveCampaignByProductionId } from "@/lib/queries/campaigns";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PageHeader from "@/components/ui/PageHeader";
@@ -16,6 +17,8 @@ import {
   Sparkles,
   Info,
   TrendingUp,
+  ShoppingCart,
+  Megaphone,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -36,7 +39,7 @@ export default async function ResellerProductionDetailPage({
     getPublicProductionDetail(params.id),
     supabase.from("provinces").select("id, country_id, code, name").order("name"),
     user
-      ? supabase.from("resellers").select("province_id").eq("id", user.id).maybeSingle()
+      ? supabase.from("resellers").select("province_id, city, address, provinces (name)").eq("id", user.id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
@@ -46,6 +49,7 @@ export default async function ResellerProductionDetailPage({
 
   const provinces = provincesRes.data || [];
   const defaultProvinceId = resellerProfileRes?.data?.province_id || undefined;
+  const activeCampaign = await getActiveCampaignByProductionId(params.id, defaultProvinceId);
 
   // Formatage des dates du cycle
   const formatDate = (dateString?: string | null) => {
@@ -150,15 +154,33 @@ export default async function ResellerProductionDetailPage({
 
         {/* Colonne droite : Exploitation & Métriques */}
         <div className="space-y-6">
-          {/* Action principale : Faire une demande directe */}
-          <Card padding="md" className="border-emerald-200 bg-emerald-50/30 shadow-xs">
+          {/* Action principale : Commander (si campagne active) ou Demande directe */}
+          <Card
+            padding="md"
+            className={
+              activeCampaign
+                ? "border-emerald-300 bg-emerald-50/40 shadow-sm ring-1 ring-emerald-400/20"
+                : "border-emerald-200 bg-emerald-50/30 shadow-xs"
+            }
+          >
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-emerald-950 font-bold text-sm">
-                <TrendingUp className="w-4 h-4 text-emerald-700" />
-                Expression de besoin directe
+                {activeCampaign ? (
+                  <>
+                    <Megaphone className="w-4 h-4 text-emerald-700" />
+                    Offre Commerciale Ferme Ouverte
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="w-4 h-4 text-emerald-700" />
+                    Expression de besoin directe
+                  </>
+                )}
               </div>
               <p className="text-xs text-gray-600 leading-relaxed">
-                Vous souhaitez réserver ou acheter une partie de cette récolte ? Transmettez vos volumes cibles et votre province au producteur.
+                {activeCampaign
+                  ? "Une campagne de vente ferme est actuellement ouverte sur cette production. Vous pouvez passer commande et réserver vos volumes immédiatement."
+                  : "Vous souhaitez réserver ou acheter une partie de cette récolte ? Transmettez vos volumes cibles et votre province au producteur."}
               </p>
 
               <ResellerProductionDetailActions
@@ -174,6 +196,13 @@ export default async function ResellerProductionDetailPage({
                 }}
                 provinces={provinces}
                 defaultProvinceId={defaultProvinceId}
+                activeCampaign={activeCampaign}
+                resellerInfo={{
+                  provinceId: defaultProvinceId,
+                  provinceName: (resellerProfileRes?.data?.provinces as any)?.name || "",
+                  city: resellerProfileRes?.data?.city || "",
+                  address: resellerProfileRes?.data?.address || "",
+                }}
               />
             </div>
           </Card>

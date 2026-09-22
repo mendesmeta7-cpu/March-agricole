@@ -5,7 +5,9 @@ export type NotificationType =
   | "DEMANDE_ACCEPTEE"
   | "DEMANDE_REFUSEE"
   | "CAMPAGNE_OUVERTE"
-  | "COMMANDE_CREEE";
+  | "COMMANDE_CREEE"
+  | "DEMANDE_GENERALE_RECUE"
+  | "DEMANDE_PRODUCTION_RECUE";
 
 export interface NotificationItem {
   id: string;
@@ -42,7 +44,13 @@ export async function getUserNotifications(
     .order("created_at", { ascending: false });
 
   if (filterCategory === "demands") {
-    query = query.in("type", ["DEMANDE_REPONSE", "DEMANDE_ACCEPTEE", "DEMANDE_REFUSEE"]);
+    query = query.in("type", [
+      "DEMANDE_REPONSE",
+      "DEMANDE_ACCEPTEE",
+      "DEMANDE_REFUSEE",
+      "DEMANDE_GENERALE_RECUE",
+      "DEMANDE_PRODUCTION_RECUE",
+    ]);
   } else if (filterCategory === "campaigns") {
     query = query.eq("type", "CAMPAGNE_OUVERTE");
   } else if (filterCategory === "orders") {

@@ -12,6 +12,8 @@ import {
   ArrowRight,
   Sprout,
   ImageOff,
+  Megaphone,
+  ShoppingCart,
 } from "lucide-react";
 
 interface FeedProductionCardProps {
@@ -63,9 +65,15 @@ export default function FeedProductionCard({ production }: FeedProductionCardPro
           </div>
         )}
 
-        {/* Badge de statut cultural en superposition */}
-        <div className="absolute top-3 right-3 z-10">
+        {/* Badges en superposition */}
+        <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
           <ProductionStatusBadge status={production.status} size="sm" />
+          {production.active_campaign && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-600 text-white shadow-xs">
+              <Megaphone className="w-3 h-3" />
+              Campagne en cours
+            </span>
+          )}
         </div>
 
         {/* Catégorie de produit en superposition */}
@@ -129,24 +137,50 @@ export default function FeedProductionCard({ production }: FeedProductionCardPro
           </div>
         </div>
 
-        {/* 3. Pied de carte : Quantité planifiée + Action */}
+        {/* 3. Pied de carte : Quantité planifiée / Offre + Action */}
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
           <div>
-            <span className="text-[11px] text-gray-500 block uppercase font-medium">
-              Quantité planifiée
-            </span>
-            <span className="text-sm font-extrabold text-forest-900 flex items-center gap-1">
-              <Tractor className="w-4 h-4 text-forest-600 inline-block" />
-              {production.expected_quantity.toLocaleString("fr-FR")} {production.unit}
-            </span>
+            {production.active_campaign ? (
+              <div>
+                <span className="text-[10px] text-emerald-700 block uppercase font-bold tracking-wider">
+                  Offre ferme disponible
+                </span>
+                <span className="text-sm font-extrabold text-emerald-950 flex items-center gap-1">
+                  {production.active_campaign.unit_price} {production.active_campaign.currency} / {production.unit}
+                </span>
+              </div>
+            ) : (
+              <div>
+                <span className="text-[11px] text-gray-500 block uppercase font-medium">
+                  Quantité planifiée
+                </span>
+                <span className="text-sm font-extrabold text-forest-900 flex items-center gap-1">
+                  <Tractor className="w-4 h-4 text-forest-600 inline-block" />
+                  {production.expected_quantity.toLocaleString("fr-FR")} {production.unit}
+                </span>
+              </div>
+            )}
           </div>
 
           <Link
             href={`/dashboard/reseller/productions/${production.id}`}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-forest-50 hover:bg-forest-700 text-forest-800 hover:text-white text-xs font-semibold transition-all duration-150 shadow-2xs group/btn"
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 shadow-2xs group/btn ${
+              production.active_campaign
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200"
+                : "bg-forest-50 hover:bg-forest-700 text-forest-800 hover:text-white"
+            }`}
           >
-            <span>Voir la production</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
+            {production.active_campaign ? (
+              <>
+                <ShoppingCart className="w-3.5 h-3.5" />
+                <span>Commander</span>
+              </>
+            ) : (
+              <>
+                <span>Voir la production</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
+              </>
+            )}
           </Link>
         </div>
       </div>

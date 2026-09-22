@@ -123,10 +123,20 @@ export async function createGeneralDemandAction(
     return { error: `Erreur lors de la publication de la demande : ${insertError.message}` };
   }
 
+  // Notification RPC vers les exploitants concernés
+  try {
+    await supabase.rpc("notify_company_on_demand_received", {
+      p_demand_id: inserted.id,
+    });
+  } catch (rpcErr) {
+    console.error("Erreur notification RPC demande générale:", rpcErr);
+  }
+
   revalidatePath("/dashboard/reseller/demands");
   revalidatePath("/dashboard/reseller");
   revalidatePath("/dashboard/admin/demands");
   revalidatePath("/dashboard/company/demands");
+  revalidatePath("/dashboard/company/notifications");
 
   return {
     success: true,
@@ -235,13 +245,24 @@ export async function createProductionDemandAction(
     return { error: `Erreur lors de la formulation de la demande : ${insertError.message}` };
   }
 
+  // Notification RPC vers la société exploitante
+  try {
+    await supabase.rpc("notify_company_on_demand_received", {
+      p_demand_id: inserted.id,
+    });
+  } catch (rpcErr) {
+    console.error("Erreur notification RPC demande production:", rpcErr);
+  }
+
   revalidatePath("/dashboard/reseller/demands");
   revalidatePath("/dashboard/reseller/productions/" + productionId);
   revalidatePath("/dashboard/company/productions/" + productionId);
+  revalidatePath("/dashboard/company/demands");
+  revalidatePath("/dashboard/company/notifications");
 
   return {
     success: true,
-    message: "Votre demande sur cette production a été enregistrée avec succès. L'exploitant en sera informé lors de l'analyse territoriale.",
+    message: "Votre demande sur cette production a été enregistrée avec succès. L'exploitant a été notifié.",
     demandId: inserted.id,
   };
 }

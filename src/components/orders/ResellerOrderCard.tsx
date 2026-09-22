@@ -266,7 +266,7 @@ export default function ResellerOrderCard({
       <QRCodeModal
         isOpen={showQRModal}
         onClose={() => setShowQRModal(false)}
-        qrCodeToken={order.qr_code_token || order.id}
+        qrCodeToken={order.qr_code_token || order.order_number}
         orderNumber={order.order_number}
         productName={mainItem?.product.name || order.campaign.title}
         quantity={itemQuantity}

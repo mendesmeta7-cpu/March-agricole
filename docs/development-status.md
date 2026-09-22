@@ -25,10 +25,40 @@
 | **14** | **Catalogue Global, Produits Société & Flux Revendeur** | 🟢 **TERMINÉ** | Découplage strict Catalogue Global (`is_global=TRUE`) / Configurations Société (`company_products`) / Produits Privés (`is_global=FALSE`), indépendance totale des photos officielles et personnalisées, 73 produits semés, compte admin dédié `admin@marcheagricole.cd`, flux direct `/dashboard/reseller` avec pills scrollables, suite de 7 tests SQL validée. |
 | **14a** | **Workflow Demandes, Notifications & Campagnes** | 🟢 **TERMINÉ** | Séparation formelle Demandes Générales / Demandes sur Production, propositions fermes & refus société (`demand_responses`), conversion en commande ferme via RPC atomique avec réservation de stock, centre de notifications internes (/notifications), analyse territoriale régionale par production, règle post-récolte stricte pour campagnes, suppression sécurisée des productions, suite de 5 tests SQL d'homologation validée. |
 | **16** | **QR Code, Recherche Rapide & Confirmation de Livraison** | 🟢 **TERMINÉ** | Token QR opaque immuable généré par commande (`qr_code_token`), affichage modal QR côté revendeur (`/dashboard/reseller/orders/[id]`), widget de recherche rapide société (scan caméra `html5-qrcode` & saisie n°), contrôle d'accès strict anti-fuite multilocataire, RPC `lookup_order_for_delivery` & `confirm_order_delivery` avec verrouillage pessimiste et règle anti-double livraison, suite de 7 tests SQL validée. |
+| **18** | **Stabilisation, Intégrité Historique & Cohérence Workflows** | 🟢 **TERMINÉ** | Snapshots immuables DB (`company_name_snapshot`, `campaign_title_snapshot`, `production_title_snapshot`, `product_name_snapshot`) avec triggers auto et LEFT JOINs anti-disparition, RLS revendeur étendu, blocage de suppression physique avec historique, route `/campaigns/new` opérationnelle (correction 404), bascule dynamique feed revendeur (`CAMPAGNE EN COURS` / `[ 🛒 Commander ]`), notifications d'expression de demandes et correction du broadcast, scan QR multi-format robuste (token, numéro, UUID), suite de tests validée et build 100% propre. |
 
 ---
 
-## 2. BILAN DE LA PHASE 16 (QR CODE, RECHERCHE RAPIDE & LIVRAISON V1)
+## 2. BILAN DE LA PHASE 18 (STABILISATION, INTÉGRITÉ HISTORIQUE & COHÉRENCE V1)
+
+* **Date de validation finale** : 2026-09-22
+* **Statut du projet** : 🟢 **STABLE — HISTORIQUE COMMERCIAL BLINDÉ & WORKFLOWS HARMONISÉS**
+* **Réalisations clés** :
+  1. **Snapshots Immuables et Résolution des Commandes Disparues** :
+     - Les commandes et lignes de commandes intègrent désormais des colonnes figées garantissant la persistance intégrale des libellés et entreprises historiques même si la production, le produit ou la campagne parente est archivée ou désactivée.
+     - Les requêtes SQL de commandes utilisent désormais des `LEFT JOIN` sécurisés avec repli automatique sur les snapshots.
+  2. **Sécurisation RLS & Accès aux Données Historiques** :
+     - Les politiques RLS sur `campaigns`, `productions` et `company_products` autorisent formellement les revendeurs à lire les entités liées à leurs commandes et demandes passées.
+  3. **Suppression Sécurisée & Désactivation Douce** :
+     - La suppression d'une production ou d'un produit configuré d'exploitation est strictement bloquée si un historique commercial (`orders`, `campaigns`, `demands`, `stock_reservations`) existe.
+     - Le catalogue global officiel (`products`) est protégé de toute altération par une exploitation.
+  4. **Résolution de l'Erreur 404 Campagne** :
+     - Création de la route `/dashboard/company/campaigns/new` avec pré-remplissage et ouverture automatique de la modal adossée à la production récoltée.
+  5. **Bascule Dynamique du Feed Revendeur en Campagne Active** :
+     - Les productions associées à une campagne de vente active affichent un badge `CAMPAGNE EN COURS`, les informations de prix/stock disponible et un bouton prioritaire `[ 🛒 Commander ]` déclenchant la commande ferme.
+  6. **Centre de Notifications & Ciblage Précis** :
+     - Les demandes de revendeurs génèrent automatiquement une notification interne pour les exploitants (`notify_company_on_demand_received`).
+     - Les notifications d'ouverture de campagne ciblent strictement les revendeurs ayant fait une demande sur cette production.
+  7. **Robustesse du Scan QR & Recherche Commande** :
+     - Sélection systématique de `qr_code_token`, prise en charge transparente des URL scannées, jetons, identifiants `CMD-...` et UUIDs par la procédure `lookup_order_for_delivery`.
+  8. **Homologation Complète** :
+     - Suite SQL `supabase/tests/phase18_stabilization_and_coherence_test.sql` exécutée et validée avec succès sur Supabase.
+     - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
+     - Build Next.js de production (`npm run build`) : 34/34 routes compilées avec succès.
+
+---
+
+## 3. BILAN DE LA PHASE 16 (QR CODE, RECHERCHE RAPIDE & LIVRAISON V1)
 
 * **Date de validation finale** : 2026-09-22
 * **Statut du projet** : 🟢 **STABLE — LIVRAISON ET SCAN QR HOMOLOGUÉS**
