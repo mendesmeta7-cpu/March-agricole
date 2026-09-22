@@ -11,7 +11,9 @@ import {
   XCircle,
   Building2,
   Package,
-  FileText,
+  MessageSquare,
+  Sprout,
+  Globe,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -19,6 +21,7 @@ interface ResellerDemandCardProps {
   demand: DemandItem;
   onEdit: (demand: DemandItem) => void;
   onCancel: (demandId: string) => void;
+  onViewResponses?: (demand: DemandItem) => void;
   isCancelling?: boolean;
 }
 
@@ -26,6 +29,7 @@ export default function ResellerDemandCard({
   demand,
   onEdit,
   onCancel,
+  onViewResponses,
   isCancelling,
 }: ResellerDemandCardProps) {
   const formatDate = (dateStr?: string | null) => {
@@ -43,6 +47,8 @@ export default function ResellerDemandCard({
   };
 
   const hasPeriod = demand.target_period_start || demand.target_period_end;
+  const isProductionDemand = demand.demand_type === "production";
+  const responsesCount = demand.responses?.length || 0;
 
   return (
     <Card className="overflow-hidden border border-gray-100 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group">
@@ -63,9 +69,20 @@ export default function ResellerDemandCard({
               )}
             </div>
             <div className="min-w-0">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-earth-700 bg-earth-100/70 px-2 py-0.5 rounded-md inline-block mb-1">
-                {demand.product.category}
-              </span>
+              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-earth-700 bg-earth-100/70 px-2 py-0.5 rounded-md inline-block">
+                  {demand.product.category}
+                </span>
+                {isProductionDemand ? (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md inline-flex items-center gap-1">
+                    <Sprout className="w-2.5 h-2.5" /> Sur production
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-md inline-flex items-center gap-1">
+                    <Globe className="w-2.5 h-2.5" /> Demande générale
+                  </span>
+                )}
+              </div>
               <h3 className="text-base font-bold text-gray-900 truncate">
                 {demand.product.name}
               </h3>
@@ -87,9 +104,21 @@ export default function ResellerDemandCard({
               </p>
             </div>
           </div>
-          <span className="text-[10px] uppercase font-semibold text-earth-600 bg-earth-100/80 px-2 py-0.5 rounded-md">
-            Besoin exprimé
-          </span>
+          
+          {/* Badge propositions reçues */}
+          {responsesCount > 0 ? (
+            <button
+              onClick={() => onViewResponses?.(demand)}
+              className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition-colors text-xs font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              {responsesCount} proposition{responsesCount > 1 ? "s" : ""}
+            </button>
+          ) : (
+            <span className="text-[10px] uppercase font-semibold text-earth-600 bg-earth-100/80 px-2 py-0.5 rounded-md">
+              Besoin actif
+            </span>
+          )}
         </div>
 
         {/* Territoire & Période */}
@@ -131,25 +160,39 @@ export default function ResellerDemandCard({
       <div className="p-3 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
         <span>Publié le {formatDate(demand.created_at)}</span>
 
-        {demand.status === "active" && (
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5">
+          {responsesCount > 0 && (
             <button
-              onClick={() => onEdit(demand)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-gray-700 hover:text-earth-800 hover:bg-gray-100 rounded-lg transition-colors"
+              onClick={() => onViewResponses?.(demand)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
             >
-              <Edit3 className="w-3 h-3" />
-              Modifier
+              <MessageSquare className="w-3 h-3" />
+              Offres ({responsesCount})
             </button>
-            <button
-              onClick={() => onCancel(demand.id)}
-              disabled={isCancelling}
-              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <XCircle className="w-3 h-3" />
-              Annuler
-            </button>
-          </div>
-        )}
+          )}
+
+          {demand.status === "active" && (
+            <>
+              {!isProductionDemand && (
+                <button
+                  onClick={() => onEdit(demand)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-gray-700 hover:text-earth-800 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  Modifier
+                </button>
+              )}
+              <button
+                onClick={() => onCancel(demand.id)}
+                disabled={isCancelling}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-50"
+              >
+                <XCircle className="w-3 h-3" />
+                Annuler
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </Card>
   );

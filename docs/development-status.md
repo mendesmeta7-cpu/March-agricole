@@ -23,19 +23,31 @@
 | **12** | **Stabilisation Post-Validation V1** | 🟢 **TERMINÉ** | Harmonisation multi-tenant Server Actions (`getCompanyIdForUser`), fiabilisation messages d'erreur RPC, tests de non-régression, classification Classe A (Stable). |
 | **13** | **Correction Admin, UX & Réactivité** | 🟢 **TERMINÉ** | Espace Admin MVP, skeleton screens pour navigations rapides, suppression lenteurs et fiabilisation auth. |
 | **14** | **Catalogue Global, Produits Société & Flux Revendeur** | 🟢 **TERMINÉ** | Découplage strict Catalogue Global (`is_global=TRUE`) / Configurations Société (`company_products`) / Produits Privés (`is_global=FALSE`), indépendance totale des photos officielles et personnalisées, 73 produits semés, compte admin dédié `admin@marcheagricole.cd`, flux direct `/dashboard/reseller` avec pills scrollables, suite de 7 tests SQL validée. |
+| **14a** | **Workflow Demandes, Notifications & Campagnes** | 🟢 **TERMINÉ** | Séparation formelle Demandes Générales / Demandes sur Production, propositions fermes & refus société (`demand_responses`), conversion en commande ferme via RPC atomique avec réservation de stock, centre de notifications internes (/notifications), analyse territoriale régionale par production, règle post-récolte stricte pour campagnes, suppression sécurisée des productions, suite de 5 tests SQL d'homologation validée. |
 
 ---
 
-## 2. BILAN DE LA PHASE 14 (CATALOGUE GLOBAL & FLUX REVENDEUR)
+## 2. BILAN DE LA PHASE 14a (DEMANDES, NOTIFICATIONS & CAMPAGNES)
 
-* **Date de validation finale** : 2026-09-21
-* **Statut du projet** : 🟢 **STABLE — CATALOGUE ET FLUX V1 CERTIFIÉS**
+* **Date de validation finale** : 2026-09-22
+* **Statut du projet** : 🟢 **STABLE — WORKFLOW DES DEMANDES ET NOTIFICATIONS CERTIFIÉ**
 * **Réalisations clés** :
-  1. **Catalogue Global de Référence** : 73 produits de référence semés (céréales, tubercules, légumes, fruits, légumineuses, oléagineux, cultures de rente).
-  2. **Indépendance des Photos** : La photo d'une société ne contamine jamais le catalogue global ou les autres sociétés (`company_products.image_url`). Trigger de protection `trg_protect_global_product_images` actif.
-  3. **Parcours Société en 2 Étapes** : Étape 1 recherche catalogue officiel ou création produit privé hors catalogue ; Étape 2 personnalisation dénomination, unité, notes et photo de l'exploitation.
-  4. **Espace Admin Dédié** : Route `/dashboard/admin/products` pour gestion complète du catalogue global officiel. Compte sécurisé `admin@marcheagricole.cd`.
-  5. **Flux Revendeur Direct** : `/dashboard/reseller` affiche directement le flux des productions avec filtres réactifs (recherche textuelle, pills de catégories scrollables sur mobile, statut cultural, province).
+  1. **Séparation Stricte des Deux Types de Demandes** :
+     - *Demandes Générales* (`demand_type = 'general'`) : Besoins globaux sans production liée. Multiples entreprises peuvent refuser ou proposer une offre ferme.
+     - *Demandes sur Production* (`demand_type = 'production'`) : Intérêt ciblé sur une production spécifique en statut `growing` ou `harvested`.
+  2. **Propositions Commerciales & Conversion Atomique** :
+     - Table `demand_responses` pour propositions chiffrées (quantité, prix unitaire, devise, message).
+     - Procédure RPC sécurisée `create_order_from_demand_response` : verrouillage pessimiste, réservation de stock sur la production, passage de la proposition à `ordered` et de la demande à `converted`.
+  3. **Centre de Notifications Internes** :
+     - Routes `/dashboard/reseller/notifications` et `/dashboard/company/notifications`.
+     - Types : `DEMANDE_REPONSE`, `CAMPAGNE_OUVERTE`, `COMMANDE_CREEE`.
+     - Badges de compteur non-lu dans la barre latérale et acquittement individuel ou groupé.
+  4. **Analyse Territoriale Régionale par Production** :
+     - Répartition géographique des demandes par province sur `/dashboard/company/productions/[id]` pour guider les ouvertures de campagnes.
+  5. **Règles Campagnes Post-Récolte & Suppression Sécurisée** :
+     - Campagnes strictement réservées aux productions en statut `harvested`.
+     - Diffusion automatique des notifications lors de l'ouverture d'une campagne (`notify_resellers_on_campaign_opened`).
+     - Vérification des dépendances commerciales avant suppression d'une production (`deleteProductionAction`).
 
 ---
 

@@ -430,3 +430,75 @@ export async function toggleProductionVisibilityAction(
       : "Production passée en mode privé (invisible publiquement).",
   };
 }
+
+/**
+ * Suppression sécurisée d'une production avec vérification des dépendances commerciales
+ */
+export async function deleteProductionAction(
+  productionId: string
+): Promise<ActionResponse> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Vous devez être connecté pour supprimer une production." };
+  }
+
+  const companyId = await getCompanyIdForUser(supabase, user.id);
+  if (!companyId) {
+    return { error: "Entreprise agricole introuvable." };
+  }
+
+  // 1. Vérification de l'existence et de l'appartenance
+  const { data: prod } = await supabase
+    .from("productions")
+    .select("id, title")
+    .eq("id", productionId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  if (!prod) {
+    return { error: "Production introuvable ou accès refusé." };
+  }
+
+  // 2. Vérification des campagnes commerciales rattachées
+  const { count: campaignsCount } = await supabase
+    .from("campaigns")
+    .select("id", { count: "exact", head: true })
+    .eq("production_id", productionId);
+
+  if (campaignsCount && campaignsCount > 0) {
+    return {
+      error: `Impossible de supprimer cette production : ${campaignsCount} campagne(s) commerciale(s) y sont rattachées. Vous pouvez passer son statut à 'annulée' ou désactiver sa visibilité publique.`,
+    };
+  }
+
+  // 3. Vérification des propositions commerciales / commandes / réservations
+  const { count: responsesCount } = await supabase
+    .from("demand_responses")
+    .select("id", { count: "exact", head: true })
+    .eq("production_id", productionId);
+
+  if (responsesCount && responsesCount > 0) {
+    return {
+      error: `Impossible de supprimer cette production : des propositions commerciales ou commandes y sont associées.`,
+    };
+  }
+
+  // 4. Suppression
+  const { error: deleteErr } = await supabase
+    .from("productions")
+    .delete()
+    .eq("id", productionId)
+    .eq("company_id", companyId);
+
+  if (deleteErr) {
+    return { error: `Erreur lors de la suppression : ${deleteErr.message}` };
+  }
+
+  revalidatePath("/dashboard/company/productions");
+  revalidatePath("/dashboard/company");
+  revalidatePath("/dashboard/admin/productions");
+
+  return { success: true, message: "Production supprimée avec succès." };
+}

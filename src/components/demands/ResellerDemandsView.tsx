@@ -7,6 +7,7 @@ import { Province, Country } from "@/lib/queries/geography";
 import { cancelDemandAction } from "@/lib/actions/demands";
 import ResellerDemandCard from "./ResellerDemandCard";
 import DemandFormModal from "./DemandFormModal";
+import DemandResponsesModal from "./DemandResponsesModal";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
@@ -48,10 +49,14 @@ export default function ResellerDemandsView({
   const [demands, setDemands] = useState<DemandItem[]>(initialDemands);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [productFilter, setProductFilter] = useState<string>("all");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDemand, setEditingDemand] = useState<DemandItem | null>(null);
+  const [selectedDemandForResponses, setSelectedDemandForResponses] = useState<DemandItem | null>(null);
+  const [isResponsesModalOpen, setIsResponsesModalOpen] = useState(false);
+
   const [isPending, startTransition] = useTransition();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(
@@ -59,7 +64,7 @@ export default function ResellerDemandsView({
   );
 
   // Synchronisation en cas de revalidation serveur
-  if (initialDemands !== demands && !isModalOpen && !cancellingId) {
+  if (initialDemands !== demands && !isModalOpen && !cancellingId && !isResponsesModalOpen) {
     setDemands(initialDemands);
   }
 
@@ -73,9 +78,10 @@ export default function ResellerDemandsView({
       (dem.notes && dem.notes.toLowerCase().includes(q));
 
     const matchesStatus = statusFilter === "all" || dem.status === statusFilter;
+    const matchesType = typeFilter === "all" || dem.demand_type === typeFilter;
     const matchesProduct = productFilter === "all" || dem.product_id === productFilter;
 
-    return matchesSearch && matchesStatus && matchesProduct;
+    return matchesSearch && matchesStatus && matchesType && matchesProduct;
   });
 
   // Statistiques réelles
@@ -93,6 +99,11 @@ export default function ResellerDemandsView({
   const handleOpenEdit = (demand: DemandItem) => {
     setEditingDemand(demand);
     setIsModalOpen(true);
+  };
+
+  const handleViewResponses = (demand: DemandItem) => {
+    setSelectedDemandForResponses(demand);
+    setIsResponsesModalOpen(true);
   };
 
   const handleCancel = (demandId: string) => {
@@ -138,14 +149,14 @@ export default function ResellerDemandsView({
       {/* En-tête de page */}
       <PageHeader
         title="Mes Demandes d'Approvisionnement"
-        description="Exprimez vos besoins prévisionnels en denrées agricoles pour informer les producteurs de la demande dans votre province."
+        description="Exprimez vos besoins prévisionnels en denrées agricoles ou faites des demandes directes sur des productions en cours."
         action={
           <button
             onClick={handleOpenCreate}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-earth-700 text-white font-medium text-sm hover:bg-earth-800 transition-all shadow-xs hover:shadow-md cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            Exprimer un besoin
+            Exprimer un besoin général
           </button>
         }
       />
@@ -224,8 +235,19 @@ export default function ResellerDemandsView({
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Filter className="w-3.5 h-3.5 text-gray-400 shrink-0 hidden sm:block" />
+              
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 text-xs sm:text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-earth-600 bg-white"
+              >
+                <option value="all">Tous les types</option>
+                <option value="general">Demandes générales</option>
+                <option value="production">Demandes sur production</option>
+              </select>
+
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -259,7 +281,7 @@ export default function ResellerDemandsView({
       {demands.length === 0 ? (
         <EmptyState
           title="Vous n'avez encore exprimé aucune demande d'approvisionnement."
-          description="Publiez les volumes et denrées que vous recherchez pour inciter les entreprises agricoles à orienter leurs productions et campagnes vers votre province."
+          description="Publiez les volumes et denrées que vous recherchez ou naviguez dans les productions publiques pour transmettre vos besoins aux producteurs."
           icon={<TrendingUp className="w-8 h-8 text-earth-700" />}
           action={
             <button
@@ -267,7 +289,7 @@ export default function ResellerDemandsView({
               className="px-4 py-2.5 rounded-xl bg-earth-700 text-white font-medium text-xs sm:text-sm hover:bg-earth-800 transition-all shadow-xs hover:shadow-md cursor-pointer inline-flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              + Exprimer un besoin
+              + Exprimer un besoin général
             </button>
           }
         />
@@ -280,6 +302,7 @@ export default function ResellerDemandsView({
             onClick={() => {
               setSearchQuery("");
               setStatusFilter("all");
+              setTypeFilter("all");
               setProductFilter("all");
             }}
             className="text-xs font-semibold text-earth-700 hover:text-earth-800 underline"
@@ -295,13 +318,14 @@ export default function ResellerDemandsView({
               demand={demand}
               onEdit={handleOpenEdit}
               onCancel={handleCancel}
+              onViewResponses={handleViewResponses}
               isCancelling={cancellingId === demand.id}
             />
           ))}
         </div>
       )}
 
-      {/* Modale de Création / Modification */}
+      {/* Modale de Création / Modification de besoin général */}
       <DemandFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -313,6 +337,14 @@ export default function ResellerDemandsView({
         defaultProvinceId={resellerProvinceId}
         defaultCountryId={resellerCountryId}
         onSuccess={handleSuccess}
+      />
+
+      {/* Modale des propositions reçues */}
+      <DemandResponsesModal
+        isOpen={isResponsesModalOpen}
+        onClose={() => setIsResponsesModalOpen(false)}
+        demand={selectedDemandForResponses}
+        provinces={provinces}
       />
     </div>
   );

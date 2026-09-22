@@ -11,9 +11,32 @@ export interface ActionResponse {
 }
 
 /**
- * Crée une nouvelle expression de besoin (Demande) par un revendeur
+ * Récupère l'ID d'entreprise pour un utilisateur
  */
-export async function createDemandAction(
+async function getCompanyIdForUser(supabase: any, userId: string): Promise<string | null> {
+  const { data: memberData } = await supabase
+    .from("company_members")
+    .select("company_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (memberData?.company_id) {
+    return memberData.company_id;
+  }
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("created_by", userId)
+    .maybeSingle();
+
+  return company?.id || null;
+}
+
+/**
+ * Crée une DEMANDE GÉNÉRALE (sans production ciblée) par un revendeur
+ */
+export async function createGeneralDemandAction(
   prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
@@ -44,7 +67,6 @@ export async function createDemandAction(
   const city = (formData.get("city") as string)?.trim() || null;
   const targetPeriodStart = (formData.get("targetPeriodStart") as string)?.trim() || null;
   const targetPeriodEnd = (formData.get("targetPeriodEnd") as string)?.trim() || null;
-  const targetCompanyId = (formData.get("targetCompanyId") as string)?.trim() || null;
   const notes = (formData.get("notes") as string)?.trim() || null;
 
   if (!productId) {
@@ -75,13 +97,15 @@ export async function createDemandAction(
     return { error: "Le produit sélectionné n'est pas actif dans le catalogue." };
   }
 
-  // 4. Insertion dans la table demands
+  // 4. Insertion dans la table demands (type général)
   const { data: inserted, error: insertError } = await supabase
     .from("demands")
     .insert({
       reseller_id: user.id,
+      demand_type: "general",
       product_id: productId,
-      target_company_id: targetCompanyId,
+      production_id: null,
+      target_company_id: null,
       quantity,
       unit,
       country_id: countryId,
@@ -106,8 +130,273 @@ export async function createDemandAction(
 
   return {
     success: true,
-    message: "Votre demande d'approvisionnement a été enregistrée et transmise aux producteurs.",
+    message: "Votre demande générale d'approvisionnement a été enregistrée et transmise aux producteurs.",
     demandId: inserted.id,
+  };
+}
+
+// Rétrocompatibilité
+export const createDemandAction = createGeneralDemandAction;
+
+/**
+ * Crée une DEMANDE LIÉE À UNE PRODUCTION SPÉCIFIQUE (En culture ou Récoltée)
+ */
+export async function createProductionDemandAction(
+  prevStateOrFormData: ActionResponse | null | FormData,
+  maybeFormData?: FormData
+): Promise<ActionResponse> {
+  const formData = maybeFormData || (prevStateOrFormData instanceof FormData ? prevStateOrFormData : new FormData());
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Vous devez être connecté pour exprimer une demande." };
+  }
+
+  // 1. Vérification du rôle revendeur
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "reseller" && profile?.role !== "admin") {
+    return { error: "Seuls les revendeurs peuvent faire une demande sur une production." };
+  }
+
+  const productionId = ((formData.get("productionId") || formData.get("production_id")) as string)?.trim();
+  const rawQuantity = formData.get("quantity") as string;
+  const provinceId = ((formData.get("provinceId") || formData.get("province_id")) as string)?.trim();
+  const city = (formData.get("city") as string)?.trim() || null;
+  const notes = (formData.get("notes") as string)?.trim() || null;
+
+  if (!productionId) {
+    return { error: "Production de référence manquante." };
+  }
+
+  const quantity = Number(rawQuantity);
+  if (isNaN(quantity) || quantity <= 0) {
+    return { error: "La quantité souhaitée doit être un nombre strictement positif." };
+  }
+
+  // 2. Vérification de la production
+  const { data: production, error: prodErr } = await supabase
+    .from("productions")
+    .select("id, company_id, product_id, unit, status, is_public, company:companies(country_id)")
+    .eq("id", productionId)
+    .maybeSingle();
+
+  if (prodErr || !production) {
+    return { error: "Production introuvable." };
+  }
+
+  if (!production.is_public || !["growing", "harvested"].includes(production.status)) {
+    return { error: "Cette production n'accepte pas de demandes actuellement." };
+  }
+
+  const countryId = (production.company as any)?.country_id || "c719f958-b43c-4eff-97ec-b8aca0eae4a5";
+
+  // 3. Récupération de la province du revendeur si non spécifiée
+  let targetProvinceId = provinceId;
+  if (!targetProvinceId) {
+    const { data: reseller } = await supabase
+      .from("resellers")
+      .select("province_id")
+      .eq("id", user.id)
+      .maybeSingle();
+    targetProvinceId = reseller?.province_id;
+  }
+
+  if (!targetProvinceId) {
+    return { error: "Veuillez spécifier votre province de livraison." };
+  }
+
+  // 4. Insertion dans la table demands (type production)
+  const { data: inserted, error: insertError } = await supabase
+    .from("demands")
+    .insert({
+      reseller_id: user.id,
+      demand_type: "production",
+      product_id: production.product_id,
+      production_id: production.id,
+      target_company_id: production.company_id,
+      quantity,
+      unit: production.unit,
+      country_id: countryId,
+      province_id: targetProvinceId,
+      city,
+      notes,
+      status: "active",
+    })
+    .select("id")
+    .single();
+
+  if (insertError) {
+    return { error: `Erreur lors de la formulation de la demande : ${insertError.message}` };
+  }
+
+  revalidatePath("/dashboard/reseller/demands");
+  revalidatePath("/dashboard/reseller/productions/" + productionId);
+  revalidatePath("/dashboard/company/productions/" + productionId);
+
+  return {
+    success: true,
+    message: "Votre demande sur cette production a été enregistrée avec succès. L'exploitant en sera informé lors de l'analyse territoriale.",
+    demandId: inserted.id,
+  };
+}
+
+/**
+ * Enregistre le REFUS d'une demande générale par une entreprise
+ */
+export async function refuseDemandAction(demandId: string): Promise<ActionResponse> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Non authentifié." };
+  }
+
+  const companyId = await getCompanyIdForUser(supabase, user.id);
+  if (!companyId) {
+    return { error: "Aucune entreprise associée à votre compte." };
+  }
+
+  // Insertion ou mise à jour du refus dans demand_responses
+  const { error } = await supabase
+    .from("demand_responses")
+    .upsert(
+      {
+        demand_id: demandId,
+        company_id: companyId,
+        production_id: null,
+        status: "refused",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "demand_id,company_id" }
+    );
+
+  if (error) {
+    return { error: `Erreur lors de l'enregistrement du refus : ${error.message}` };
+  }
+
+  revalidatePath("/dashboard/company/demands");
+  return { success: true, message: "Demande marquée comme refusée pour votre exploitation." };
+}
+
+/**
+ * Crée une PROPOSITION / RÉPONSE FORMELLE à une demande générale par une entreprise
+ */
+export async function createDemandProposalAction(
+  prevStateOrFormData: ActionResponse | null | FormData,
+  maybeFormData?: FormData
+): Promise<ActionResponse> {
+  const formData = maybeFormData || (prevStateOrFormData instanceof FormData ? prevStateOrFormData : new FormData());
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Vous devez être connecté pour proposer une réponse." };
+  }
+
+  const companyId = await getCompanyIdForUser(supabase, user.id);
+  if (!companyId) {
+    return { error: "Aucune entreprise agricole associée." };
+  }
+
+  const demandId = ((formData.get("demandId") || formData.get("demand_id")) as string)?.trim();
+  const productionId = ((formData.get("productionId") || formData.get("production_id")) as string)?.trim();
+  const rawQuantity = ((formData.get("proposedQuantity") || formData.get("proposed_quantity") || formData.get("quantity")) as string);
+  const rawPrice = ((formData.get("unitPrice") || formData.get("unit_price")) as string);
+  const message = (formData.get("message") as string)?.trim() || null;
+
+  if (!demandId || !productionId) {
+    return { error: "Veuillez sélectionner une production réelle de votre exploitation." };
+  }
+
+  const proposedQuantity = Number(rawQuantity);
+  if (isNaN(proposedQuantity) || proposedQuantity <= 0) {
+    return { error: "La quantité proposée doit être supérieure à zéro." };
+  }
+
+  const unitPrice = rawPrice ? Number(rawPrice) : 0;
+
+  // 1. Vérification que la production appartient bien à l'entreprise
+  const { data: production, error: prodErr } = await supabase
+    .from("productions")
+    .select("id, title, product_id, unit, status, company_id, products:product_id(name)")
+    .eq("id", productionId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  if (prodErr || !production) {
+    return { error: "La production sélectionnée n'appartient pas à votre exploitation." };
+  }
+
+  // 2. Récupération des informations de la demande et de l'entreprise
+  const { data: demand, error: demErr } = await supabase
+    .from("demands")
+    .select("id, reseller_id, quantity, unit, product_id")
+    .eq("id", demandId)
+    .maybeSingle();
+
+  if (demErr || !demand) {
+    return { error: "Demande introuvable." };
+  }
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("name")
+    .eq("id", companyId)
+    .single();
+
+  // 3. Enregistrement de la proposition
+  const { data: responseData, error: respErr } = await supabase
+    .from("demand_responses")
+    .upsert(
+      {
+        demand_id: demandId,
+        company_id: companyId,
+        production_id: production.id,
+        proposed_quantity: proposedQuantity,
+        unit: production.unit,
+        unit_price: unitPrice,
+        currency: "USD",
+        message,
+        status: "proposed",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "demand_id,company_id" }
+    )
+    .select("id")
+    .single();
+
+  if (respErr) {
+    return { error: `Erreur lors de l'enregistrement de la proposition : ${respErr.message}` };
+  }
+
+  // 4. Création d'une notification interne pour le revendeur
+  const productName = Array.isArray(production.products)
+    ? production.products[0]?.name
+    : (production.products as any)?.name || "Produit";
+
+  await supabase.from("notifications").insert({
+    user_id: demand.reseller_id,
+    type: "DEMANDE_REPONSE",
+    title: `Nouvelle proposition de ${company?.name || "un producteur"}`,
+    message: `${company?.name || "Une société"} a répondu à votre demande pour ${proposedQuantity} ${production.unit} de ${productName}.`,
+    related_entity_type: "demand_response",
+    related_entity_id: responseData.id,
+    action_url: "/dashboard/reseller/demands",
+  });
+
+  revalidatePath("/dashboard/company/demands");
+  revalidatePath("/dashboard/reseller/demands");
+  revalidatePath("/dashboard/reseller/notifications");
+
+  return {
+    success: true,
+    message: "Votre proposition a été transmise au revendeur avec succès.",
   };
 }
 
@@ -130,7 +419,6 @@ export async function updateDemandAction(
     return { error: "Identifiant de demande manquant." };
   }
 
-  // 1. Vérification d'appartenance et de statut
   const { data: existing } = await supabase
     .from("demands")
     .select("id, reseller_id, status")
@@ -145,7 +433,6 @@ export async function updateDemandAction(
     return { error: "Seules les demandes actives peuvent être modifiées." };
   }
 
-  // 2. Extraction des champs
   const rawQuantity = formData.get("quantity") as string;
   const unit = (formData.get("unit") as string)?.trim() || "tonne";
   const countryId = (formData.get("countryId") as string)?.trim();
@@ -153,7 +440,6 @@ export async function updateDemandAction(
   const city = (formData.get("city") as string)?.trim() || null;
   const targetPeriodStart = (formData.get("targetPeriodStart") as string)?.trim() || null;
   const targetPeriodEnd = (formData.get("targetPeriodEnd") as string)?.trim() || null;
-  const targetCompanyId = (formData.get("targetCompanyId") as string)?.trim() || null;
   const notes = (formData.get("notes") as string)?.trim() || null;
 
   const quantity = Number(rawQuantity);
@@ -169,7 +455,6 @@ export async function updateDemandAction(
     return { error: "La date de fin ne peut pas être antérieure à la date de début." };
   }
 
-  // 3. Mise à jour en base
   const { error: updateError } = await supabase
     .from("demands")
     .update({
@@ -180,7 +465,6 @@ export async function updateDemandAction(
       city,
       target_period_start: targetPeriodStart,
       target_period_end: targetPeriodEnd,
-      target_company_id: targetCompanyId,
       notes,
       updated_at: new Date().toISOString(),
     })

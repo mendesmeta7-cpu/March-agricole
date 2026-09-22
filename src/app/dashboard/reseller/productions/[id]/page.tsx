@@ -1,9 +1,10 @@
 import { getPublicProductionDetail } from "@/lib/queries/feed";
 import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
-import Badge from "@/components/ui/Badge";
 import ProductionStatusBadge from "@/components/productions/ProductionStatusBadge";
+import ResellerProductionDetailActions from "@/components/feed/ResellerProductionDetailActions";
 import {
   ArrowLeft,
   MapPin,
@@ -27,11 +28,24 @@ interface ResellerProductionDetailPageProps {
 export default async function ResellerProductionDetailPage({
   params,
 }: ResellerProductionDetailPageProps) {
-  const production = await getPublicProductionDetail(params.id);
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Chargement conjoint production, provinces et localisation revendeur
+  const [production, provincesRes, resellerProfileRes] = await Promise.all([
+    getPublicProductionDetail(params.id),
+    supabase.from("provinces").select("id, country_id, code, name").order("name"),
+    user
+      ? supabase.from("resellers").select("province_id").eq("id", user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
 
   if (!production) {
     notFound();
   }
+
+  const provinces = provincesRes.data || [];
+  const defaultProvinceId = resellerProfileRes?.data?.province_id || undefined;
 
   // Formatage des dates du cycle
   const formatDate = (dateString?: string | null) => {
@@ -61,7 +75,7 @@ export default async function ResellerProductionDetailPage({
       {/* 1. Fil d'Ariane & Navigation de retour */}
       <div className="flex items-center gap-2 text-sm text-gray-500">
         <Link
-          href="/dashboard/reseller/feed"
+          href="/dashboard/reseller"
           className="hover:text-forest-800 flex items-center gap-1 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -127,7 +141,7 @@ export default async function ResellerProductionDetailPage({
                   Engagement commercial & Disponibilité physique :
                 </span>
                 <p className="text-amber-800 text-xs leading-relaxed">
-                  Cette fiche constitue une déclaration de culture prévisionnelle. La vente directe et les commandes fermes ne sont pas encore ouvertes pour cette production. Elles seront disponibles dès la mise en ligne d&apos;une campagne commerciale par l&apos;exploitation.
+                  Cette fiche constitue une déclaration de culture. Vous pouvez formuler une <strong>demande d&apos;approvisionnement directe</strong> pour signaler votre intérêt au producteur et l&apos;aider à calibrer son offre.
                 </p>
               </div>
             </div>
@@ -136,6 +150,34 @@ export default async function ResellerProductionDetailPage({
 
         {/* Colonne droite : Exploitation & Métriques */}
         <div className="space-y-6">
+          {/* Action principale : Faire une demande directe */}
+          <Card padding="md" className="border-emerald-200 bg-emerald-50/30 shadow-xs">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-emerald-950 font-bold text-sm">
+                <TrendingUp className="w-4 h-4 text-emerald-700" />
+                Expression de besoin directe
+              </div>
+              <p className="text-xs text-gray-600 leading-relaxed">
+                Vous souhaitez réserver ou acheter une partie de cette récolte ? Transmettez vos volumes cibles et votre province au producteur.
+              </p>
+
+              <ResellerProductionDetailActions
+                production={{
+                  id: production.id,
+                  title: production.title,
+                  unit: production.unit,
+                  expected_quantity: production.expected_quantity,
+                  status: production.status,
+                  company_name: production.company.name,
+                  product_name: production.product.name,
+                  main_image_url: production.main_image_url || undefined,
+                }}
+                provinces={provinces}
+                defaultProvinceId={defaultProvinceId}
+              />
+            </div>
+          </Card>
+
           {/* Identité de l'exploitation productrice */}
           <Card padding="md">
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
@@ -195,7 +237,6 @@ export default async function ResellerProductionDetailPage({
             </h3>
 
             <div className="space-y-4 text-xs sm:text-sm">
-              {/* Culture */}
               <div>
                 <span className="text-[11px] text-gray-400 block uppercase font-medium">
                   Denrée / Produit
@@ -205,7 +246,6 @@ export default async function ResellerProductionDetailPage({
                 </span>
               </div>
 
-              {/* Quantité planifiée */}
               <div className="p-3 rounded-xl bg-forest-50/70 border border-forest-100">
                 <span className="text-[11px] text-forest-700 block uppercase font-semibold">
                   Quantité planifiée
@@ -213,12 +253,8 @@ export default async function ResellerProductionDetailPage({
                 <span className="text-base font-extrabold text-forest-950 block mt-0.5">
                   {production.expected_quantity.toLocaleString("fr-FR")} {production.unit}
                 </span>
-                <span className="text-[10px] text-forest-600 block mt-0.5">
-                  (Estimation prévisionnelle déclarée — Aucun stock physique disponible)
-                </span>
               </div>
 
-              {/* Période */}
               <div>
                 <span className="text-[11px] text-gray-400 block uppercase font-medium">
                   Calendrier cultural
@@ -235,7 +271,6 @@ export default async function ResellerProductionDetailPage({
                 </div>
               </div>
 
-              {/* Localisation */}
               <div className="pt-3 border-t border-gray-100">
                 <span className="text-[11px] text-gray-400 block uppercase font-medium">
                   Implantation géographique
@@ -245,25 +280,6 @@ export default async function ResellerProductionDetailPage({
                   <span className="leading-snug">{locationDisplay}</span>
                 </div>
               </div>
-            </div>
-          </Card>
-
-          {/* Action alternative : Exprimer un besoin */}
-          <Card padding="md" className="border-earth-200/80 bg-earth-50/40">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-earth-900 font-bold text-xs sm:text-sm">
-                <TrendingUp className="w-4 h-4 text-earth-700" />
-                Intéressé par ce produit ?
-              </div>
-              <p className="text-xs text-earth-800 leading-relaxed">
-                Vous pouvez formuler une demande d&apos;achat sur cette denrée pour informer les producteurs de vos volumes cibles.
-              </p>
-              <Link
-                href="/dashboard/reseller/demands"
-                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-xl bg-earth-700 text-white hover:bg-earth-800 transition-all shadow-xs"
-              >
-                Formuler une demande d&apos;achat &rarr;
-              </Link>
             </div>
           </Card>
         </div>

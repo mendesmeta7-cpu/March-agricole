@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { getUnreadNotificationCount } from "@/lib/queries/notifications";
 
 export default async function ResellerLayout({
   children,
@@ -25,13 +26,17 @@ export default async function ResellerLayout({
     redirect("/unauthorized");
   }
 
-  // Récupérer le revendeur lié
-  const { data: reseller } = await supabase
-    .from("resellers")
-    .select("business_name, provinces(name), countries(name)")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Récupérer le revendeur lié et le nombre de notifications non lues
+  const [resellerRes, unreadCount] = await Promise.all([
+    supabase
+      .from("resellers")
+      .select("business_name, provinces(name), countries(name)")
+      .eq("id", user.id)
+      .maybeSingle(),
+    getUnreadNotificationCount(user.id),
+  ]);
 
+  const reseller = resellerRes.data;
   const locationInfo = reseller
     ? `${(reseller as any).provinces?.name || "Province"}, ${(reseller as any).countries?.name || "RDC"}`
     : undefined;
@@ -43,6 +48,7 @@ export default async function ResellerLayout({
       userName={profile?.full_name}
       userEmail={user.email}
       locationInfo={locationInfo}
+      unreadNotificationsCount={unreadCount}
     >
       {children}
     </DashboardLayout>

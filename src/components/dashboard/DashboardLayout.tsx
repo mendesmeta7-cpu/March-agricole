@@ -13,6 +13,7 @@ interface DashboardLayoutProps {
   userEmail?: string;
   locationInfo?: string;
   logoUrl?: string | null;
+  unreadNotificationsCount?: number;
 }
 
 export default function DashboardLayout({
@@ -23,6 +24,7 @@ export default function DashboardLayout({
   userEmail,
   locationInfo,
   logoUrl,
+  unreadNotificationsCount,
 }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -59,6 +61,7 @@ export default function DashboardLayout({
           userName={userName}
           userEmail={userEmail}
           logoUrl={logoUrl}
+          unreadNotificationsCount={unreadNotificationsCount}
         />
       </aside>
 
@@ -89,6 +92,7 @@ export default function DashboardLayout({
               userName={userName}
               userEmail={userEmail}
               logoUrl={logoUrl}
+              unreadNotificationsCount={unreadNotificationsCount}
               onCloseMobile={() => setMobileMenuOpen(false)}
             />
           </div>

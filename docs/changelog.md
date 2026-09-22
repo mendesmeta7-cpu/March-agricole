@@ -3,6 +3,39 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [1.3.0-demands-workflow] - 2026-09-22
+### Évolution du Workflow des Demandes, Notifications et Campagnes (Phase 14a)
+
+#### Ajouté & Amélioré
+* **Séparation Stricte des Demandes Générales et des Demandes sur Production** :
+  - Colonnes `demands.demand_type` (`general` | `production`) et `demands.production_id` (`UUID REFERENCES productions(id)`).
+  - Contraintes d'intégrité `chk_demand_type_values` et `chk_demand_production_link`.
+  - Bouton `[ Faire une demande sur cette production ]` sur la fiche détaillée de production (`/dashboard/reseller/productions/[id]`) avec modal dédiée `ProductionDemandModal`.
+  - Onglets de filtrage par type sur `/dashboard/reseller/demands` (*Toutes*, *Demandes Générales*, *Demandes sur Productions*).
+* **Propositions et Refus des Sociétés (`demand_responses`)** :
+  - Création de la table `demand_responses` (quantité proposée, unité, prix unitaire, devise, message, statut `proposed`, `refused`, `accepted`, `ordered`, `cancelled`).
+  - Interface côté société (`/dashboard/company/demands`) permettant d'ignorer/refuser ou de proposer une offre ferme adossée à une production réelle de l'exploitation via la modal `CompanyDemandProposalModal`.
+  - Consultation des offres reçues côté revendeur via `DemandResponsesModal` avec récapitulatif chiffré.
+* **Conversion en Commande Ferme Atomique & Réservation de Stock** :
+  - Procédure RPC `create_order_from_demand_response` : vérification d'éligibilité, verrouillage pessimiste, réservation de stock dans `stock_reservations` adossée à la production, création de la commande (`origin_type = 'demand_response'`), passage de la proposition à `ordered` et de la demande à `converted`.
+  - Notification automatique émise pour l'entreprise vendeuse (`COMMANDE_CREEE`).
+* **Centre de Notifications Internes** :
+  - Table `notifications` avec gestion de l'horodatage de lecture (`read_at`).
+  - Vues dédiées `/dashboard/reseller/notifications` et `/dashboard/company/notifications` avec filtres par catégorie (*Toutes*, *Demandes & Réponses*, *Campagnes*, *Commandes*) et acquittement par notification ou en masse.
+  - Compteur dynamique de notifications non lues avec pastille d'alerte dans la barre latérale `AppSidebar`.
+* **Analyse Territoriale Régionale par Production** :
+  - Section dédiée sur `/dashboard/company/productions/[id]` affichant la répartition géographique des demandes revendeurs par province avec barres de progression et volumes agrégés.
+* **Garde-fous Campagnes Post-Récolte & Suppression Sécurisée** :
+  - Campagnes commerciales strictement restreintes aux productions en statut `harvested` (récoltées).
+  - Fonction helper `notify_resellers_on_campaign_opened` diffusant une alerte interne aux revendeurs ayant fait une demande et aux revendeurs des provinces desservies.
+  - Action `deleteProductionAction` validant l'absence de commandes, de réservations actives et de campagnes en cours avant toute suppression.
+* **Validation & Homologation** :
+  - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
+  - Suite de tests SQL (`supabase/tests/phase14a_workflow_demands_test.sql`) validée avec succès sur la base de données.
+  - Respect scrupuleux de la Règle d'Or 2 (Zéro fausse donnée commerciale).
+
+---
+
 ## [1.2.0-catalog-feed] - 2026-09-21
 ### Catalogue Global Admin, Produits Société, Photos Indépendantes et Flux Revendeur (Phase 14)
 

@@ -36,6 +36,7 @@ async function getCompanyIdForUser(supabase: any, userId: string): Promise<strin
 
 /**
  * Crée une nouvelle campagne commerciale adossée à une production existante
+ * RÈGLE STRICTE V1 : Campagnes autorisées UNIQUEMENT sur productions récoltées ('harvested')
  */
 export async function createCampaignAction(
   formData: FormData
@@ -109,7 +110,7 @@ export async function createCampaignAction(
     return { success: false, error: "Veuillez sélectionner au moins une province desservie par cette offre." };
   }
 
-  // 5. Contrôle strict de la production parente (appartenance + volume max autorisé)
+  // 5. Contrôle strict de la production parente (appartenance + volume max autorisé + statut 'harvested')
   const { data: production, error: prodErr } = await supabase
     .from("productions")
     .select("id, company_id, product_id, expected_quantity, unit, status")
@@ -121,6 +122,14 @@ export async function createCampaignAction(
     return {
       success: false,
       error: "La production sélectionnée est introuvable ou n'appartient pas à votre exploitation.",
+    };
+  }
+
+  // RÈGLE MÉTIER STRICTE : Les campagnes ne peuvent être créées que sur des productions récoltées
+  if (production.status !== "harvested") {
+    return {
+      success: false,
+      error: "Une campagne commerciale ne peut être ouverte que sur une production au statut 'Récoltée' (harvested). Les cultures en cours ou planifiées ne peuvent pas faire l'objet de campagnes.",
     };
   }
 
@@ -185,10 +194,20 @@ export async function createCampaignAction(
 
   if (zonesErr) {
     console.error("Erreur insertion zones de chalandise:", zonesErr);
-    // Note: La campagne a été créée, mais les zones ont échoué.
   }
 
-  // 9. Rafraîchissement du cache Next.js
+  // 9. Si la campagne est immédiatement active, notifier les revendeurs
+  if (status === "active") {
+    try {
+      await supabase.rpc("notify_resellers_on_campaign_opened", {
+        p_campaign_id: campaign.id,
+      });
+    } catch (notifErr) {
+      console.warn("Erreur notification revendeurs ouverture campagne:", notifErr);
+    }
+  }
+
+  // 10. Rafraîchissement du cache Next.js
   revalidatePath("/dashboard/company/campaigns");
   revalidatePath("/dashboard/reseller/campaigns");
 
@@ -225,7 +244,7 @@ export async function updateCampaignAction(
   // Vérification préalable de la campagne
   const { data: currentCampaign } = await supabase
     .from("campaigns")
-    .select("id, company_id, production_id, status, productions(expected_quantity, unit)")
+    .select("id, company_id, production_id, status, productions(expected_quantity, unit, status)")
     .eq("id", campaignId)
     .eq("company_id", companyId)
     .maybeSingle();
@@ -378,6 +397,17 @@ export async function updateCampaignStatusAction(
 
   if (error) {
     return { success: false, error: `Erreur lors du changement de statut: ${error.message}` };
+  }
+
+  // Si passage à 'active', notifier les revendeurs
+  if (newStatus === "active") {
+    try {
+      await supabase.rpc("notify_resellers_on_campaign_opened", {
+        p_campaign_id: campaignId,
+      });
+    } catch (notifErr) {
+      console.warn("Erreur notification revendeurs ouverture campagne:", notifErr);
+    }
   }
 
   revalidatePath("/dashboard/company/campaigns");

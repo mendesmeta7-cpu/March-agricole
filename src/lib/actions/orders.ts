@@ -76,7 +76,6 @@ export async function createOrderAction(
 
     if (error) {
       console.error("Erreur RPC create_order_with_reservation:", error);
-      // Nettoyage du message d'erreur pour l'utilisateur final
       let friendlyMessage = error.message;
       if (friendlyMessage.includes("Stock disponible insuffisant")) {
         friendlyMessage = "Stock disponible insuffisant pour cette quantité sur cette offre.";
@@ -103,7 +102,7 @@ export async function createOrderAction(
     revalidatePath("/dashboard/company/campaigns");
     revalidatePath("/dashboard/reseller");
     revalidatePath("/dashboard/company");
-  revalidatePath("/dashboard/admin/orders");
+    revalidatePath("/dashboard/admin/orders");
 
     return {
       success: true,
@@ -236,4 +235,115 @@ export async function updateOrderStatusAction(
   revalidatePath(`/dashboard/reseller/orders/${orderId}`);
 
   return { success: true };
+}
+
+export interface CreateOrderFromDemandResponseInput {
+  response_id: string;
+  quantity?: number;
+  delivery_province_id: string;
+  delivery_city?: string;
+  delivery_address?: string;
+  notes?: string;
+}
+
+/**
+ * Crée une commande ferme directement depuis une proposition d'entreprise (réponse à demande)
+ */
+export async function createOrderFromDemandResponseAction(
+  input: CreateOrderFromDemandResponseInput
+): Promise<ActionResult<{ orderId: string; orderNumber: string; totalAmount: number }>> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Vous devez être connecté pour accepter une proposition et passer commande." };
+  }
+
+  // 1. Vérification du rôle revendeur
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "reseller") {
+    return {
+      success: false,
+      error: "Seuls les revendeurs enregistrés peuvent passer des commandes fermes.",
+    };
+  }
+
+  // 2. Validation
+  if (!input.response_id) {
+    return { success: false, error: "Identifiant de la proposition manquant." };
+  }
+
+  if (!input.delivery_province_id) {
+    return { success: false, error: "Veuillez spécifier la province de livraison." };
+  }
+
+  // 3. Récupération de la quantité proposée si non spécifiée
+  let orderQty = input.quantity;
+  if (!orderQty || orderQty <= 0) {
+    const { data: respData } = await supabase
+      .from("demand_responses")
+      .select("proposed_quantity")
+      .eq("id", input.response_id)
+      .single();
+    orderQty = Number(respData?.proposed_quantity || 1);
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("create_order_from_demand_response", {
+      p_reseller_id: user.id,
+      p_demand_response_id: input.response_id,
+      p_quantity: orderQty,
+      p_delivery_province_id: input.delivery_province_id,
+      p_delivery_city: input.delivery_city?.trim() || null,
+      p_delivery_address: input.delivery_address?.trim() || null,
+      p_notes: input.notes?.trim() || null,
+    });
+
+    if (error) {
+      console.error("Erreur RPC create_order_from_demand_response:", error);
+      let friendlyMessage = error.message;
+      if (friendlyMessage.includes("Stock disponible insuffisant")) {
+        friendlyMessage = "Le stock disponible de la production proposée est désormais insuffisant.";
+      } else if (friendlyMessage.includes("Cette proposition n'est plus disponible")) {
+        friendlyMessage = "Cette proposition n'est plus disponible ou a déjà été traitée.";
+      }
+      return { success: false, error: friendlyMessage };
+    }
+
+    if (!data || data.length === 0) {
+      return { success: false, error: "Échec de l'enregistrement de la commande." };
+    }
+
+    const createdOrder = data[0];
+
+    // Revalidation des caches Next.js
+    revalidatePath("/dashboard/reseller/orders");
+    revalidatePath("/dashboard/reseller/demands");
+    revalidatePath("/dashboard/reseller/notifications");
+    revalidatePath("/dashboard/company/orders");
+    revalidatePath("/dashboard/company/demands");
+    revalidatePath("/dashboard/admin/orders");
+
+    return {
+      success: true,
+      data: {
+        orderId: createdOrder.order_id,
+        orderNumber: createdOrder.order_number,
+        totalAmount: Number(createdOrder.total_amount),
+      },
+    };
+  } catch (err: any) {
+    console.error("Exception inattendue création commande depuis proposition:", err);
+    return {
+      success: false,
+      error: err.message || "Une erreur inattendue est survenue lors de la commande.",
+    };
+  }
 }
