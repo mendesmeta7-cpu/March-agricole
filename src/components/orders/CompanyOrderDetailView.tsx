@@ -46,6 +46,16 @@ export default function CompanyOrderDetailView({
     minute: "2-digit",
   }).format(new Date(order.created_at));
 
+  const formattedDeliveryDate = order.delivered_at
+    ? new Intl.DateTimeFormat("fr-FR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(order.delivered_at))
+    : null;
+
   const handleUpdateStatus = async () => {
     setUpdating(true);
     setUpdateError(null);
@@ -96,7 +106,7 @@ export default function CompanyOrderDetailView({
 
         <div className="flex items-center gap-3 self-start md:self-auto">
           <OrderStatusBadge status={order.status} />
-          {order.status !== "cancelled" && (
+          {order.status !== "cancelled" && order.status !== "delivered" && (
             <button
               type="button"
               onClick={() => {
@@ -111,6 +121,35 @@ export default function CompanyOrderDetailView({
           )}
         </div>
       </div>
+
+      {/* Bannière de confirmation de livraison si livrée */}
+      {order.status === "delivered" && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-emerald-950">
+                Commande validée & livrée
+              </h3>
+              <p className="text-xs text-emerald-800">
+                {formattedDeliveryDate
+                  ? `Livrée le ${formattedDeliveryDate}`
+                  : "Confirmation de retrait enregistrée."}
+                {order.delivered_quantity !== null && order.delivered_quantity !== undefined && (
+                  <span className="font-bold"> • Quantité remise : {order.delivered_quantity.toLocaleString("fr-FR")} {order.campaign.unit}</span>
+                )}
+              </p>
+              {order.delivery_notes && (
+                <p className="text-xs text-emerald-700 italic mt-0.5">
+                  &ldquo;{order.delivery_notes}&rdquo;
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. Grille de détail en 2 colonnes */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { OrderDetail } from "@/lib/queries/orders";
 import OrderStatusBadge from "./OrderStatusBadge";
+import QRCodeModal from "./QRCodeModal";
 import { cancelOrderAction } from "@/lib/actions/orders";
 import Link from "next/link";
 import Image from "next/image";
@@ -17,6 +18,7 @@ import {
   AlertTriangle,
   X,
   XCircle,
+  QrCode,
 } from "lucide-react";
 
 interface ResellerOrderCardProps {
@@ -28,6 +30,7 @@ export default function ResellerOrderCard({
   order,
   onRefresh,
 }: ResellerOrderCardProps) {
+  const [showQRModal, setShowQRModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
@@ -85,7 +88,17 @@ export default function ResellerOrderCard({
           </div>
         </div>
 
-        <OrderStatusBadge status={order.status} size="sm" />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowQRModal(true)}
+            className="p-1.5 rounded-lg border border-gray-200 hover:bg-forest-50 hover:border-forest-300 text-forest-800 transition-colors"
+            title="Afficher le QR code de retrait"
+          >
+            <QrCode className="w-4 h-4" />
+          </button>
+          <OrderStatusBadge status={order.status} size="sm" />
+        </div>
       </div>
 
       {/* 2. Corps de la carte : produit et ferme */}
@@ -248,6 +261,18 @@ export default function ResellerOrderCard({
           </div>
         </div>
       )}
+
+      {/* Modal QR Code */}
+      <QRCodeModal
+        isOpen={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        qrCodeToken={order.qr_code_token || order.id}
+        orderNumber={order.order_number}
+        productName={mainItem?.product.name || order.campaign.title}
+        quantity={itemQuantity}
+        unit={itemUnit}
+        companyName={order.company.name}
+      />
     </div>
   );
 }

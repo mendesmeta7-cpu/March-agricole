@@ -347,3 +347,189 @@ export async function createOrderFromDemandResponseAction(
     };
   }
 }
+
+export interface LookupDeliveryOrderResult {
+  order_id: string;
+  order_number: string;
+  qr_code_token: string;
+  status: string;
+  total_amount: number;
+  currency: string;
+  created_at: string;
+  delivered_at: string | null;
+  delivered_quantity: number | null;
+  delivery_notes: string | null;
+  delivery_province_name: string | null;
+  delivery_city: string | null;
+  delivery_address: string | null;
+  reseller_id: string;
+  reseller_business_name: string;
+  company_id: string;
+  company_name: string;
+  campaign_title: string | null;
+  production_title: string | null;
+  total_ordered_quantity: number;
+  unit: string;
+  items: Array<{
+    product_id: string;
+    product_name: string;
+    quantity: number;
+    unit: string;
+    unit_price: number;
+    subtotal: number;
+  }>;
+}
+
+/**
+ * Recherche sécurisée d'une commande par son numéro lisible ou jeton QR code
+ * RÈGLE ANTI-FUITE : Si la commande n'appartient pas à l'entreprise connectée, renvoie neutre "Commande introuvable"
+ */
+export async function lookupOrderForDeliveryAction(
+  identifier: string
+): Promise<ActionResult<LookupDeliveryOrderResult>> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Vous devez être connecté pour rechercher une commande." };
+  }
+
+  const cleanIdentifier = identifier?.trim();
+  if (!cleanIdentifier) {
+    return {
+      success: false,
+      error: "Veuillez saisir un numéro de commande ou scanner un QR code valide.",
+    };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("lookup_order_for_delivery", {
+      p_identifier: cleanIdentifier,
+    });
+
+    if (error) {
+      console.error("Erreur RPC lookup_order_for_delivery:", error);
+      return { success: false, error: "Commande introuvable." };
+    }
+
+    if (!data || data.length === 0) {
+      return { success: false, error: "Commande introuvable." };
+    }
+
+    const raw = data[0];
+    const result: LookupDeliveryOrderResult = {
+      order_id: raw.order_id,
+      order_number: raw.order_number,
+      qr_code_token: raw.qr_code_token,
+      status: raw.status,
+      total_amount: Number(raw.total_amount || 0),
+      currency: raw.currency,
+      created_at: raw.created_at,
+      delivered_at: raw.delivered_at || null,
+      delivered_quantity: raw.delivered_quantity ? Number(raw.delivered_quantity) : null,
+      delivery_notes: raw.delivery_notes || null,
+      delivery_province_name: raw.delivery_province_name || null,
+      delivery_city: raw.delivery_city || null,
+      delivery_address: raw.delivery_address || null,
+      reseller_id: raw.reseller_id,
+      reseller_business_name: raw.reseller_business_name,
+      company_id: raw.company_id,
+      company_name: raw.company_name,
+      campaign_title: raw.campaign_title || null,
+      production_title: raw.production_title || null,
+      total_ordered_quantity: Number(raw.total_ordered_quantity || 0),
+      unit: raw.unit || "tonne",
+      items: (raw.items || []).map((it: any) => ({
+        product_id: it.product_id,
+        product_name: it.product_name,
+        quantity: Number(it.quantity || 0),
+        unit: it.unit || "tonne",
+        unit_price: Number(it.unit_price || 0),
+        subtotal: Number(it.subtotal || 0),
+      })),
+    };
+
+    return { success: true, data: result };
+  } catch (err: any) {
+    console.error("Exception inattendue lookupOrderForDeliveryAction:", err);
+    return { success: false, error: "Commande introuvable." };
+  }
+}
+
+/**
+ * Confirme la livraison physique d'une commande avec garde-fous stricts
+ */
+export async function confirmOrderDeliveryAction(
+  orderId: string,
+  notes?: string
+): Promise<
+  ActionResult<{
+    orderId: string;
+    orderNumber: string;
+    status: string;
+    deliveredAt: string;
+    deliveredQuantity: number;
+  }>
+> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Vous devez être connecté pour confirmer une livraison." };
+  }
+
+  if (!orderId) {
+    return { success: false, error: "Identifiant de commande manquant." };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("confirm_order_delivery", {
+      p_order_id: orderId,
+      p_notes: notes?.trim() || null,
+    });
+
+    if (error) {
+      console.error("Erreur RPC confirm_order_delivery:", error);
+      return {
+        success: false,
+        error: error.message || "Erreur lors de la confirmation de livraison.",
+      };
+    }
+
+    if (!data || data.length === 0) {
+      return { success: false, error: "Impossible de valider la livraison." };
+    }
+
+    const row = data[0];
+
+    revalidatePath("/dashboard/company/orders");
+    revalidatePath(`/dashboard/company/orders/${orderId}`);
+    revalidatePath("/dashboard/reseller/orders");
+    revalidatePath(`/dashboard/reseller/orders/${orderId}`);
+    revalidatePath("/dashboard/company/notifications");
+    revalidatePath("/dashboard/reseller/notifications");
+    revalidatePath("/dashboard/company");
+    revalidatePath("/dashboard/reseller");
+
+    return {
+      success: true,
+      data: {
+        orderId: row.order_id,
+        orderNumber: row.order_number,
+        status: row.status,
+        deliveredAt: row.delivered_at,
+        deliveredQuantity: Number(row.delivered_quantity),
+      },
+    };
+  } catch (err: any) {
+    console.error("Exception inattendue confirmOrderDeliveryAction:", err);
+    return {
+      success: false,
+      error: err.message || "Erreur inattendue lors de la confirmation de livraison.",
+    };
+  }
+}

@@ -3,6 +3,39 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [1.4.0-qr-delivery] - 2026-09-22
+### QR Code, Recherche Rapide & Confirmation de Livraison (Phase 16)
+
+#### Ajouté & Amélioré
+* **Jeton QR Code Opaque & Immuable** :
+  - Colonne `orders.qr_code_token` générée aléatoirement et automatiquement par trigger Postgres `trg_order_qr_code_token` à la création de chaque commande.
+  - Découplage strict entre l'ID interne de la commande et le token QR pour éviter toute prévisibilité.
+* **Affichage QR Code Revendeur** :
+  - Modale vectorielle `QRCodeModal` affichant le QR code haute définition généré dynamiquement via `qrcode`, le numéro de commande lisible avec bouton de copie, le nom du produit et le volume commandé.
+  - Accessible via un bouton `[ Afficher le QR Code ]` sur `/dashboard/reseller/orders/[id]` et sur chaque carte de commande `ResellerOrderCard`.
+* **Widget de Récupération Rapide Société** :
+  - Composant `CompanyOrderLookupWidget` intégré au sommet de la page des commandes société (`/dashboard/company/orders`).
+  - Double mode de recherche : scan vidéo caméra mobile/desktop via `html5-qrcode` (`QRScannerModal`) et saisie manuelle du numéro de commande (`CMD-...`).
+* **Isolation Stricte Multi-Sociétés & Anti-Fuite** :
+  - Procédure RPC `lookup_order_for_delivery` : vérifie systématiquement que l'utilisateur appartient à la société émettrice de la commande.
+  - Tout scan ou recherche d'une commande appartenant à une autre entreprise renvoie un résultat vide neutre ("Commande introuvable") sans révéler aucune métadonnée.
+* **Confirmation de Livraison Sécurisée & Règle Anti-Double Livraison** :
+  - Procédure RPC `confirm_order_delivery` avec verrou pessimiste `FOR UPDATE`.
+  - Mise à jour atomique : `orders.status = 'delivered'`, `orders.delivered_at = NOW()`, `orders.delivered_quantity`, `orders.delivered_by`, `orders.delivery_notes`.
+  - Fige la réservation de stock liée (`stock_reservations.status = 'confirmed'`).
+  - Journalisation systématique dans `audit_logs` (`action = 'ORDER_DELIVERED'`).
+  - Notification interne émise pour le revendeur (`type = 'COMMANDE_LIVREE'`).
+  - Garde-fou anti-double livraison : exception bloquante si la commande est déjà livrée.
+* **Composants & Ergonomie** :
+  - Bandeau de confirmation de livraison validée sur `CompanyOrderDetailView` et `ResellerOrderDetailView` affichant la date, la quantité remise et les notes de livraison.
+  - Validation en 2 étapes dans `DeliveryConfirmationModal` évitant toute confirmation accidentelle.
+* **Validation & Homologation** :
+  - Suite de tests SQL complète `supabase/tests/phase16_qr_and_delivery_test.sql` validée à 100% (7/7 scénarios).
+  - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
+  - Build Next.js de production certifié.
+
+---
+
 ## [1.3.0-demands-workflow] - 2026-09-22
 ### Évolution du Workflow des Demandes, Notifications et Campagnes (Phase 14a)
 

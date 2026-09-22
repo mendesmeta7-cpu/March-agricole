@@ -46,6 +46,11 @@ export interface OrderDetail {
   delivery_address: string | null;
   status: OrderStatus;
   notes: string | null;
+  qr_code_token: string;
+  delivered_at: string | null;
+  delivered_quantity: number | null;
+  delivered_by: string | null;
+  delivery_notes: string | null;
   created_at: string;
   updated_at: string;
   company: {
@@ -595,6 +600,11 @@ function formatOrderRecord(item: any): OrderDetail {
     delivery_address: item.delivery_address,
     status: item.status,
     notes: item.notes,
+    qr_code_token: item.qr_code_token || "",
+    delivered_at: item.delivered_at || null,
+    delivered_quantity: item.delivered_quantity ? Number(item.delivered_quantity) : null,
+    delivered_by: item.delivered_by || null,
+    delivery_notes: item.delivery_notes || null,
     created_at: item.created_at,
     updated_at: item.updated_at,
     company,

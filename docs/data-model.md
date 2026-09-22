@@ -251,19 +251,27 @@ Vue d'analyse macro calculée dynamiquement sur les demandes actives (`status = 
 #### `orders` (Entêtes de Commandes)
 * `id` : `UUID PRIMARY KEY DEFAULT gen_random_uuid()`
 * `order_number` : `VARCHAR(50) NOT NULL UNIQUE` (Format : `CMD-YYYYMMDD-XXXXXXXX`)
+* `qr_code_token` : `VARCHAR(64) NOT NULL UNIQUE` (Token aléatoire cryptographique pour QR Code)
 * `reseller_id` : `UUID NOT NULL REFERENCES resellers(id) ON DELETE RESTRICT`
 * `company_id` : `UUID NOT NULL REFERENCES companies(id) ON DELETE RESTRICT`
-* `campaign_id` : `UUID NOT NULL REFERENCES campaigns(id) ON DELETE RESTRICT`
+* `campaign_id` : `UUID REFERENCES campaigns(id) ON DELETE RESTRICT`
+* `origin_type` : `VARCHAR(30) NOT NULL DEFAULT 'direct_campaign' CHECK (origin_type IN ('direct_campaign', 'demand_response'))`
+* `demand_response_id` : `UUID REFERENCES demand_responses(id) ON DELETE SET NULL`
+* `production_id` : `UUID REFERENCES productions(id) ON DELETE SET NULL`
 * `total_amount` : `NUMERIC(14,2) NOT NULL CHECK (total_amount > 0)`
 * `currency` : `VARCHAR(3) NOT NULL DEFAULT 'USD'`
 * `delivery_province_id` : `UUID NOT NULL REFERENCES provinces(id) ON DELETE RESTRICT`
 * `delivery_city` : `VARCHAR(100)`
 * `delivery_address` : `TEXT`
 * `status` : `VARCHAR(30) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'))`
+* `delivered_at` : `TIMESTAMPTZ` (Horodatage de la remise physique)
+* `delivered_quantity` : `NUMERIC(12,2)` (Quantité effectivement remise)
+* `delivered_by` : `UUID REFERENCES profiles(id)` (Agent société ayant validé la livraison)
+* `delivery_notes` : `TEXT` (Notes de livraison)
 * `notes` : `TEXT`
 * `created_at`, `updated_at` : `TIMESTAMPTZ NOT NULL DEFAULT NOW()`
-* *Index* : `idx_orders_reseller_id`, `idx_orders_company_id`, `idx_orders_campaign_id`, `idx_orders_status`, `idx_orders_created_at`
-* *Trigger* : `trg_orders_updated_at`
+* *Index* : `idx_orders_reseller_id`, `idx_orders_company_id`, `idx_orders_campaign_id`, `idx_orders_status`, `idx_orders_created_at`, `idx_orders_qr_code_token`
+* *Trigger* : `trg_orders_updated_at`, `trg_order_qr_code_token`
 
 #### `order_items` (Lignes de Commande)
 * `id` : `UUID PRIMARY KEY DEFAULT gen_random_uuid()`

@@ -168,6 +168,13 @@
   - `delivered` (Livrée / réceptionnée par le revendeur) ;
   - `cancelled` (Annulée selon les conditions autorisées).
 
+### 9.3 QR Code, Recherche Rapide et Confirmation de Livraison (Phase 16)
+* **BR-ORD-06 (Génération de Jeton Opaque)** : À la création de toute commande, un jeton aléatoire unique (`qr_code_token`) est automatiquement généré via trigger Postgres. Il est strictement distinct de l'identifiant technique UUID pour éviter toute prévisibilité.
+* **BR-ORD-07 (Présentation du QR Code Revendeur)** : Le revendeur peut afficher à tout moment son QR code et son numéro de commande lisible depuis son interface pour présentation à l'exploitation agricole lors du retrait physique.
+* **BR-ORD-08 (Isolation Multi-Sociétés & Anti-Fuite)** : La recherche d'une commande via scan ou saisie manuelle (`lookup_order_for_delivery`) vérifie obligatoirement que l'utilisateur appartient à l'entreprise vendeuse. La tentative de consultation d'une commande d'une autre société renvoie un résultat vide neutre sans dévoiler aucune métadonnée.
+* **BR-ORD-09 (Procédure Transactionnelle de Confirmation)** : La confirmation de livraison s'exécute via la procédure RPC `confirm_order_delivery` avec verrouillage pessimiste `FOR UPDATE`. Elle fige `orders.status = 'delivered'`, `delivered_at`, `delivered_quantity`, `delivered_by`, `delivery_notes`, confirme la réservation de stock (`stock_reservations.status = 'confirmed'`), trace l'événement dans `audit_logs` (`ORDER_DELIVERED`) et notifie le revendeur (`COMMANDE_LIVREE`).
+* **BR-ORD-10 (Règle Anti-Double Livraison)** : Toute commande déjà en statut `delivered` ne peut faire l'objet d'une seconde confirmation. La procédure RPC lève une exception bloquante explicite.
+
 ---
 
 ## 10. GESTION DU STOCK ET RÉSERVATION TRANSACTIONNELLE

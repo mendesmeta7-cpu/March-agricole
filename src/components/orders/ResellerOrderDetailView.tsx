@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { OrderDetail } from "@/lib/queries/orders";
 import OrderStatusBadge from "./OrderStatusBadge";
+import QRCodeModal from "./QRCodeModal";
 import { cancelOrderAction } from "@/lib/actions/orders";
 import Link from "next/link";
 import Image from "next/image";
@@ -23,6 +24,9 @@ import {
   XCircle,
   Clock,
   FileText,
+  QrCode,
+  CheckCircle2,
+  Truck,
 } from "lucide-react";
 
 interface ResellerOrderDetailViewProps {
@@ -33,6 +37,7 @@ export default function ResellerOrderDetailView({
   order,
 }: ResellerOrderDetailViewProps) {
   const router = useRouter();
+  const [showQRModal, setShowQRModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
@@ -45,6 +50,16 @@ export default function ResellerOrderDetailView({
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(order.created_at));
+
+  const formattedDeliveryDate = order.delivered_at
+    ? new Intl.DateTimeFormat("fr-FR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(order.delivered_at))
+    : null;
 
   const handleCancel = async () => {
     setCancelling(true);
@@ -98,8 +113,20 @@ export default function ResellerOrderDetailView({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 self-start md:self-auto">
+        <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
+          {/* Bouton QR Code */}
+          <button
+            type="button"
+            onClick={() => setShowQRModal(true)}
+            className="px-3.5 py-2 rounded-xl bg-forest-900 hover:bg-forest-800 text-white text-xs font-bold transition-all shadow-xs inline-flex items-center gap-1.5"
+            title="Afficher le QR code pour retrait"
+          >
+            <QrCode className="w-4 h-4 text-emerald-400" />
+            <span>Afficher le QR Code</span>
+          </button>
+
           <OrderStatusBadge status={order.status} />
+
           {order.status === "pending" && (
             <button
               type="button"
@@ -107,11 +134,40 @@ export default function ResellerOrderDetailView({
               className="px-3 py-1.5 rounded-xl border border-rose-200 text-xs font-bold text-rose-700 hover:bg-rose-50 transition-colors inline-flex items-center gap-1"
             >
               <XCircle className="w-3.5 h-3.5" />
-              Annuler la commande
+              Annuler
             </button>
           )}
         </div>
       </div>
+
+      {/* Bannière de confirmation de livraison si livrée */}
+      {order.status === "delivered" && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-emerald-950">
+                Commande réceptionnée & livrée
+              </h3>
+              <p className="text-xs text-emerald-800">
+                {formattedDeliveryDate
+                  ? `Confirmée le ${formattedDeliveryDate}`
+                  : "Livraison validée par l'exploitation agricole."}
+                {order.delivered_quantity !== null && order.delivered_quantity !== undefined && (
+                  <span className="font-bold"> • Quantité livrée : {order.delivered_quantity.toLocaleString("fr-FR")} {order.campaign.unit}</span>
+                )}
+              </p>
+              {order.delivery_notes && (
+                <p className="text-xs text-emerald-700 italic mt-0.5">
+                  &ldquo;{order.delivery_notes}&rdquo;
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. Grille de détail en 2 colonnes */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -376,6 +432,18 @@ export default function ResellerOrderDetailView({
           </div>
         </div>
       )}
+
+      {/* Modal QR Code pour présentation à l'exploitation */}
+      <QRCodeModal
+        isOpen={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        qrCodeToken={order.qr_code_token || order.id}
+        orderNumber={order.order_number}
+        productName={order.order_items[0]?.product.name || order.campaign.title}
+        quantity={order.order_items[0]?.quantity || 0}
+        unit={order.campaign.unit}
+        companyName={order.company.name}
+      />
     </div>
   );
 }

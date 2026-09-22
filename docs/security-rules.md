@@ -64,12 +64,24 @@ $$ LANGUAGE sql STABLE SECURITY DEFINER;
 | **`campaign_delivery_zones`** | `TRUE` (Public pour évaluation d'éligibilité) | Membres de l'entreprise émettrice | Membres de l'entreprise émettrice | Membres de l'entreprise émettrice |
 | **`orders`** | Revendeur acheteur (`reseller_id = auth.uid()`) OU Entreprise vendeuse (`is_company_member(company_id)`) OU Admin | Revendeur acheteur (`reseller_id = auth.uid()`) ou RPC sécurisée | Membres de l'entreprise (statuts) OU Revendeur (annulation pending) | Bloqué (Conservation d'audit) |
 | **`order_items`** | Revendeur acheteur de la commande liée OU Membres de l'entreprise liée OU Admin | Lié à la commande de l'acheteur ou RPC | Bloqué | Bloqué |
-| **`stock_reservations`** | Membres de l'entreprise liée à la campagne OU Revendeur acheteur lié OU Admin | Géré exclusivement par la fonction RPC `create_order_with_reservation` | Géré par la fonction RPC `cancel_order_and_release_reservation` | Bloqué |
+| **`stock_reservations`** | Membres de l'entreprise liée à la campagne OU Revendeur acheteur lié OU Admin | Géré exclusivement par la fonction RPC `create_order_with_reservation` | Géré par la fonction RPC `cancel_order_and_release_reservation` et `confirm_order_delivery` | Bloqué |
 | **`audit_logs`** | Auteur de l'action (`actor_id = auth.uid()`) OU Admin | Tout acteur authentifié réalisant une action tracée | Bloqué | Bloqué |
 
 ---
 
-## 4. SÉCURITÉ DU STOCKAGE SUPABASE STORAGE
+## 4. SÉCURITÉ DE LA LIVRAISON ET ISOLATION DU SCAN QR (PHASE 16)
+
+1. **Jeton Opaque `qr_code_token`** :
+   - Le token QR est généré avec 32 octets aléatoires cryptographiques (`encode(gen_random_bytes(32), 'hex')`).
+   - Il n'expose aucune information temporelle ni séquentielle sur la commande.
+2. **Isolation Stricte Multi-Sociétés dans `lookup_order_for_delivery`** :
+   - Fonction `SECURITY DEFINER` vérifiant que l'utilisateur appelant `auth.uid()` est membre propriétaire de l'exploitation vendeuse.
+   - Si une entreprise B scanne ou saisit le numéro de commande d'une entreprise A, la fonction renvoie un ensemble vide (`RETURN;`) sans générer d'erreur révélatrice ni exposer le moindre champ (zéro fuite d'information).
+3. **Verrouillage Pessimiste & Anti-Double Livraison dans `confirm_order_delivery`** :
+   - Verrouille la ligne de commande avec `FOR UPDATE`.
+   - Lève une exception immédiate si la commande est déjà en statut `delivered`.
+   - Confirme de manière synchrone la réservation de stock liée (`confirmed`).
+   - Trace l'identité de l'agent effectuant la remise (`delivered_by`).
 
 Deux buckets ont été créés et configurés dans `storage.buckets` avec politiques RLS associées :
 

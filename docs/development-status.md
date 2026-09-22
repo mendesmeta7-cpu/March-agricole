@@ -24,30 +24,31 @@
 | **13** | **Correction Admin, UX & Réactivité** | 🟢 **TERMINÉ** | Espace Admin MVP, skeleton screens pour navigations rapides, suppression lenteurs et fiabilisation auth. |
 | **14** | **Catalogue Global, Produits Société & Flux Revendeur** | 🟢 **TERMINÉ** | Découplage strict Catalogue Global (`is_global=TRUE`) / Configurations Société (`company_products`) / Produits Privés (`is_global=FALSE`), indépendance totale des photos officielles et personnalisées, 73 produits semés, compte admin dédié `admin@marcheagricole.cd`, flux direct `/dashboard/reseller` avec pills scrollables, suite de 7 tests SQL validée. |
 | **14a** | **Workflow Demandes, Notifications & Campagnes** | 🟢 **TERMINÉ** | Séparation formelle Demandes Générales / Demandes sur Production, propositions fermes & refus société (`demand_responses`), conversion en commande ferme via RPC atomique avec réservation de stock, centre de notifications internes (/notifications), analyse territoriale régionale par production, règle post-récolte stricte pour campagnes, suppression sécurisée des productions, suite de 5 tests SQL d'homologation validée. |
+| **16** | **QR Code, Recherche Rapide & Confirmation de Livraison** | 🟢 **TERMINÉ** | Token QR opaque immuable généré par commande (`qr_code_token`), affichage modal QR côté revendeur (`/dashboard/reseller/orders/[id]`), widget de recherche rapide société (scan caméra `html5-qrcode` & saisie n°), contrôle d'accès strict anti-fuite multilocataire, RPC `lookup_order_for_delivery` & `confirm_order_delivery` avec verrouillage pessimiste et règle anti-double livraison, suite de 7 tests SQL validée. |
 
 ---
 
-## 2. BILAN DE LA PHASE 14a (DEMANDES, NOTIFICATIONS & CAMPAGNES)
+## 2. BILAN DE LA PHASE 16 (QR CODE, RECHERCHE RAPIDE & LIVRAISON V1)
 
 * **Date de validation finale** : 2026-09-22
-* **Statut du projet** : 🟢 **STABLE — WORKFLOW DES DEMANDES ET NOTIFICATIONS CERTIFIÉ**
+* **Statut du projet** : 🟢 **STABLE — LIVRAISON ET SCAN QR HOMOLOGUÉS**
 * **Réalisations clés** :
-  1. **Séparation Stricte des Deux Types de Demandes** :
-     - *Demandes Générales* (`demand_type = 'general'`) : Besoins globaux sans production liée. Multiples entreprises peuvent refuser ou proposer une offre ferme.
-     - *Demandes sur Production* (`demand_type = 'production'`) : Intérêt ciblé sur une production spécifique en statut `growing` ou `harvested`.
-  2. **Propositions Commerciales & Conversion Atomique** :
-     - Table `demand_responses` pour propositions chiffrées (quantité, prix unitaire, devise, message).
-     - Procédure RPC sécurisée `create_order_from_demand_response` : verrouillage pessimiste, réservation de stock sur la production, passage de la proposition à `ordered` et de la demande à `converted`.
-  3. **Centre de Notifications Internes** :
-     - Routes `/dashboard/reseller/notifications` et `/dashboard/company/notifications`.
-     - Types : `DEMANDE_REPONSE`, `CAMPAGNE_OUVERTE`, `COMMANDE_CREEE`.
-     - Badges de compteur non-lu dans la barre latérale et acquittement individuel ou groupé.
-  4. **Analyse Territoriale Régionale par Production** :
-     - Répartition géographique des demandes par province sur `/dashboard/company/productions/[id]` pour guider les ouvertures de campagnes.
-  5. **Règles Campagnes Post-Récolte & Suppression Sécurisée** :
-     - Campagnes strictement réservées aux productions en statut `harvested`.
-     - Diffusion automatique des notifications lors de l'ouverture d'une campagne (`notify_resellers_on_campaign_opened`).
-     - Vérification des dépendances commerciales avant suppression d'une production (`deleteProductionAction`).
+  1. **Token QR Opaque & Immuable** :
+     - Colonne `qr_code_token` générée automatiquement par trigger à chaque nouvelle commande.
+  2. **Présentation Côté Revendeur** :
+     - Modale vectorielle `QRCodeModal` affichant le QR code et le numéro lisible sur le détail et les cartes de commande revendeur.
+  3. **Widget Recherche Rapide Société** :
+     - `CompanyOrderLookupWidget` sur `/dashboard/company/orders` avec scanner caméra (`QRScannerModal`) et saisie manuelle.
+  4. **Isolation Multi-Sociétés Stricte** :
+     - La procédure `lookup_order_for_delivery` filtre strictement par l'entreprise de l'utilisateur connecté (`auth.uid()`).
+     - Réponse neutre ("Commande introuvable") sans fuite d'information si la commande appartient à un tiers.
+  5. **Confirmation de Livraison Sécurisée & Anti-Double Livraison** :
+     - Procédure RPC `confirm_order_delivery` avec verrou pessimiste `FOR UPDATE`.
+     - Statut figeant `delivered`, confirmation de la réservation de stock (`stock_reservations.status = 'confirmed'`), journalisation dans `audit_logs` (`ORDER_DELIVERED`) et notification `COMMANDE_LIVREE` au revendeur.
+     - Exception explicite en cas de tentative de confirmation ultérieure.
+  6. **Homologation Complète** :
+     - Suite SQL `supabase/tests/phase16_qr_and_delivery_test.sql` validée (7/7 scénarios).
+     - Build Next.js et TypeScript 100% conformes.
 
 ---
 
@@ -57,8 +58,7 @@ Les fonctionnalités suivantes sont officiellement documentées pour les version
 1. **Paiement Mobile Money & pawaPay** : intégration transactionnelle des flux monétaires.
 2. **Gestion des Abonnements Payants & Facturation**.
 3. **Quotas Bloquants d'Utilisation**.
-4. **QR Codes de Sécurisation des Retraits & Livraisons**.
-5. **Logistique Avancée & Livraisons Partielles**.
-6. **Algorithmes de Notation & Score de Fiabilité (0-100)**.
-7. **IA Prédictive & Recommandations Agronomiques / Marché**.
-8. **Application Mobile Native Flutter**.
+4. **Logistique Avancée & Livraisons Partielles / Bons de transport multi-étapes**.
+5. **Algorithmes de Notation & Score de Fiabilité (0-100)**.
+6. **IA Prédictive & Recommandations Agronomiques / Marché**.
+7. **Application Mobile Native Flutter**.

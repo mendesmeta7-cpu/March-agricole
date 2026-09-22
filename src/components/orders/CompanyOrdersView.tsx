@@ -7,6 +7,7 @@ import { updateOrderStatusAction } from "@/lib/actions/orders";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
+import CompanyOrderLookupWidget from "./CompanyOrderLookupWidget";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -148,6 +149,9 @@ export default function CompanyOrdersView({
           helper={deliveredCount === 0 ? "0 commande livrée" : `${deliveredCount} lot(s) réceptionné(s)`}
         />
       </div>
+
+      {/* Widget Récupération Rapide & Scan QR */}
+      <CompanyOrderLookupWidget onDeliveryUpdated={() => router.refresh()} />
 
       {/* 3. Filtres et Recherche */}
       <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
