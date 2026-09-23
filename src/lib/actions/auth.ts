@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 
 export interface AuthActionResult {
   success?: boolean;
@@ -35,7 +37,7 @@ export async function loginAction(
     return { error: "Session introuvable après connexion." };
   }
 
-  // Récupération du profil et du rôle
+  // Récupération stricte du profil et du rôle
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role")
@@ -45,6 +47,9 @@ export async function loginAction(
   if (profileError || !profile) {
     return { error: "Profil utilisateur non trouvé. Veuillez contacter le support." };
   }
+
+  // Purge préventive du cache serveur Next.js pour reconstruire l'arbre pour ce rôle
+  revalidatePath("/", "layout");
 
   if (profile.role === "company") {
     redirect("/dashboard/company");
@@ -219,6 +224,32 @@ export async function registerResellerAction(
 
 export async function logoutAction() {
   const supabase = createClient();
-  await supabase.auth.signOut();
+  try {
+    await supabase.auth.signOut({ scope: "global" });
+  } catch (e) {
+    console.error("Erreur signOut:", e);
+  }
+
+  // Purge explicite et exhaustive de TOUS les cookies Supabase (chunks sb-*, etc.)
+  try {
+    const cookieStore = cookies();
+    const allCookies = cookieStore.getAll();
+    for (const cookie of allCookies) {
+      if (
+        cookie.name.startsWith("sb-") ||
+        cookie.name.includes("auth-token") ||
+        cookie.name.includes("supabase")
+      ) {
+        cookieStore.delete(cookie.name);
+        cookieStore.set(cookie.name, "", { maxAge: 0, path: "/" });
+      }
+    }
+  } catch (e) {
+    console.error("Erreur purge cookies:", e);
+  }
+
+  // Invalidation totale du cache serveur Next.js
+  revalidatePath("/", "layout");
+
   redirect("/login");
 }

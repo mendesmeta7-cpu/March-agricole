@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Menu, LogOut, MapPin, Building2, Store } from "lucide-react";
 import { logoutAction } from "@/lib/actions/auth";
-import SubmitButton from "@/components/SubmitButton";
+import { createClient } from "@/lib/supabase/client";
 
 interface AppHeaderProps {
   role: "company" | "reseller" | "admin";
@@ -21,6 +22,37 @@ export default function AppHeader({
   logoUrl,
   onToggleMobileMenu,
 }: AppHeaderProps) {
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      // 1. Purge locale (localStorage, sessionStorage)
+      if (typeof window !== "undefined") {
+        window.localStorage.clear();
+        window.sessionStorage.clear();
+      }
+
+      // 2. Déconnexion côté client Supabase si instancié
+      try {
+        const supabase = createClient();
+        await supabase.auth.signOut();
+      } catch (err) {
+        // Ignorer si non disponible côté client
+      }
+
+      // 3. Exécution de la Server Action (purge des cookies côté serveur & revalidatePath)
+      await logoutAction();
+    } catch (e) {
+      // En cas de redirection levée par Next.js, laisser passer
+    } finally {
+      // 4. Forcer un rechargement complet de la fenêtre pour pulvériser le Router Cache Next.js
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
+  };
+
   return (
     <header className="h-16 bg-white border-b border-gray-200 px-3 sm:px-6 flex items-center justify-between sticky top-0 z-20 shadow-2xs">
       {/* Bouton Hamburger Mobile + Identité */}
@@ -70,17 +102,20 @@ export default function AppHeader({
         </div>
       </div>
 
-      {/* Actions de droite : Déconnexion */}
+      {/* Actions de droite : Déconnexion atomique sans résidu */}
       <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-        <form action={logoutAction}>
-          <SubmitButton
-            className="p-2 sm:px-3.5 sm:py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs sm:text-sm shadow-2xs hover:border-gray-300 min-h-[40px] flex items-center justify-center"
-            loadingText=""
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline ml-1.5">Déconnexion</span>
-          </SubmitButton>
-        </form>
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="p-2 sm:px-3.5 sm:py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs sm:text-sm shadow-2xs hover:border-gray-300 min-h-[40px] flex items-center justify-center cursor-pointer transition-all disabled:opacity-50"
+          title="Se déconnecter"
+        >
+          <LogOut className="w-4 h-4" />
+          <span className="hidden sm:inline ml-1.5">
+            {isLoggingOut ? "Déconnexion..." : "Déconnexion"}
+          </span>
+        </button>
       </div>
     </header>
   );

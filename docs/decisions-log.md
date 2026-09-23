@@ -376,7 +376,30 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 
 ---
 
-## 18. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
+## 18. DÉCISIONS TECHNIQUES DE LA PHASE 19 (ISOLATION DES SESSIONS, DÉTERMINISME SSR ET MULTI-TENANCY STRICT)
+
+### ADR-029 : Isolation Déterministe des Sessions SSR, Propagation des Cookies de Redirection et Cloisonnement Absolu des Espaces Rôles
+* **Date** : 2026-09-23 | **Statut** : Validé et Appliqué
+* **Contexte** : Lors d'un test sous un compte revendeur, le clic sur « Notifications » a redirigé vers l'espace d'une société agricole précédemment connectée sur le même navigateur. L'audit a révélé : (1) perte des cookies de session rafraîchis lors de chaque `NextResponse.redirect` dans le middleware Next.js, (2) rétention des pages dans le Router Cache client (RAM) lors de la déconnexion sans hard-reload, (3) liens de redirection inter-rôles hardcodés dans `NotificationsView.tsx`, (4) absence de route déterministe pour `/dashboard` et `/dashboard/notifications`.
+* **Décision** :
+  1. **Propagation Obligatoire des Cookies de Session en Middleware** :
+     - Tout appel à `NextResponse.redirect` dans `src/lib/supabase/middleware.ts` doit obligatoirement transférer la totalité des cookies de la réponse Supabase (helper `redirectWithCookies`).
+  2. **Contrôle d'Accès par Rôle (RBAC) Imperméable et Cloisonnement de Route** :
+     - Le middleware interdit formellement l'accès croisé aux sous-arborescences `/dashboard/company/*`, `/dashboard/reseller/*`, `/dashboard/admin/*`. Tout utilisateur tentant d'accéder au dashboard d'un autre rôle est immédiatement redirigé vers `/unauthorized`.
+  3. **Passerelles Universelles Déterministes** :
+     - Implémentation des routes de redirection déterministes `/dashboard` et `/dashboard/notifications` qui résolvent le rôle du profil (`auth.uid() -> profiles.role`) et réacheminent immédiatement l'utilisateur vers son espace dédié (`/dashboard/company/notifications`, `/dashboard/reseller/notifications` ou `/dashboard/admin/notifications`).
+  4. **Purge Atomique de Session et Invalidation de Cache** :
+     - Server Action `logoutAction` : appel de `supabase.auth.signOut({ scope: 'global' })`, suppression explicite de tous les cookies de chunks (`sb-*`, `auth-token`), et invalidation totale du cache Next.js via `revalidatePath('/', 'layout')`.
+     - Client `AppHeader.tsx` : purge intégrale de `localStorage` et `sessionStorage`, `signOut()` client et hard reload impératif (`window.location.href = '/login'`) pour vider instantanément le Router Cache de la mémoire vive du navigateur.
+  5. **Sanitisation des Cibles de Liens de Notification** :
+     - `NotificationsView.tsx` : filtrage et adaptation stricte des cibles d'URL selon le rôle actif de l'utilisateur connecté (`userRole === 'reseller'` ne peut jamais générer ou suivre une URL vers `/dashboard/company/*`).
+  6. **Désactivation du Cache Statique sur les Tableaux de Bord** :
+     - Injection de `export const dynamic = "force-dynamic"` et `export const revalidate = 0` sur tous les layouts de dashboards (`reseller`, `company`, `admin`).
+* **Justification** : Conformité absolue aux règles d'or (séparation stricte, étanchéité multi-tenant, zéro fuite de données inter-comptes, principe du moindre privilège).
+
+---
+
+## 19. DÉCISIONS DE REPORT FONCTIONNEL (FONCTIONNALITÉS FUTURES)
 
 | Réf. | Fonctionnalité Reportée | Motif du Report / Échéance |
 | :--- | :--- | :--- |

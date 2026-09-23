@@ -3,6 +3,31 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [1.6.0-session-isolation] - 2026-09-23
+### Résolution Critique de l'Isolation des Comptes, Sessions et Notifications (Phase 19)
+
+#### Corrigé & Blindé
+* **Propagation Intégrale des Cookies SSR dans le Middleware (`src/lib/supabase/middleware.ts`)** :
+  - Déploiement du helper `redirectWithCookies(url, supabaseResponse)` garantissant qu'aucune redirection HTTP ne perde les cookies mis à jour par `@supabase/ssr` (sessions rafraîchies, tokens).
+  - Suppression des basculements d'espaces implicites : tout accès interdit vers `/dashboard/company/*`, `/dashboard/reseller/*` ou `/dashboard/admin/*` renvoie vers `/unauthorized` de manière étanche.
+  - Prise en charge déterministe des routes génériques `/dashboard` et `/dashboard/notifications` avec aiguillage immédiat vers `/dashboard/${userRole}` et `/dashboard/${userRole}/notifications`.
+* **Purge Atomique de Session au Logout (`src/lib/actions/auth.ts` & `AppHeader.tsx`)** :
+  - `logoutAction` : appel à `supabase.auth.signOut({ scope: 'global' })`, suppression explicite de tous les cookies de chunks `sb-*` et `auth-token` dans `cookies()`, et `revalidatePath('/', 'layout')`.
+  - `AppHeader.tsx` : vidage complet de `localStorage` et `sessionStorage`, déconnexion client Supabase, et rechargement plein `window.location.href = '/login'` pour éliminer tout résidu du Router Cache Next.js en mémoire client.
+  - `loginAction` : appel préventif à `revalidatePath('/', 'layout')` pour recharger l'arbre des composants pour le rôle connecté.
+* **Sanitisation Hermétique du Centre de Notifications (`NotificationsView.tsx`)** :
+  - Refonte de `getTargetUrl(notif)` : interdiction absolue pour un revendeur de recevoir un lien pointant vers l'espace entreprise (`/dashboard/company/`), remappage automatique vers `/dashboard/reseller/` en cas d'URL d'action externe ou corrompue.
+  - Réciprocité stricte pour les entreprises : aucune URL ne peut pointer vers l'espace revendeur.
+* **Création des Passerelles Déterministes** :
+  - [`src/app/dashboard/page.tsx`](file:///d:/March%C3%A9%20agricole/src/app/dashboard/page.tsx) : route racine résolvant le rôle du user connecté et redirigeant sans ambiguïté.
+  - [`src/app/dashboard/notifications/page.tsx`](file:///d:/March%C3%A9%20agricole/src/app/dashboard/notifications/page.tsx) : passerelle universelle de notifications aiguillant vers le bon dashboard.
+* **Verrouillage du Cache Dynamique** :
+  - Déclaration de `export const dynamic = "force-dynamic"` et `revalidate = 0` dans les layouts `/dashboard/company`, `/dashboard/reseller` et `/dashboard/admin`.
+* **Validation & Homologation** :
+  - Suite de tests automatisée `scripts/test-session-isolation.mjs` validée à 100% (20/20 tests passés).
+  - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
+  - Compilation Next.js de production (`npm run build`) : 36/36 routes compilées avec succès.
+
 ## [1.5.0-stabilization] - 2026-09-22
 ### Stabilisation, Intégrité Historique et Correction des Régressions (Phase 18)
 

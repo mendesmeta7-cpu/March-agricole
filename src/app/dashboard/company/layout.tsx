@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { getUnreadNotificationCount } from "@/lib/queries/notifications";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function CompanyLayout({
   children,
 }: {

@@ -1,6 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+/**
+ * Propage l'intégralité des cookies Supabase (sessions, tokens rafraîchis)
+ * sur les réponses de redirection Next.js pour éviter toute perte d'état.
+ */
+function redirectWithCookies(url: URL, supabaseResponse: NextResponse) {
+  const redirectResponse = NextResponse.redirect(url);
+  supabaseResponse.cookies.getAll().forEach((cookie) => {
+    redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+  });
+  return redirectResponse;
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -41,10 +53,10 @@ export async function updateSession(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       url.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(url);
+      return redirectWithCookies(url, supabaseResponse);
     }
 
-    // Récupération du rôle dans la table profiles
+    // Récupération stricte du rôle dans la table profiles
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
@@ -58,23 +70,36 @@ export async function updateSession(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       url.searchParams.set("error", "profile_missing");
-      return NextResponse.redirect(url);
+      return redirectWithCookies(url, supabaseResponse);
     }
 
-    // Contrôle RBAC strict
+    // Aiguillage déterministe pour les routes génériques /dashboard et /dashboard/notifications
+    if (pathname === "/dashboard" || pathname === "/dashboard/") {
+      const url = request.nextUrl.clone();
+      url.pathname = `/dashboard/${userRole}`;
+      return redirectWithCookies(url, supabaseResponse);
+    }
+
+    if (pathname === "/dashboard/notifications" || pathname === "/dashboard/notifications/") {
+      const url = request.nextUrl.clone();
+      url.pathname = userRole === "admin" ? "/dashboard/admin" : `/dashboard/${userRole}/notifications`;
+      return redirectWithCookies(url, supabaseResponse);
+    }
+
+    // Contrôle RBAC strict : cloisonnement étanche
     if (pathname.startsWith("/dashboard/company")) {
       if (userRole !== "company" && userRole !== "admin") {
         const url = request.nextUrl.clone();
-        url.pathname = userRole === "reseller" ? "/dashboard/reseller" : "/unauthorized";
-        return NextResponse.redirect(url);
+        url.pathname = "/unauthorized";
+        return redirectWithCookies(url, supabaseResponse);
       }
     }
 
     if (pathname.startsWith("/dashboard/reseller")) {
       if (userRole !== "reseller" && userRole !== "admin") {
         const url = request.nextUrl.clone();
-        url.pathname = userRole === "company" ? "/dashboard/company" : "/unauthorized";
-        return NextResponse.redirect(url);
+        url.pathname = "/unauthorized";
+        return redirectWithCookies(url, supabaseResponse);
       }
     }
 
@@ -82,7 +107,7 @@ export async function updateSession(request: NextRequest) {
       if (userRole !== "admin") {
         const url = request.nextUrl.clone();
         url.pathname = "/unauthorized";
-        return NextResponse.redirect(url);
+        return redirectWithCookies(url, supabaseResponse);
       }
     }
   }
@@ -100,7 +125,7 @@ export async function updateSession(request: NextRequest) {
       if (profile.role === "company") url.pathname = "/dashboard/company";
       else if (profile.role === "reseller") url.pathname = "/dashboard/reseller";
       else if (profile.role === "admin") url.pathname = "/dashboard/admin";
-      return NextResponse.redirect(url);
+      return redirectWithCookies(url, supabaseResponse);
     }
   }
 

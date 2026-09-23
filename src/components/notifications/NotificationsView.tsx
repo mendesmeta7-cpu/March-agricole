@@ -75,24 +75,67 @@ export default function NotificationsView({
   };
 
   const getTargetUrl = (notif: NotificationItem) => {
-    if (notif.action_url) return notif.action_url;
-    switch (notif.type) {
-      case "DEMANDE_GENERALE_RECUE":
-      case "DEMANDE_PRODUCTION_RECUE":
-        return "/dashboard/company/demands";
-      case "DEMANDE_REPONSE":
-        return userRole === "reseller"
-          ? "/dashboard/reseller/demands"
-          : "/dashboard/company/demands";
-      case "CAMPAGNE_OUVERTE":
-        return "/dashboard/reseller/campaigns";
-      case "COMMANDE_CREEE":
-        return userRole === "reseller"
-          ? "/dashboard/reseller/orders"
-          : "/dashboard/company/orders";
-      default:
-        return "/dashboard/reseller";
+    let url = notif.action_url || "";
+
+    // 1. Sanitisation stricte selon le rôle connecté pour interdire toute fuite inter-espaces
+    if (userRole === "reseller") {
+      // Un revendeur ne doit JAMAIS recevoir une URL pointant vers l'espace société
+      if (url.startsWith("/dashboard/company/orders")) {
+        url = url.replace("/dashboard/company/orders", "/dashboard/reseller/orders");
+      } else if (url.startsWith("/dashboard/company/demands")) {
+        url = "/dashboard/reseller/demands";
+      } else if (url.startsWith("/dashboard/company")) {
+        url = "/dashboard/reseller";
+      }
+
+      if (url && url.startsWith("/dashboard/reseller")) {
+        return url;
+      }
+
+      switch (notif.type) {
+        case "DEMANDE_REPONSE":
+          return "/dashboard/reseller/demands";
+        case "CAMPAGNE_OUVERTE":
+          return "/dashboard/reseller/campaigns";
+        case "COMMANDE_CREEE":
+          return "/dashboard/reseller/orders";
+        default:
+          return "/dashboard/reseller";
+      }
     }
+
+    if (userRole === "company") {
+      // Une société ne doit JAMAIS recevoir une URL pointant vers l'espace revendeur
+      if (url.startsWith("/dashboard/reseller/orders")) {
+        url = url.replace("/dashboard/reseller/orders", "/dashboard/company/orders");
+      } else if (url.startsWith("/dashboard/reseller/demands")) {
+        url = "/dashboard/company/demands";
+      } else if (url.startsWith("/dashboard/reseller")) {
+        url = "/dashboard/company";
+      }
+
+      if (url && url.startsWith("/dashboard/company")) {
+        return url;
+      }
+
+      switch (notif.type) {
+        case "DEMANDE_GENERALE_RECUE":
+        case "DEMANDE_PRODUCTION_RECUE":
+        case "DEMANDE_REPONSE":
+          return "/dashboard/company/demands";
+        case "COMMANDE_CREEE":
+          return "/dashboard/company/orders";
+        default:
+          return "/dashboard/company";
+      }
+    }
+
+    // Espace administration
+    if (userRole === "admin") {
+      return url.startsWith("/dashboard/admin") ? url : "/dashboard/admin";
+    }
+
+    return "/dashboard";
   };
 
   const getActionLabel = (notif: NotificationItem) => {
