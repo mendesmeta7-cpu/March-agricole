@@ -4,6 +4,8 @@
 -- Date : 2026-09-23
 -- Objectif :
 --   Valider à 100% les scénarios d'éligibilité régionale et le test de contournement.
+--   Section 14 : Matrice 3 Revendeurs x 3 Campagnes.
+--   Section 15 : Tentative de contournement malveillant repoussée côté serveur.
 
 DO $$
 DECLARE
@@ -38,14 +40,19 @@ DECLARE
 BEGIN
     RAISE NOTICE '>>> DÉBUT DES TESTS PHASE 21 : ÉLIGIBILITÉ RÉGIONALE DES COMMANDES <<<';
 
-    -- 1. Récupération des provinces
+    -- 1. Récupération des provinces officielles RDC
     SELECT id, country_id INTO v_prov_kinshasa, v_country_id FROM public.provinces WHERE name ILIKE '%Kinshasa%' LIMIT 1;
     SELECT id INTO v_prov_kongo_central FROM public.provinces WHERE name ILIKE '%Kongo%' LIMIT 1;
     SELECT id INTO v_prov_haut_katanga FROM public.provinces WHERE name ILIKE '%Katanga%' LIMIT 1;
 
+    ASSERT v_prov_kinshasa IS NOT NULL, 'Province Kinshasa introuvable';
+    ASSERT v_prov_kongo_central IS NOT NULL, 'Province Kongo-Central introuvable';
+    ASSERT v_prov_haut_katanga IS NOT NULL, 'Province Haut-Katanga introuvable';
+
     -- 2. Création de l'entreprise agricole et production récoltée
     INSERT INTO auth.users (id, email, raw_user_meta_data)
-    VALUES (v_company_user, 'company_p21_' || substr(v_company_user::text, 1, 8) || '@test.com', '{"role":"company"}'::jsonb);
+    VALUES (v_company_user, 'company_p21_' || substr(v_company_user::text, 1, 8) || '@test.com', '{"role":"company"}'::jsonb)
+    ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO public.profiles (id, role, full_name, phone)
     VALUES (v_company_user, 'company', 'Agri Test Company P21', '+243810000021')
@@ -56,15 +63,17 @@ BEGIN
     VALUES (v_company_id, 'Agri Ferme P21', 'agri-ferme-p21-' || SUBSTRING(gen_random_uuid()::text, 1, 6), v_country_id, v_prov_kinshasa, v_company_user, true, 'verified');
 
     SELECT id INTO v_product_id FROM public.products LIMIT 1;
+    ASSERT v_product_id IS NOT NULL, 'Aucun produit dans la base';
 
     v_production_id := gen_random_uuid();
-    INSERT INTO public.productions (id, company_id, product_id, title, expected_quantity, unit, period_start, status)
-    VALUES (v_production_id, v_company_id, v_product_id, 'Production Maïs P21', 1000, 'tonne', CURRENT_DATE - 10, 'harvested');
+    INSERT INTO public.productions (id, company_id, product_id, title, main_image_url, location_name, expected_quantity, unit, period_start, status)
+    VALUES (v_production_id, v_company_id, v_product_id, 'Production Maïs P21', 'https://example.com/test-corn.jpg', 'Ferme de Kinshasa', 1000, 'tonne', CURRENT_DATE - 10, 'harvested');
 
     -- 3. Création des 3 Revendeurs
     -- REVENDEUR A : Kinshasa
     INSERT INTO auth.users (id, email, raw_user_meta_data)
-    VALUES (v_reseller_a_user, 'reseller_a_kin_' || substr(v_reseller_a_user::text, 1, 8) || '@test.com', '{"role":"reseller"}'::jsonb);
+    VALUES (v_reseller_a_user, 'reseller_a_kin_' || substr(v_reseller_a_user::text, 1, 8) || '@test.com', '{"role":"reseller"}'::jsonb)
+    ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO public.profiles (id, role, full_name) VALUES (v_reseller_a_user, 'reseller', 'Revendeur A (Kinshasa)')
     ON CONFLICT (id) DO UPDATE SET role = 'reseller', full_name = 'Revendeur A (Kinshasa)';
@@ -75,7 +84,8 @@ BEGIN
 
     -- REVENDEUR B : Kongo-Central
     INSERT INTO auth.users (id, email, raw_user_meta_data)
-    VALUES (v_reseller_b_user, 'reseller_b_kc_' || substr(v_reseller_b_user::text, 1, 8) || '@test.com', '{"role":"reseller"}'::jsonb);
+    VALUES (v_reseller_b_user, 'reseller_b_kc_' || substr(v_reseller_b_user::text, 1, 8) || '@test.com', '{"role":"reseller"}'::jsonb)
+    ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO public.profiles (id, role, full_name) VALUES (v_reseller_b_user, 'reseller', 'Revendeur B (Kongo-Central)')
     ON CONFLICT (id) DO UPDATE SET role = 'reseller', full_name = 'Revendeur B (Kongo-Central)';
@@ -86,7 +96,8 @@ BEGIN
 
     -- REVENDEUR C : Haut-Katanga
     INSERT INTO auth.users (id, email, raw_user_meta_data)
-    VALUES (v_reseller_c_user, 'reseller_c_kat_' || substr(v_reseller_c_user::text, 1, 8) || '@test.com', '{"role":"reseller"}'::jsonb);
+    VALUES (v_reseller_c_user, 'reseller_c_kat_' || substr(v_reseller_c_user::text, 1, 8) || '@test.com', '{"role":"reseller"}'::jsonb)
+    ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO public.profiles (id, role, full_name) VALUES (v_reseller_c_user, 'reseller', 'Revendeur C (Haut-Katanga)')
     ON CONFLICT (id) DO UPDATE SET role = 'reseller', full_name = 'Revendeur C (Haut-Katanga)';
@@ -219,6 +230,7 @@ BEGIN
         );
     EXCEPTION WHEN OTHERS THEN
         v_err_caught := true;
+        ASSERT SQLERRM ILIKE '%pas disponible dans votre région%', 'Message inattendu: ' || SQLERRM;
     END;
     ASSERT v_err_caught, 'Échec Test 3.A';
     RAISE NOTICE '✅ 3.A : Revendeur A refusé avec succès sur Campagne 3';
@@ -238,6 +250,7 @@ BEGIN
         );
     EXCEPTION WHEN OTHERS THEN
         v_err_caught := true;
+        ASSERT SQLERRM ILIKE '%pas disponible dans votre région%', 'Message inattendu: ' || SQLERRM;
     END;
     ASSERT v_err_caught, 'Échec Test 3.C';
     RAISE NOTICE '✅ 3.C : Revendeur C refusé avec succès sur Campagne 3';

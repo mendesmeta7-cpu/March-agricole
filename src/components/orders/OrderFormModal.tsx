@@ -57,9 +57,8 @@ export default function OrderFormModal({
   );
 
   const isTerritoriallyEligible = Boolean(
-    campaign?.is_eligible ||
     matchingDestination ||
-    (resellerProvinceId && campaign?.delivery_zones.some((z) => z.province_id === resellerProvinceId))
+    (resellerProvinceId && campaign?.delivery_zones?.some((z) => z.province_id === resellerProvinceId))
   );
 
   // Initialisation à l'ouverture
@@ -79,18 +78,8 @@ export default function OrderFormModal({
             ? `${firstDepot.name} (${firstDepot.commune}, ${firstDepot.address})`
             : defaultAddress
         );
-      } else if (campaign.destinations && campaign.destinations.length > 0) {
-        const firstDest = campaign.destinations[0];
-        setSelectedDestinationId(firstDest.id);
-        const firstDepot = firstDest.depots?.[0];
-        setSelectedDepotId(firstDepot?.id || "");
-        setDeliveryCity(firstDest.city_name);
-        setDeliveryAddress(
-          firstDepot
-            ? `${firstDepot.name} (${firstDepot.commune}, ${firstDepot.address})`
-            : defaultAddress
-        );
       } else {
+        // En aucun cas on n'assigne une destination d'une autre région
         setSelectedDestinationId("");
         setSelectedDepotId("");
         setDeliveryCity(defaultCity);
@@ -101,7 +90,7 @@ export default function OrderFormModal({
 
   if (!isOpen || !campaign) return null;
 
-  const currentDestination = matchingDestination || campaign.destinations?.find((d) => d.id === selectedDestinationId);
+  const currentDestination = matchingDestination || null;
   const currentDepot = currentDestination?.depots?.find((dp) => dp.id === selectedDepotId);
 
   const handleDepotChange = (depotId: string) => {

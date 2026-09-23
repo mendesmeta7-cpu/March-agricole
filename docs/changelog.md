@@ -3,6 +3,32 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [1.7.0-regional-eligibility] - 2026-09-24
+### Règle Métier Critique — Éligibilité Régionale des Commandes Revendeurs (Phase 21)
+
+#### Ajouté & Blindé
+* **Source de Vérité Inviolable Côté Serveur** :
+  - La province de rattachement du revendeur est récupérée directement depuis la table `public.resellers` (`resellers.province_id`) pour l'utilisateur authentifié.
+  - Rejet absolu de toute valeur de province transmise par le client (URL, inputs arbitraires, localStorage).
+* **Contrôle Serveur Atomique (`create_order_with_reservation`)** :
+  - Élimination de l'ancienne surcharge de fonction obsolète (7 arguments).
+  - Contrôle d'éligibilité strict : vérification que la province du revendeur est couverte par `campaign_destinations` ou `campaign_delivery_zones`.
+  - Rejet avec l'erreur métier explicite : `"Cette campagne n'est pas disponible dans votre région"`.
+  - Contrôle anti-contournement : si une destination (`p_destination_id`) est envoyée, vérification obligatoire que `destination.province_id = reseller.province_id`.
+  - Résolution automatique de la destination correspondant à la province du revendeur si non fournie.
+  - Alignement strict du schéma PostgreSQL : insertion de `product_name_snapshot` dans `order_items`, `production_id` dans `stock_reservations` et notification ciblée au gérant de la ferme.
+* **Notification de Campagne Ciblée Régionalement (`notify_resellers_on_campaign_opened`)** :
+  - Alignement avec la Règle Métier (Section 11) : seules les revendeurs ayant exprimé une demande active ET dont la province actuelle fait partie des destinations/zones desservies reçoivent l'alerte d'ouverture de campagne.
+* **Affichage Dynamique dans l'Interface sans Masquage Silencieux** :
+  - Flux des productions (`FeedProductionCard`) : le bouton d'action affiche `[ 🛒 Commander ]` si la province du revendeur est desservie, ou `[ 📍 Non disponible dans votre région ]` si elle ne l'est pas, sans jamais masquer la carte.
+  - Offres commerciales revendeur (`ResellerCampaignCard`) : bouton explicite désactivé « Non disponible dans votre région » et proposition de formuler une demande d'achat.
+  - Modale de commande (`OrderFormModal`) : verrouillage strict sur la destination de la province du revendeur sans possibilité de basculer arbitrairement vers une autre province.
+  - Modification de localisation revendeur (`ResellerLocationEditModal`) : avertissement et confirmation explicite garantissant que les anciennes commandes conservent leur destination et historique immuable.
+* **Validation & Homologation** :
+  - Suite de tests SQL `supabase/tests/phase21_reseller_regional_eligibility_test.sql` validée à 100% (10 scénarios exécutés avec succès sur la base Supabase).
+  - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
+  - Compilation Next.js de production (`npm run build`) : 36/36 routes compilées avec succès.
+
 ## [1.6.0-session-isolation] - 2026-09-23
 ### Résolution Critique de l'Isolation des Comptes, Sessions et Notifications (Phase 19)
 

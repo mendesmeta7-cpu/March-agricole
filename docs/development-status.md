@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-09-23 — Phase 20 Terminée*
+*Dernière mise à jour : 2026-09-24 — Phase 21 Validée et Homologuée*
 
 ---
 
@@ -28,10 +28,37 @@
 | **18** | **Stabilisation, Intégrité Historique & Cohérence Workflows** | 🟢 **TERMINÉ** | Snapshots immuables DB (`company_name_snapshot`, `campaign_title_snapshot`, `production_title_snapshot`, `product_name_snapshot`) avec triggers auto et LEFT JOINs anti-disparition, RLS revendeur étendu, blocage de suppression physique avec historique, route `/campaigns/new` opérationnelle (correction 404), bascule dynamique feed revendeur (`CAMPAGNE EN COURS` / `[ 🛒 Commander ]`), notifications d'expression de demandes et correction du broadcast, scan QR multi-format robuste (token, numéro, UUID), suite de tests validée et build 100% propre. |
 | **19** | **Isolation des Comptes & Sécurité des Sessions** | 🟢 **TERMINÉ** | Élimination totale du bug de redirection inter-comptes, propagation intégrale des cookies SSR sur les redirections middleware (`redirectWithCookies`), purge atomique des cookies `sb-*` et revalidation au logout, sanitisation hermétique de `getTargetUrl` dans `NotificationsView`, passerelles universelles déterministes `/dashboard` et `/dashboard/notifications`, verrouillage `dynamic = force-dynamic`, suite de 20 tests validée à 100%. |
 | **20** | **Évolution des Campagnes : Multi-Villes, Dépôts & Cycle de Vie** | 🟢 **TERMINÉ** | Destinations par ville (`campaign_destinations`), dépôts d'arrivée multiples (`campaign_depots`), report de date d'arrivée (`update_destination_arrival_date`) avec notifications ciblées `DATE_ARRIVEE_MODIFIEE`, fin automatique de campagne (`check_and_close_expired_campaigns`), snapshots d'arrivée/dépôt sur commandes, formulaires dynamiques UI et cards enrichies, suite de 8 tests SQL validée à 100%, build 36/36 routes certifié. |
+| **21** | **Éligibilité Régionale Stricte des Commandes Revendeurs** | 🟢 **TERMINÉ** | Source de vérité serveur (`resellers.province_id`), contrôle inviolable dans `create_order_with_reservation`, verrouillage de la destination/dépôt sur le territoire revendeur, bouton conditionnel UI (Commander vs Non disponible dans votre région), notification ciblée régionale, suite de 10 tests SQL validée à 100%, build 36/36 certifié. |
 
 ---
 
-## 2. BILAN DE LA PHASE 20 (ÉVOLUTION DES CAMPAGNES & LOGISTIQUE D'ARRIVÉE)
+## 2. BILAN DE LA PHASE 21 (RÈGLE MÉTIER CRITIQUE — ÉLIGIBILITÉ RÉGIONALE DES COMMANDES)
+
+* **Date de validation finale** : 2026-09-24
+* **Statut du projet** : 🟢 **STABLE — RÈGLE D'ÉLIGIBILITÉ RÉGIONALE HOMOLOGUÉE & BLINDÉE**
+* **Réalisations clés** :
+  1. **Source de Vérité Inviolable (`public.resellers.province_id`)** :
+     - Récupération de la province du revendeur exclusivement depuis son enregistrement authentifié en base, ignorant tout paramètre client URL/localStorage/input.
+  2. **Contrôle Serveur Atomique (`create_order_with_reservation`)** :
+     - Suppression de l'ancienne surcharge de fonction vulnérable (7 paramètres).
+     - Validation d'éligibilité : correspondance obligatoire entre la province du revendeur et les destinations (`campaign_destinations`) ou zones (`campaign_delivery_zones`). Rejet catégorique avec message : `"Cette campagne n'est pas disponible dans votre région"`.
+     - Verrouillage de la destination et du dépôt sur le territoire revendeur (rejet si tentative de commander sur une autre ville/destination).
+     - Alignement complet du schéma : snapshots immuables, absence de colonnes erronées.
+  3. **Alignement des Notifications de Campagne (`notify_resellers_on_campaign_opened`)** :
+     - Filtrage des alertes de campagne pour ne notifier que les revendeurs dont le territoire actuel est effectivement couvert par l'offre.
+  4. **Adaptation Visuelle de l'Interface Sans Masquage** :
+     - Le flux des productions et la liste des offres maintiennent la visibilité des campagnes pour tous les revendeurs.
+     - Boutons d'action contextuels : `[ 🛒 Commander ]` en vert si éligible, `[ Non disponible dans votre région ]` si non éligible avec orientation vers l'expression de besoin.
+     - `OrderFormModal` verrouillé strictement sur la destination du territoire du revendeur.
+     - Confirmation explicite lors de la modification de localisation dans le profil avec préservation des commandes historiques.
+  5. **Homologation Complète** :
+     - Suite SQL `supabase/tests/phase21_reseller_regional_eligibility_test.sql` validée à 100% (10 scénarios réussis, dont 3 campagnes x 3 revendeurs et le test de contournement malveillant repoussé côté serveur).
+     - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
+     - Compilation Next.js de production (`npm run build`) : 36/36 routes compilées avec succès.
+
+---
+
+## 3. BILAN DE LA PHASE 20 (ÉVOLUTION DES CAMPAGNES & LOGISTIQUE D'ARRIVÉE)
 
 * **Date de validation finale** : 2026-09-23
 * **Statut du projet** : 🟢 **STABLE — NOUVEAU FONCTIONNEMENT DES CAMPAGNES DÉPLOYÉ & HOMOLOGUÉ**

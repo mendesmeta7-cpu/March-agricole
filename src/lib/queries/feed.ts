@@ -29,6 +29,7 @@ export interface FeedCampaignSummary {
   currency: string;
   min_order_quantity: number;
   status: string;
+  is_eligible?: boolean;
 }
 
 export interface FeedProductionItem {
@@ -55,6 +56,7 @@ export interface FeedFilterParams {
   category?: string;
   countryId?: string;
   provinceId?: string;
+  resellerProvinceId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -122,7 +124,9 @@ export async function getPublicFeedProductions(
         currency,
         min_order_quantity,
         end_date,
-        status
+        status,
+        campaign_destinations (province_id),
+        campaign_delivery_zones (province_id)
       )
     `, { count: "exact" })
     .eq("is_public", true)
@@ -179,6 +183,18 @@ export async function getPublicFeedProductions(
     const rawCampaigns = Array.isArray(item.campaigns) ? item.campaigns : (item.campaigns ? [item.campaigns] : []);
     const activeCampaign = rawCampaigns.find((c: any) => c.status === "active" && (!c.end_date || c.end_date >= todayStr)) || null;
 
+    let isEligible = false;
+    if (activeCampaign) {
+      if (filters.resellerProvinceId) {
+        const dests = activeCampaign.campaign_destinations || [];
+        const zones = activeCampaign.campaign_delivery_zones || [];
+        isEligible = dests.some((d: any) => d.province_id === filters.resellerProvinceId) ||
+                     zones.some((z: any) => z.province_id === filters.resellerProvinceId);
+      } else {
+        isEligible = true;
+      }
+    }
+
     return {
       ...item,
       expected_quantity: Number(item.expected_quantity),
@@ -192,6 +208,7 @@ export async function getPublicFeedProductions(
         currency: activeCampaign.currency || "USD",
         min_order_quantity: Number(activeCampaign.min_order_quantity || 1),
         status: activeCampaign.status,
+        is_eligible: isEligible,
       } : null,
     } as unknown as FeedProductionItem;
   });
@@ -212,7 +229,8 @@ export async function getPublicFeedProductions(
  * Récupère le détail public d'une production pour un revendeur
  */
 export async function getPublicProductionDetail(
-  productionId: string
+  productionId: string,
+  resellerProvinceId?: string
 ): Promise<FeedProductionItem | null> {
   const supabase = createClient();
 
@@ -258,7 +276,9 @@ export async function getPublicProductionDetail(
         currency,
         min_order_quantity,
         end_date,
-        status
+        status,
+        campaign_destinations (province_id),
+        campaign_delivery_zones (province_id)
       )
     `)
     .eq("id", productionId)
@@ -283,6 +303,18 @@ export async function getPublicProductionDetail(
   const rawCampaigns = Array.isArray(rawItem.campaigns) ? rawItem.campaigns : (rawItem.campaigns ? [rawItem.campaigns] : []);
   const activeCampaign = rawCampaigns.find((c: any) => c.status === "active" && (!c.end_date || c.end_date >= todayStr)) || null;
 
+  let isEligible = false;
+  if (activeCampaign) {
+    if (resellerProvinceId) {
+      const dests = activeCampaign.campaign_destinations || [];
+      const zones = activeCampaign.campaign_delivery_zones || [];
+      isEligible = dests.some((d: any) => d.province_id === resellerProvinceId) ||
+                   zones.some((z: any) => z.province_id === resellerProvinceId);
+    } else {
+      isEligible = true;
+    }
+  }
+
   return {
     ...rawItem,
     expected_quantity: Number(rawItem.expected_quantity),
@@ -296,6 +328,7 @@ export async function getPublicProductionDetail(
       currency: activeCampaign.currency || "USD",
       min_order_quantity: Number(activeCampaign.min_order_quantity || 1),
       status: activeCampaign.status,
+      is_eligible: isEligible,
     } : null,
   } as unknown as FeedProductionItem;
 }

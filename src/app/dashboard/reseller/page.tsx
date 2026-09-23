@@ -30,12 +30,14 @@ export default async function ResellerDashboardPage() {
 
   const { data: reseller } = await supabase
     .from("resellers")
-    .select("id, business_name, reseller_type, city, delivery_address, provinces(name, code), countries(name, code)")
+    .select("id, business_name, province_id, reseller_type, city, delivery_address, provinces(name, code), countries(name, code)")
     .eq("id", user!.id)
     .maybeSingle();
 
-  // 2. Récupération des productions publiques réelles pour le feed
-  const feedResult = await getPublicFeedProductions();
+  // 2. Récupération des productions publiques réelles pour le feed avec la province du revendeur
+  const feedResult = await getPublicFeedProductions({
+    resellerProvinceId: reseller?.province_id,
+  });
 
   // 3. Catégories distinctes depuis products (actifs)
   const { data: categoriesData } = await supabase

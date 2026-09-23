@@ -4,11 +4,17 @@
 -- Date : 2026-09-23
 -- Phase : 21 (Règle Métier Critique - Éligibilité Régionale des Commandes)
 -- Description :
---   1. Récupération inviolable de la province du revendeur depuis public.resellers.
---   2. Contrôle serveur strict de l'éligibilité régionale dans create_order_with_reservation.
---   3. Verrouillage de la destination et du dépôt sur le territoire officiel du revendeur.
---   4. Rejet immédiat de toute tentative de commande hors territoire ou contournement.
+--   1. Suppression de l'ancienne surcharge de create_order_with_reservation (7 paramètres).
+--   2. Récupération inviolable de la province du revendeur depuis public.resellers.
+--   3. Contrôle serveur strict de l'éligibilité régionale dans create_order_with_reservation.
+--   4. Verrouillage de la destination et du dépôt sur le territoire officiel du revendeur.
+--   5. Rejet immédiat de toute tentative de commande hors territoire ou contournement.
+--   6. Intégration de la règle régionale dans les notifications de campagne (Section 11).
 
+-- 1. SUPPRESSION DE L'ANCIENNE SURCHARGE OBSOLÈTE (7 PARAMÈTRES)
+DROP FUNCTION IF EXISTS public.create_order_with_reservation(uuid, uuid, numeric, uuid, character varying, text, text);
+
+-- 2. PROCÉDURE RPC TRANSACTIONNELLE STRICTE : create_order_with_reservation
 CREATE OR REPLACE FUNCTION public.create_order_with_reservation(
     p_reseller_id UUID,
     p_campaign_id UUID,
@@ -31,6 +37,7 @@ DECLARE
     v_destination RECORD;
     v_depot RECORD;
     v_reseller RECORD;
+    v_product_name TEXT;
     v_reseller_province_id UUID;
     v_is_eligible BOOLEAN;
     v_reserved_qty NUMERIC(12,2);
@@ -42,6 +49,9 @@ DECLARE
     v_final_address TEXT;
     v_arrival_date DATE;
     v_depot_name VARCHAR(255);
+    v_final_destination_id UUID := NULL;
+    v_final_depot_id UUID := NULL;
+    v_notif_user_id UUID := NULL;
 BEGIN
     -- 0. Vérification de sécurité : le revendeur doit être l'utilisateur connecté ou admin
     IF auth.uid() IS NOT NULL AND auth.uid() <> p_reseller_id THEN
@@ -81,10 +91,9 @@ BEGIN
         RAISE EXCEPTION 'La campagne n''est pas ouverte aux commandes (Statut actuel : %)', v_campaign.status;
     END IF;
 
-    -- 4. VÉRIFICATION DE LA PÉRIODE DE VALIDITÉ COMMERCIALE (Date de début et Date de fin)
+    -- 4. VÉRIFICATION DE LA PÉRIODE DE VALIDITÉ DE LA CAMPAGNE
     IF (v_campaign.start_date > CURRENT_DATE) OR (v_campaign.end_date IS NOT NULL AND v_campaign.end_date < CURRENT_DATE) THEN
-        RAISE EXCEPTION 'La campagne n''est plus ou pas encore dans sa période de commercialisation active (Du % au %)', 
-            v_campaign.start_date, COALESCE(v_campaign.end_date::text, 'en continu');
+        RAISE EXCEPTION 'La campagne n''est plus ou pas encore dans sa période de commercialisation active';
     END IF;
 
     -- 5. VÉRIFICATION DE LA QUANTITÉ MINIMALE
@@ -94,7 +103,7 @@ BEGIN
     END IF;
 
     -- 6. CONTRÔLE STRICT D'ÉLIGIBILITÉ RÉGIONALE DU REVENDEUR
-    -- Vérification si la province du revendeur est présente dans les destinations ou zones de la campagne
+    -- La province du revendeur doit obligatoirement être desservie par la campagne
     SELECT EXISTS (
         SELECT 1 FROM public.campaign_destinations
         WHERE campaign_id = p_campaign_id 
@@ -124,9 +133,10 @@ BEGIN
 
         -- RÈGLE CRITIQUE : La destination doit impérativement correspondre à la province du revendeur
         IF v_destination.province_id <> v_reseller_province_id THEN
-            RAISE EXCEPTION 'Vous ne pouvez commander que pour la destination correspondant à votre région de rattachement';
+            RAISE EXCEPTION 'Cette campagne n''est pas disponible dans votre région';
         END IF;
 
+        v_final_destination_id := v_destination.id;
         v_arrival_date := v_destination.expected_arrival_date;
         v_final_city := v_destination.city_name;
     ELSE
@@ -137,6 +147,7 @@ BEGIN
         LIMIT 1;
 
         IF FOUND THEN
+            v_final_destination_id := v_destination.id;
             v_arrival_date := v_destination.expected_arrival_date;
             v_final_city := v_destination.city_name;
         END IF;
@@ -151,10 +162,11 @@ BEGIN
             RAISE EXCEPTION 'Le dépôt sélectionné n''appartient pas à cette campagne commerciale';
         END IF;
 
-        IF v_destination.id IS NOT NULL AND v_depot.campaign_destination_id <> v_destination.id THEN
+        IF v_final_destination_id IS NOT NULL AND v_depot.campaign_destination_id <> v_final_destination_id THEN
             RAISE EXCEPTION 'Le dépôt sélectionné ne correspond pas à la destination de votre région';
         END IF;
 
+        v_final_depot_id := v_depot.id;
         v_depot_name := v_depot.name || ' (' || v_depot.commune || CASE WHEN v_depot.quartier IS NOT NULL THEN ' - ' || v_depot.quartier ELSE '' END || ')';
         IF v_final_address IS NULL OR v_final_address = '' THEN
             v_final_address := v_depot.address || CASE WHEN v_depot.complement IS NOT NULL THEN ' (' || v_depot.complement || ')' ELSE '' END;
@@ -179,7 +191,13 @@ BEGIN
     -- 10. GÉNÉRATION DU NUMÉRO DE COMMANDE UNIQUE (CMD-YYYYMMDD-XXXXXXXX)
     v_order_number := 'CMD-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' || UPPER(SUBSTRING(gen_random_uuid()::text, 1, 8));
 
-    -- 11. INSERTION DANS ORDERS AVEC LA PROVINCE DU REVENDEUR ET LES SNAPSHOTS COMPLETS
+    -- 11. EXTRACTION DU NOM DU PRODUIT POUR LE SNAPSHOT IMMUABLE
+    SELECT name INTO v_product_name FROM public.products WHERE id = v_campaign.product_id;
+
+    -- 12. RÉCUPÉRATION DU COMPTE UTILISATEUR GÉRANT DE L'ENTREPRISE POUR LA NOTIFICATION
+    SELECT created_by INTO v_notif_user_id FROM public.companies WHERE id = v_campaign.company_id LIMIT 1;
+
+    -- 13. INSERTION DANS ORDERS AVEC LA PROVINCE DU REVENDEUR ET LES SNAPSHOTS COMPLETS
     INSERT INTO public.orders (
         order_number,
         reseller_id,
@@ -208,73 +226,94 @@ BEGIN
         v_final_city,
         v_final_address,
         TRIM(p_notes),
-        v_destination.id,
-        v_depot.id,
+        v_final_destination_id,
+        v_final_depot_id,
         v_arrival_date,
         v_final_city,
         v_depot_name,
         'pending'
     ) RETURNING id INTO v_new_order_id;
 
-    -- 12. CRÉATION ATOMIQUE DE LA LIGNE DE COMMANDE (ORDER_ITEMS)
+    -- 14. CRÉATION ATOMIQUE DE LA LIGNE DE COMMANDE (ORDER_ITEMS avec snapshot produit)
     INSERT INTO public.order_items (
         order_id,
-        production_id,
         product_id,
         quantity,
         unit,
         unit_price,
-        subtotal
+        subtotal,
+        product_name_snapshot
     ) VALUES (
         v_new_order_id,
-        v_campaign.production_id,
         v_campaign.product_id,
         p_quantity,
         v_campaign.unit,
         v_campaign.unit_price,
-        v_total_amount
+        v_total_amount,
+        v_product_name
     );
 
-    -- 13. CRÉATION ATOMIQUE DE LA RÉSERVATION DE STOCK (STOCK_RESERVATIONS)
+    -- 15. CRÉATION ATOMIQUE DE LA RÉSERVATION DE STOCK (STOCK_RESERVATIONS avec production_id)
     INSERT INTO public.stock_reservations (
         campaign_id,
         order_id,
+        production_id,
         quantity,
-        status,
-        expires_at
+        status
     ) VALUES (
         p_campaign_id,
         v_new_order_id,
+        v_campaign.production_id,
         p_quantity,
-        'active',
-        NOW() + INTERVAL '72 hours'
+        'active'
     );
 
-    -- 14. CRÉATION D'UNE NOTIFICATION AUTOMATIQUE POUR L'ENTREPRISE AGRICOLE
-    INSERT INTO public.notifications (
-        recipient_id,
-        type,
-        title,
-        message,
-        payload
+    -- 16. NOTIFICATION INTERNE POUR L'ENTREPRISE AGRICOLE
+    IF v_notif_user_id IS NOT NULL THEN
+        INSERT INTO public.notifications (
+            user_id,
+            type,
+            title,
+            message,
+            related_entity_type,
+            related_entity_id,
+            action_url
+        ) VALUES (
+            v_notif_user_id,
+            'COMMANDE_CREEE',
+            'Nouvelle commande reçue !',
+            'Un revendeur a passé commande de ' || p_quantity || ' ' || v_campaign.unit || ' sur votre offre « ' || v_campaign.title || ' ».' || CASE WHEN v_final_city IS NOT NULL THEN ' Destination : ' || v_final_city ELSE '' END,
+            'order',
+            v_new_order_id,
+            '/dashboard/company/orders/' || v_new_order_id
+        );
+    END IF;
+
+    -- 17. JOURNALISATION DANS AUDIT_LOGS
+    INSERT INTO public.audit_logs (
+        actor_id,
+        action,
+        entity_type,
+        entity_id,
+        details
     ) VALUES (
-        v_campaign.company_id,
-        'COMMANDE_CREEE',
-        'Nouvelle commande reçue !',
-        'Un revendeur a passé commande de ' || p_quantity || ' ' || v_campaign.unit || ' sur votre offre « ' || v_campaign.title || ' ».' || CASE WHEN v_final_city IS NOT NULL THEN ' Destination : ' || v_final_city ELSE '' END,
+        p_reseller_id,
+        'ORDER_CREATED_WITH_RESERVATION',
+        'order',
+        v_new_order_id,
         jsonb_build_object(
-            'order_id', v_new_order_id,
-            'order_number', v_order_number,
             'campaign_id', p_campaign_id,
             'quantity', p_quantity,
-            'unit', v_campaign.unit,
+            'unit_price', v_campaign.unit_price,
             'total_amount', v_total_amount,
-            'destination_city', v_final_city,
-            'expected_arrival_date', v_arrival_date
+            'destination_id', v_final_destination_id,
+            'depot_id', v_final_depot_id,
+            'reseller_province_id', v_reseller_province_id,
+            'delivery_city', v_final_city
         )
     );
 
-    -- 15. RETOUR DU RÉSULTAT TRANSACTIONNEL
+    -- 18. RETOUR DU RÉSULTAT TRANSACTIONNEL
     RETURN QUERY
     SELECT 
         v_new_order_id AS order_id,
@@ -283,3 +322,68 @@ BEGIN
         p_quantity AS reserved_quantity;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- 3. NOTIFICATION CIBLÉE STRICTEMENT ALIGNÉE SUR LE TERRITOIRE DU REVENDEUR (Section 11)
+CREATE OR REPLACE FUNCTION public.notify_resellers_on_campaign_opened(
+    p_campaign_id UUID
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_campaign RECORD;
+    v_demander RECORD;
+BEGIN
+    SELECT c.*, prod.title as production_title, p.name as product_name
+    INTO v_campaign
+    FROM public.campaigns c
+    JOIN public.productions prod ON prod.id = c.production_id
+    JOIN public.products p ON p.id = c.product_id
+    WHERE c.id = p_campaign_id;
+
+    IF NOT FOUND THEN
+        RETURN;
+    END IF;
+
+    -- Notification ciblée aux revendeurs ayant fait une demande sur cette production
+    -- ET dont le territoire actuel correspond à une destination ou zone de livraison de la campagne
+    FOR v_demander IN
+        SELECT DISTINCT d.reseller_id
+        FROM public.demands d
+        JOIN public.resellers r ON r.id = d.reseller_id
+        WHERE d.production_id = v_campaign.production_id
+          AND d.status = 'active'
+          AND (
+              EXISTS (
+                  SELECT 1 FROM public.campaign_destinations cd
+                  WHERE cd.campaign_id = v_campaign.id AND cd.province_id = r.province_id
+              )
+              OR EXISTS (
+                  SELECT 1 FROM public.campaign_delivery_zones cdz
+                  WHERE cdz.campaign_id = v_campaign.id AND cdz.province_id = r.province_id
+              )
+          )
+    LOOP
+        INSERT INTO public.notifications (
+            user_id,
+            type,
+            title,
+            message,
+            related_entity_type,
+            related_entity_id,
+            action_url
+        ) VALUES (
+            v_demander.reseller_id,
+            'CAMPAGNE_OUVERTE',
+            'Campagne ouverte pour votre demande : ' || v_campaign.product_name,
+            'Une offre commerciale correspondant à votre demande sur « ' || v_campaign.production_title || ' » est maintenant ouverte aux commandes dans votre région.',
+            'campaign',
+            v_campaign.id,
+            '/dashboard/reseller/campaigns'
+        );
+    END LOOP;
+END;
+$$;

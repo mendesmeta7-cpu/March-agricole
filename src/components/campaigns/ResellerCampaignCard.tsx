@@ -229,7 +229,7 @@ export default function ResellerCampaignCard({
                 type="button"
                 onClick={() => onOrderClick(campaign)}
                 disabled={isOutOfStock}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-forest-700 text-white font-bold text-xs hover:bg-forest-800 transition-all shadow-xs disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-forest-700 text-white font-bold text-xs hover:bg-forest-800 transition-all shadow-xs disabled:bg-gray-300 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ShoppingBag className="w-3.5 h-3.5" />
                 {isOutOfStock ? "Stock épuisé" : "Commander"}
@@ -237,17 +237,24 @@ export default function ResellerCampaignCard({
             )}
           </div>
         ) : (
-          <div className="space-y-1.5 text-xs">
-            <p className="text-amber-800 text-[11px] leading-relaxed">
-              Cette offre ne dessert pas votre province. Vous pouvez formuler une demande pour cette denrée.
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 text-xs font-semibold">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-700" />
+                Non disponible dans votre région
+              </span>
+
+              <Link
+                href="/dashboard/reseller/demands"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-earth-800 hover:text-earth-950 underline underline-offset-2"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-earth-700" />
+                Exprimer une demande &rarr;
+              </Link>
+            </div>
+            <p className="text-gray-500 text-[11px] leading-relaxed">
+              Cette offre ne dessert pas votre province de rattachement. Vous pouvez formuler une demande pour signaler votre intérêt au producteur.
             </p>
-            <Link
-              href="/dashboard/reseller/demands"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-earth-800 hover:text-earth-950 underline underline-offset-2"
-            >
-              <TrendingUp className="w-3.5 h-3.5 text-earth-700" />
-              Exprimer une demande d&apos;achat &rarr;
-            </Link>
           </div>
         )}
       </div>
