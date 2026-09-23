@@ -244,29 +244,6 @@ Vue d'analyse macro calculée dynamiquement sur les demandes actives (`status = 
 * *Contrainte* : `uq_campaign_delivery_zones UNIQUE (campaign_id, province_id)`
 * *Index* : `idx_campaign_delivery_zones_campaign`, `idx_campaign_delivery_zones_province`
 
-#### `campaign_destinations` (Villes d'Arrivée & Dates Prévues)
-* `id` : `UUID PRIMARY KEY DEFAULT gen_random_uuid()`
-* `campaign_id` : `UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE`
-* `province_id` : `UUID NOT NULL REFERENCES provinces(id) ON DELETE RESTRICT`
-* `city_name` : `VARCHAR(100) NOT NULL`
-* `expected_arrival_date` : `DATE NOT NULL`
-* `previous_arrival_date` : `DATE` (Historique avant report)
-* `created_at`, `updated_at` : `TIMESTAMPTZ NOT NULL DEFAULT NOW()`
-* *Contrainte* : `uq_campaign_destinations_city UNIQUE (campaign_id, city_name)`
-* *Index* : `idx_campaign_destinations_campaign_id`, `idx_campaign_destinations_province_id`, `idx_campaign_destinations_city_name`
-
-#### `campaign_depots` (Points de Dépôt / Retrait par Ville)
-* `id` : `UUID PRIMARY KEY DEFAULT gen_random_uuid()`
-* `campaign_destination_id` : `UUID NOT NULL REFERENCES campaign_destinations(id) ON DELETE CASCADE`
-* `campaign_id` : `UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE`
-* `name` : `VARCHAR(150) NOT NULL` (ex. : `Dépôt Lemba`)
-* `commune` : `VARCHAR(100) NOT NULL`
-* `quartier` : `VARCHAR(100)`
-* `address` : `TEXT NOT NULL`
-* `complement` : `TEXT` (Repères visuels)
-* `created_at`, `updated_at` : `TIMESTAMPTZ NOT NULL DEFAULT NOW()`
-* *Index* : `idx_campaign_depots_destination_id`, `idx_campaign_depots_campaign_id`
-
 ---
 
 ### 2.6 Commandes, Lignes Contractuelles, Réservations et Audit
@@ -278,17 +255,9 @@ Vue d'analyse macro calculée dynamiquement sur les demandes actives (`status = 
 * `reseller_id` : `UUID NOT NULL REFERENCES resellers(id) ON DELETE RESTRICT`
 * `company_id` : `UUID NOT NULL REFERENCES companies(id) ON DELETE RESTRICT`
 * `campaign_id` : `UUID REFERENCES campaigns(id) ON DELETE RESTRICT`
-* `destination_id` : `UUID REFERENCES campaign_destinations(id) ON DELETE SET NULL`
-* `depot_id` : `UUID REFERENCES campaign_depots(id) ON DELETE SET NULL`
-* `expected_arrival_date_snapshot` : `DATE` (Date prévue d'arrivée snapshotée, actualisable par report)
-* `destination_city_snapshot` : `VARCHAR(100)` (Ville d'arrivée immuable)
-* `depot_name_snapshot` : `VARCHAR(255)` (Libellé formaté complet du dépôt avec commune et quartier)
 * `origin_type` : `VARCHAR(30) NOT NULL DEFAULT 'direct_campaign' CHECK (origin_type IN ('direct_campaign', 'demand_response'))`
 * `demand_response_id` : `UUID REFERENCES demand_responses(id) ON DELETE SET NULL`
 * `production_id` : `UUID REFERENCES productions(id) ON DELETE SET NULL`
-* `company_name_snapshot` : `VARCHAR(255)` (Snapshot immuable société)
-* `campaign_title_snapshot` : `VARCHAR(255)` (Snapshot immuable titre campagne)
-* `production_title_snapshot` : `VARCHAR(255)` (Snapshot immuable titre production)
 * `total_amount` : `NUMERIC(14,2) NOT NULL CHECK (total_amount > 0)`
 * `currency` : `VARCHAR(3) NOT NULL DEFAULT 'USD'`
 * `delivery_province_id` : `UUID NOT NULL REFERENCES provinces(id) ON DELETE RESTRICT`
@@ -301,8 +270,8 @@ Vue d'analyse macro calculée dynamiquement sur les demandes actives (`status = 
 * `delivery_notes` : `TEXT` (Notes de livraison)
 * `notes` : `TEXT`
 * `created_at`, `updated_at` : `TIMESTAMPTZ NOT NULL DEFAULT NOW()`
-* *Index* : `idx_orders_reseller_id`, `idx_orders_company_id`, `idx_orders_campaign_id`, `idx_orders_status`, `idx_orders_created_at`, `idx_orders_qr_code_token`, `idx_orders_destination_id`, `idx_orders_depot_id`
-* *Trigger* : `trg_orders_updated_at`, `trg_order_qr_code_token`, `trg_orders_snapshots`
+* *Index* : `idx_orders_reseller_id`, `idx_orders_company_id`, `idx_orders_campaign_id`, `idx_orders_status`, `idx_orders_created_at`, `idx_orders_qr_code_token`
+* *Trigger* : `trg_orders_updated_at`, `trg_order_qr_code_token`
 
 #### `order_items` (Lignes de Commande)
 * `id` : `UUID PRIMARY KEY DEFAULT gen_random_uuid()`

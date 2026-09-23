@@ -45,8 +45,7 @@ BEGIN
 
     -- 2. Création de l'entreprise agricole et production récoltée
     INSERT INTO auth.users (id, email, raw_user_meta_data)
-    VALUES (v_company_user, 'company_p21_' || substr(v_company_user::text, 1, 8) || '@test.com', '{"role":"company"}'::jsonb)
-    ON CONFLICT (id) DO NOTHING;
+    VALUES (v_company_user, 'company_p21_' || substr(v_company_user::text, 1, 8) || '@test.com', '{"role":"company"}'::jsonb);
 
     INSERT INTO public.profiles (id, role, full_name, phone)
     VALUES (v_company_user, 'company', 'Agri Test Company P21', '+243810000021')
@@ -59,14 +58,13 @@ BEGIN
     SELECT id INTO v_product_id FROM public.products LIMIT 1;
 
     v_production_id := gen_random_uuid();
-    INSERT INTO public.productions (id, company_id, product_id, title, main_image_url, location_name, expected_quantity, unit, period_start, status)
-    VALUES (v_production_id, v_company_id, v_product_id, 'Production Maïs P21', 'https://placehold.co/600x400.png', 'Ferme Test P21 - Kinshasa', 1000, 'tonne', CURRENT_DATE - 10, 'harvested');
+    INSERT INTO public.productions (id, company_id, product_id, title, expected_quantity, unit, period_start, status)
+    VALUES (v_production_id, v_company_id, v_product_id, 'Production Maïs P21', 1000, 'tonne', CURRENT_DATE - 10, 'harvested');
 
     -- 3. Création des 3 Revendeurs
     -- REVENDEUR A : Kinshasa
     INSERT INTO auth.users (id, email, raw_user_meta_data)
-    VALUES (v_reseller_a_user, 'reseller_a_kin_' || substr(v_reseller_a_user::text, 1, 8) || '@test.com', '{"role":"reseller"}'::jsonb)
-    ON CONFLICT (id) DO NOTHING;
+    VALUES (v_reseller_a_user, 'reseller_a_kin_' || substr(v_reseller_a_user::text, 1, 8) || '@test.com', '{"role":"reseller"}'::jsonb);
 
     INSERT INTO public.profiles (id, role, full_name) VALUES (v_reseller_a_user, 'reseller', 'Revendeur A (Kinshasa)')
     ON CONFLICT (id) DO UPDATE SET role = 'reseller', full_name = 'Revendeur A (Kinshasa)';
@@ -77,8 +75,7 @@ BEGIN
 
     -- REVENDEUR B : Kongo-Central
     INSERT INTO auth.users (id, email, raw_user_meta_data)
-    VALUES (v_reseller_b_user, 'reseller_b_kc_' || substr(v_reseller_b_user::text, 1, 8) || '@test.com', '{"role":"reseller"}'::jsonb)
-    ON CONFLICT (id) DO NOTHING;
+    VALUES (v_reseller_b_user, 'reseller_b_kc_' || substr(v_reseller_b_user::text, 1, 8) || '@test.com', '{"role":"reseller"}'::jsonb);
 
     INSERT INTO public.profiles (id, role, full_name) VALUES (v_reseller_b_user, 'reseller', 'Revendeur B (Kongo-Central)')
     ON CONFLICT (id) DO UPDATE SET role = 'reseller', full_name = 'Revendeur B (Kongo-Central)';
@@ -89,8 +86,7 @@ BEGIN
 
     -- REVENDEUR C : Haut-Katanga
     INSERT INTO auth.users (id, email, raw_user_meta_data)
-    VALUES (v_reseller_c_user, 'reseller_c_kat_' || substr(v_reseller_c_user::text, 1, 8) || '@test.com', '{"role":"reseller"}'::jsonb)
-    ON CONFLICT (ID) DO NOTHING;
+    VALUES (v_reseller_c_user, 'reseller_c_kat_' || substr(v_reseller_c_user::text, 1, 8) || '@test.com', '{"role":"reseller"}'::jsonb);
 
     INSERT INTO public.profiles (id, role, full_name) VALUES (v_reseller_c_user, 'reseller', 'Revendeur C (Haut-Katanga)')
     ON CONFLICT (id) DO UPDATE SET role = 'reseller', full_name = 'Revendeur C (Haut-Katanga)';
