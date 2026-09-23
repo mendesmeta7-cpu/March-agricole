@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-09-21 — Phase 14 Terminée*
+*Dernière mise à jour : 2026-09-23 — Phase 20 Terminée*
 
 ---
 
@@ -27,6 +27,40 @@
 | **16** | **QR Code, Recherche Rapide & Confirmation de Livraison** | 🟢 **TERMINÉ** | Token QR opaque immuable généré par commande (`qr_code_token`), affichage modal QR côté revendeur (`/dashboard/reseller/orders/[id]`), widget de recherche rapide société (scan caméra `html5-qrcode` & saisie n°), contrôle d'accès strict anti-fuite multilocataire, RPC `lookup_order_for_delivery` & `confirm_order_delivery` avec verrouillage pessimiste et règle anti-double livraison, suite de 7 tests SQL validée. |
 | **18** | **Stabilisation, Intégrité Historique & Cohérence Workflows** | 🟢 **TERMINÉ** | Snapshots immuables DB (`company_name_snapshot`, `campaign_title_snapshot`, `production_title_snapshot`, `product_name_snapshot`) avec triggers auto et LEFT JOINs anti-disparition, RLS revendeur étendu, blocage de suppression physique avec historique, route `/campaigns/new` opérationnelle (correction 404), bascule dynamique feed revendeur (`CAMPAGNE EN COURS` / `[ 🛒 Commander ]`), notifications d'expression de demandes et correction du broadcast, scan QR multi-format robuste (token, numéro, UUID), suite de tests validée et build 100% propre. |
 | **19** | **Isolation des Comptes & Sécurité des Sessions** | 🟢 **TERMINÉ** | Élimination totale du bug de redirection inter-comptes, propagation intégrale des cookies SSR sur les redirections middleware (`redirectWithCookies`), purge atomique des cookies `sb-*` et revalidation au logout, sanitisation hermétique de `getTargetUrl` dans `NotificationsView`, passerelles universelles déterministes `/dashboard` et `/dashboard/notifications`, verrouillage `dynamic = force-dynamic`, suite de 20 tests validée à 100%. |
+| **20** | **Évolution des Campagnes : Multi-Villes, Dépôts & Cycle de Vie** | 🟢 **TERMINÉ** | Destinations par ville (`campaign_destinations`), dépôts d'arrivée multiples (`campaign_depots`), report de date d'arrivée (`update_destination_arrival_date`) avec notifications ciblées `DATE_ARRIVEE_MODIFIEE`, fin automatique de campagne (`check_and_close_expired_campaigns`), snapshots d'arrivée/dépôt sur commandes, formulaires dynamiques UI et cards enrichies, suite de 8 tests SQL validée à 100%, build 36/36 routes certifié. |
+
+---
+
+## 2. BILAN DE LA PHASE 20 (ÉVOLUTION DES CAMPAGNES & LOGISTIQUE D'ARRIVÉE)
+
+* **Date de validation finale** : 2026-09-23
+* **Statut du projet** : 🟢 **STABLE — NOUVEAU FONCTIONNEMENT DES CAMPAGNES DÉPLOYÉ & HOMOLOGUÉ**
+* **Réalisations clés** :
+  1. **Destinations Multi-Villes & Dépôts d'Arrivée** :
+     - Modélisation relationnelle : `campaign_destinations` (ville, date d'arrivée prévue, date précédente) et `campaign_depots` (nom, commune, quartier, adresse, complément).
+     - RLS hermétique : lecture publique pour toute campagne active, insertion/mise à jour strictement réservée aux membres de l'entreprise propriétaire.
+  2. **Attribution & Snapshots Logistiques Immuables** :
+     - Enrichissement de `orders` avec `destination_id`, `depot_id`, `expected_arrival_date_snapshot`, `destination_city_snapshot`, `depot_name_snapshot`.
+     - Intégration dans la RPC transactionnelle `create_order_with_reservation` avec vérification d'appartenance du dépôt et capture immuable du snapshot complet.
+  3. **Report de Date d'Arrivée & Notifications Ciblées** :
+     - Procédure RPC `update_destination_arrival_date` permettant à la société de décaler la date d'arrivée pour une ville donnée.
+     - Mise à jour atomique du snapshot sur toutes les commandes actives (`pending`, `confirmed`, `preparing`, `ready`) de cette ville.
+     - Émission de notification ciblée `DATE_ARRIVEE_MODIFIEE` strictement circonscrite aux revendeurs ayant commandé sur cette ville (zéro fuite inter-villes).
+  4. **Fin Automatique de Campagne & Réactivation des Demandes** :
+     - Procédure RPC `check_and_close_expired_campaigns()` et neutralisation automatique des campagnes dont `end_date < CURRENT_DATE`.
+     - Blocage transactionnel de toute nouvelle commande dès la clôture.
+     - Réactivation automatique du bouton « Faire une demande » dans le flux revendeur sur la production récoltée dès la fin de campagne.
+  5. **Interfaces Utilisateur Responsive** :
+     - `CampaignFormModal` : création intuitive multi-villes et multi-dépôts (accordéons dynamiques, validation de dates).
+     - `OrderFormModal` : sélection guidée de la ville et du dépôt lors de la commande.
+     - `CompanyCampaignCard` : consultation des villes d'arrivée et modale de report de date d'arrivée.
+     - `ResellerOrderCard` & `ResellerOrderDetailView` : badge logistique et fiche détaillée d'arrivée et de retrait.
+     - `CompanyOrderDetailView` : affichage complet de la ville, date et coordonnées du dépôt choisi.
+     - `NotificationsView` : prise en charge complète du type `DATE_ARRIVEE_MODIFIEE` avec redirection sécurisée.
+  6. **Homologation Complète** :
+     - Suite SQL `supabase/tests/phase20_campaign_evolution_test.sql` exécutée et validée à 100% sur Supabase (8 étapes).
+     - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
+     - Build de production Next.js (`npm run build`) : 36/36 routes compilées avec succès.
 
 ---
 

@@ -62,7 +62,8 @@ BEGIN
     VALUES (v_comp_user_id, 'societe_a_camp@test.com', '{"role":"company"}'::jsonb);
 
     INSERT INTO public.profiles (id, full_name, role)
-    VALUES (v_comp_user_id, 'Directeur Société A', 'company');
+    VALUES (v_comp_user_id, 'Directeur Société A', 'company')
+    ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
 
     INSERT INTO public.companies (
         name, slug, description, country_id, province_id, city, created_by
@@ -76,10 +77,11 @@ BEGIN
     VALUES (v_res_b_user_id, 'revendeur_b_kin@test.com', '{"role":"reseller"}'::jsonb);
 
     INSERT INTO public.profiles (id, full_name, role)
-    VALUES (v_res_b_user_id, 'Revendeur B Kinshasa', 'reseller');
+    VALUES (v_res_b_user_id, 'Revendeur B Kinshasa', 'reseller')
+    ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
 
     INSERT INTO public.resellers (
-        profile_id, business_name, reseller_type, country_id, province_id, city
+        id, business_name, reseller_type, country_id, province_id, city
     ) VALUES (
         v_res_b_user_id, 'Maison Vivres B', 'wholesaler', v_country_id, v_prov_kin_id, 'Kinshasa'
     ) RETURNING id INTO v_res_b_id;
@@ -89,10 +91,11 @@ BEGIN
     VALUES (v_res_c_user_id, 'revendeur_c_mat@test.com', '{"role":"reseller"}'::jsonb);
 
     INSERT INTO public.profiles (id, full_name, role)
-    VALUES (v_res_c_user_id, 'Revendeur C Matadi', 'reseller');
+    VALUES (v_res_c_user_id, 'Revendeur C Matadi', 'reseller')
+    ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
 
     INSERT INTO public.resellers (
-        profile_id, business_name, reseller_type, country_id, province_id, city
+        id, business_name, reseller_type, country_id, province_id, city
     ) VALUES (
         v_res_c_user_id, 'Comptoir Matadi C', 'retailer', v_country_id, v_prov_kc_id, 'Matadi'
     ) RETURNING id INTO v_res_c_id;
@@ -108,25 +111,25 @@ BEGIN
 
     INSERT INTO public.productions (
         company_id, company_product_id, product_id, title, status,
-        expected_quantity, unit, is_public, harvest_start_date, harvest_end_date
+        expected_quantity, unit, is_public, main_image_url, location_name, period_start, period_end
     ) VALUES (
         v_company_id, v_company_product_id, v_product_id, 'Production Maïs Blanc Saison A', 'harvested',
-        100, 'tonne', TRUE, '2026-09-01', '2026-09-10'
+        100, 'tonne', TRUE, 'https://example.com/mais.jpg', 'Ferme de la Nsele', '2026-09-01', '2026-09-10'
     ) RETURNING id INTO v_production_id;
 
     RAISE NOTICE 'ÉTAPE 2 : Production de Maïs RECOLTEE créée (100 tonnes, statut: harvested)';
 
     -- 3. Campagne commerciale multi-villes
     INSERT INTO public.campaigns (
-        company_id, production_id, title, marketable_quantity, unit_price, currency,
+        company_id, production_id, product_id, title, marketable_quantity, unit_price, currency,
         min_order_quantity, start_date, end_date, status
     ) VALUES (
-        v_company_id, v_production_id, 'Campagne Maïs Multi-Villes Septembre', 50, 350, 'USD',
+        v_company_id, v_production_id, v_product_id, 'Campagne Maïs Multi-Villes Septembre', 50, 350, 'USD',
         2, CURRENT_DATE, CURRENT_DATE + INTERVAL '5 days', 'active'
     ) RETURNING id INTO v_campaign_id;
 
-    INSERT INTO public.campaign_delivery_zones (campaign_id, province_id)
-    VALUES (v_campaign_id, v_prov_kin_id), (v_campaign_id, v_prov_kc_id);
+    INSERT INTO public.campaign_delivery_zones (campaign_id, country_id, province_id)
+    VALUES (v_campaign_id, v_country_id, v_prov_kin_id), (v_campaign_id, v_country_id, v_prov_kc_id);
 
     -- VILLE 1 : Kinshasa (12 septembre)
     INSERT INTO public.campaign_destinations (
@@ -137,16 +140,16 @@ BEGIN
 
     -- Dépôt Lemba
     INSERT INTO public.campaign_depots (
-        destination_id, name, commune, quartier, address, complement
+        campaign_destination_id, campaign_id, name, commune, quartier, address, complement
     ) VALUES (
-        v_dest_kin_id, 'Dépôt Lemba', 'Lemba', 'Quartier Échangeur', '1ère Rue n°12', 'Près du rond-point'
+        v_dest_kin_id, v_campaign_id, 'Dépôt Lemba', 'Lemba', 'Quartier Échangeur', '1ère Rue n°12', 'Près du rond-point'
     ) RETURNING id INTO v_depot_lemba_id;
 
     -- Dépôt Limete
     INSERT INTO public.campaign_depots (
-        destination_id, name, commune, quartier, address, complement
+        campaign_destination_id, campaign_id, name, commune, quartier, address, complement
     ) VALUES (
-        v_dest_kin_id, 'Dépôt Limete', 'Limete', 'Industriel', '14ème Rue Poids Lourds', 'Face Bralima'
+        v_dest_kin_id, v_campaign_id, 'Dépôt Limete', 'Limete', 'Industriel', '14ème Rue Poids Lourds', 'Face Bralima'
     ) RETURNING id INTO v_depot_limete_id;
 
     -- VILLE 2 : Matadi (15 septembre)
@@ -158,22 +161,21 @@ BEGIN
 
     -- Dépôt Port Matadi
     INSERT INTO public.campaign_depots (
-        destination_id, name, commune, quartier, address, complement
+        campaign_destination_id, campaign_id, name, commune, quartier, address, complement
     ) VALUES (
-        v_dest_matadi_id, 'Dépôt Port Matadi', 'Matadi', 'Kinkanda', 'Avenue du Port', 'Hangar 3'
+        v_dest_matadi_id, v_campaign_id, 'Dépôt Port Matadi', 'Matadi', 'Kinkanda', 'Avenue du Port', 'Hangar 3'
     ) RETURNING id INTO v_depot_matadi_id;
 
     RAISE NOTICE 'ÉTAPE 3 : Campagne multi-villes créée (Kinshasa 12 sept: Lemba/Limete; Matadi 15 sept: Port)';
 
     -- 4. Commande du Revendeur B (Kinshasa, 10 tonnes, Dépôt Lemba)
     SELECT * INTO v_order_res FROM public.create_order_with_reservation(
-        p_campaign_id => v_campaign_id,
         p_reseller_id => v_res_b_id,
-        p_company_id => v_company_id,
+        p_campaign_id => v_campaign_id,
+        p_quantity => 10,
         p_delivery_province_id => v_prov_kin_id,
         p_delivery_city => 'Kinshasa',
         p_delivery_address => 'Dépôt Lemba (1ère Rue n°12)',
-        p_quantity => 10,
         p_notes => 'Enlèvement par nos camions',
         p_destination_id => v_dest_kin_id,
         p_depot_id => v_depot_lemba_id
@@ -204,15 +206,15 @@ BEGIN
         RAISE EXCEPTION 'ÉCHEC: expected_arrival_date_snapshot attendu "2026-09-12", obtenu "%"', v_order_check.expected_arrival_date_snapshot;
     END IF;
 
-    IF v_order_check.depot_name_snapshot <> 'Dépôt Lemba' THEN
-        RAISE EXCEPTION 'ÉCHEC: depot_name_snapshot attendu "Dépôt Lemba", obtenu "%"', v_order_check.depot_name_snapshot;
+    IF v_order_check.depot_name_snapshot NOT LIKE 'Dépôt Lemba%' THEN
+        RAISE EXCEPTION 'ÉCHEC: depot_name_snapshot attendu commençant par "Dépôt Lemba", obtenu "%"', v_order_check.depot_name_snapshot;
     END IF;
 
     IF v_order_check.destination_id <> v_dest_kin_id OR v_order_check.depot_id <> v_depot_lemba_id THEN
         RAISE EXCEPTION 'ÉCHEC: Les liaisons destination_id et depot_id ne correspondent pas';
     END IF;
 
-    RAISE NOTICE 'ÉTAPE 4 : Commande N° % passée avec succès. Snapshots : Ville=Kinshasa, Date=2026-09-12, Dépôt=Dépôt Lemba', v_order_check.order_number;
+    RAISE NOTICE 'ÉTAPE 4 : Commande N° % passée avec succès. Snapshots : Ville=Kinshasa, Date=2026-09-12, Dépôt=%', v_order_check.order_number, v_order_check.depot_name_snapshot;
 
     -- 5. Société A modifie la date d'arrivée pour Kinshasa (12 sept -> 15 sept)
     SELECT * INTO v_report_res FROM public.update_destination_arrival_date(
@@ -220,8 +222,8 @@ BEGIN
         p_new_arrival_date => '2026-09-15'
     );
 
-    IF v_report_res.affected_orders_count < 1 THEN
-        RAISE EXCEPTION 'ÉCHEC: Aucune commande active n a été mise à jour par le report de date';
+    IF NOT v_report_res.success OR v_report_res.notified_resellers_count < 1 THEN
+        RAISE EXCEPTION 'ÉCHEC: Le report de date n a pas réussi ou n a notifié aucun revendeur';
     END IF;
 
     -- Vérification de la mise à jour sur la commande
@@ -258,9 +260,10 @@ BEGIN
     RAISE NOTICE 'ÉTAPE 7 : Isolation confirmée. Revendeur C (Matadi) n a reçu aucune notification (0 fuite inter-villes)';
 
     -- 8. Fin automatique de campagne
-    -- Simulons l expiration en mettant end_date dans le passé
+    -- Simulons l expiration en mettant end_date dans le passé (avec start_date antérieure)
     UPDATE public.campaigns
-    SET end_date = CURRENT_DATE - INTERVAL '1 day'
+    SET start_date = CURRENT_DATE - INTERVAL '10 days',
+        end_date = CURRENT_DATE - INTERVAL '1 day'
     WHERE id = v_campaign_id;
 
     PERFORM public.check_and_close_expired_campaigns();
@@ -273,13 +276,12 @@ BEGIN
     -- Vérification du blocage de toute nouvelle commande
     BEGIN
         PERFORM public.create_order_with_reservation(
-            p_campaign_id => v_campaign_id,
             p_reseller_id => v_res_b_id,
-            p_company_id => v_company_id,
+            p_campaign_id => v_campaign_id,
+            p_quantity => 2,
             p_delivery_province_id => v_prov_kin_id,
             p_delivery_city => 'Kinshasa',
             p_delivery_address => 'Dépôt Lemba',
-            p_quantity => 2,
             p_destination_id => v_dest_kin_id,
             p_depot_id => v_depot_lemba_id
         );

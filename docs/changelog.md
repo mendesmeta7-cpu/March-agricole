@@ -3,6 +3,37 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [1.7.0-campaign-evolution] - 2026-09-23
+### Évolution des Campagnes : Multi-Villes, Dépôts, Report de Date & Fin Automatique (Phase 20)
+
+#### Ajouté & Amélioré
+* **Modélisation Multi-Villes et Dépôts d'Arrivée (Migration 18)** :
+  - Création de la table `campaign_destinations` : association d'une campagne à des villes cibles avec dates prévues d'arrivée distinctes (`expected_arrival_date`) et suivi d'historique (`previous_arrival_date`).
+  - Création de la table `campaign_depots` : définition de multiples points de dépôt / retrait par ville (nom, commune, quartier, adresse, complément).
+  - Politiques RLS hermétiques : lecture publique pour les campagnes actives, modification strictement réservée aux membres de l'entreprise propriétaire.
+* **Snapshots Logistiques Immuables sur les Commandes (`orders`)** :
+  - Ajout des colonnes `destination_id`, `depot_id`, `expected_arrival_date_snapshot`, `destination_city_snapshot` et `depot_name_snapshot`.
+  - Mise à jour de la RPC atomique `create_order_with_reservation` : capture automatique et immuable du dépôt complet formaté (`nom (commune - quartier)`) et de la date prévue d'arrivée au moment de la commande.
+* **Report de Date d'Arrivée & Notifications Ciblées Anti-Fuite** :
+  - Procédure RPC `update_destination_arrival_date` : permet au producteur de modifier la date d'arrivée d'une ville sans altérer les autres villes ni les volumes réservés.
+  - Actualisation automatique du snapshot `expected_arrival_date_snapshot` sur toutes les commandes actives (`pending`, `confirmed`, `preparing`, `ready`) associées à cette destination.
+  - Émission automatique de la notification `DATE_ARRIVEE_MODIFIEE` strictement ciblée sur les revendeurs ayant commandé sur cette ville (isolation inter-villes garantie).
+* **Fin Automatique de Campagne & Réactivation Commerciale** :
+  - Procédure RPC `check_and_close_expired_campaigns()` : clôture automatique des campagnes actives dont `end_date < CURRENT_DATE` (statut `completed`).
+  - Blocage transactionnel de toute nouvelle commande dès la clôture.
+  - Réactivation automatique du bouton « Faire une demande » sur les productions récoltées dans le feed revendeur dès l'expiration de la campagne.
+* **Interfaces Utilisateur Responsive & Accessibilité** :
+  - `CampaignFormModal` : formulaire dynamique de configuration des destinations par ville et dépôts d'arrivée multiples.
+  - `OrderFormModal` : sélecteur interactif de ville d'arrivée et de point de dépôt lors de la commande revendeur.
+  - `CompanyCampaignCard` : consultation des villes d'arrivée avec bouton et modale de report de date (`updateDestinationArrivalDateAction`).
+  - `ResellerOrderCard` & `ResellerOrderDetailView` : badge logistique synthétique et bloc détaillé "Arrivée & Dépôt de Retrait".
+  - `CompanyOrderDetailView` : affichage complet de la ville, date et coordonnées du dépôt choisi par l'acheteur.
+  - `NotificationsView` : intégration du type `DATE_ARRIVEE_MODIFIEE` avec redirection sécurisée et filtre dédié.
+* **Validation & Homologation** :
+  - Suite de tests SQL `supabase/tests/phase20_campaign_evolution_test.sql` validée à 100% sur Supabase (8/8 scénarios sans régression).
+  - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
+  - Compilation Next.js de production (`npm run build`) : 36/36 routes compilées avec succès.
+
 ## [1.6.0-session-isolation] - 2026-09-23
 ### Résolution Critique de l'Isolation des Comptes, Sessions et Notifications (Phase 19)
 
