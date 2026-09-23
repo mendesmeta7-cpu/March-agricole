@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { ResellerCampaignItem } from "@/lib/queries/campaigns";
 import { createOrderAction } from "@/lib/actions/orders";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   X,
   ShoppingBag,
@@ -15,6 +16,7 @@ import {
   CheckCircle2,
   ShieldCheck,
   Calendar,
+  TrendingUp,
 } from "lucide-react";
 
 interface OrderFormModalProps {
@@ -43,12 +45,22 @@ export default function OrderFormModal({
   const [deliveryAddress, setDeliveryAddress] = useState(defaultAddress);
   const [notes, setNotes] = useState("");
 
-  const hasDestinations = Boolean(campaign?.destinations && campaign.destinations.length > 0);
   const [selectedDestinationId, setSelectedDestinationId] = useState<string>("");
   const [selectedDepotId, setSelectedDepotId] = useState<string>("");
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Résolution de la destination correspondant strictement au territoire du revendeur
+  const matchingDestination = campaign?.destinations?.find(
+    (d) => d.province_id === resellerProvinceId
+  );
+
+  const isTerritoriallyEligible = Boolean(
+    campaign?.is_eligible ||
+    matchingDestination ||
+    (resellerProvinceId && campaign?.delivery_zones.some((z) => z.province_id === resellerProvinceId))
+  );
 
   // Initialisation à l'ouverture
   useEffect(() => {
@@ -57,7 +69,17 @@ export default function OrderFormModal({
       setNotes("");
       setErrorMessage(null);
 
-      if (campaign.destinations && campaign.destinations.length > 0) {
+      if (matchingDestination) {
+        setSelectedDestinationId(matchingDestination.id);
+        const firstDepot = matchingDestination.depots?.[0];
+        setSelectedDepotId(firstDepot?.id || "");
+        setDeliveryCity(matchingDestination.city_name);
+        setDeliveryAddress(
+          firstDepot
+            ? `${firstDepot.name} (${firstDepot.commune}, ${firstDepot.address})`
+            : defaultAddress
+        );
+      } else if (campaign.destinations && campaign.destinations.length > 0) {
         const firstDest = campaign.destinations[0];
         setSelectedDestinationId(firstDest.id);
         const firstDepot = firstDest.depots?.[0];
@@ -75,25 +97,12 @@ export default function OrderFormModal({
         setDeliveryAddress(defaultAddress);
       }
     }
-  }, [isOpen, campaign, defaultCity, defaultAddress]);
+  }, [isOpen, campaign, matchingDestination, defaultCity, defaultAddress]);
 
   if (!isOpen || !campaign) return null;
 
-  const currentDestination = campaign.destinations?.find((d) => d.id === selectedDestinationId);
+  const currentDestination = matchingDestination || campaign.destinations?.find((d) => d.id === selectedDestinationId);
   const currentDepot = currentDestination?.depots?.find((dp) => dp.id === selectedDepotId);
-
-  const handleDestinationChange = (destId: string) => {
-    setSelectedDestinationId(destId);
-    const dest = campaign.destinations?.find((d) => d.id === destId);
-    if (dest) {
-      setDeliveryCity(dest.city_name);
-      const firstDepot = dest.depots?.[0];
-      setSelectedDepotId(firstDepot?.id || "");
-      if (firstDepot) {
-        setDeliveryAddress(`${firstDepot.name} (${firstDepot.commune}, ${firstDepot.address})`);
-      }
-    }
-  };
 
   const handleDepotChange = (depotId: string) => {
     setSelectedDepotId(depotId);
@@ -108,20 +117,20 @@ export default function OrderFormModal({
   const numQty = typeof quantity === "number" ? quantity : 0;
   const totalAmount = numQty * campaign.unit_price;
 
-  // Province de livraison cible
-  const targetProvinceId =
-    currentDestination?.province_id ||
-    resellerProvinceId ||
-    campaign.delivery_zones[0]?.province_id;
   const targetProvinceName =
-    currentDestination?.provinces?.name ||
     resellerProvinceName ||
+    currentDestination?.provinces?.name ||
     campaign.delivery_zones[0]?.provinces?.name ||
     "Votre province";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    if (!isTerritoriallyEligible) {
+      setErrorMessage("Cette offre commerciale n'est pas disponible dans votre région de rattachement.");
+      return;
+    }
 
     if (typeof quantity !== "number" || quantity <= 0) {
       setErrorMessage("Veuillez saisir une quantité valide strictement supérieure à zéro.");
@@ -140,18 +149,8 @@ export default function OrderFormModal({
       return;
     }
 
-    if (hasDestinations && !selectedDestinationId) {
-      setErrorMessage("Veuillez sélectionner une ville d'arrivée pour cette commande.");
-      return;
-    }
-
-    if (hasDestinations && currentDestination?.depots?.length && !selectedDepotId) {
+    if (currentDestination && currentDestination.depots?.length && !selectedDepotId) {
       setErrorMessage("Veuillez sélectionner un point de dépôt d'arrivée.");
-      return;
-    }
-
-    if (!targetProvinceId) {
-      setErrorMessage("Province de livraison introuvable.");
       return;
     }
 
@@ -161,11 +160,11 @@ export default function OrderFormModal({
       const res = await createOrderAction({
         campaign_id: campaign.id,
         quantity,
-        delivery_province_id: targetProvinceId,
+        delivery_province_id: resellerProvinceId || currentDestination?.province_id || "",
         delivery_city: deliveryCity || currentDestination?.city_name || "",
         delivery_address: deliveryAddress,
         notes,
-        destination_id: selectedDestinationId || undefined,
+        destination_id: currentDestination?.id || undefined,
         depot_id: selectedDepotId || undefined,
       });
 
@@ -214,7 +213,29 @@ export default function OrderFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Message d'erreur */}
+          {/* Alerte si non éligible régionalement */}
+          {!isTerritoriallyEligible ? (
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 space-y-2 text-xs">
+              <div className="flex items-center gap-2 font-bold text-amber-950">
+                <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>Cette campagne n&apos;est pas disponible dans votre région ({targetProvinceName})</span>
+              </div>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Le producteur ne dessert pas actuellement votre région de rattachement pour cette offre commerciale. Vous pouvez toutefois formuler une demande d&apos;achat pour ce produit.
+              </p>
+              <div className="pt-1">
+                <Link
+                  href="/dashboard/reseller/demands"
+                  className="inline-flex items-center gap-1.5 font-bold text-earth-800 hover:text-earth-950 underline underline-offset-2"
+                >
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  Exprimer une demande sur cette denrée &rarr;
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Message d'erreur dynamique */}
           {errorMessage && (
             <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-rose-800 text-xs">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -241,7 +262,7 @@ export default function OrderFormModal({
               <div className="flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-forest-700" />
                 <span>
-                  Livraison : <strong>{targetProvinceName}</strong>
+                  Votre région : <strong>{targetProvinceName}</strong>
                 </span>
               </div>
             </div>
@@ -262,7 +283,8 @@ export default function OrderFormModal({
                 onChange={(e) => setQuantity(e.target.value === "" ? "" : Number(e.target.value))}
                 placeholder={`Minimum : ${minQty} ${campaign.unit}`}
                 required
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 focus:border-forest-500 outline-hidden font-semibold"
+                disabled={!isTerritoriallyEligible}
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 focus:border-forest-500 outline-hidden font-semibold disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
               <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-medium">
                 {campaign.unit}
@@ -291,75 +313,56 @@ export default function OrderFormModal({
             </div>
           </div>
 
-          {/* Informations de livraison et choix de destination */}
+          {/* Informations de livraison et destination verrouillée sur la région du revendeur */}
           <div className="space-y-3 pt-2">
             <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-forest-700" />
-              Lieu de réception & Point d&apos;arrivée
+              Destination &amp; Dépôt de Retrait pour votre Région
             </h3>
 
-            {hasDestinations ? (
+            {currentDestination ? (
               <div className="space-y-3 p-4 rounded-2xl bg-gray-50 border border-gray-200">
-                {/* 1. Choix de la ville d'arrivée */}
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-gray-800">
-                    Ville d&apos;arrivée souhaitée *
-                  </label>
-                  <select
-                    value={selectedDestinationId}
-                    onChange={(e) => handleDestinationChange(e.target.value)}
-                    required
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-300 bg-white text-gray-900 font-semibold focus:ring-2 focus:ring-forest-500 outline-hidden"
-                  >
-                    {campaign.destinations?.map((dest) => (
-                      <option key={dest.id} value={dest.id}>
-                        {dest.city_name} (Arrivée prévue le{" "}
-                        {new Date(dest.expected_arrival_date).toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                        )
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Date prévue d'arrivée mise en avant */}
-                {currentDestination && (
-                  <div className="p-3 rounded-xl bg-forest-50 border border-forest-200 flex items-center justify-between text-xs">
-                    <span className="text-forest-800 font-medium flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4 text-forest-700" />
-                      Date prévue d&apos;arrivée de la récolte :
+                {/* Destination assignée automatiquement (non modifiable vers une autre région) */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-white border border-gray-200 text-xs">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-gray-400 block">
+                      Destination assignée à votre territoire
                     </span>
-                    <span className="font-bold text-forest-950">
-                      {new Date(currentDestination.expected_arrival_date).toLocaleDateString(
-                        "fr-FR",
-                        {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        }
-                      )}
+                    <span className="font-bold text-gray-900 text-sm">
+                      {currentDestination.city_name} ({targetProvinceName})
                     </span>
                   </div>
-                )}
+                  <div className="text-right">
+                    <span className="text-[10px] text-forest-700 block font-medium">
+                      Date d&apos;arrivée prévue
+                    </span>
+                    <span className="font-bold text-forest-950 flex items-center gap-1 justify-end">
+                      <Calendar className="w-3.5 h-3.5 text-forest-700" />
+                      {new Date(currentDestination.expected_arrival_date).toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+                </div>
 
-                {/* 2. Choix du dépôt d'arrivée */}
+                {/* Choix du dépôt d'arrivée au sein de cette destination */}
                 <div className="space-y-1">
                   <label className="block text-xs font-bold text-gray-800">
-                    Point / Dépôt de livraison *
+                    Point / Dépôt de retrait ({currentDestination.city_name}) *
                   </label>
                   {(!currentDestination?.depots || currentDestination.depots.length === 0) ? (
                     <div className="p-2.5 rounded-xl bg-amber-50 text-amber-800 text-xs">
-                      Aucun dépôt spécifique répertorié. L&apos;enlèvement s&apos;effectuera au dépôt central de la ville.
+                      Aucun dépôt spécifique répertorié. L&apos;enlèvement s&apos;effectuera au dépôt central de la destination.
                     </div>
                   ) : (
                     <select
                       value={selectedDepotId}
                       onChange={(e) => handleDepotChange(e.target.value)}
                       required
-                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-300 bg-white text-gray-900 font-semibold focus:ring-2 focus:ring-forest-500 outline-hidden"
+                      disabled={!isTerritoriallyEligible}
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-300 bg-white text-gray-900 font-semibold focus:ring-2 focus:ring-forest-500 outline-hidden disabled:bg-gray-100"
                     >
                       {currentDestination.depots.map((dep) => (
                         <option key={dep.id} value={dep.id}>
@@ -398,18 +401,19 @@ export default function OrderFormModal({
                 )}
               </div>
             ) : (
-              /* Fallback pour anciennes campagnes sans structure destinations */
+              /* Fallback si ancienne campagne sans destination structurée */
               <div className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="block text-[11px] font-medium text-gray-700">
-                      Ville / Territoire
+                      Ville / Siège de livraison
                     </label>
                     <input
                       type="text"
                       value={deliveryCity}
                       onChange={(e) => setDeliveryCity(e.target.value)}
                       placeholder="Ex: Kinshasa, Matadi..."
+                      disabled={!isTerritoriallyEligible}
                       className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden"
                     />
                   </div>
@@ -436,6 +440,7 @@ export default function OrderFormModal({
                     value={deliveryAddress}
                     onChange={(e) => setDeliveryAddress(e.target.value)}
                     placeholder="Ex: Hangar N°4, Marché Central..."
+                    disabled={!isTerritoriallyEligible}
                     className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden"
                   />
                 </div>
@@ -451,6 +456,7 @@ export default function OrderFormModal({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Précisions de conditionnement, créneau horaire souhaité..."
+                disabled={!isTerritoriallyEligible}
                 className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden resize-none"
               />
             </div>
@@ -477,7 +483,7 @@ export default function OrderFormModal({
 
             <button
               type="submit"
-              disabled={submitting || availableQty <= 0}
+              disabled={submitting || availableQty <= 0 || !isTerritoriallyEligible}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-forest-700 text-white text-xs font-bold hover:bg-forest-800 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? (
@@ -485,6 +491,8 @@ export default function OrderFormModal({
                   <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   <span>Réservation en cours...</span>
                 </>
+              ) : !isTerritoriallyEligible ? (
+                <span>Non disponible dans votre région</span>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />

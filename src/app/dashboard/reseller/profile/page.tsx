@@ -2,26 +2,35 @@ import { createClient } from "@/lib/supabase/server";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
-import { Store, MapPin, Mail, Phone, ShieldCheck, User, ArrowLeft, Building2 } from "lucide-react";
+import ResellerProfileTerritoryCard from "@/components/reseller/ResellerProfileTerritoryCard";
+import { Store, Mail, Phone, ShieldCheck, User, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default async function ResellerProfilePage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // 1. Données du profil
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, phone, role, created_at")
-    .eq("id", user!.id)
-    .single();
+  // 1. Données du profil et de l'activité revendeur + liste des provinces
+  const [profileRes, resellerRes, provincesRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name, phone, role, created_at")
+      .eq("id", user!.id)
+      .single(),
+    supabase
+      .from("resellers")
+      .select("id, business_name, province_id, reseller_type, city, delivery_address, created_at, provinces(id, name, code), countries(name, code)")
+      .eq("id", user!.id)
+      .maybeSingle(),
+    supabase
+      .from("provinces")
+      .select("id, country_id, code, name")
+      .order("name"),
+  ]);
 
-  // 2. Données de l'activité revendeur
-  const { data: reseller } = await supabase
-    .from("resellers")
-    .select("id, business_name, reseller_type, city, delivery_address, created_at, provinces(name, code), countries(name, code)")
-    .eq("id", user!.id)
-    .maybeSingle();
+  const profile = profileRes.data;
+  const reseller = resellerRes.data;
+  const provinces = provincesRes.data || [];
 
   const resellerTypeLabels: Record<string, string> = {
     wholesaler: "Grossiste",
@@ -91,45 +100,16 @@ export default async function ResellerProfilePage() {
             </div>
           </Card>
 
-          {/* Territoire d'opération pivot */}
-          <Card padding="md">
-            <h2 className="text-base font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-earth-700" />
-              Territoire d&apos;Opération Pivot (Éligibilité aux Campagnes)
-            </h2>
-
-            <p className="text-xs text-gray-500 mb-4">
-              Ce territoire détermine automatiquement votre éligibilité à la commande sur les campagnes de vente publiées par les producteurs agricoles.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-              <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
-                <span className="text-xs text-gray-500 block uppercase font-medium">Pays</span>
-                <span className="font-bold text-gray-900 mt-0.5 block">
-                  {(reseller as any)?.countries?.name || "RDC"} ({(reseller as any)?.countries?.code || "COD"})
-                </span>
-              </div>
-              <div className="p-3 rounded-xl bg-earth-50 border border-earth-100">
-                <span className="text-xs text-earth-700 block uppercase font-medium">Province Clé</span>
-                <span className="font-bold text-earth-900 mt-0.5 block">
-                  {(reseller as any)?.provinces?.name || "Province"}
-                </span>
-              </div>
-              <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
-                <span className="text-xs text-gray-500 block uppercase font-medium">Ville / Siège</span>
-                <span className="font-semibold text-gray-900 mt-0.5 block">
-                  {reseller?.city || "Non spécifiée"}
-                </span>
-              </div>
-            </div>
-
-            {reseller?.delivery_address && (
-              <div className="mt-4 pt-3 border-t border-gray-100 text-sm">
-                <span className="text-xs text-gray-500 block uppercase font-medium">Adresse habituelle de livraison</span>
-                <span className="text-gray-800">{reseller.delivery_address}</span>
-              </div>
-            )}
-          </Card>
+          {/* Territoire d'opération pivot modifiable avec avertissement */}
+          <ResellerProfileTerritoryCard
+            provinces={provinces}
+            currentProvinceId={reseller?.province_id}
+            currentProvinceName={(reseller as any)?.provinces?.name}
+            currentCountryName={(reseller as any)?.countries?.name}
+            currentCountryCode={(reseller as any)?.countries?.code}
+            currentCity={reseller?.city || undefined}
+            currentAddress={reseller?.delivery_address || undefined}
+          />
         </div>
 
         {/* Colonne droite : Compte & Statut */}

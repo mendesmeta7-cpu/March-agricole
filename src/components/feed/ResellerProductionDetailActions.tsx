@@ -74,14 +74,25 @@ export default function ResellerProductionDetailActions({
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsOrderModalOpen(true)}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold rounded-xl bg-forest-800 text-white hover:bg-forest-900 active:scale-98 transition-all shadow-sm cursor-pointer"
-          >
-            <ShoppingCart className="w-4 h-4" />
-            Commander sur cette production
-          </button>
+          {activeCampaign.is_eligible ? (
+            <button
+              type="button"
+              onClick={() => setIsOrderModalOpen(true)}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold rounded-xl bg-forest-800 text-white hover:bg-forest-900 active:scale-98 transition-all shadow-sm cursor-pointer"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              Commander sur cette production
+            </button>
+          ) : (
+            <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl space-y-1.5">
+              <span className="font-bold block">
+                Non disponible dans votre région ({resellerInfo?.provinceName || "votre province"})
+              </span>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Cette offre commerciale dessert d&apos;autres destinations. Vous pouvez toutefois formuler une demande spécifique ci-dessous.
+              </p>
+            </div>
+          )}
 
           {canRequest && (
             <button
@@ -90,7 +101,7 @@ export default function ResellerProductionDetailActions({
               className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-forest-700 hover:text-forest-900 hover:bg-forest-50/50 rounded-lg transition-colors cursor-pointer"
             >
               <TrendingUp className="w-3.5 h-3.5" />
-              Ou formuler une demande spécifique
+              {activeCampaign.is_eligible ? "Ou formuler une demande spécifique" : "Formuler une demande sur cette denrée"}
             </button>
           )}
         </div>

@@ -3,7 +3,32 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [1.8.0-regional-eligibility] - 2026-09-23
+### Phase 21 — Éligibilité Régionale Stricte des Commandes Revendeurs
+
+#### Ajouté & Sécurisé
+* **Règle Métier Inviolable (Migration 19)** :
+  - Contrôle strict côté serveur dans la RPC `create_order_with_reservation` : la province du revendeur est lue depuis `public.resellers.province_id`, jamais depuis un paramètre client.
+  - Vérification bicouche dans `campaign_destinations` ET `campaign_delivery_zones` avant toute autorisation de commande.
+  - Verrouillage de la destination : si le revendeur spécifie une destination, sa province doit correspondre à la sienne. Résolution automatique sinon.
+  - Rejet immédiat avec `RAISE EXCEPTION 'Cette campagne n''est pas disponible dans votre région'` pour toute tentative hors territoire.
+* **Correction du Bug RPC `record not assigned yet` (Migration 20)** :
+  - Remplacement des accès directs `v_depot.id` / `v_destination.id` sur des RECORDs PL/pgSQL non assignés par des variables scalaires `v_final_destination_id UUID := NULL` et `v_final_depot_id UUID := NULL`.
+  - Alignement complet sur le schéma réel de la base de données : `order_items` (sans `production_id`), `stock_reservations` (sans `expires_at`, avec `production_id`), `notifications` (`user_id = companies.created_by`, + `related_entity_type`, `related_entity_id`, `action_url`).
+* **Corrections du Script de Test** :
+  - `auth.users` : ajout de `ON CONFLICT (id) DO NOTHING` sur les 4 insertions pour rendre la suite idempotente (ré-exécutable sans erreur de clé dupliquée).
+  - `productions` : ajout des colonnes `main_image_url` et `location_name` (NOT NULL dans le schéma réel).
+
+#### Validé
+* **10/10 scénarios SQL validés** : 3 campagnes (Kinshasa+Haut-Katanga / Kongo-Central+Kinshasa / Kongo-Central seul) × 3 revendeurs (A:Kinshasa, B:Kongo-Central, C:Haut-Katanga) + test de bypass malveillant (0 commande fantôme, 0 stock réservé).
+
+#### Fichiers modifiés
+* `supabase/migrations/20260923000019_enforce_reseller_regional_eligibility.sql`
+* `supabase/migrations/20260923000020_fix_create_order_unassigned_record.sql` *(nouveau)*
+* `supabase/tests/phase21_reseller_regional_eligibility_test.sql`
+
 ## [1.7.1-campaign-destinations-unification] - 2026-09-23
+
 ### Unification des Destinations & Suppression du Doublon dans le Formulaire de Campagne
 
 #### Modifié & Unifié

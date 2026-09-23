@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-09-23 — Phase 20 Terminée*
+*Dernière mise à jour : 2026-09-23 — Phase 21 Terminée*
 
 ---
 
@@ -28,6 +28,7 @@
 | **18** | **Stabilisation, Intégrité Historique & Cohérence Workflows** | 🟢 **TERMINÉ** | Snapshots immuables DB (`company_name_snapshot`, `campaign_title_snapshot`, `production_title_snapshot`, `product_name_snapshot`) avec triggers auto et LEFT JOINs anti-disparition, RLS revendeur étendu, blocage de suppression physique avec historique, route `/campaigns/new` opérationnelle (correction 404), bascule dynamique feed revendeur (`CAMPAGNE EN COURS` / `[ 🛒 Commander ]`), notifications d'expression de demandes et correction du broadcast, scan QR multi-format robuste (token, numéro, UUID), suite de tests validée et build 100% propre. |
 | **19** | **Isolation des Comptes & Sécurité des Sessions** | 🟢 **TERMINÉ** | Élimination totale du bug de redirection inter-comptes, propagation intégrale des cookies SSR sur les redirections middleware (`redirectWithCookies`), purge atomique des cookies `sb-*` et revalidation au logout, sanitisation hermétique de `getTargetUrl` dans `NotificationsView`, passerelles universelles déterministes `/dashboard` et `/dashboard/notifications`, verrouillage `dynamic = force-dynamic`, suite de 20 tests validée à 100%. |
 | **20** | **Évolution des Campagnes : Multi-Villes, Dépôts & Cycle de Vie** | 🟢 **TERMINÉ** | Destinations par ville (`campaign_destinations`), dépôts d'arrivée multiples (`campaign_depots`), report de date d'arrivée (`update_destination_arrival_date`) avec notifications ciblées `DATE_ARRIVEE_MODIFIEE`, fin automatique de campagne (`check_and_close_expired_campaigns`), snapshots d'arrivée/dépôt sur commandes, formulaires dynamiques UI et cards enrichies, suite de 8 tests SQL validée à 100%, build 36/36 routes certifié. |
+| **21** | **Éligibilité Régionale Stricte des Commandes Revendeurs** | 🟢 **TERMINÉ** | Règle métier inviolable : un revendeur ne peut commander que si sa province est desservie par la campagne. Contrôle côté serveur dans la RPC `create_order_with_reservation` (lecture depuis `public.resellers.province_id`). Migration 19 (logique) + Migration 20 (correctif schéma réel). 10/10 tests SQL validés : 3 campagnes × 3 revendeurs + test de contournement malveillant (0 commande fantôme). |
 
 ---
 
@@ -117,7 +118,27 @@
 
 ---
 
-## 3. FEUILLE DE ROUTE FUTURE (POST-V1 EXPÉRIMENTALE)
+## 3. BILAN DE LA PHASE 21 (ÉLIGIBILITÉ RÉGIONALE STRICTE DES COMMANDES)
+
+* **Date de validation finale** : 2026-09-23
+* **Statut du projet** : 🟢 **STABLE — RÈGLE D'ÉLIGIBILITÉ RÉGIONALE HOMOLOGUÉE**
+* **Réalisations clés** :
+  1. **Source de Vérité Inviolable** :
+     - La province du revendeur est lue depuis `public.resellers.province_id`, jamais depuis un paramètre client. Toute tentative de contournement est rejetée par `RAISE EXCEPTION`.
+  2. **Contrôle d'Éligibilité Bicouche** :
+     - Vérification croisée dans `campaign_destinations` ET `campaign_delivery_zones` pour garantir qu'un revendeur ne puisse commander que si sa province est explicitement desservie.
+  3. **Verrouillage Strict de la Destination** :
+     - Si une destination est spécifiée, sa province doit impérativement correspondre à celle du revendeur. Sinon, résolution automatique de la destination par la province du revendeur.
+  4. **Correction du Bug Schéma (`record not assigned yet`)** :
+     - Migration 20 : remplacement des accès `v_depot.id` / `v_destination.id` (RECORDs non assignés) par des variables scalaires `v_final_destination_id` / `v_final_depot_id` initialisées à NULL.
+     - Alignement sur le schéma réel : `order_items` (sans `production_id`), `stock_reservations` (sans `expires_at`, avec `production_id`), `notifications` (`user_id` = `companies.created_by`).
+  5. **Homologation Complète** :
+     - 10/10 scénarios SQL validés : Campagne 1 (Kinshasa + Haut-Katanga), Campagne 2 (Kongo-Central + Kinshasa), Campagne 3 (Kongo-Central seul) × 3 revendeurs + test de bypass malveillant (0 commande fantôme).
+     - Suite de test idempotente grâce à `ON CONFLICT DO NOTHING` sur `auth.users`.
+
+---
+
+## 4. FEUILLE DE ROUTE FUTURE (POST-V1 EXPÉRIMENTALE)
 
 Les fonctionnalités suivantes sont officiellement documentées pour les versions ultérieures (V2+) :
 1. **Paiement Mobile Money & pawaPay** : intégration transactionnelle des flux monétaires.

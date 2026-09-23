@@ -36,7 +36,7 @@ export async function createOrderAction(
     return { success: false, error: "Vous devez être connecté pour passer une commande." };
   }
 
-  // 1. Vérification du rôle revendeur
+  // 1. Vérification du rôle revendeur et récupération de la province authentifiée
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
@@ -50,6 +50,19 @@ export async function createOrderAction(
     };
   }
 
+  const { data: reseller } = await supabase
+    .from("resellers")
+    .select("id, province_id, city, delivery_address")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!reseller || !reseller.province_id) {
+    return {
+      success: false,
+      error: "Votre profil revendeur n'est rattaché à aucune province. Veuillez configurer votre territoire dans votre profil.",
+    };
+  }
+
   // 2. Validation des paramètres
   if (!input.campaign_id) {
     return { success: false, error: "Identifiant de campagne manquant." };
@@ -60,19 +73,15 @@ export async function createOrderAction(
     return { success: false, error: "La quantité commandée doit être strictement supérieure à zéro." };
   }
 
-  if (!input.delivery_province_id) {
-    return { success: false, error: "Veuillez spécifier la province de livraison." };
-  }
-
   // 3. Appel de la procédure stockée transactionnelle PostgreSQL
   try {
     const { data, error } = await supabase.rpc("create_order_with_reservation", {
       p_reseller_id: user.id,
       p_campaign_id: input.campaign_id,
       p_quantity: quantity,
-      p_delivery_province_id: input.delivery_province_id,
-      p_delivery_city: input.delivery_city?.trim() || null,
-      p_delivery_address: input.delivery_address?.trim() || null,
+      p_delivery_province_id: reseller.province_id,
+      p_delivery_city: input.delivery_city?.trim() || reseller.city || null,
+      p_delivery_address: input.delivery_address?.trim() || reseller.delivery_address || null,
       p_notes: input.notes?.trim() || null,
       p_destination_id: input.destination_id || null,
       p_depot_id: input.depot_id || null,
@@ -81,10 +90,12 @@ export async function createOrderAction(
     if (error) {
       console.error("Erreur RPC create_order_with_reservation:", error);
       let friendlyMessage = error.message;
-      if (friendlyMessage.includes("Stock disponible insuffisant")) {
+      if (friendlyMessage.includes("Cette campagne n'est pas disponible dans votre région") || friendlyMessage.includes("ne dessert pas la province")) {
+        friendlyMessage = "Cette campagne n'est pas disponible dans votre région.";
+      } else if (friendlyMessage.includes("Vous ne pouvez commander que pour la destination")) {
+        friendlyMessage = "Vous ne pouvez commander que pour la destination correspondant à votre région de rattachement.";
+      } else if (friendlyMessage.includes("Stock disponible insuffisant")) {
         friendlyMessage = "Stock disponible insuffisant pour cette quantité sur cette offre.";
-      } else if (friendlyMessage.includes("ne dessert pas la province")) {
-        friendlyMessage = "Cette campagne ne dessert pas votre province de livraison.";
       } else if (friendlyMessage.includes("période de commercialisation")) {
         friendlyMessage = "Cette offre n'est plus ou pas encore ouverte à la vente.";
       } else if (friendlyMessage.includes("seuil minimum")) {
