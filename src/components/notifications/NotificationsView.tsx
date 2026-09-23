@@ -15,6 +15,7 @@ import {
   Megaphone,
   ShoppingBag,
   ArrowRight,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -69,6 +70,8 @@ export default function NotificationsView({
         return <Megaphone className="w-5 h-5 text-amber-600" />;
       case "COMMANDE_CREEE":
         return <ShoppingBag className="w-5 h-5 text-blue-600" />;
+      case "DATE_ARRIVEE_MODIFIEE":
+        return <Calendar className="w-5 h-5 text-indigo-600" />;
       default:
         return <Bell className="w-5 h-5 text-gray-600" />;
     }
@@ -98,7 +101,10 @@ export default function NotificationsView({
         case "CAMPAGNE_OUVERTE":
           return "/dashboard/reseller/campaigns";
         case "COMMANDE_CREEE":
-          return "/dashboard/reseller/orders";
+        case "DATE_ARRIVEE_MODIFIEE":
+          return notif.related_entity_id
+            ? `/dashboard/reseller/orders/${notif.related_entity_id}`
+            : "/dashboard/reseller/orders";
         default:
           return "/dashboard/reseller";
       }
@@ -124,7 +130,10 @@ export default function NotificationsView({
         case "DEMANDE_REPONSE":
           return "/dashboard/company/demands";
         case "COMMANDE_CREEE":
-          return "/dashboard/company/orders";
+        case "DATE_ARRIVEE_MODIFIEE":
+          return notif.related_entity_id
+            ? `/dashboard/company/orders/${notif.related_entity_id}`
+            : "/dashboard/company/orders";
         default:
           return "/dashboard/company";
       }
@@ -149,6 +158,8 @@ export default function NotificationsView({
         return "Découvrir l'offre";
       case "COMMANDE_CREEE":
         return "Détails de la commande";
+      case "DATE_ARRIVEE_MODIFIEE":
+        return "Voir la commande ajustée";
       default:
         return "Consulter";
     }
@@ -235,6 +246,18 @@ export default function NotificationsView({
         >
           <ShoppingBag className="w-3.5 h-3.5" />
           Commandes
+        </button>
+
+        <button
+          onClick={() => setActiveFilter("DATE_ARRIVEE_MODIFIEE")}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeFilter === "DATE_ARRIVEE_MODIFIEE"
+              ? "bg-indigo-700 text-white shadow-xs"
+              : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+          }`}
+        >
+          <Calendar className="w-3.5 h-3.5" />
+          Arrivages & Dates
         </button>
       </div>
 

@@ -72,6 +72,38 @@ export async function createCampaignAction(
   const availabilityPeriod = (formData.get("availability_period") as string)?.trim() || null;
   const status = (formData.get("status") as string) || "draft";
   const provincesRaw = formData.getAll("province_ids") as string[];
+  const destinationsJson = formData.get("destinations_json") as string;
+
+  let parsedDestinations: Array<{
+    province_id: string;
+    city_name: string;
+    expected_arrival_date: string;
+    depots?: Array<{
+      name: string;
+      commune: string;
+      quartier?: string;
+      address: string;
+      complement?: string;
+    }>;
+  }> = [];
+
+  if (destinationsJson) {
+    try {
+      parsedDestinations = JSON.parse(destinationsJson);
+    } catch (e) {
+      console.warn("Erreur parsing destinations_json:", e);
+    }
+  }
+
+  // Si des destinations par ville sont fournies, déduire automatiquement les provinces
+  let provinceIds = Array.from(new Set(provincesRaw)).filter(Boolean);
+  if (parsedDestinations.length > 0) {
+    for (const d of parsedDestinations) {
+      if (d.province_id && !provinceIds.includes(d.province_id)) {
+        provinceIds.push(d.province_id);
+      }
+    }
+  }
 
   // 4. Validations métier
   if (!productionId) {
@@ -105,9 +137,8 @@ export async function createCampaignAction(
     return { success: false, error: "La date de fin ne peut être antérieure à la date de début." };
   }
 
-  const provinceIds = Array.from(new Set(provincesRaw)).filter(Boolean);
-  if (provinceIds.length === 0) {
-    return { success: false, error: "Veuillez sélectionner au moins une province desservie par cette offre." };
+  if (provinceIds.length === 0 && parsedDestinations.length === 0) {
+    return { success: false, error: "Veuillez configurer au moins une destination ou province desservie par cette offre." };
   }
 
   // 5. Contrôle strict de la production parente (appartenance + volume max autorisé + statut 'harvested')
@@ -188,12 +219,57 @@ export async function createCampaignAction(
     province_id: provId,
   }));
 
-  const { error: zonesErr } = await supabase
-    .from("campaign_delivery_zones")
-    .insert(zonesToInsert);
+  if (zonesToInsert.length > 0) {
+    const { error: zonesErr } = await supabase
+      .from("campaign_delivery_zones")
+      .insert(zonesToInsert);
 
-  if (zonesErr) {
-    console.error("Erreur insertion zones de chalandise:", zonesErr);
+    if (zonesErr) {
+      console.error("Erreur insertion zones de chalandise:", zonesErr);
+    }
+  }
+
+  // 8.b. Insertion des destinations par ville et de leurs dépôts associés
+  if (parsedDestinations.length > 0) {
+    for (const dest of parsedDestinations) {
+      if (!dest.city_name || !dest.expected_arrival_date || !dest.province_id) continue;
+
+      const { data: createdDest, error: destErr } = await supabase
+        .from("campaign_destinations")
+        .insert({
+          campaign_id: campaign.id,
+          province_id: dest.province_id,
+          city_name: dest.city_name.trim(),
+          expected_arrival_date: dest.expected_arrival_date,
+        })
+        .select("id")
+        .single();
+
+      if (destErr) {
+        console.error("Erreur insertion campaign_destinations:", destErr);
+        continue;
+      }
+
+      if (createdDest && dest.depots && dest.depots.length > 0) {
+        const depotsToInsert = dest.depots.map((depot) => ({
+          campaign_destination_id: createdDest.id,
+          campaign_id: campaign.id,
+          name: depot.name?.trim() || `Dépôt ${dest.city_name}`,
+          commune: depot.commune?.trim() || "Centre",
+          quartier: depot.quartier?.trim() || null,
+          address: depot.address?.trim() || "Adresse principale",
+          complement: depot.complement?.trim() || null,
+        }));
+
+        const { error: depotsErr } = await supabase
+          .from("campaign_depots")
+          .insert(depotsToInsert);
+
+        if (depotsErr) {
+          console.error("Erreur insertion campaign_depots:", depotsErr);
+        }
+      }
+    }
   }
 
   // 9. Si la campagne est immédiatement active, notifier les revendeurs
@@ -263,6 +339,37 @@ export async function updateCampaignAction(
   const endDate = (formData.get("end_date") as string) || null;
   const availabilityPeriod = (formData.get("availability_period") as string)?.trim() || null;
   const provincesRaw = formData.getAll("province_ids") as string[];
+  const destinationsJson = formData.get("destinations_json") as string;
+
+  let parsedDestinations: Array<{
+    province_id: string;
+    city_name: string;
+    expected_arrival_date: string;
+    depots?: Array<{
+      name: string;
+      commune: string;
+      quartier?: string;
+      address: string;
+      complement?: string;
+    }>;
+  }> = [];
+
+  if (destinationsJson) {
+    try {
+      parsedDestinations = JSON.parse(destinationsJson);
+    } catch (e) {
+      console.warn("Erreur parsing destinations_json dans update:", e);
+    }
+  }
+
+  let provinceIds = Array.from(new Set(provincesRaw)).filter(Boolean);
+  if (parsedDestinations.length > 0) {
+    for (const d of parsedDestinations) {
+      if (d.province_id && !provinceIds.includes(d.province_id)) {
+        provinceIds.push(d.province_id);
+      }
+    }
+  }
 
   if (!title || title.length < 3) {
     return { success: false, error: "Le titre doit comporter au moins 3 caractères." };
@@ -296,9 +403,8 @@ export async function updateCampaignAction(
     };
   }
 
-  const provinceIds = Array.from(new Set(provincesRaw)).filter(Boolean);
-  if (provinceIds.length === 0) {
-    return { success: false, error: "Au moins une province de livraison doit être sélectionnée." };
+  if (provinceIds.length === 0 && parsedDestinations.length === 0) {
+    return { success: false, error: "Au moins une province ou destination de livraison doit être sélectionnée." };
   }
 
   // 1. Mise à jour de la campagne
@@ -342,7 +448,48 @@ export async function updateCampaignAction(
       province_id: provId,
     }));
 
-    await supabase.from("campaign_delivery_zones").insert(zonesToInsert);
+    if (zonesToInsert.length > 0) {
+      await supabase.from("campaign_delivery_zones").insert(zonesToInsert);
+    }
+  }
+
+  // 3. Synchronisation des destinations par ville si fournies
+  if (parsedDestinations.length > 0) {
+    await supabase.from("campaign_destinations").delete().eq("campaign_id", campaignId);
+
+    for (const dest of parsedDestinations) {
+      if (!dest.city_name || !dest.expected_arrival_date || !dest.province_id) continue;
+
+      const { data: createdDest, error: destErr } = await supabase
+        .from("campaign_destinations")
+        .insert({
+          campaign_id: campaignId,
+          province_id: dest.province_id,
+          city_name: dest.city_name.trim(),
+          expected_arrival_date: dest.expected_arrival_date,
+        })
+        .select("id")
+        .single();
+
+      if (destErr) {
+        console.error("Erreur insertion destination update:", destErr);
+        continue;
+      }
+
+      if (createdDest && dest.depots && dest.depots.length > 0) {
+        const depotsToInsert = dest.depots.map((depot) => ({
+          campaign_destination_id: createdDest.id,
+          campaign_id: campaignId,
+          name: depot.name?.trim() || `Dépôt ${dest.city_name}`,
+          commune: depot.commune?.trim() || "Centre",
+          quartier: depot.quartier?.trim() || null,
+          address: depot.address?.trim() || "Adresse principale",
+          complement: depot.complement?.trim() || null,
+        }));
+
+        await supabase.from("campaign_depots").insert(depotsToInsert);
+      }
+    }
   }
 
   revalidatePath("/dashboard/company/campaigns");
@@ -425,4 +572,54 @@ export async function updateCampaignStatusAction(
     success: true,
     message: `Campagne commerciale ${statusLabels[newStatus] || newStatus} avec succès.`,
   };
+}
+
+/**
+ * Modifie la date d'arrivée prévue d'une ville sans altérer la campagne ni la commande,
+ * et notifie automatiquement tous les revendeurs ayant une commande sur cette destination.
+ */
+export async function updateDestinationArrivalDateAction(
+  destinationId: string,
+  newArrivalDate: string
+): Promise<CampaignActionResult> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Vous devez être authentifié pour modifier une date d'arrivée." };
+  }
+
+  if (!destinationId || !newArrivalDate) {
+    return { success: false, error: "Paramètres de modification de date manquants." };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("update_destination_arrival_date", {
+      p_destination_id: destinationId,
+      p_new_arrival_date: newArrivalDate,
+    });
+
+    if (error) {
+      console.error("Erreur RPC update_destination_arrival_date:", error);
+      return { success: false, error: error.message || "Erreur lors de la modification de la date." };
+    }
+
+    revalidatePath("/dashboard/company/campaigns");
+    revalidatePath("/dashboard/reseller/campaigns");
+    revalidatePath("/dashboard/company/orders");
+    revalidatePath("/dashboard/reseller/orders");
+    revalidatePath("/dashboard/reseller/notifications");
+    revalidatePath("/dashboard/company/notifications");
+
+    const result = data && data.length > 0 ? data[0] : null;
+    return {
+      success: true,
+      message: result?.message || "Date d'arrivée mise à jour et revendeurs notifiés avec succès.",
+    };
+  } catch (err: any) {
+    console.error("Exception updateDestinationArrivalDateAction:", err);
+    return { success: false, error: err.message || "Une erreur inattendue est survenue." };
+  }
 }

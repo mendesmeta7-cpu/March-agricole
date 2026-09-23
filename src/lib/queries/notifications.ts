@@ -7,7 +7,8 @@ export type NotificationType =
   | "CAMPAGNE_OUVERTE"
   | "COMMANDE_CREEE"
   | "DEMANDE_GENERALE_RECUE"
-  | "DEMANDE_PRODUCTION_RECUE";
+  | "DEMANDE_PRODUCTION_RECUE"
+  | "DATE_ARRIVEE_MODIFIEE";
 
 export interface NotificationItem {
   id: string;

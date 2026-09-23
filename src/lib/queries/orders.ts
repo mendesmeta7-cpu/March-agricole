@@ -57,6 +57,25 @@ export interface OrderDetail {
   company_name_snapshot?: string | null;
   campaign_title_snapshot?: string | null;
   production_title_snapshot?: string | null;
+  destination_id?: string | null;
+  depot_id?: string | null;
+  expected_arrival_date_snapshot?: string | null;
+  destination_city_snapshot?: string | null;
+  depot_name_snapshot?: string | null;
+  destination?: {
+    id: string;
+    city_name: string;
+    expected_arrival_date: string;
+    previous_arrival_date?: string | null;
+  } | null;
+  depot?: {
+    id: string;
+    name: string;
+    commune: string;
+    quartier?: string | null;
+    address: string;
+    complement?: string | null;
+  } | null;
   created_at: string;
   updated_at: string;
   company: {
@@ -138,6 +157,25 @@ export async function getResellerOrders(
       company_name_snapshot,
       campaign_title_snapshot,
       production_title_snapshot,
+      destination_id,
+      depot_id,
+      expected_arrival_date_snapshot,
+      destination_city_snapshot,
+      depot_name_snapshot,
+      destination:campaign_destinations (
+        id,
+        city_name,
+        expected_arrival_date,
+        previous_arrival_date
+      ),
+      depot:campaign_depots (
+        id,
+        name,
+        commune,
+        quartier,
+        address,
+        complement
+      ),
       created_at,
       updated_at,
       company:companies!inner (
@@ -251,6 +289,25 @@ export async function getResellerOrderById(
       company_name_snapshot,
       campaign_title_snapshot,
       production_title_snapshot,
+      destination_id,
+      depot_id,
+      expected_arrival_date_snapshot,
+      destination_city_snapshot,
+      depot_name_snapshot,
+      destination:campaign_destinations (
+        id,
+        city_name,
+        expected_arrival_date,
+        previous_arrival_date
+      ),
+      depot:campaign_depots (
+        id,
+        name,
+        commune,
+        quartier,
+        address,
+        complement
+      ),
       created_at,
       updated_at,
       company:companies!inner (
@@ -359,6 +416,25 @@ export async function getCompanyOrders(
       company_name_snapshot,
       campaign_title_snapshot,
       production_title_snapshot,
+      destination_id,
+      depot_id,
+      expected_arrival_date_snapshot,
+      destination_city_snapshot,
+      depot_name_snapshot,
+      destination:campaign_destinations (
+        id,
+        city_name,
+        expected_arrival_date,
+        previous_arrival_date
+      ),
+      depot:campaign_depots (
+        id,
+        name,
+        commune,
+        quartier,
+        address,
+        complement
+      ),
       created_at,
       updated_at,
       company:companies!inner (
@@ -476,6 +552,25 @@ export async function getCompanyOrderById(
       company_name_snapshot,
       campaign_title_snapshot,
       production_title_snapshot,
+      destination_id,
+      depot_id,
+      expected_arrival_date_snapshot,
+      destination_city_snapshot,
+      depot_name_snapshot,
+      destination:campaign_destinations (
+        id,
+        city_name,
+        expected_arrival_date,
+        previous_arrival_date
+      ),
+      depot:campaign_depots (
+        id,
+        name,
+        commune,
+        quartier,
+        address,
+        complement
+      ),
       created_at,
       updated_at,
       company:companies!inner (
@@ -655,6 +750,9 @@ function formatOrderRecord(item: any): OrderDetail {
         } : null),
   };
 
+  const rawDest = Array.isArray(item.destination) ? item.destination[0] : item.destination;
+  const rawDepot = Array.isArray(item.depot) ? item.depot[0] : item.depot;
+
   return {
     id: item.id,
     order_number: item.order_number,
@@ -666,8 +764,15 @@ function formatOrderRecord(item: any): OrderDetail {
     total_amount: Number(item.total_amount),
     currency: item.currency,
     delivery_province_id: item.delivery_province_id,
-    delivery_city: item.delivery_city,
+    delivery_city: item.destination_city_snapshot || item.delivery_city,
     delivery_address: item.delivery_address,
+    destination_id: item.destination_id || null,
+    depot_id: item.depot_id || null,
+    expected_arrival_date_snapshot: item.expected_arrival_date_snapshot || rawDest?.expected_arrival_date || null,
+    destination_city_snapshot: item.destination_city_snapshot || rawDest?.city_name || item.delivery_city || null,
+    depot_name_snapshot: item.depot_name_snapshot || (rawDepot ? `${rawDepot.name} (${rawDepot.commune})` : null),
+    destination: rawDest || null,
+    depot: rawDepot || null,
     status: item.status,
     notes: item.notes,
     qr_code_token: item.qr_code_token || "",

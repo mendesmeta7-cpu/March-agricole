@@ -11,6 +11,8 @@ export interface CreateOrderInput {
   delivery_city?: string;
   delivery_address?: string;
   notes?: string;
+  destination_id?: string;
+  depot_id?: string;
 }
 
 export interface ActionResult<T = any> {
@@ -72,6 +74,8 @@ export async function createOrderAction(
       p_delivery_city: input.delivery_city?.trim() || null,
       p_delivery_address: input.delivery_address?.trim() || null,
       p_notes: input.notes?.trim() || null,
+      p_destination_id: input.destination_id || null,
+      p_depot_id: input.depot_id || null,
     });
 
     if (error) {

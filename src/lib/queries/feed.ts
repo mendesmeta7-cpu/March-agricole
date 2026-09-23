@@ -121,6 +121,7 @@ export async function getPublicFeedProductions(
         unit_price,
         currency,
         min_order_quantity,
+        end_date,
         status
       )
     `, { count: "exact" })
@@ -165,6 +166,8 @@ export async function getPublicFeedProductions(
     };
   }
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
   const items: FeedProductionItem[] = (data || []).map((item: any) => {
     const rawCompany = Array.isArray(item.company) ? item.company[0] : item.company;
     const company = {
@@ -174,7 +177,7 @@ export async function getPublicFeedProductions(
     };
 
     const rawCampaigns = Array.isArray(item.campaigns) ? item.campaigns : (item.campaigns ? [item.campaigns] : []);
-    const activeCampaign = rawCampaigns.find((c: any) => c.status === "active") || null;
+    const activeCampaign = rawCampaigns.find((c: any) => c.status === "active" && (!c.end_date || c.end_date >= todayStr)) || null;
 
     return {
       ...item,
@@ -254,6 +257,7 @@ export async function getPublicProductionDetail(
         unit_price,
         currency,
         min_order_quantity,
+        end_date,
         status
       )
     `)
@@ -275,8 +279,9 @@ export async function getPublicProductionDetail(
     countries: Array.isArray(rawCompany?.countries) ? rawCompany.countries[0] : rawCompany?.countries,
   };
 
+  const todayStr = new Date().toISOString().split("T")[0];
   const rawCampaigns = Array.isArray(rawItem.campaigns) ? rawItem.campaigns : (rawItem.campaigns ? [rawItem.campaigns] : []);
-  const activeCampaign = rawCampaigns.find((c: any) => c.status === "active") || null;
+  const activeCampaign = rawCampaigns.find((c: any) => c.status === "active" && (!c.end_date || c.end_date >= todayStr)) || null;
 
   return {
     ...rawItem,

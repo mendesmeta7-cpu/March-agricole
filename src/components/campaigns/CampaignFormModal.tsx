@@ -19,7 +19,27 @@ import {
   AlertCircle,
   CheckCircle2,
   Info,
+  Plus,
+  Trash2,
+  Building,
 } from "lucide-react";
+
+export interface FormDepot {
+  id?: string;
+  name: string;
+  commune: string;
+  quartier: string;
+  address: string;
+  complement: string;
+}
+
+export interface FormDestination {
+  id?: string;
+  province_id: string;
+  city_name: string;
+  expected_arrival_date: string;
+  depots: FormDepot[];
+}
 
 interface CampaignFormModalProps {
   isOpen: boolean;
@@ -53,6 +73,7 @@ export default function CampaignFormModal({
   const [endDate, setEndDate] = useState("");
   const [availabilityPeriod, setAvailabilityPeriod] = useState("");
   const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
+  const [destinations, setDestinations] = useState<FormDestination[]>([]);
   const [status, setStatus] = useState<"draft" | "active">("draft");
 
   const [isPending, startTransition] = useTransition();
@@ -73,6 +94,27 @@ export default function CampaignFormModal({
       setAvailabilityPeriod(campaignToEdit.availability_period || "");
       setSelectedProvinces(campaignToEdit.delivery_zones.map((z) => z.province_id));
       setStatus(campaignToEdit.status === "active" ? "active" : "draft");
+
+      if (campaignToEdit.destinations && campaignToEdit.destinations.length > 0) {
+        setDestinations(
+          campaignToEdit.destinations.map((d) => ({
+            id: d.id,
+            province_id: d.province_id,
+            city_name: d.city_name,
+            expected_arrival_date: d.expected_arrival_date,
+            depots: (d.depots || []).map((dep) => ({
+              id: dep.id,
+              name: dep.name,
+              commune: dep.commune,
+              quartier: dep.quartier || "",
+              address: dep.address,
+              complement: dep.complement || "",
+            })),
+          }))
+        );
+      } else {
+        setDestinations([]);
+      }
     } else {
       // Création
       const initialProdId =
@@ -92,10 +134,81 @@ export default function CampaignFormModal({
       setEndDate("");
       setAvailabilityPeriod("");
       setSelectedProvinces([]);
+      setDestinations([]);
       setStatus("draft");
     }
     setErrorMessage(null);
   }, [campaignToEdit, eligibleProductions, isOpen, defaultProductionId]);
+
+  const handleAddDestination = () => {
+    const defaultProvId = provinces[0]?.id || "";
+    setDestinations((prev) => [
+      ...prev,
+      {
+        province_id: defaultProvId,
+        city_name: "",
+        expected_arrival_date: startDate || new Date().toISOString().split("T")[0],
+        depots: [],
+      },
+    ]);
+  };
+
+  const handleRemoveDestination = (index: number) => {
+    setDestinations((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateDestination = (index: number, field: keyof FormDestination, value: any) => {
+    setDestinations((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
+  const handleAddDepot = (destIndex: number) => {
+    setDestinations((prev) => {
+      const next = [...prev];
+      const dest = next[destIndex];
+      const depots = dest.depots || [];
+      next[destIndex] = {
+        ...dest,
+        depots: [
+          ...depots,
+          {
+            name: `Dépôt ${dest.city_name || ""}`.trim(),
+            commune: "",
+            quartier: "",
+            address: "",
+            complement: "",
+          },
+        ],
+      };
+      return next;
+    });
+  };
+
+  const handleRemoveDepot = (destIndex: number, depotIndex: number) => {
+    setDestinations((prev) => {
+      const next = [...prev];
+      const dest = next[destIndex];
+      next[destIndex] = {
+        ...dest,
+        depots: dest.depots.filter((_, i) => i !== depotIndex),
+      };
+      return next;
+    });
+  };
+
+  const handleUpdateDepot = (destIndex: number, depotIndex: number, field: keyof FormDepot, value: string) => {
+    setDestinations((prev) => {
+      const next = [...prev];
+      const dest = next[destIndex];
+      const depots = [...dest.depots];
+      depots[depotIndex] = { ...depots[depotIndex], [field]: value };
+      next[destIndex] = { ...dest, depots };
+      return next;
+    });
+  };
 
   if (!isOpen) return null;
 
@@ -148,8 +261,43 @@ export default function CampaignFormModal({
       return;
     }
 
-    if (selectedProvinces.length === 0) {
-      setErrorMessage("Veuillez sélectionner au moins une province de livraison.");
+    // Validation des destinations et dépôts
+    if (destinations.length > 0) {
+      for (let i = 0; i < destinations.length; i++) {
+        const dest = destinations[i];
+        if (!dest.city_name.trim()) {
+          setErrorMessage(`Veuillez renseigner le nom de la ville pour la destination #${i + 1}.`);
+          return;
+        }
+        if (!dest.expected_arrival_date) {
+          setErrorMessage(`Veuillez renseigner la date prévue d'arrivée pour la ville ${dest.city_name}.`);
+          return;
+        }
+        if (!dest.depots || dest.depots.length === 0) {
+          setErrorMessage(`Veuillez ajouter au moins un point de dépôt pour la ville ${dest.city_name}.`);
+          return;
+        }
+        for (let j = 0; j < dest.depots.length; j++) {
+          const dep = dest.depots[j];
+          if (!dep.commune.trim()) {
+            setErrorMessage(`Veuillez renseigner la commune pour le dépôt #${j + 1} à ${dest.city_name}.`);
+            return;
+          }
+          if (!dep.address.trim()) {
+            setErrorMessage(`Veuillez renseigner la rue ou adresse pour le dépôt #${j + 1} à ${dest.city_name}.`);
+            return;
+          }
+        }
+      }
+    }
+
+    const effectiveProvinces = new Set([...selectedProvinces]);
+    destinations.forEach((d) => {
+      if (d.province_id) effectiveProvinces.add(d.province_id);
+    });
+
+    if (effectiveProvinces.size === 0) {
+      setErrorMessage("Veuillez sélectionner au moins une province de livraison ou configurer une ville d'arrivée.");
       return;
     }
 
@@ -168,9 +316,13 @@ export default function CampaignFormModal({
         if (availabilityPeriod) formData.append("availability_period", availabilityPeriod);
         formData.append("status", status);
 
-        selectedProvinces.forEach((pId) => {
+        Array.from(effectiveProvinces).forEach((pId) => {
           formData.append("province_ids", pId);
         });
+
+        if (destinations.length > 0) {
+          formData.append("destinations_json", JSON.stringify(destinations));
+        }
 
         const res = isEditing
           ? await updateCampaignAction(campaignToEdit.id, formData)
@@ -351,7 +503,7 @@ export default function CampaignFormModal({
 
             <div className="space-y-1.5">
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
-                Date de Clôture (Optionnelle)
+                Date de Clôture (Fin Commerciale)
               </label>
               <input
                 type="date"
@@ -360,6 +512,9 @@ export default function CampaignFormModal({
                 onChange={(e) => setEndDate(e.target.value)}
                 className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden"
               />
+              <span className="text-[11px] text-gray-500 block">
+                À cette date, la campagne sera automatiquement clôturée et les demandes réactivées.
+              </span>
             </div>
           </div>
 
@@ -392,15 +547,243 @@ export default function CampaignFormModal({
             </div>
           </div>
 
-          {/* 5. Territoires desservis (campaign_delivery_zones) */}
+          {/* SECTION SPÉCIFIQUE : Villes d'Arrivée & Dépôts de Retrait (Nouveau fonctionnement) */}
+          <div className="space-y-4 pt-3 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
+                  <Building className="w-4 h-4 text-forest-700" />
+                  Arrivée de la Production par Ville & Dépôts
+                </label>
+                <p className="text-[11px] text-gray-500">
+                  Définissez chaque ville desservie avec sa date d&apos;arrivée prévue et ses points de dépôt spécifiques.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddDestination}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-forest-50 hover:bg-forest-100 text-forest-800 border border-forest-200 text-xs font-bold transition-colors w-fit"
+              >
+                <Plus className="w-3.5 h-3.5 text-forest-700" />
+                Ajouter une ville
+              </button>
+            </div>
+
+            {destinations.length === 0 ? (
+              <div className="p-4 rounded-2xl bg-gray-50 border border-dashed border-gray-300 text-center space-y-2">
+                <p className="text-xs text-gray-500">
+                  Aucune ville d&apos;arrivée configurée pour l&apos;instant.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleAddDestination}
+                  className="text-xs text-forest-700 font-semibold hover:underline inline-flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" /> Configurer une ville et ses dépôts
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {destinations.map((dest, destIdx) => (
+                  <div
+                    key={destIdx}
+                    className="p-4 rounded-2xl bg-gray-50/70 border border-gray-200 space-y-3.5 transition-all shadow-2xs"
+                  >
+                    {/* En-tête de la ville */}
+                    <div className="flex items-center justify-between gap-3 pb-2 border-b border-gray-200/80">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-lg bg-forest-700 text-white flex items-center justify-center font-bold text-xs">
+                          {destIdx + 1}
+                        </span>
+                        <span className="font-bold text-gray-900 text-xs uppercase tracking-wide">
+                          Ville d&apos;arrivée #{destIdx + 1}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDestination(destIdx)}
+                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
+                        title="Supprimer cette ville"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Retirer la ville</span>
+                      </button>
+                    </div>
+
+                    {/* Champs Ville, Province et Date Prévue */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-700">
+                          Nom de la Ville *
+                        </label>
+                        <input
+                          type="text"
+                          value={dest.city_name}
+                          onChange={(e) => handleUpdateDestination(destIdx, "city_name", e.target.value)}
+                          placeholder="Ex: Kinshasa, Matadi..."
+                          required
+                          className="w-full px-3 py-1.5 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-hidden bg-white"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-700">
+                          Province de Rattachement *
+                        </label>
+                        <select
+                          value={dest.province_id}
+                          onChange={(e) => handleUpdateDestination(destIdx, "province_id", e.target.value)}
+                          required
+                          className="w-full px-3 py-1.5 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-hidden bg-white"
+                        >
+                          {provinces.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-700">
+                          Date Prévue d&apos;Arrivée *
+                        </label>
+                        <input
+                          type="date"
+                          value={dest.expected_arrival_date}
+                          onChange={(e) => handleUpdateDestination(destIdx, "expected_arrival_date", e.target.value)}
+                          required
+                          className="w-full px-3 py-1.5 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-hidden bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Dépôts d'arrivée dans cette ville */}
+                    <div className="space-y-2 pt-2 border-t border-gray-200/60">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-700">
+                          Points / Dépôts d&apos;arrivée ({dest.depots?.length || 0}) *
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleAddDepot(destIdx)}
+                          className="text-xs text-forest-700 hover:text-forest-900 font-semibold inline-flex items-center gap-1"
+                        >
+                          <Plus className="w-3 h-3" /> Ajouter un dépôt
+                        </button>
+                      </div>
+
+                      {(!dest.depots || dest.depots.length === 0) ? (
+                        <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-800 text-[11px]">
+                          Veuillez ajouter au moins un point de livraison ou dépôt pour {dest.city_name || "cette ville"}.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {dest.depots.map((dep, depIdx) => (
+                            <div
+                              key={depIdx}
+                              className="p-3 rounded-xl bg-white border border-gray-200 space-y-2 text-xs"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-gray-800 text-xs">
+                                  Dépôt #{depIdx + 1}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveDepot(destIdx, depIdx)}
+                                  className="text-rose-500 hover:text-rose-700 p-1 text-[11px] font-medium inline-flex items-center gap-1"
+                                >
+                                  <Trash2 className="w-3 h-3" /> Supprimer
+                                </button>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div>
+                                  <label className="block text-[10px] uppercase font-bold text-gray-500 mb-0.5">
+                                    Nom du Dépôt
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={dep.name}
+                                    onChange={(e) => handleUpdateDepot(destIdx, depIdx, "name", e.target.value)}
+                                    placeholder="Ex: Dépôt Central Lemba"
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] uppercase font-bold text-gray-500 mb-0.5">
+                                    Commune *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={dep.commune}
+                                    onChange={(e) => handleUpdateDepot(destIdx, depIdx, "commune", e.target.value)}
+                                    placeholder="Ex: Lemba, Limete..."
+                                    required
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <div>
+                                  <label className="block text-[10px] uppercase font-bold text-gray-500 mb-0.5">
+                                    Quartier
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={dep.quartier}
+                                    onChange={(e) => handleUpdateDepot(destIdx, depIdx, "quartier", e.target.value)}
+                                    placeholder="Ex: Quartier 1"
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] uppercase font-bold text-gray-500 mb-0.5">
+                                    Rue / Avenue / Marché *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={dep.address}
+                                    onChange={(e) => handleUpdateDepot(destIdx, depIdx, "address", e.target.value)}
+                                    placeholder="Ex: 1ère Rue, Marché central"
+                                    required
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] uppercase font-bold text-gray-500 mb-0.5">
+                                    Repère / Complément
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={dep.complement}
+                                    onChange={(e) => handleUpdateDepot(destIdx, depIdx, "complement", e.target.value)}
+                                    placeholder="Ex: En face de la station"
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 5. Territoires desservis complémentaires (campaign_delivery_zones) */}
           <div className="space-y-3 pt-2 border-t border-gray-100">
             <div className="flex items-center justify-between">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-800">
-                  Territoires Desservis (Zones de Livraison) *
+                  Provinces Éligibles de Livraison
                 </label>
                 <p className="text-[11px] text-gray-500">
-                  Seuls les revendeurs situés dans ces provinces pourront commander cette offre.
+                  Les provinces de vos villes d&apos;arrivée sont ajoutées d&apos;office. Vous pouvez en cocher d&apos;autres si vous livrez toute la province.
                 </p>
               </div>
 

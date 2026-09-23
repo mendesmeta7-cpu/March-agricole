@@ -43,6 +43,10 @@ export default function OrderFormModal({
   const [deliveryAddress, setDeliveryAddress] = useState(defaultAddress);
   const [notes, setNotes] = useState("");
 
+  const hasDestinations = Boolean(campaign?.destinations && campaign.destinations.length > 0);
+  const [selectedDestinationId, setSelectedDestinationId] = useState<string>("");
+  const [selectedDepotId, setSelectedDepotId] = useState<string>("");
+
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -50,14 +54,54 @@ export default function OrderFormModal({
   useEffect(() => {
     if (isOpen && campaign) {
       setQuantity(campaign.min_order_quantity || 1);
-      setDeliveryCity(defaultCity);
-      setDeliveryAddress(defaultAddress);
       setNotes("");
       setErrorMessage(null);
+
+      if (campaign.destinations && campaign.destinations.length > 0) {
+        const firstDest = campaign.destinations[0];
+        setSelectedDestinationId(firstDest.id);
+        const firstDepot = firstDest.depots?.[0];
+        setSelectedDepotId(firstDepot?.id || "");
+        setDeliveryCity(firstDest.city_name);
+        setDeliveryAddress(
+          firstDepot
+            ? `${firstDepot.name} (${firstDepot.commune}, ${firstDepot.address})`
+            : defaultAddress
+        );
+      } else {
+        setSelectedDestinationId("");
+        setSelectedDepotId("");
+        setDeliveryCity(defaultCity);
+        setDeliveryAddress(defaultAddress);
+      }
     }
   }, [isOpen, campaign, defaultCity, defaultAddress]);
 
   if (!isOpen || !campaign) return null;
+
+  const currentDestination = campaign.destinations?.find((d) => d.id === selectedDestinationId);
+  const currentDepot = currentDestination?.depots?.find((dp) => dp.id === selectedDepotId);
+
+  const handleDestinationChange = (destId: string) => {
+    setSelectedDestinationId(destId);
+    const dest = campaign.destinations?.find((d) => d.id === destId);
+    if (dest) {
+      setDeliveryCity(dest.city_name);
+      const firstDepot = dest.depots?.[0];
+      setSelectedDepotId(firstDepot?.id || "");
+      if (firstDepot) {
+        setDeliveryAddress(`${firstDepot.name} (${firstDepot.commune}, ${firstDepot.address})`);
+      }
+    }
+  };
+
+  const handleDepotChange = (depotId: string) => {
+    setSelectedDepotId(depotId);
+    const dep = currentDestination?.depots?.find((dp) => dp.id === depotId);
+    if (dep) {
+      setDeliveryAddress(`${dep.name} (${dep.commune}, ${dep.address})`);
+    }
+  };
 
   const minQty = campaign.min_order_quantity || 1;
   const availableQty = campaign.available_quantity ?? campaign.marketable_quantity;
@@ -65,9 +109,15 @@ export default function OrderFormModal({
   const totalAmount = numQty * campaign.unit_price;
 
   // Province de livraison cible
-  const targetProvinceId = resellerProvinceId || campaign.delivery_zones[0]?.province_id;
+  const targetProvinceId =
+    currentDestination?.province_id ||
+    resellerProvinceId ||
+    campaign.delivery_zones[0]?.province_id;
   const targetProvinceName =
-    resellerProvinceName || campaign.delivery_zones[0]?.provinces?.name || "Votre province";
+    currentDestination?.provinces?.name ||
+    resellerProvinceName ||
+    campaign.delivery_zones[0]?.provinces?.name ||
+    "Votre province";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +140,16 @@ export default function OrderFormModal({
       return;
     }
 
+    if (hasDestinations && !selectedDestinationId) {
+      setErrorMessage("Veuillez sélectionner une ville d'arrivée pour cette commande.");
+      return;
+    }
+
+    if (hasDestinations && currentDestination?.depots?.length && !selectedDepotId) {
+      setErrorMessage("Veuillez sélectionner un point de dépôt d'arrivée.");
+      return;
+    }
+
     if (!targetProvinceId) {
       setErrorMessage("Province de livraison introuvable.");
       return;
@@ -102,9 +162,11 @@ export default function OrderFormModal({
         campaign_id: campaign.id,
         quantity,
         delivery_province_id: targetProvinceId,
-        delivery_city: deliveryCity,
+        delivery_city: deliveryCity || currentDestination?.city_name || "",
         delivery_address: deliveryAddress,
         notes,
+        destination_id: selectedDestinationId || undefined,
+        depot_id: selectedDepotId || undefined,
       });
 
       if (!res.success) {
@@ -229,52 +291,156 @@ export default function OrderFormModal({
             </div>
           </div>
 
-          {/* Informations de livraison */}
+          {/* Informations de livraison et choix de destination */}
           <div className="space-y-3 pt-2">
             <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-forest-700" />
-              Lieu de réception & Livraison
+              Lieu de réception & Point d&apos;arrivée
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-medium text-gray-700">
-                  Ville / Territoire
-                </label>
-                <input
-                  type="text"
-                  value={deliveryCity}
-                  onChange={(e) => setDeliveryCity(e.target.value)}
-                  placeholder="Ex: Kinshasa, Matadi..."
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden"
-                />
-              </div>
+            {hasDestinations ? (
+              <div className="space-y-3 p-4 rounded-2xl bg-gray-50 border border-gray-200">
+                {/* 1. Choix de la ville d'arrivée */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-gray-800">
+                    Ville d&apos;arrivée souhaitée *
+                  </label>
+                  <select
+                    value={selectedDestinationId}
+                    onChange={(e) => handleDestinationChange(e.target.value)}
+                    required
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-300 bg-white text-gray-900 font-semibold focus:ring-2 focus:ring-forest-500 outline-hidden"
+                  >
+                    {campaign.destinations?.map((dest) => (
+                      <option key={dest.id} value={dest.id}>
+                        {dest.city_name} (Arrivée prévue le{" "}
+                        {new Date(dest.expected_arrival_date).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                        )
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="space-y-1">
-                <label className="block text-[11px] font-medium text-gray-700">
-                  Province de rattachement
-                </label>
-                <input
-                  type="text"
-                  value={targetProvinceName}
-                  disabled
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 bg-gray-100 text-gray-700 font-semibold cursor-not-allowed"
-                />
-              </div>
-            </div>
+                {/* Date prévue d'arrivée mise en avant */}
+                {currentDestination && (
+                  <div className="p-3 rounded-xl bg-forest-50 border border-forest-200 flex items-center justify-between text-xs">
+                    <span className="text-forest-800 font-medium flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-forest-700" />
+                      Date prévue d&apos;arrivée de la récolte :
+                    </span>
+                    <span className="font-bold text-forest-950">
+                      {new Date(currentDestination.expected_arrival_date).toLocaleDateString(
+                        "fr-FR",
+                        {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        }
+                      )}
+                    </span>
+                  </div>
+                )}
 
-            <div className="space-y-1">
-              <label className="block text-[11px] font-medium text-gray-700">
-                Adresse ou Entrepôt de livraison
-              </label>
-              <input
-                type="text"
-                value={deliveryAddress}
-                onChange={(e) => setDeliveryAddress(e.target.value)}
-                placeholder="Ex: Hangar N°4, Marché Central..."
-                className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden"
-              />
-            </div>
+                {/* 2. Choix du dépôt d'arrivée */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-gray-800">
+                    Point / Dépôt de livraison *
+                  </label>
+                  {(!currentDestination?.depots || currentDestination.depots.length === 0) ? (
+                    <div className="p-2.5 rounded-xl bg-amber-50 text-amber-800 text-xs">
+                      Aucun dépôt spécifique répertorié. L&apos;enlèvement s&apos;effectuera au dépôt central de la ville.
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedDepotId}
+                      onChange={(e) => handleDepotChange(e.target.value)}
+                      required
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-300 bg-white text-gray-900 font-semibold focus:ring-2 focus:ring-forest-500 outline-hidden"
+                    >
+                      {currentDestination.depots.map((dep) => (
+                        <option key={dep.id} value={dep.id}>
+                          {dep.name} — {dep.commune} ({dep.address})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Détails du dépôt sélectionné */}
+                {currentDepot && (
+                  <div className="p-3 rounded-xl bg-white border border-gray-200 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between font-bold text-gray-900 border-b border-gray-100 pb-1">
+                      <span>{currentDepot.name}</span>
+                      <span className="text-[11px] font-normal text-gray-500">
+                        Commune : <strong>{currentDepot.commune}</strong>
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-gray-600 space-y-0.5">
+                      {currentDepot.quartier && (
+                        <div>
+                          Quartier : <strong>{currentDepot.quartier}</strong>
+                        </div>
+                      )}
+                      <div>
+                        Adresse / Rue : <strong>{currentDepot.address}</strong>
+                      </div>
+                      {currentDepot.complement && (
+                        <div>
+                          Repère : <em>{currentDepot.complement}</em>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Fallback pour anciennes campagnes sans structure destinations */
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-medium text-gray-700">
+                      Ville / Territoire
+                    </label>
+                    <input
+                      type="text"
+                      value={deliveryCity}
+                      onChange={(e) => setDeliveryCity(e.target.value)}
+                      placeholder="Ex: Kinshasa, Matadi..."
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-medium text-gray-700">
+                      Province de rattachement
+                    </label>
+                    <input
+                      type="text"
+                      value={targetProvinceName}
+                      disabled
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 bg-gray-100 text-gray-700 font-semibold cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-medium text-gray-700">
+                    Adresse ou Entrepôt de livraison
+                  </label>
+                  <input
+                    type="text"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    placeholder="Ex: Hangar N°4, Marché Central..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1">
               <label className="block text-[11px] font-medium text-gray-700">

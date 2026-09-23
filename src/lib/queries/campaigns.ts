@@ -14,6 +14,36 @@ export interface CampaignDeliveryZone {
   } | null;
 }
 
+export interface CampaignDepot {
+  id: string;
+  campaign_destination_id: string;
+  campaign_id: string;
+  name: string;
+  commune: string;
+  quartier: string | null;
+  address: string;
+  complement: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CampaignDestination {
+  id: string;
+  campaign_id: string;
+  province_id: string;
+  city_name: string;
+  expected_arrival_date: string;
+  previous_arrival_date: string | null;
+  created_at?: string;
+  updated_at?: string;
+  provinces?: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
+  depots?: CampaignDepot[];
+}
+
 export interface CompanyCampaignItem {
   id: string;
   company_id: string;
@@ -52,6 +82,7 @@ export interface CompanyCampaignItem {
     status: string;
   };
   delivery_zones: CampaignDeliveryZone[];
+  destinations?: CampaignDestination[];
 }
 
 export interface ResellerCampaignItem extends CompanyCampaignItem {
@@ -146,6 +177,31 @@ export async function getCompanyCampaigns(
           code
         )
       ),
+      destinations:campaign_destinations (
+        id,
+        campaign_id,
+        province_id,
+        city_name,
+        expected_arrival_date,
+        previous_arrival_date,
+        created_at,
+        provinces (
+          id,
+          name,
+          code
+        ),
+        depots:campaign_depots (
+          id,
+          campaign_destination_id,
+          campaign_id,
+          name,
+          commune,
+          quartier,
+          address,
+          complement,
+          created_at
+        )
+      ),
       stock_reservations (
         id,
         quantity,
@@ -182,6 +238,11 @@ export async function getCompanyCampaigns(
       delivery_zones: (item.delivery_zones || []).map((zone: any) => ({
         ...zone,
         provinces: Array.isArray(zone.provinces) ? zone.provinces[0] : zone.provinces,
+      })),
+      destinations: (item.destinations || []).map((dest: any) => ({
+        ...dest,
+        provinces: Array.isArray(dest.provinces) ? dest.provinces[0] : dest.provinces,
+        depots: dest.depots || [],
       })),
     };
   });
@@ -296,6 +357,31 @@ export async function getCompanyCampaignById(
           code
         )
       ),
+      destinations:campaign_destinations (
+        id,
+        campaign_id,
+        province_id,
+        city_name,
+        expected_arrival_date,
+        previous_arrival_date,
+        created_at,
+        provinces (
+          id,
+          name,
+          code
+        ),
+        depots:campaign_depots (
+          id,
+          campaign_destination_id,
+          campaign_id,
+          name,
+          commune,
+          quartier,
+          address,
+          complement,
+          created_at
+        )
+      ),
       stock_reservations (
         id,
         quantity,
@@ -333,6 +419,11 @@ export async function getCompanyCampaignById(
     delivery_zones: (rawItem.delivery_zones || []).map((zone: any) => ({
       ...zone,
       provinces: Array.isArray(zone.provinces) ? zone.provinces[0] : zone.provinces,
+    })),
+    destinations: (rawItem.destinations || []).map((dest: any) => ({
+      ...dest,
+      provinces: Array.isArray(dest.provinces) ? dest.provinces[0] : dest.provinces,
+      depots: dest.depots || [],
     })),
   } as CompanyCampaignItem;
 }
@@ -405,6 +496,31 @@ export async function getResellerCampaigns(
           code
         )
       ),
+      destinations:campaign_destinations (
+        id,
+        campaign_id,
+        province_id,
+        city_name,
+        expected_arrival_date,
+        previous_arrival_date,
+        created_at,
+        provinces (
+          id,
+          name,
+          code
+        ),
+        depots:campaign_depots (
+          id,
+          campaign_destination_id,
+          campaign_id,
+          name,
+          commune,
+          quartier,
+          address,
+          complement,
+          created_at
+        )
+      ),
       stock_reservations (
         id,
         quantity,
@@ -430,7 +546,17 @@ export async function getResellerCampaigns(
     return [];
   }
 
-  const campaigns: ResellerCampaignItem[] = (data || []).map((item: any) => {
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  // Règle 6 : Fin automatique des campagnes ayant atteint end_date
+  const activeData = (data || []).filter((item: any) => {
+    if (item.end_date && item.end_date < todayStr) {
+      return false;
+    }
+    return true;
+  });
+
+  const campaigns: ResellerCampaignItem[] = activeData.map((item: any) => {
     const rawCompany = Array.isArray(item.company) ? item.company[0] : item.company;
     const company = {
       ...rawCompany,
@@ -443,9 +569,16 @@ export async function getResellerCampaigns(
       provinces: Array.isArray(zone.provinces) ? zone.provinces[0] : zone.provinces,
     }));
 
-    // Évaluation d'éligibilité territoriale
+    const destinations = (item.destinations || []).map((dest: any) => ({
+      ...dest,
+      provinces: Array.isArray(dest.provinces) ? dest.provinces[0] : dest.provinces,
+      depots: dest.depots || [],
+    }));
+
+    // Évaluation d'éligibilité territoriale (zones provinciales ou villes de destinations)
     const isEligible = resellerProvinceId
-      ? deliveryZones.some((z: any) => z.province_id === resellerProvinceId)
+      ? deliveryZones.some((z: any) => z.province_id === resellerProvinceId) ||
+        destinations.some((d: any) => d.province_id === resellerProvinceId)
       : false;
 
     const marketableQty = Number(item.marketable_quantity);
@@ -468,6 +601,7 @@ export async function getResellerCampaigns(
         expected_quantity: Number(item.production?.expected_quantity || 0),
       },
       delivery_zones: deliveryZones,
+      destinations: destinations,
       is_eligible: isEligible,
     };
   });
@@ -547,6 +681,31 @@ export async function getActiveCampaignByProductionId(
           code
         )
       ),
+      destinations:campaign_destinations (
+        id,
+        campaign_id,
+        province_id,
+        city_name,
+        expected_arrival_date,
+        previous_arrival_date,
+        created_at,
+        provinces (
+          id,
+          name,
+          code
+        ),
+        depots:campaign_depots (
+          id,
+          campaign_destination_id,
+          campaign_id,
+          name,
+          commune,
+          quartier,
+          address,
+          complement,
+          created_at
+        )
+      ),
       stock_reservations (
         id,
         quantity,
@@ -565,6 +724,13 @@ export async function getActiveCampaignByProductionId(
   }
 
   const rawItem = data as any;
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  // Règle 6 : Si la date de fin est dépassée, la campagne n'est plus active
+  if (rawItem.end_date && rawItem.end_date < todayStr) {
+    return null;
+  }
+
   const rawCompany = Array.isArray(rawItem.company) ? rawItem.company[0] : rawItem.company;
   const company = {
     ...rawCompany,
@@ -577,8 +743,15 @@ export async function getActiveCampaignByProductionId(
     provinces: Array.isArray(zone.provinces) ? zone.provinces[0] : zone.provinces,
   }));
 
+  const destinations = (rawItem.destinations || []).map((dest: any) => ({
+    ...dest,
+    provinces: Array.isArray(dest.provinces) ? dest.provinces[0] : dest.provinces,
+    depots: dest.depots || [],
+  }));
+
   const isEligible = resellerProvinceId
-    ? deliveryZones.some((z: any) => z.province_id === resellerProvinceId)
+    ? deliveryZones.some((z: any) => z.province_id === resellerProvinceId) ||
+      destinations.some((d: any) => d.province_id === resellerProvinceId)
     : false;
 
   const marketableQty = Number(rawItem.marketable_quantity);
@@ -601,6 +774,7 @@ export async function getActiveCampaignByProductionId(
       expected_quantity: Number(rawItem.production?.expected_quantity || 0),
     },
     delivery_zones: deliveryZones,
+    destinations: destinations,
     is_eligible: isEligible,
   };
 }
