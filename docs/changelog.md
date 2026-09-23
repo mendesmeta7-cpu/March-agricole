@@ -3,6 +3,25 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [1.7.1-campaign-destinations-unification] - 2026-09-23
+### Unification des Destinations & Suppression du Doublon dans le Formulaire de Campagne
+
+#### Modifié & Unifié
+* **Suppression Totale du Doublon Conceptuel (`CampaignFormModal.tsx`)** :
+  - Remplacement de la dualité « Saisie manuelle de ville/province » vs « Provinces éligibles de livraison » par un point d'entrée unique de sélection des territoires.
+  - Suppression définitive du champ texte "Nom de la ville" et du dropdown "Province de rattachement" : le nom et l'identifiant provincial sont déduits directement du territoire sélectionné.
+  - Intégration des badges de demandes d'achat observées directement sur chaque carte de territoire pour orienter le choix commercial de l'entreprise.
+* **Génération Dynamique des Blocs d'Arrivée & Dépôts** :
+  - Chaque territoire coché génère instantanément son bloc de configuration dédié avec sa date d'arrivée (`expected_arrival_date`) et ses points de dépôt exclusifs (commune, quartier, rue/avenue, complément).
+  - Décocher un territoire supprime immédiatement son bloc de configuration.
+* **Synchronisation Différentielle Sécurisée (`src/lib/actions/campaigns.ts`)** :
+  - Mise à jour intelligente des destinations et dépôts lors de l'édition d'une offre commerciale (`UPDATE` sur IDs conservés, `INSERT` sur nouvelles destinations, `DELETE` ciblée sur celles retirées).
+  - Préservation intégrale des relations étrangères et des snapshots d'arrivée des commandes passées.
+* **Validation & Homologation** :
+  - Validation des 7 cas de test fonctionnels.
+  - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
+  - Compilation Next.js (`npm run build`) : 36/36 routes compilées avec succès.
+
 ## [1.7.0-campaign-evolution] - 2026-09-23
 ### Évolution des Campagnes : Multi-Villes, Dépôts, Report de Date & Fin Automatique (Phase 20)
 

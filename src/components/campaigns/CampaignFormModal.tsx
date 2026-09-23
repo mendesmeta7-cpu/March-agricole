@@ -72,7 +72,6 @@ export default function CampaignFormModal({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [availabilityPeriod, setAvailabilityPeriod] = useState("");
-  const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
   const [destinations, setDestinations] = useState<FormDestination[]>([]);
   const [status, setStatus] = useState<"draft" | "active">("draft");
 
@@ -92,7 +91,6 @@ export default function CampaignFormModal({
       setStartDate(campaignToEdit.start_date || "");
       setEndDate(campaignToEdit.end_date || "");
       setAvailabilityPeriod(campaignToEdit.availability_period || "");
-      setSelectedProvinces(campaignToEdit.delivery_zones.map((z) => z.province_id));
       setStatus(campaignToEdit.status === "active" ? "active" : "draft");
 
       if (campaignToEdit.destinations && campaignToEdit.destinations.length > 0) {
@@ -112,13 +110,35 @@ export default function CampaignFormModal({
             })),
           }))
         );
+      } else if (campaignToEdit.delivery_zones && campaignToEdit.delivery_zones.length > 0) {
+        // Rétrocompatibilité avec les anciennes campagnes sans destinations
+        setDestinations(
+          campaignToEdit.delivery_zones.map((z) => {
+            const matchedProv = provinces.find((p) => p.id === z.province_id);
+            const provName = matchedProv?.name || "Territoire";
+            return {
+              province_id: z.province_id,
+              city_name: provName,
+              expected_arrival_date: campaignToEdit.start_date || new Date().toISOString().split("T")[0],
+              depots: [
+                {
+                  name: `Dépôt principal ${provName}`,
+                  commune: "",
+                  quartier: "",
+                  address: "",
+                  complement: "",
+                },
+              ],
+            };
+          })
+        );
       } else {
         setDestinations([]);
       }
     } else {
       // Création
       const initialProdId =
-        (defaultProductionId && eligibleProductions.some((p) => p.id === defaultProductionId))
+        defaultProductionId && eligibleProductions.some((p) => p.id === defaultProductionId)
           ? defaultProductionId
           : eligibleProductions[0]?.id || "";
       const prod = eligibleProductions.find((p) => p.id === initialProdId);
@@ -133,49 +153,112 @@ export default function CampaignFormModal({
       setStartDate(new Date().toISOString().split("T")[0]);
       setEndDate("");
       setAvailabilityPeriod("");
-      setSelectedProvinces([]);
       setDestinations([]);
       setStatus("draft");
     }
     setErrorMessage(null);
-  }, [campaignToEdit, eligibleProductions, isOpen, defaultProductionId]);
+  }, [campaignToEdit, eligibleProductions, isOpen, defaultProductionId, provinces]);
 
-  const handleAddDestination = () => {
-    const defaultProvId = provinces[0]?.id || "";
-    setDestinations((prev) => [
-      ...prev,
-      {
-        province_id: defaultProvId,
-        city_name: "",
-        expected_arrival_date: startDate || new Date().toISOString().split("T")[0],
-        depots: [],
-      },
-    ]);
+  if (!isOpen) return null;
+
+  // Production actuellement sélectionnée
+  const selectedProduction = eligibleProductions.find((p) => p.id === productionId);
+  const maxAllowedQuantity = selectedProduction?.expected_quantity || 0;
+  const currentUnit = selectedProduction?.unit || "tonne";
+
+  // Demandes observées pertinentes pour ce produit (aide à la décision)
+  const relevantDemands = selectedProduction
+    ? marketDemands.filter((d) => d.product_id === selectedProduction.product_id)
+    : [];
+
+  // Dictionnaire des demandes indexées par province_id
+  const demandByProvinceId = new Map<string, AggregatedDemandItem>();
+  relevantDemands.forEach((dem) => {
+    if (dem.province_id) {
+      demandByProvinceId.set(dem.province_id, dem);
+    }
+  });
+
+  // Bascule de sélection d'une destination / territoire
+  const handleToggleTerritory = (prov: Province) => {
+    const isAlreadySelected = destinations.some((d) => d.province_id === prov.id);
+
+    if (isAlreadySelected) {
+      // Retrait de la destination
+      setDestinations((prev) => prev.filter((d) => d.province_id !== prov.id));
+    } else {
+      // Ajout automatique de la destination avec bloc de configuration par défaut
+      const defaultDate = startDate || new Date().toISOString().split("T")[0];
+      setDestinations((prev) => [
+        ...prev,
+        {
+          province_id: prov.id,
+          city_name: prov.name,
+          expected_arrival_date: defaultDate,
+          depots: [
+            {
+              name: `Dépôt principal ${prov.name}`,
+              commune: "",
+              quartier: "",
+              address: "",
+              complement: "",
+            },
+          ],
+        },
+      ]);
+    }
   };
 
-  const handleRemoveDestination = (index: number) => {
-    setDestinations((prev) => prev.filter((_, i) => i !== index));
+  const handleSelectAllTerritories = () => {
+    const defaultDate = startDate || new Date().toISOString().split("T")[0];
+    const newDestinations: FormDestination[] = provinces.map((prov) => {
+      const existing = destinations.find((d) => d.province_id === prov.id);
+      if (existing) return existing;
+      return {
+        province_id: prov.id,
+        city_name: prov.name,
+        expected_arrival_date: defaultDate,
+        depots: [
+          {
+            name: `Dépôt principal ${prov.name}`,
+            commune: "",
+            quartier: "",
+            address: "",
+            complement: "",
+          },
+        ],
+      };
+    });
+    setDestinations(newDestinations);
   };
 
-  const handleUpdateDestination = (index: number, field: keyof FormDestination, value: any) => {
+  const handleClearAllTerritories = () => {
+    setDestinations([]);
+  };
+
+  const handleUpdateDestinationDate = (destIndex: number, dateValue: string) => {
     setDestinations((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
+      next[destIndex] = { ...next[destIndex], expected_arrival_date: dateValue };
       return next;
     });
+  };
+
+  const handleRemoveDestinationByIndex = (destIndex: number) => {
+    setDestinations((prev) => prev.filter((_, i) => i !== destIndex));
   };
 
   const handleAddDepot = (destIndex: number) => {
     setDestinations((prev) => {
       const next = [...prev];
       const dest = next[destIndex];
-      const depots = dest.depots || [];
+      const currentDepots = dest.depots || [];
       next[destIndex] = {
         ...dest,
         depots: [
-          ...depots,
+          ...currentDepots,
           {
-            name: `Dépôt ${dest.city_name || ""}`.trim(),
+            name: `Dépôt #${currentDepots.length + 1} ${dest.city_name}`,
             commune: "",
             quartier: "",
             address: "",
@@ -191,6 +274,7 @@ export default function CampaignFormModal({
     setDestinations((prev) => {
       const next = [...prev];
       const dest = next[destIndex];
+      if (dest.depots.length <= 1) return prev; // Conserver au moins 1 dépôt
       next[destIndex] = {
         ...dest,
         depots: dest.depots.filter((_, i) => i !== depotIndex),
@@ -199,7 +283,12 @@ export default function CampaignFormModal({
     });
   };
 
-  const handleUpdateDepot = (destIndex: number, depotIndex: number, field: keyof FormDepot, value: string) => {
+  const handleUpdateDepot = (
+    destIndex: number,
+    depotIndex: number,
+    field: keyof FormDepot,
+    value: string
+  ) => {
     setDestinations((prev) => {
       const next = [...prev];
       const dest = next[destIndex];
@@ -208,32 +297,6 @@ export default function CampaignFormModal({
       next[destIndex] = { ...dest, depots };
       return next;
     });
-  };
-
-  if (!isOpen) return null;
-
-  // Production actuellement sélectionnée
-  const selectedProduction = eligibleProductions.find((p) => p.id === productionId);
-  const maxAllowedQuantity = selectedProduction?.expected_quantity || 0;
-  const currentUnit = selectedProduction?.unit || "tonne";
-
-  // Demandes observées pertinentes pour ce produit
-  const relevantDemands = selectedProduction
-    ? marketDemands.filter((d) => d.product_id === selectedProduction.product_id)
-    : [];
-
-  const handleToggleProvince = (provId: string) => {
-    setSelectedProvinces((prev) =>
-      prev.includes(provId) ? prev.filter((id) => id !== provId) : [...prev, provId]
-    );
-  };
-
-  const handleSelectAllProvinces = () => {
-    setSelectedProvinces(provinces.map((p) => p.id));
-  };
-
-  const handleClearAllProvinces = () => {
-    setSelectedProvinces([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -261,44 +324,34 @@ export default function CampaignFormModal({
       return;
     }
 
-    // Validation des destinations et dépôts
-    if (destinations.length > 0) {
-      for (let i = 0; i < destinations.length; i++) {
-        const dest = destinations[i];
-        if (!dest.city_name.trim()) {
-          setErrorMessage(`Veuillez renseigner le nom de la ville pour la destination #${i + 1}.`);
-          return;
-        }
-        if (!dest.expected_arrival_date) {
-          setErrorMessage(`Veuillez renseigner la date prévue d'arrivée pour la ville ${dest.city_name}.`);
-          return;
-        }
-        if (!dest.depots || dest.depots.length === 0) {
-          setErrorMessage(`Veuillez ajouter au moins un point de dépôt pour la ville ${dest.city_name}.`);
-          return;
-        }
-        for (let j = 0; j < dest.depots.length; j++) {
-          const dep = dest.depots[j];
-          if (!dep.commune.trim()) {
-            setErrorMessage(`Veuillez renseigner la commune pour le dépôt #${j + 1} à ${dest.city_name}.`);
-            return;
-          }
-          if (!dep.address.trim()) {
-            setErrorMessage(`Veuillez renseigner la rue ou adresse pour le dépôt #${j + 1} à ${dest.city_name}.`);
-            return;
-          }
-        }
-      }
+    // Validation stricte des destinations
+    if (destinations.length === 0) {
+      setErrorMessage("Veuillez sélectionner au moins une destination à desservir pour cette offre commerciale.");
+      return;
     }
 
-    const effectiveProvinces = new Set([...selectedProvinces]);
-    destinations.forEach((d) => {
-      if (d.province_id) effectiveProvinces.add(d.province_id);
-    });
-
-    if (effectiveProvinces.size === 0) {
-      setErrorMessage("Veuillez sélectionner au moins une province de livraison ou configurer une ville d'arrivée.");
-      return;
+    // Validation des dates et dépôts par destination
+    for (let i = 0; i < destinations.length; i++) {
+      const dest = destinations[i];
+      if (!dest.expected_arrival_date) {
+        setErrorMessage(`Veuillez renseigner la date prévue d'arrivée pour la destination ${dest.city_name}.`);
+        return;
+      }
+      if (!dest.depots || dest.depots.length === 0) {
+        setErrorMessage(`Veuillez ajouter au moins un point de dépôt pour la destination ${dest.city_name}.`);
+        return;
+      }
+      for (let j = 0; j < dest.depots.length; j++) {
+        const dep = dest.depots[j];
+        if (!dep.commune.trim()) {
+          setErrorMessage(`Veuillez renseigner la commune pour le dépôt #${j + 1} à ${dest.city_name}.`);
+          return;
+        }
+        if (!dep.address.trim()) {
+          setErrorMessage(`Veuillez renseigner la rue / avenue / marché pour le dépôt #${j + 1} à ${dest.city_name}.`);
+          return;
+        }
+      }
     }
 
     startTransition(async () => {
@@ -316,13 +369,13 @@ export default function CampaignFormModal({
         if (availabilityPeriod) formData.append("availability_period", availabilityPeriod);
         formData.append("status", status);
 
-        Array.from(effectiveProvinces).forEach((pId) => {
-          formData.append("province_ids", pId);
+        // Synchronisation des province_ids
+        destinations.forEach((d) => {
+          formData.append("province_ids", d.province_id);
         });
 
-        if (destinations.length > 0) {
-          formData.append("destinations_json", JSON.stringify(destinations));
-        }
+        // Destinations et dépôts
+        formData.append("destinations_json", JSON.stringify(destinations));
 
         const res = isEditing
           ? await updateCampaignAction(campaignToEdit.id, formData)
@@ -349,7 +402,7 @@ export default function CampaignFormModal({
               {isEditing ? "Modifier l'Offre Commerciale" : "Nouvelle Campagne Commerciale"}
             </h2>
             <p className="text-xs text-gray-500">
-              Définissez votre offre de vente, vos prix, périodes et territoires desservis.
+              Définissez votre offre de vente, vos prix, périodes et configurez vos destinations d&apos;arrivée.
             </p>
           </div>
           <button
@@ -513,7 +566,7 @@ export default function CampaignFormModal({
                 className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden"
               />
               <span className="text-[11px] text-gray-500 block">
-                À cette date, la campagne sera automatiquement clôturée et les demandes réactivées.
+                À cette date, la campagne sera automatiquement clôturée.
               </span>
             </div>
           </div>
@@ -547,119 +600,150 @@ export default function CampaignFormModal({
             </div>
           </div>
 
-          {/* SECTION SPÉCIFIQUE : Villes d'Arrivée & Dépôts de Retrait (Nouveau fonctionnement) */}
-          <div className="space-y-4 pt-3 border-t border-gray-200">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
-                  <Building className="w-4 h-4 text-forest-700" />
-                  Arrivée de la Production par Ville & Dépôts
-                </label>
-                <p className="text-[11px] text-gray-500">
-                  Définissez chaque ville desservie avec sa date d&apos;arrivée prévue et ses points de dépôt spécifiques.
-                </p>
+          {/* ========================================================================= */}
+          {/* SYSTÈME UNIFIÉ : SÉLECTION DES DESTINATIONS & CONFIGURATION DYNAMIQUE */}
+          {/* ========================================================================= */}
+          <div className="space-y-5 pt-4 border-t border-gray-200">
+            {/* 1. Sélecteur de Territoires / Destinations */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-forest-700" />
+                    Destinations Desservies ({destinations.length} sélectionnée{destinations.length > 1 ? "s" : ""}) *
+                  </label>
+                  <p className="text-[11px] text-gray-500">
+                    Cochez les territoires que vous desservez dans cette campagne. Chaque territoire sélectionné génère automatiquement son bloc de configuration.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSelectAllTerritories}
+                    className="text-xs text-forest-700 hover:text-forest-900 font-semibold"
+                  >
+                    Tout sélectionner
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button
+                    type="button"
+                    onClick={handleClearAllTerritories}
+                    className="text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    Effacer
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={handleAddDestination}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-forest-50 hover:bg-forest-100 text-forest-800 border border-forest-200 text-xs font-bold transition-colors w-fit"
-              >
-                <Plus className="w-3.5 h-3.5 text-forest-700" />
-                Ajouter une ville
-              </button>
+
+              {/* Grille de sélection des territoires avec mise en valeur des demandes */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-52 overflow-y-auto p-3 rounded-2xl bg-gray-50 border border-gray-200">
+                {provinces.map((prov) => {
+                  const isSelected = destinations.some((d) => d.province_id === prov.id);
+                  const demand = demandByProvinceId.get(prov.id);
+
+                  return (
+                    <label
+                      key={prov.id}
+                      className={`flex flex-col p-2 rounded-xl text-xs cursor-pointer border transition-all ${
+                        isSelected
+                          ? "bg-forest-50/90 border-forest-400 text-forest-950 font-semibold shadow-xs"
+                          : "bg-white border-gray-200 text-gray-700 hover:bg-gray-100/80"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleTerritory(prov)}
+                          className="rounded text-forest-700 focus:ring-forest-500 w-3.5 h-3.5"
+                        />
+                        <span className="truncate">{prov.name}</span>
+                      </div>
+
+                      {demand && (
+                        <span className="mt-1 text-[10px] text-amber-700 bg-amber-50/80 border border-amber-200/60 px-1.5 py-0.5 rounded-md flex items-center gap-1 font-medium w-fit">
+                          <TrendingUp className="w-2.5 h-2.5 text-amber-600" />
+                          {Number(demand.total_demanded_quantity).toLocaleString("fr-FR")} {demand.unit}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
 
+            {/* 2. Blocs de configuration générés automatiquement pour chaque destination sélectionnée */}
             {destinations.length === 0 ? (
-              <div className="p-4 rounded-2xl bg-gray-50 border border-dashed border-gray-300 text-center space-y-2">
-                <p className="text-xs text-gray-500">
-                  Aucune ville d&apos;arrivée configurée pour l&apos;instant.
+              <div className="p-5 rounded-2xl bg-gray-50 border border-dashed border-gray-300 text-center space-y-1.5">
+                <p className="text-xs font-semibold text-gray-600">
+                  Aucune destination sélectionnée pour cette campagne.
                 </p>
-                <button
-                  type="button"
-                  onClick={handleAddDestination}
-                  className="text-xs text-forest-700 font-semibold hover:underline inline-flex items-center gap-1"
-                >
-                  <Plus className="w-3 h-3" /> Configurer une ville et ses dépôts
-                </button>
+                <p className="text-[11px] text-gray-400">
+                  Cochez au moins un territoire ci-dessus pour définir sa date d&apos;arrivée prévue et ses dépôts de retrait.
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Building className="w-4 h-4 text-forest-700" />
+                    Configuration des Arrivées & Dépôts par Destination
+                  </span>
+                  <span className="text-[11px] text-forest-700 font-medium bg-forest-50 px-2 py-0.5 rounded-full border border-forest-200">
+                    {destinations.length} destination{destinations.length > 1 ? "s" : ""} active{destinations.length > 1 ? "s" : ""}
+                  </span>
+                </div>
+
                 {destinations.map((dest, destIdx) => (
                   <div
-                    key={destIdx}
-                    className="p-4 rounded-2xl bg-gray-50/70 border border-gray-200 space-y-3.5 transition-all shadow-2xs"
+                    key={dest.province_id}
+                    className="p-4 sm:p-5 rounded-2xl bg-white border border-forest-200 shadow-xs space-y-4 transition-all"
                   >
-                    {/* En-tête de la ville */}
-                    <div className="flex items-center justify-between gap-3 pb-2 border-b border-gray-200/80">
-                      <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-lg bg-forest-700 text-white flex items-center justify-center font-bold text-xs">
+                    {/* En-tête de la destination */}
+                    <div className="flex items-center justify-between gap-3 pb-3 border-b border-gray-100">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-xl bg-forest-700 text-white flex items-center justify-center font-bold text-xs shadow-xs">
                           {destIdx + 1}
-                        </span>
-                        <span className="font-bold text-gray-900 text-xs uppercase tracking-wide">
-                          Ville d&apos;arrivée #{destIdx + 1}
-                        </span>
+                        </div>
+                        <div>
+                          <h4 className="font-extrabold text-gray-900 text-sm tracking-wide">
+                            {dest.city_name}
+                          </h4>
+                          <span className="text-[10px] text-forest-700 font-medium">
+                            Territoire de destination
+                          </span>
+                        </div>
                       </div>
+
                       <button
                         type="button"
-                        onClick={() => handleRemoveDestination(destIdx)}
-                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
-                        title="Supprimer cette ville"
+                        onClick={() => handleRemoveDestinationByIndex(destIdx)}
+                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
+                        title="Retirer cette destination"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Retirer la ville</span>
+                        <span>Retirer</span>
                       </button>
                     </div>
 
-                    {/* Champs Ville, Province et Date Prévue */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-700">
-                          Nom de la Ville *
-                        </label>
-                        <input
-                          type="text"
-                          value={dest.city_name}
-                          onChange={(e) => handleUpdateDestination(destIdx, "city_name", e.target.value)}
-                          placeholder="Ex: Kinshasa, Matadi..."
-                          required
-                          className="w-full px-3 py-1.5 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-hidden bg-white"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-700">
-                          Province de Rattachement *
-                        </label>
-                        <select
-                          value={dest.province_id}
-                          onChange={(e) => handleUpdateDestination(destIdx, "province_id", e.target.value)}
-                          required
-                          className="w-full px-3 py-1.5 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-hidden bg-white"
-                        >
-                          {provinces.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-700">
-                          Date Prévue d&apos;Arrivée *
-                        </label>
-                        <input
-                          type="date"
-                          value={dest.expected_arrival_date}
-                          onChange={(e) => handleUpdateDestination(destIdx, "expected_arrival_date", e.target.value)}
-                          required
-                          className="w-full px-3 py-1.5 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-hidden bg-white"
-                        />
-                      </div>
+                    {/* Champ Date Prévue d'Arrivée pour cette destination */}
+                    <div className="space-y-1 max-w-sm">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-forest-600" />
+                        Date Prévue d&apos;Arrivée à {dest.city_name} *
+                      </label>
+                      <input
+                        type="date"
+                        value={dest.expected_arrival_date}
+                        onChange={(e) => handleUpdateDestinationDate(destIdx, e.target.value)}
+                        required
+                        className="w-full px-3 py-2 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-hidden bg-white"
+                      />
                     </div>
 
-                    {/* Dépôts d'arrivée dans cette ville */}
-                    <div className="space-y-2 pt-2 border-t border-gray-200/60">
+                    {/* Dépôts / Points de retrait exclusifs à cette destination */}
+                    <div className="space-y-3 pt-2 border-t border-gray-100">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-gray-700">
                           Points / Dépôts d&apos;arrivée ({dest.depots?.length || 0}) *
@@ -667,107 +751,106 @@ export default function CampaignFormModal({
                         <button
                           type="button"
                           onClick={() => handleAddDepot(destIdx)}
-                          className="text-xs text-forest-700 hover:text-forest-900 font-semibold inline-flex items-center gap-1"
+                          className="text-xs text-forest-700 hover:text-forest-900 font-semibold inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-forest-50 transition-colors"
                         >
-                          <Plus className="w-3 h-3" /> Ajouter un dépôt
+                          <Plus className="w-3.5 h-3.5" /> Ajouter un dépôt à {dest.city_name}
                         </button>
                       </div>
 
-                      {(!dest.depots || dest.depots.length === 0) ? (
-                        <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-800 text-[11px]">
-                          Veuillez ajouter au moins un point de livraison ou dépôt pour {dest.city_name || "cette ville"}.
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {dest.depots.map((dep, depIdx) => (
-                            <div
-                              key={depIdx}
-                              className="p-3 rounded-xl bg-white border border-gray-200 space-y-2 text-xs"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-gray-800 text-xs">
-                                  Dépôt #{depIdx + 1}
+                      <div className="space-y-2.5">
+                        {dest.depots.map((dep, depIdx) => (
+                          <div
+                            key={depIdx}
+                            className="p-3.5 rounded-xl bg-gray-50/80 border border-gray-200 space-y-2.5 text-xs"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-gray-800 text-xs flex items-center gap-1.5">
+                                <span className="w-4 h-4 rounded-full bg-forest-100 text-forest-800 flex items-center justify-center text-[10px] font-bold">
+                                  {depIdx + 1}
                                 </span>
+                                Dépôt #{depIdx + 1} ({dest.city_name})
+                              </span>
+                              {dest.depots.length > 1 && (
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveDepot(destIdx, depIdx)}
-                                  className="text-rose-500 hover:text-rose-700 p-1 text-[11px] font-medium inline-flex items-center gap-1"
+                                  className="text-rose-500 hover:text-rose-700 p-1 text-[11px] font-medium inline-flex items-center gap-1 hover:bg-rose-50 rounded"
                                 >
-                                  <Trash2 className="w-3 h-3" /> Supprimer
+                                  <Trash2 className="w-3 h-3" /> Supprimer ce dépôt
                                 </button>
-                              </div>
+                              )}
+                            </div>
 
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <div>
-                                  <label className="block text-[10px] uppercase font-bold text-gray-500 mb-0.5">
-                                    Nom du Dépôt
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={dep.name}
-                                    onChange={(e) => handleUpdateDepot(destIdx, depIdx, "name", e.target.value)}
-                                    placeholder="Ex: Dépôt Central Lemba"
-                                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] uppercase font-bold text-gray-500 mb-0.5">
-                                    Commune *
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={dep.commune}
-                                    onChange={(e) => handleUpdateDepot(destIdx, depIdx, "commune", e.target.value)}
-                                    placeholder="Ex: Lemba, Limete..."
-                                    required
-                                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden"
-                                  />
-                                </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              <div>
+                                <label className="block text-[10px] uppercase font-bold text-gray-600 mb-0.5">
+                                  Nom du Dépôt
+                                </label>
+                                <input
+                                  type="text"
+                                  value={dep.name}
+                                  onChange={(e) => handleUpdateDepot(destIdx, depIdx, "name", e.target.value)}
+                                  placeholder="Ex: Dépôt Central Lemba"
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden bg-white"
+                                />
                               </div>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                <div>
-                                  <label className="block text-[10px] uppercase font-bold text-gray-500 mb-0.5">
-                                    Quartier
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={dep.quartier}
-                                    onChange={(e) => handleUpdateDepot(destIdx, depIdx, "quartier", e.target.value)}
-                                    placeholder="Ex: Quartier 1"
-                                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] uppercase font-bold text-gray-500 mb-0.5">
-                                    Rue / Avenue / Marché *
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={dep.address}
-                                    onChange={(e) => handleUpdateDepot(destIdx, depIdx, "address", e.target.value)}
-                                    placeholder="Ex: 1ère Rue, Marché central"
-                                    required
-                                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] uppercase font-bold text-gray-500 mb-0.5">
-                                    Repère / Complément
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={dep.complement}
-                                    onChange={(e) => handleUpdateDepot(destIdx, depIdx, "complement", e.target.value)}
-                                    placeholder="Ex: En face de la station"
-                                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden"
-                                  />
-                                </div>
+                              <div>
+                                <label className="block text-[10px] uppercase font-bold text-gray-600 mb-0.5">
+                                  Commune *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={dep.commune}
+                                  onChange={(e) => handleUpdateDepot(destIdx, depIdx, "commune", e.target.value)}
+                                  placeholder="Ex: Lemba, Limete..."
+                                  required
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden bg-white"
+                                />
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                              <div>
+                                <label className="block text-[10px] uppercase font-bold text-gray-600 mb-0.5">
+                                  Quartier
+                                </label>
+                                <input
+                                  type="text"
+                                  value={dep.quartier}
+                                  onChange={(e) => handleUpdateDepot(destIdx, depIdx, "quartier", e.target.value)}
+                                  placeholder="Ex: Quartier 1"
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden bg-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] uppercase font-bold text-gray-600 mb-0.5">
+                                  Rue / Avenue / Marché *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={dep.address}
+                                  onChange={(e) => handleUpdateDepot(destIdx, depIdx, "address", e.target.value)}
+                                  placeholder="Ex: 1ère Rue, Marché central"
+                                  required
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden bg-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] uppercase font-bold text-gray-600 mb-0.5">
+                                  Repère / Complément
+                                </label>
+                                <input
+                                  type="text"
+                                  value={dep.complement}
+                                  onChange={(e) => handleUpdateDepot(destIdx, depIdx, "complement", e.target.value)}
+                                  placeholder="Ex: En face de la station"
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden bg-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -775,93 +858,7 @@ export default function CampaignFormModal({
             )}
           </div>
 
-          {/* 5. Territoires desservis complémentaires (campaign_delivery_zones) */}
-          <div className="space-y-3 pt-2 border-t border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-800">
-                  Provinces Éligibles de Livraison
-                </label>
-                <p className="text-[11px] text-gray-500">
-                  Les provinces de vos villes d&apos;arrivée sont ajoutées d&apos;office. Vous pouvez en cocher d&apos;autres si vous livrez toute la province.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleSelectAllProvinces}
-                  className="text-xs text-forest-700 hover:text-forest-900 font-semibold"
-                >
-                  Tout cocher
-                </button>
-                <span className="text-gray-300">|</span>
-                <button
-                  type="button"
-                  onClick={handleClearAllProvinces}
-                  className="text-xs text-gray-500 hover:text-gray-700"
-                >
-                  Effacer
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-3 rounded-2xl bg-gray-50 border border-gray-200">
-              {provinces.map((prov) => {
-                const isSelected = selectedProvinces.includes(prov.id);
-                return (
-                  <label
-                    key={prov.id}
-                    className={`flex items-center gap-2 p-2 rounded-xl text-xs cursor-pointer border transition-colors ${
-                      isSelected
-                        ? "bg-forest-50 border-forest-300 text-forest-950 font-semibold"
-                        : "bg-white border-gray-200 text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleToggleProvince(prov.id)}
-                      className="rounded text-forest-700 focus:ring-forest-500"
-                    />
-                    <span className="truncate">{prov.name}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 6. Aide contextuelle : Demandes observées sur le marché (Non contraignant) */}
-          {relevantDemands.length > 0 && (
-            <div className="p-4 rounded-2xl bg-earth-50/70 border border-earth-200/80 space-y-2">
-              <div className="flex items-center gap-2 text-earth-900 font-bold text-xs">
-                <TrendingUp className="w-4 h-4 text-earth-700" />
-                <span>Demandes d&apos;achat observées sur cette denrée (Aide à la décision) :</span>
-              </div>
-              <p className="text-[11px] text-earth-800 leading-relaxed">
-                Voici les volumes demandés par les acheteurs sur ce produit selon l&apos;analyse territoriale de marché. Vous pouvez ajuster vos provinces cibles en conséquence.
-              </p>
-              <div className="flex flex-wrap gap-2 pt-1">
-                {relevantDemands.map((dem, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white text-earth-900 border border-earth-200 text-xs font-semibold shadow-2xs"
-                  >
-                    <MapPin className="w-3 h-3 text-earth-600" />
-                    {dem.province_name} : {Number(dem.total_demanded_quantity).toLocaleString("fr-FR")} {dem.unit}
-                    <span className="text-[10px] text-earth-600 font-normal">
-                      ({dem.total_demands_count} besoin{dem.total_demands_count > 1 ? "s" : ""})
-                    </span>
-                  </span>
-                ))}
-              </div>
-              <span className="text-[10px] text-earth-600 italic block pt-1">
-                (Information purement indicative — Ne réserve aucun stock et ne crée aucune liaison automatique)
-              </span>
-            </div>
-          )}
-
-          {/* 7. Statut initial (Brouillon vs Publiée) */}
+          {/* Statut initial (Brouillon vs Publiée) */}
           {!isEditing && (
             <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-between">
               <div>

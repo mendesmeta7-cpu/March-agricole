@@ -75,10 +75,12 @@ export async function createCampaignAction(
   const destinationsJson = formData.get("destinations_json") as string;
 
   let parsedDestinations: Array<{
+    id?: string;
     province_id: string;
     city_name: string;
     expected_arrival_date: string;
     depots?: Array<{
+      id?: string;
       name: string;
       commune: string;
       quartier?: string;
@@ -342,10 +344,12 @@ export async function updateCampaignAction(
   const destinationsJson = formData.get("destinations_json") as string;
 
   let parsedDestinations: Array<{
+    id?: string;
     province_id: string;
     city_name: string;
     expected_arrival_date: string;
     depots?: Array<{
+      id?: string;
       name: string;
       commune: string;
       quartier?: string;
@@ -453,41 +457,97 @@ export async function updateCampaignAction(
     }
   }
 
-  // 3. Synchronisation des destinations par ville si fournies
+  // 3. Synchronisation différentielle sécurisée des destinations et de leurs dépôts
   if (parsedDestinations.length > 0) {
-    await supabase.from("campaign_destinations").delete().eq("campaign_id", campaignId);
+    const { data: existingDestinations } = await supabase
+      .from("campaign_destinations")
+      .select("id")
+      .eq("campaign_id", campaignId);
 
+    const existingDestIds = (existingDestinations || []).map((d: any) => d.id);
+    const submittedDestIds = parsedDestinations.map((d) => d.id).filter(Boolean) as string[];
+
+    // 3.a. Suppression des destinations retirées
+    const destsToDelete = existingDestIds.filter((id) => !submittedDestIds.includes(id));
+    if (destsToDelete.length > 0) {
+      await supabase.from("campaign_destinations").delete().in("id", destsToDelete);
+    }
+
+    // 3.b. Mise à jour des destinations existantes ou insertion des nouvelles
     for (const dest of parsedDestinations) {
       if (!dest.city_name || !dest.expected_arrival_date || !dest.province_id) continue;
 
-      const { data: createdDest, error: destErr } = await supabase
-        .from("campaign_destinations")
-        .insert({
-          campaign_id: campaignId,
-          province_id: dest.province_id,
-          city_name: dest.city_name.trim(),
-          expected_arrival_date: dest.expected_arrival_date,
-        })
-        .select("id")
-        .single();
+      let destinationId = dest.id;
 
-      if (destErr) {
-        console.error("Erreur insertion destination update:", destErr);
-        continue;
+      if (destinationId && existingDestIds.includes(destinationId)) {
+        // Mise à jour de la destination existante
+        await supabase
+          .from("campaign_destinations")
+          .update({
+            province_id: dest.province_id,
+            city_name: dest.city_name.trim(),
+            expected_arrival_date: dest.expected_arrival_date,
+          })
+          .eq("id", destinationId);
+      } else {
+        // Insertion de la nouvelle destination
+        const { data: createdDest, error: destErr } = await supabase
+          .from("campaign_destinations")
+          .insert({
+            campaign_id: campaignId,
+            province_id: dest.province_id,
+            city_name: dest.city_name.trim(),
+            expected_arrival_date: dest.expected_arrival_date,
+          })
+          .select("id")
+          .single();
+
+        if (destErr || !createdDest) {
+          console.error("Erreur insertion nouvelle destination update:", destErr);
+          continue;
+        }
+        destinationId = createdDest.id;
       }
 
-      if (createdDest && dest.depots && dest.depots.length > 0) {
-        const depotsToInsert = dest.depots.map((depot) => ({
-          campaign_destination_id: createdDest.id,
-          campaign_id: campaignId,
-          name: depot.name?.trim() || `Dépôt ${dest.city_name}`,
-          commune: depot.commune?.trim() || "Centre",
-          quartier: depot.quartier?.trim() || null,
-          address: depot.address?.trim() || "Adresse principale",
-          complement: depot.complement?.trim() || null,
-        }));
+      // 3.c. Synchronisation des dépôts pour cette destination
+      if (destinationId && dest.depots && dest.depots.length > 0) {
+        const { data: existingDepots } = await supabase
+          .from("campaign_depots")
+          .select("id")
+          .eq("campaign_destination_id", destinationId);
 
-        await supabase.from("campaign_depots").insert(depotsToInsert);
+        const existingDepotIds = (existingDepots || []).map((dp: any) => dp.id);
+        const submittedDepotIds = dest.depots.map((dp: any) => dp.id).filter(Boolean) as string[];
+
+        // Suppression des dépôts retirés de cette destination
+        const depotsToDelete = existingDepotIds.filter((id) => !submittedDepotIds.includes(id));
+        if (depotsToDelete.length > 0) {
+          await supabase.from("campaign_depots").delete().in("id", depotsToDelete);
+        }
+
+        // Mise à jour ou insertion des dépôts
+        for (const depot of dest.depots) {
+          const depotData = {
+            name: depot.name?.trim() || `Dépôt ${dest.city_name}`,
+            commune: depot.commune?.trim() || "Centre",
+            quartier: depot.quartier?.trim() || null,
+            address: depot.address?.trim() || "Adresse principale",
+            complement: depot.complement?.trim() || null,
+          };
+
+          if (depot.id && existingDepotIds.includes(depot.id)) {
+            await supabase
+              .from("campaign_depots")
+              .update(depotData)
+              .eq("id", depot.id);
+          } else {
+            await supabase.from("campaign_depots").insert({
+              ...depotData,
+              campaign_destination_id: destinationId,
+              campaign_id: campaignId,
+            });
+          }
+        }
       }
     }
   }
