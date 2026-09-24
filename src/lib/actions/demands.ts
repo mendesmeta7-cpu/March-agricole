@@ -365,11 +365,18 @@ export async function createDemandProposalAction(
     return { error: "Demande introuvable." };
   }
 
+  // Contrôle strict de correspondance produit (Règle Métier Section 5)
+  if (production.product_id !== demand.product_id) {
+    return { error: "La production sélectionnée ne correspond pas au produit demandé." };
+  }
+
   const { data: company } = await supabase
     .from("companies")
     .select("name")
     .eq("id", companyId)
     .single();
+
+  const currency = ((formData.get("currency") as string) || "USD").toUpperCase();
 
   // 3. Enregistrement de la proposition
   const { data: responseData, error: respErr } = await supabase
@@ -382,7 +389,7 @@ export async function createDemandProposalAction(
         proposed_quantity: proposedQuantity,
         unit: production.unit,
         unit_price: unitPrice,
-        currency: "USD",
+        currency,
         message,
         status: "proposed",
         updated_at: new Date().toISOString(),
@@ -412,6 +419,7 @@ export async function createDemandProposalAction(
   });
 
   revalidatePath("/dashboard/company/demands");
+  revalidatePath(`/dashboard/company/demands/${demandId}`);
   revalidatePath("/dashboard/reseller/demands");
   revalidatePath("/dashboard/reseller/notifications");
 

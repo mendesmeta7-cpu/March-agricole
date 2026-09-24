@@ -299,7 +299,7 @@ export async function getCompanyGeneralDemands(companyId: string): Promise<Deman
         )
       )
     `)
-    .eq("demand_type", "general")
+    .or(`demand_type.eq.general,target_company_id.eq.${companyId}`)
     .eq("status", "active")
     .order("created_at", { ascending: false });
 
@@ -325,7 +325,7 @@ export async function getCompanyGeneralDemands(companyId: string): Promise<Deman
     return {
       ...item,
       quantity: Number(item.quantity),
-      demand_type: "general" as DemandType,
+      demand_type: (item.demand_type || "general") as DemandType,
       product: Array.isArray(item.product) ? item.product[0] : item.product,
       province: Array.isArray(item.province) ? item.province[0] : item.province,
       country: Array.isArray(item.country) ? item.country[0] : item.country,

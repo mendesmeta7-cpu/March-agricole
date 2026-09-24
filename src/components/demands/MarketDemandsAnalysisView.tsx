@@ -372,17 +372,15 @@ export default function MarketDemandsAnalysisView({
                     </div>
                   </div>
 
-                  {/* Boutons d'action : Refuser ou Proposer */}
+                  {/* Boutons d'action : Examiner ou Proposer */}
                   <div className="p-3 bg-gray-50/60 border-t border-gray-100 flex items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleRefuse(dem.id)}
-                      disabled={refusingId === dem.id}
-                      className="px-3 py-1.5 text-xs font-semibold text-gray-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    <Link
+                      href={`/dashboard/company/demands/${dem.id}`}
+                      className="px-3 py-1.5 text-xs font-semibold text-gray-700 hover:text-earth-900 hover:bg-white rounded-xl transition-colors flex items-center gap-1 border border-gray-200/60 shadow-2xs"
                     >
-                      <XCircle className="w-3.5 h-3.5" />
-                      Refuser
-                    </button>
+                      <span>Examiner la demande</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+                    </Link>
 
                     <button
                       type="button"
@@ -390,7 +388,7 @@ export default function MarketDemandsAnalysisView({
                       className="px-4 py-1.5 text-xs font-bold text-white bg-earth-800 hover:bg-earth-900 active:scale-95 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      Proposer / Répondre
+                      Proposer
                     </button>
                   </div>
                 </Card>

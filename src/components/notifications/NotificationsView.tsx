@@ -128,7 +128,9 @@ export default function NotificationsView({
         case "DEMANDE_GENERALE_RECUE":
         case "DEMANDE_PRODUCTION_RECUE":
         case "DEMANDE_REPONSE":
-          return "/dashboard/company/demands";
+          return notif.related_entity_id
+            ? `/dashboard/company/demands/${notif.related_entity_id}`
+            : "/dashboard/company/demands";
         case "COMMANDE_CREEE":
         case "DATE_ARRIVEE_MODIFIEE":
           return notif.related_entity_id
