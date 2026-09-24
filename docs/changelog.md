@@ -19,13 +19,19 @@ Toutes les modifications notables apportées à ce projet sont consignées dans 
   - Alignement strict du schéma PostgreSQL : insertion de `product_name_snapshot` dans `order_items`, `production_id` dans `stock_reservations` et notification ciblée au gérant de la ferme.
 * **Notification de Campagne Ciblée Régionalement (`notify_resellers_on_campaign_opened`)** :
   - Alignement avec la Règle Métier (Section 11) : seules les revendeurs ayant exprimé une demande active ET dont la province actuelle fait partie des destinations/zones desservies reçoivent l'alerte d'ouverture de campagne.
+* **Nettoyage Chirurgical & Sécurisation des Tests (Règle d'Or 2)** :
+  - Élimination intégrale des enregistrements résiduels de test créés lors des passes d'homologation (sociétés `Agri Ferme P21`, productions de test associées et utilisateurs de test), garantissant un flux 100% propre avec uniquement les données réelles (Synapta).
+  - Script de test `supabase/tests/phase21_reseller_regional_eligibility_test.sql` sécurisé avec bloc de nettoyage automatique à l'issue des tests : 0 donnée résiduelle.
 * **Affichage Dynamique dans l'Interface sans Masquage Silencieux** :
-  - Flux des productions (`FeedProductionCard`) : le bouton d'action affiche `[ 🛒 Commander ]` si la province du revendeur est desservie, ou `[ 📍 Non disponible dans votre région ]` si elle ne l'est pas, sans jamais masquer la carte.
+  - Flux des productions (`FeedProductionCard`) :
+    * Production en culture (`growing`) ou récoltée (`harvested`) sans offre : bouton explicite `[ 📈 Faire une demande ]`.
+    * Production avec offre active couverte par la région du revendeur : bouton vert `[ 🛒 Commander ]`.
+    * Production avec offre active non desservie sur la région du revendeur : bouton distinct `[ 📍 Indisponible dans votre région ]` sans masquer la carte.
   - Offres commerciales revendeur (`ResellerCampaignCard`) : bouton explicite désactivé « Non disponible dans votre région » et proposition de formuler une demande d'achat.
   - Modale de commande (`OrderFormModal`) : verrouillage strict sur la destination de la province du revendeur sans possibilité de basculer arbitrairement vers une autre province.
   - Modification de localisation revendeur (`ResellerLocationEditModal`) : avertissement et confirmation explicite garantissant que les anciennes commandes conservent leur destination et historique immuable.
 * **Validation & Homologation** :
-  - Suite de tests SQL `supabase/tests/phase21_reseller_regional_eligibility_test.sql` validée à 100% (10 scénarios exécutés avec succès sur la base Supabase).
+  - Suite de tests SQL `supabase/tests/phase21_reseller_regional_eligibility_test.sql` validée à 100% (10 scénarios exécutés avec succès sur la base Supabase avec nettoyage immédiat).
   - Typecheck TypeScript (`npx tsc --noEmit`) : 0 erreur.
   - Compilation Next.js de production (`npm run build`) : 36/36 routes compilées avec succès.
 

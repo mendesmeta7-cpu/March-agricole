@@ -14,6 +14,7 @@ import {
   ImageOff,
   Megaphone,
   ShoppingCart,
+  TrendingUp,
 } from "lucide-react";
 
 interface FeedProductionCardProps {
@@ -181,14 +182,21 @@ export default function FeedProductionCard({ production }: FeedProductionCardPro
               ) : (
                 <>
                   <MapPin className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Non disponible dans votre région</span>
+                  <span>Indisponible dans votre région</span>
                 </>
               )
             ) : (
-              <>
-                <span>Voir la production</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
-              </>
+              production.status === "growing" || production.status === "harvested" ? (
+                <>
+                  <TrendingUp className="w-3.5 h-3.5 text-forest-600 group-hover:text-white" />
+                  <span>Faire une demande</span>
+                </>
+              ) : (
+                <>
+                  <span>Voir la production</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
+                </>
+              )
             )}
           </Link>
         </div>
