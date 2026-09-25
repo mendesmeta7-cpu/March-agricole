@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-09-24 — Phase 21 Validée et Homologuée*
+*Dernière mise à jour : 2026-09-25 — Phase 23 Validée et Homologuée (Stabilisation RLS & Catalogues)*
 
 ---
 
@@ -29,10 +29,28 @@
 | **19** | **Isolation des Comptes & Sécurité des Sessions** | 🟢 **TERMINÉ** | Élimination totale du bug de redirection inter-comptes, propagation intégrale des cookies SSR sur les redirections middleware (`redirectWithCookies`), purge atomique des cookies `sb-*` et revalidation au logout, sanitisation hermétique de `getTargetUrl` dans `NotificationsView`, passerelles universelles déterministes `/dashboard` et `/dashboard/notifications`, verrouillage `dynamic = force-dynamic`, suite de 20 tests validée à 100%. |
 | **20** | **Évolution des Campagnes : Multi-Villes, Dépôts & Cycle de Vie** | 🟢 **TERMINÉ** | Destinations par ville (`campaign_destinations`), dépôts d'arrivée multiples (`campaign_depots`), report de date d'arrivée (`update_destination_arrival_date`) avec notifications ciblées `DATE_ARRIVEE_MODIFIEE`, fin automatique de campagne (`check_and_close_expired_campaigns`), snapshots d'arrivée/dépôt sur commandes, formulaires dynamiques UI et cards enrichies, suite de 8 tests SQL validée à 100%, build 36/36 routes certifié. |
 | **21** | **Éligibilité Régionale Stricte des Commandes Revendeurs** | 🟢 **TERMINÉ** | Source de vérité serveur (`resellers.province_id`), contrôle inviolable dans `create_order_with_reservation`, verrouillage de la destination/dépôt sur le territoire revendeur, bouton conditionnel UI (Commander vs Non disponible dans votre région), notification ciblée régionale, suite de 10 tests SQL validée à 100%, build 36/36 certifié. |
+| **22** | **Workflow Demandes, Notifications Ciblées & Consultation Détaillée** | 🟢 **TERMINÉ** | Notification ciblée par produit avec URL directe `/dashboard/company/demands/[id]`, vue détaillée `CompanyDemandDetailView` avec soumission de proposition ferme et consultation multi-propositions, décloisonnement complet de l'analyse territoriale, migration 20. |
+| **23** | **Stabilisation RLS & Élimination de Récursion Infinie (42P17)** | 🟢 **TERMINÉ** | Fonctions helper `SECURITY DEFINER` (`can_company_view_demand`, `reseller_has_order_or_demand_on_production`, `reseller_has_order_on_company_product`), restauration intégrale de la visibilité des catalogues société, des productions et du flux revendeur, migration 21 appliquée via Supabase MCP, 0 régression, build 36/36 certifié. |
 
 ---
 
-## 2. BILAN DE LA PHASE 21 (RÈGLE MÉTIER CRITIQUE — ÉLIGIBILITÉ RÉGIONALE DES COMMANDES)
+## 2. BILAN DE LA PHASE 23 (STABILISATION RLS & RESTAURATION DES FLUX)
+
+* **Date de validation finale** : 2026-09-25
+* **Statut du projet** : 🟢 **STABLE — RÉCURSION RLS ÉLIMINÉE, CATALOGUES & FLUX RESTAURÉS À 100%**
+* **Réalisations clés** :
+  1. **Élimination définitive de l'erreur PostgreSQL 42P17** :
+     - Remplacement des sous-requêtes RLS circulaires par des fonctions `SECURITY DEFINER` étanches (`can_company_view_demand`, `reseller_has_order_or_demand_on_production`, `reseller_has_order_on_company_product`).
+     - Restauration de la visibilité des 73 produits du catalogue, des 2 produits configurés de Synapta (`Maïs de Matadi`, `Pastèque de la vallée`), de sa production récoltée de pastèque et du flux revendeur public.
+  2. **Persistance et Visibilité Immédiate après Configuration** :
+     - Les produits configurés par une exploitation réapparaissent instantanément et persistent après actualisation.
+  3. **Build & Tests 100% Validés** :
+     - Compilation Next.js : 36/36 routes opérationnelles avec 0 erreur.
+     - Tests d'accès société, revendeur et administrateur vérifiés avec succès sur données réelles.
+
+---
+
+## 3. BILAN DE LA PHASE 21 (RÈGLE MÉTIER CRITIQUE — ÉLIGIBILITÉ RÉGIONALE DES COMMANDES)
 
 * **Date de validation finale** : 2026-09-24
 * **Statut du projet** : 🟢 **STABLE — RÈGLE D'ÉLIGIBILITÉ RÉGIONALE HOMOLOGUÉE & BLINDÉE**

@@ -3,6 +3,32 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [1.9.0-rls-recursion-fix] - 2026-09-25
+### Stabilisation RLS & Élimination de Récursion Infinie (Phase 23)
+
+#### Corrigé & Blindé
+* **Élimination Définitive de l'Erreur PostgreSQL 42P17** :
+  - Déploiement de la Migration 21 ([`supabase/migrations/20260925000021_fix_rls_infinite_recursion.sql`](file:///d:/March%C3%A9%20agricole/supabase/migrations/20260925000021_fix_rls_infinite_recursion.sql)).
+  - Remplacement des sous-requêtes circulaires dans les politiques RLS par des fonctions `SECURITY DEFINER` étanches (`can_company_view_demand`, `reseller_has_order_or_demand_on_production`, `reseller_has_order_on_company_product`).
+  - Restauration de l'accès et de la visibilité sur les 73 produits du catalogue officiel, les produits configurés par les entreprises, les productions agricoles et le flux de découverte revendeur.
+* **Persistance & Réactivité UI** :
+  - Validation du cycle complet d'ajout/configuration de produit : les produits configurés dans `/dashboard/company/products` réapparaissent immédiatement et persistent après chaque actualisation de page.
+* **Validation & Homologation** :
+  - Exécution réussie de la migration via l'outil Supabase MCP sur le projet `gonerlgkdnbdewjbebvq`.
+  - Typecheck TypeScript : 0 erreur.
+  - Compilation Next.js de production (`npm run build`) : 36/36 routes compilées avec succès.
+
+## [1.8.0-demand-workflow-fix] - 2026-09-25
+### Workflow des Demandes, Notifications Ciblées & Consultation Détaillée (Phase 22)
+
+#### Ajouté & Optimisé
+* **Notification Ciblée par Produit** :
+  - Mise à jour de `notify_company_on_demand_received` pour pointer directement vers l'URL `/dashboard/company/demands/[id]`.
+* **Fiche Détaillée de Demande Entreprise (`CompanyDemandDetailView`)** :
+  - Consultation complète des besoins exprimés avec formulaire de proposition ferme (`createDemandResponseAction`) et affichage des propositions concurrentes anonymisées.
+* **Décloisonnement de l'Analyse Territoriale** :
+  - Consultation macro de la demande globale du marché par région et produit sans restriction.
+
 ## [1.7.0-regional-eligibility] - 2026-09-24
 ### Règle Métier Critique — Éligibilité Régionale des Commandes Revendeurs (Phase 21)
 
