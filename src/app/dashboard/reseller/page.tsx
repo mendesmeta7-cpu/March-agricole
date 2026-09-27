@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getPublicFeedProductions } from "@/lib/queries/feed";
+import { getActiveFeedCategories } from "@/lib/queries/feedCategories";
+import { getActiveFeedBanners } from "@/lib/queries/feedBanners";
 import FeedView from "@/components/feed/FeedView";
 
 export const dynamic = "force-dynamic";
@@ -18,39 +20,25 @@ export default async function ResellerDashboardPage() {
     .eq("id", user!.id)
     .maybeSingle();
 
-  // 2. Récupération des productions publiques réelles pour le feed avec le contexte revendeur
-  const feedResult = await getPublicFeedProductions({
-    reseller,
-    resellerProvinceId: reseller?.province_id,
-    resellerCountryId: reseller?.country_id,
-  });
+  // 2. Chargement conjoint : feed des productions, catégories visuelles et bannières dynamiques
+  const [feedResult, feedCategories, banners, provincesData, campaignsCountRes] = await Promise.all([
+    getPublicFeedProductions({
+      reseller,
+      resellerProvinceId: reseller?.province_id,
+      resellerCountryId: reseller?.country_id,
+    }),
+    getActiveFeedCategories(),
+    getActiveFeedBanners(),
+    supabase.from("provinces").select("id, name").order("name", { ascending: true }),
+    supabase.from("campaigns").select("*", { count: "exact", head: true }).eq("status", "active"),
+  ]);
 
-  // 3. Catégories distinctes depuis products (actifs)
-  const { data: categoriesData } = await supabase
-    .from("products")
-    .select("category")
-    .eq("is_active", true);
-
-  const categories = Array.from(
-    new Set((categoriesData || []).map((p: any) => p.category).filter(Boolean))
-  ).sort() as string[];
-
-  // 4. Provinces actives
-  const { data: provincesData } = await supabase
-    .from("provinces")
-    .select("id, name")
-    .order("name", { ascending: true });
-
-  const provinces = (provincesData || []).map((p: any) => ({
+  const provinces = (provincesData.data || []).map((p: any) => ({
     id: p.id,
     name: p.name,
   }));
 
-  // 5. Comptage des campagnes actives pour la mise en avant
-  const { count: campaignsCount } = await supabase
-    .from("campaigns")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "active");
+  const campaignsCount = campaignsCountRes.count || 0;
 
   return (
     <div className="w-full">
@@ -58,9 +46,10 @@ export default async function ResellerDashboardPage() {
       <FeedView
         initialItems={feedResult.items}
         totalCount={feedResult.totalCount}
-        categories={categories}
+        categories={feedCategories}
+        banners={banners}
         provinces={provinces}
-        campaignsCount={campaignsCount || 0}
+        campaignsCount={campaignsCount}
       />
     </div>
   );

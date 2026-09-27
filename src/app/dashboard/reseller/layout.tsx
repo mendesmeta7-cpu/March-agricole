@@ -18,10 +18,10 @@ export default async function ResellerLayout({
     redirect("/login?redirect=/dashboard/reseller");
   }
 
-  // Vérifier rôle profil
+  // Vérifier rôle profil et avatar
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, full_name")
+    .select("role, full_name, avatar_url")
     .eq("id", user.id)
     .single();
 
@@ -51,6 +51,7 @@ export default async function ResellerLayout({
       userEmail={user.email}
       locationInfo={locationInfo}
       unreadNotificationsCount={unreadCount}
+      avatarUrl={profile?.avatar_url}
     >
       {children}
     </ResellerDashboardLayout>

@@ -11,6 +11,7 @@ interface ResellerDashboardLayoutProps {
   businessName?: string;
   locationInfo?: string;
   unreadNotificationsCount?: number;
+  avatarUrl?: string | null;
 }
 
 export default function ResellerDashboardLayout({
@@ -20,6 +21,7 @@ export default function ResellerDashboardLayout({
   businessName,
   locationInfo,
   unreadNotificationsCount = 0,
+  avatarUrl,
 }: ResellerDashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-[#f9faf9] flex flex-col lg:flex-row antialiased text-gray-900">
@@ -30,6 +32,7 @@ export default function ResellerDashboardLayout({
           entityName={businessName}
           userName={userName}
           userEmail={userEmail}
+          logoUrl={avatarUrl}
           unreadNotificationsCount={unreadNotificationsCount}
         />
       </aside>
@@ -42,6 +45,7 @@ export default function ResellerDashboardLayout({
           businessName={businessName}
           locationInfo={locationInfo}
           unreadNotificationsCount={unreadNotificationsCount}
+          avatarUrl={avatarUrl}
         />
 
         {/* Contenu principal avec padding compensatoire pour la Bottom Navigation */}

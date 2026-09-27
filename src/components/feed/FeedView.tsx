@@ -12,6 +12,9 @@ import EmptyState from "@/components/ui/EmptyState";
 import { Compass, RefreshCw, Sparkles, FilterX } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { FeedCategoryItem } from "@/lib/queries/feedCategories";
+import { FeedBannerItem } from "@/lib/queries/feedBanners";
+
 interface ProvinceOption {
   id: string;
   name: string;
@@ -20,9 +23,10 @@ interface ProvinceOption {
 interface FeedViewProps {
   initialItems: FeedProductionItem[];
   totalCount: number;
-  categories: string[];
+  categories: (FeedCategoryItem | string)[];
   provinces: ProvinceOption[];
   campaignsCount?: number;
+  banners?: FeedBannerItem[];
 }
 
 export default function FeedView({
@@ -31,6 +35,7 @@ export default function FeedView({
   categories,
   provinces,
   campaignsCount = 0,
+  banners = [],
 }: FeedViewProps) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
@@ -139,9 +144,9 @@ export default function FeedView({
         />
       </div>
 
-      {/* 4. Bannière d'accès direct aux offres (inspirée de la référence) */}
+      {/* 4. Carrousel dynamique de bannières avec visuels Cloudinary */}
       {!hasActiveFilters && (
-        <FeedHighlightBanner campaignsCount={campaignsCount} />
+        <FeedHighlightBanner campaignsCount={campaignsCount} banners={banners} />
       )}
 
       {/* 5. En-tête de section "Productions disponibles" / "À découvrir" */}
@@ -168,13 +173,17 @@ export default function FeedView({
         </button>
       </div>
 
-      {/* 6. Grille des cartes de production */}
+      {/* 6. Grille des cartes de production compactes */}
       {isPending ? (
         <FeedSkeleton count={6} />
       ) : filteredItems.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredItems.map((production) => (
-            <FeedProductionCard key={production.id} production={production} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+          {filteredItems.map((production, index) => (
+            <FeedProductionCard
+              key={production.id}
+              production={production}
+              index={index}
+            />
           ))}
         </div>
       ) : (

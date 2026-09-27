@@ -18,6 +18,8 @@ import {
   Compass,
   FileSpreadsheet,
   Bell,
+  Layers,
+  Image as ImageIcon,
 } from "lucide-react";
 
 interface NavItem {
@@ -165,6 +167,16 @@ export default function AppSidebar({
       label: "Commandes",
       href: "/dashboard/admin/orders",
       icon: <ShoppingBag className="w-5 h-5" />,
+    },
+    {
+      label: "Catégories du Flux",
+      href: "/dashboard/admin/categories",
+      icon: <Layers className="w-5 h-5" />,
+    },
+    {
+      label: "Bannières du Flux",
+      href: "/dashboard/admin/banners",
+      icon: <ImageIcon className="w-5 h-5" />,
     },
     {
       label: "Demandes Marché",

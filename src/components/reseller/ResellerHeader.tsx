@@ -8,6 +8,7 @@ interface ResellerHeaderProps {
   businessName?: string;
   locationInfo?: string;
   unreadNotificationsCount?: number;
+  avatarUrl?: string | null;
 }
 
 export default function ResellerHeader({
@@ -15,6 +16,7 @@ export default function ResellerHeader({
   businessName,
   locationInfo,
   unreadNotificationsCount = 0,
+  avatarUrl,
 }: ResellerHeaderProps) {
   // Extraction bienveillante du premier prénom pour un accueil personnalisé
   const getGreeting = () => {
@@ -75,8 +77,18 @@ export default function ResellerHeader({
             className="flex items-center gap-2 p-1 sm:p-1.5 rounded-full hover:bg-gray-100 transition-colors group"
             aria-label="Accéder à mon profil"
           >
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-forest-100 text-forest-800 border border-forest-200/80 flex items-center justify-center font-bold text-xs sm:text-sm shadow-2xs group-hover:border-forest-300">
-              {userName ? userName.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-forest-100 text-forest-800 border border-forest-200/80 flex items-center justify-center font-bold text-xs sm:text-sm shadow-2xs group-hover:border-forest-300 overflow-hidden flex-shrink-0">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={userName || "Profil"}
+                  className="w-full h-full object-cover"
+                />
+              ) : userName ? (
+                userName.charAt(0).toUpperCase()
+              ) : (
+                <User className="w-4 h-4" />
+              )}
             </div>
             {/* Nom visible uniquement sur grand écran */}
             <span className="hidden md:inline text-xs font-semibold text-gray-700 group-hover:text-gray-900 max-w-[120px] truncate">

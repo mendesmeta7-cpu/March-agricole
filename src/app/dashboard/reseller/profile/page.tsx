@@ -3,6 +3,8 @@ import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import ResellerProfileTerritoryCard from "@/components/reseller/ResellerProfileTerritoryCard";
+import ResellerAvatarSection from "@/components/reseller/ResellerAvatarSection";
+import ResellerLogoutButton from "@/components/reseller/ResellerLogoutButton";
 import { Store, Mail, Phone, ShieldCheck, User, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -14,7 +16,7 @@ export default async function ResellerProfilePage() {
   const [profileRes, resellerRes, provincesRes] = await Promise.all([
     supabase
       .from("profiles")
-      .select("full_name, phone, role, created_at")
+      .select("full_name, phone, role, avatar_url, created_at")
       .eq("id", user!.id)
       .single(),
     supabase
@@ -56,6 +58,12 @@ export default async function ResellerProfilePage() {
             {resellerTypeLabels[reseller?.reseller_type || "wholesaler"] || "Acheteur Professionnel"}
           </Badge>
         }
+      />
+
+      {/* Section Gestion Photo de Profil / Avatar (Cloudinary) */}
+      <ResellerAvatarSection
+        currentAvatarUrl={profile?.avatar_url}
+        userName={profile?.full_name || reseller?.business_name}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -143,6 +151,11 @@ export default async function ResellerProfilePage() {
             </div>
           </Card>
         </div>
+      </div>
+
+      {/* Bouton de Déconnexion clairement placé en bas de page (Section 14) */}
+      <div className="pt-6 border-t border-gray-200/80">
+        <ResellerLogoutButton />
       </div>
     </div>
   );
