@@ -16,6 +16,8 @@ import {
   ShoppingCart,
   TrendingUp,
   Layers,
+  ShieldCheck,
+  AlertCircle,
 } from "lucide-react";
 
 interface FeedProductionCardProps {
@@ -48,10 +50,18 @@ export default function FeedProductionCard({ production }: FeedProductionCardPro
     .filter(Boolean)
     .join(", ");
 
+  const hasActiveCampaign = !!production.active_campaign;
+  const isEligible = production.active_campaign?.is_eligible ?? false;
+  const canOrder = production.active_campaign?.can_order !== false;
+  const availableStock =
+    production.active_campaign?.available_quantity ??
+    production.active_campaign?.marketable_quantity ??
+    0;
+
   return (
-    <div className="group bg-white rounded-2xl border border-gray-200/80 hover:border-forest-300 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col overflow-hidden">
-      {/* 1. Photo principale dominante */}
-      <div className="relative w-full aspect-16/10 sm:aspect-16/9 bg-gray-100 overflow-hidden">
+    <article className="group bg-white rounded-3xl border border-gray-200/80 hover:border-forest-400/80 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col overflow-hidden">
+      {/* 1. Image principale dominante avec badges flottants */}
+      <div className="relative w-full aspect-16/10 bg-gray-100 overflow-hidden">
         {production.main_image_url && !imgError ? (
           <img
             src={production.main_image_url}
@@ -62,39 +72,40 @@ export default function FeedProductionCard({ production }: FeedProductionCardPro
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400 p-4 text-center">
-            <ImageOff className="w-8 h-8 text-gray-300 mb-1.5" />
-            <span className="text-xs font-medium text-gray-500">Aucune photo fournie</span>
+            <ImageOff className="w-8 h-8 text-gray-300 mb-1" />
+            <span className="text-xs font-medium text-gray-400">Visuel en cours</span>
           </div>
         )}
 
-        {/* Badges en superposition */}
-        <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
-          <ProductionStatusBadge status={production.status} size="sm" />
-          {production.active_campaign && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-600 text-white shadow-xs">
-              <Megaphone className="w-3 h-3" />
-              Campagne en cours
-            </span>
-          )}
-        </div>
-
-        {/* Catégorie de produit en superposition */}
+        {/* Badge catégorie en haut à gauche */}
         <div className="absolute top-3 left-3 z-10">
-          <span className="px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-xs text-white text-[11px] font-medium tracking-wide uppercase">
+          <span className="px-2.5 py-1 rounded-xl bg-white/95 backdrop-blur-md text-gray-800 text-[11px] font-bold tracking-tight shadow-xs uppercase">
             {production.product.category}
           </span>
+        </div>
+
+        {/* Badges d'état en haut à droite */}
+        <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
+          {hasActiveCampaign ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-600 text-white shadow-xs">
+              <Megaphone className="w-3 h-3" />
+              <span>Campagne en cours</span>
+            </span>
+          ) : (
+            <ProductionStatusBadge status={production.status} size="sm" />
+          )}
         </div>
       </div>
 
       {/* 2. Corps de la carte */}
-      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
-        <div className="space-y-3">
-          {/* Identité Entreprise Productrice */}
+      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between gap-3.5">
+        <div className="space-y-2.5">
+          {/* Entreprise productrice */}
           <Link
             href={`/dashboard/reseller/companies/${production.company.id}`}
-            className="group/comp flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+            className="inline-flex items-center gap-2 group/comp text-xs font-semibold text-gray-600 hover:text-forest-700 transition-colors"
           >
-            <div className="w-7 h-7 rounded-lg bg-forest-50 border border-forest-200/80 flex items-center justify-center text-forest-800 flex-shrink-0 overflow-hidden relative">
+            <div className="w-6 h-6 rounded-lg bg-forest-50 border border-forest-100 flex items-center justify-center text-forest-800 overflow-hidden flex-shrink-0">
               {production.company.logo_url ? (
                 <img
                   src={production.company.logo_url}
@@ -102,121 +113,154 @@ export default function FeedProductionCard({ production }: FeedProductionCardPro
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <Building2 className="w-4 h-4 text-forest-700" />
+                <Building2 className="w-3.5 h-3.5 text-forest-700" />
               )}
             </div>
-            <div className="min-w-0 flex-1">
-              <span className="text-xs font-bold text-gray-900 truncate block group-hover/comp:text-forest-700 transition-colors">
-                {production.company.name}
-              </span>
-            </div>
+            <span className="truncate max-w-[200px]">{production.company.name}</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-forest-600 flex-shrink-0" />
           </Link>
 
-          {/* Titre et culture */}
+          {/* Dénomination du produit et titre */}
           <div>
-            <h3 className="text-base font-bold text-gray-900 line-clamp-1 group-hover:text-forest-800 transition-colors">
-              {production.title}
+            <h3 className="text-base sm:text-lg font-bold text-gray-900 group-hover:text-forest-800 transition-colors line-clamp-1">
+              {production.product.name}
             </h3>
-            <div className="flex items-center gap-1.5 text-xs text-forest-800 font-semibold mt-0.5">
-              <Sprout className="w-3.5 h-3.5 text-forest-600 flex-shrink-0" />
-              <span className="truncate">Culture : {production.product.name}</span>
-            </div>
+            <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">
+              {production.title}
+            </p>
           </div>
 
           {/* Localisation */}
-          <div className="flex items-center gap-1.5 text-xs text-gray-500">
-            <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+          <div className="flex items-center gap-1.5 text-xs text-gray-600">
+            <MapPin className="w-3.5 h-3.5 text-forest-600 flex-shrink-0" />
             <span className="truncate">{locationDisplay}</span>
           </div>
 
-          {/* Période prévisionnelle */}
-          <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50/80 px-2.5 py-1.5 rounded-lg border border-gray-100">
-            <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+          {/* Calendrier ou période prévisionnelle */}
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+            <Calendar className="w-3 h-3 text-gray-400 flex-shrink-0" />
             <span className="truncate">
-              Cycle : {formattedStart || "Date début non définie"}
-              {formattedEnd ? ` → ${formattedEnd}` : " (en cours)"}
+              {production.status === "harvested"
+                ? `Récoltée le ${formattedEnd || formattedStart || "récemment"}`
+                : `Cycle : ${formattedStart || "À définir"}${formattedEnd ? ` → ${formattedEnd}` : ""}`}
             </span>
           </div>
         </div>
 
-        {/* 3. Pied de carte : Quantité planifiée / Offre + Action */}
-        <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
-          <div>
-            {production.active_campaign ? (
+        {/* 3. Zone de prix, volume et bouton d'action */}
+        <div className="pt-3 border-t border-gray-100 flex flex-col gap-2.5">
+          {hasActiveCampaign ? (
+            <div className="flex items-baseline justify-between gap-2">
               <div>
-                <span className="text-[10px] text-emerald-700 block uppercase font-bold tracking-wider">
-                  Offre ferme disponible
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
+                  Prix unitaire ferme
                 </span>
-                <span className="text-sm font-extrabold text-emerald-950 flex items-center gap-1">
-                  {production.active_campaign.unit_price} {production.active_campaign.currency} / {production.unit}
-                </span>
+                <div className="flex items-baseline gap-1 text-forest-900">
+                  <span className="text-lg font-black tracking-tight">
+                    {production.active_campaign!.unit_price.toLocaleString("fr-FR")}
+                  </span>
+                  <span className="text-xs font-bold text-forest-700">
+                    {production.active_campaign!.currency} / {production.unit}
+                  </span>
+                </div>
               </div>
-            ) : (
-              <div>
-                <span className="text-[11px] text-gray-500 block uppercase font-medium">
-                  Quantité planifiée
-                </span>
-                <span className="text-sm font-extrabold text-forest-900 flex items-center gap-1">
-                  <Tractor className="w-4 h-4 text-forest-600 inline-block" />
-                  {production.expected_quantity.toLocaleString("fr-FR")} {production.unit}
-                </span>
-              </div>
-            )}
-          </div>
 
-          <Link
-            href={
-              production.active_campaign &&
-              production.active_campaign.is_eligible &&
-              production.active_campaign.can_order !== false
-                ? `/dashboard/reseller/productions/${production.id}?order=true`
-                : `/dashboard/reseller/productions/${production.id}`
-            }
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 shadow-2xs group/btn ${
-              production.active_campaign
-                ? production.active_campaign.is_eligible
-                  ? production.active_campaign.can_order !== false
-                    ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"
-                  : "bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200"
-                : "bg-forest-50 hover:bg-forest-700 text-forest-800 hover:text-white"
-            }`}
-          >
-            {production.active_campaign ? (
-              production.active_campaign.is_eligible ? (
-                production.active_campaign.can_order !== false ? (
-                  <>
-                    <ShoppingCart className="w-3.5 h-3.5" />
-                    <span>Commander</span>
-                  </>
-                ) : (
-                  <>
-                    <Layers className="w-3.5 h-3.5 text-gray-500" />
-                    <span>Stock épuisé</span>
-                  </>
-                )
+              <div className="text-right">
+                <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider block">
+                  Disponible
+                </span>
+                <span className="text-xs font-bold text-gray-900">
+                  {availableStock.toLocaleString("fr-FR")} {production.unit}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-baseline justify-between gap-2">
+              <div>
+                <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider block">
+                  Volume planifié
+                </span>
+                <div className="flex items-center gap-1 text-forest-900 font-extrabold text-sm sm:text-base">
+                  <Tractor className="w-4 h-4 text-forest-600 flex-shrink-0" />
+                  <span>
+                    {production.expected_quantity.toLocaleString("fr-FR")} {production.unit}
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider block">
+                  Statut
+                </span>
+                <span className="text-xs font-bold text-forest-800">
+                  {production.status === "growing"
+                    ? "En champ"
+                    : production.status === "harvested"
+                    ? "En stock"
+                    : "Planifié"}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Bouton d'action selon l'état et l'éligibilité régionale stricte */}
+          {hasActiveCampaign ? (
+            isEligible ? (
+              canOrder ? (
+                <Link
+                  href={`/dashboard/reseller/productions/${production.id}?order=true`}
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-forest-700 hover:bg-forest-800 active:scale-98 text-white font-bold text-xs sm:text-sm shadow-xs transition-all"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  <span>Commander</span>
+                </Link>
               ) : (
-                <>
-                  <MapPin className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Indisponible dans votre région</span>
-                </>
+                <button
+                  type="button"
+                  disabled
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gray-100 text-gray-500 font-semibold text-xs border border-gray-200 cursor-not-allowed"
+                >
+                  <Layers className="w-4 h-4 text-gray-400" />
+                  <span>Stock épuisé</span>
+                </button>
               )
             ) : (
-              production.status === "growing" || production.status === "harvested" ? (
-                <>
-                  <TrendingUp className="w-3.5 h-3.5 text-forest-600 group-hover:text-white" />
-                  <span>Faire une demande</span>
-                </>
-              ) : (
-                <>
-                  <span>Voir la production</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
-                </>
-              )
-            )}
-          </Link>
+              <div className="space-y-1">
+                <Link
+                  href={`/dashboard/reseller/productions/${production.id}`}
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-semibold text-xs transition-colors"
+                >
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-700 flex-shrink-0" />
+                  <span className="truncate">Indisponible dans votre région</span>
+                </Link>
+                {production.active_campaign?.eligibility_message && (
+                  <p className="text-[10px] text-amber-800 text-center truncate px-1">
+                    {production.active_campaign.eligibility_message}
+                  </p>
+                )}
+              </div>
+            )
+          ) : (
+            production.status === "growing" || production.status === "harvested" ? (
+              <Link
+                href={`/dashboard/reseller/productions/${production.id}`}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-forest-50 hover:bg-forest-100 text-forest-800 font-bold text-xs sm:text-sm border border-forest-200/90 transition-colors"
+              >
+                <TrendingUp className="w-4 h-4 text-forest-700" />
+                <span>Faire une demande</span>
+              </Link>
+            ) : (
+              <Link
+                href={`/dashboard/reseller/productions/${production.id}`}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-2xl bg-gray-50 hover:bg-gray-100 text-gray-700 font-semibold text-xs border border-gray-200 transition-colors group/btn"
+              >
+                <span>Découvrir la production</span>
+                <ArrowRight className="w-3.5 h-3.5 text-gray-400 group-hover/btn:translate-x-0.5 transition-transform" />
+              </Link>
+            )
+          )}
         </div>
       </div>
-    </div>
+    </article>
   );
 }

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import ResellerDashboardLayout from "@/components/reseller/ResellerDashboardLayout";
 import { getUnreadNotificationCount } from "@/lib/queries/notifications";
 
 export const dynamic = "force-dynamic";
@@ -45,15 +45,14 @@ export default async function ResellerLayout({
     : undefined;
 
   return (
-    <DashboardLayout
-      role="reseller"
-      entityName={reseller?.business_name}
+    <ResellerDashboardLayout
+      businessName={reseller?.business_name}
       userName={profile?.full_name}
       userEmail={user.email}
       locationInfo={locationInfo}
       unreadNotificationsCount={unreadCount}
     >
       {children}
-    </DashboardLayout>
+    </ResellerDashboardLayout>
   );
 }
