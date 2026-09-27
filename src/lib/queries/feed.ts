@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { ProductionStatus } from "@/lib/queries/productions";
+import {
+  isResellerEligibleForCampaign,
+  ResellerLocationContext,
+  CampaignEligibilityResult,
+} from "@/lib/services/campaignEligibility";
 
 export interface FeedProduct {
   id: string;
@@ -25,11 +30,15 @@ export interface FeedCampaignSummary {
   id: string;
   title: string;
   marketable_quantity: number;
+  available_quantity?: number;
   unit_price: number;
   currency: string;
   min_order_quantity: number;
   status: string;
-  is_eligible?: boolean;
+  is_eligible: boolean;
+  can_order?: boolean;
+  eligibility_reason?: string;
+  eligibility_message?: string;
 }
 
 export interface FeedProductionItem {
@@ -57,6 +66,8 @@ export interface FeedFilterParams {
   countryId?: string;
   provinceId?: string;
   resellerProvinceId?: string;
+  resellerCountryId?: string;
+  reseller?: ResellerLocationContext | null;
   page?: number;
   pageSize?: number;
 }
@@ -123,10 +134,12 @@ export async function getPublicFeedProductions(
         unit_price,
         currency,
         min_order_quantity,
+        start_date,
         end_date,
         status,
-        campaign_destinations (province_id),
-        campaign_delivery_zones (province_id)
+        campaign_destinations (id, province_id, city_name),
+        campaign_delivery_zones (id, country_id, province_id),
+        stock_reservations (id, quantity, status)
       )
     `, { count: "exact" })
     .eq("is_public", true)
@@ -172,6 +185,15 @@ export async function getPublicFeedProductions(
 
   const todayStr = new Date().toISOString().split("T")[0];
 
+  const resellerContext: ResellerLocationContext | null =
+    filters.reseller ||
+    (filters.resellerProvinceId
+      ? {
+          province_id: filters.resellerProvinceId,
+          country_id: filters.resellerCountryId,
+        }
+      : null);
+
   const items: FeedProductionItem[] = (data || []).map((item: any) => {
     const rawCompany = Array.isArray(item.company) ? item.company[0] : item.company;
     const company = {
@@ -183,16 +205,28 @@ export async function getPublicFeedProductions(
     const rawCampaigns = Array.isArray(item.campaigns) ? item.campaigns : (item.campaigns ? [item.campaigns] : []);
     const activeCampaign = rawCampaigns.find((c: any) => c.status === "active" && (!c.end_date || c.end_date >= todayStr)) || null;
 
-    let isEligible = false;
+    let availableQty = 0;
+    let eligibility: CampaignEligibilityResult = {
+      eligible: false,
+      canOrder: false,
+      reason: "UNAUTHENTICATED",
+      message: "",
+    };
+
     if (activeCampaign) {
-      if (filters.resellerProvinceId) {
-        const dests = activeCampaign.campaign_destinations || [];
-        const zones = activeCampaign.campaign_delivery_zones || [];
-        isEligible = dests.some((d: any) => d.province_id === filters.resellerProvinceId) ||
-                     zones.some((z: any) => z.province_id === filters.resellerProvinceId);
-      } else {
-        isEligible = true;
-      }
+      const marketable = Number(activeCampaign.marketable_quantity || 0);
+      const reserved = (activeCampaign.stock_reservations || [])
+        .filter((sr: any) => sr.status === "active")
+        .reduce((sum: number, curr: any) => sum + Number(curr.quantity || 0), 0);
+      availableQty = Math.max(0, marketable - reserved);
+
+      eligibility = isResellerEligibleForCampaign({
+        reseller: resellerContext,
+        campaign: {
+          ...activeCampaign,
+          available_quantity: availableQty,
+        },
+      });
     }
 
     return {
@@ -204,11 +238,15 @@ export async function getPublicFeedProductions(
         id: activeCampaign.id,
         title: activeCampaign.title,
         marketable_quantity: Number(activeCampaign.marketable_quantity),
+        available_quantity: availableQty,
         unit_price: Number(activeCampaign.unit_price),
         currency: activeCampaign.currency || "USD",
         min_order_quantity: Number(activeCampaign.min_order_quantity || 1),
         status: activeCampaign.status,
-        is_eligible: isEligible,
+        is_eligible: eligibility.eligible,
+        can_order: eligibility.canOrder,
+        eligibility_reason: eligibility.reason,
+        eligibility_message: eligibility.message,
       } : null,
     } as unknown as FeedProductionItem;
   });
@@ -230,7 +268,7 @@ export async function getPublicFeedProductions(
  */
 export async function getPublicProductionDetail(
   productionId: string,
-  resellerProvinceId?: string
+  resellerOrProvinceId?: ResellerLocationContext | string | null
 ): Promise<FeedProductionItem | null> {
   const supabase = createClient();
 
@@ -275,10 +313,12 @@ export async function getPublicProductionDetail(
         unit_price,
         currency,
         min_order_quantity,
+        start_date,
         end_date,
         status,
-        campaign_destinations (province_id),
-        campaign_delivery_zones (province_id)
+        campaign_destinations (id, province_id, city_name),
+        campaign_delivery_zones (id, country_id, province_id),
+        stock_reservations (id, quantity, status)
       )
     `)
     .eq("id", productionId)
@@ -303,16 +343,35 @@ export async function getPublicProductionDetail(
   const rawCampaigns = Array.isArray(rawItem.campaigns) ? rawItem.campaigns : (rawItem.campaigns ? [rawItem.campaigns] : []);
   const activeCampaign = rawCampaigns.find((c: any) => c.status === "active" && (!c.end_date || c.end_date >= todayStr)) || null;
 
-  let isEligible = false;
+  const resellerContext: ResellerLocationContext | null =
+    typeof resellerOrProvinceId === "object" && resellerOrProvinceId !== null
+      ? resellerOrProvinceId
+      : typeof resellerOrProvinceId === "string" && resellerOrProvinceId.trim() !== ""
+      ? { province_id: resellerOrProvinceId }
+      : null;
+
+  let availableQty = 0;
+  let eligibility: CampaignEligibilityResult = {
+    eligible: false,
+    canOrder: false,
+    reason: "UNAUTHENTICATED",
+    message: "",
+  };
+
   if (activeCampaign) {
-    if (resellerProvinceId) {
-      const dests = activeCampaign.campaign_destinations || [];
-      const zones = activeCampaign.campaign_delivery_zones || [];
-      isEligible = dests.some((d: any) => d.province_id === resellerProvinceId) ||
-                   zones.some((z: any) => z.province_id === resellerProvinceId);
-    } else {
-      isEligible = true;
-    }
+    const marketable = Number(activeCampaign.marketable_quantity || 0);
+    const reserved = (activeCampaign.stock_reservations || [])
+      .filter((sr: any) => sr.status === "active")
+      .reduce((sum: number, curr: any) => sum + Number(curr.quantity || 0), 0);
+    availableQty = Math.max(0, marketable - reserved);
+
+    eligibility = isResellerEligibleForCampaign({
+      reseller: resellerContext,
+      campaign: {
+        ...activeCampaign,
+        available_quantity: availableQty,
+      },
+    });
   }
 
   return {
@@ -324,11 +383,15 @@ export async function getPublicProductionDetail(
       id: activeCampaign.id,
       title: activeCampaign.title,
       marketable_quantity: Number(activeCampaign.marketable_quantity),
+      available_quantity: availableQty,
       unit_price: Number(activeCampaign.unit_price),
       currency: activeCampaign.currency || "USD",
       min_order_quantity: Number(activeCampaign.min_order_quantity || 1),
       status: activeCampaign.status,
-      is_eligible: isEligible,
+      is_eligible: eligibility.eligible,
+      can_order: eligibility.canOrder,
+      eligibility_reason: eligibility.reason,
+      eligibility_message: eligibility.message,
     } : null,
   } as unknown as FeedProductionItem;
 }

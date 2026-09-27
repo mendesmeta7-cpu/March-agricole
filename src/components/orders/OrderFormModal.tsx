@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { ResellerCampaignItem } from "@/lib/queries/campaigns";
 import { createOrderAction } from "@/lib/actions/orders";
+import { isResellerEligibleForCampaign } from "@/lib/services/campaignEligibility";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -51,15 +52,14 @@ export default function OrderFormModal({
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Résolution de la destination correspondant strictement au territoire du revendeur
-  const matchingDestination = campaign?.destinations?.find(
-    (d) => d.province_id === resellerProvinceId
-  );
+  // Évaluation d'éligibilité via la source unique de vérité
+  const eligibility = isResellerEligibleForCampaign({
+    reseller: resellerProvinceId ? { province_id: resellerProvinceId } : null,
+    campaign,
+  });
 
-  const isTerritoriallyEligible = Boolean(
-    matchingDestination ||
-    (resellerProvinceId && campaign?.delivery_zones?.some((z) => z.province_id === resellerProvinceId))
-  );
+  const matchingDestination = eligibility.matchingDestination || null;
+  const isTerritoriallyEligible = eligibility.eligible;
 
   // Initialisation à l'ouverture
   useEffect(() => {
@@ -69,10 +69,10 @@ export default function OrderFormModal({
       setErrorMessage(null);
 
       if (matchingDestination) {
-        setSelectedDestinationId(matchingDestination.id);
+        setSelectedDestinationId(matchingDestination.id || "");
         const firstDepot = matchingDestination.depots?.[0];
         setSelectedDepotId(firstDepot?.id || "");
-        setDeliveryCity(matchingDestination.city_name);
+        setDeliveryCity(matchingDestination.city_name || "");
         setDeliveryAddress(
           firstDepot
             ? `${firstDepot.name} (${firstDepot.commune}, ${firstDepot.address})`
@@ -117,7 +117,7 @@ export default function OrderFormModal({
     setErrorMessage(null);
 
     if (!isTerritoriallyEligible) {
-      setErrorMessage("Cette offre commerciale n'est pas disponible dans votre région de rattachement.");
+      setErrorMessage(eligibility.message || "Cette offre commerciale n'est pas disponible dans votre région de rattachement.");
       return;
     }
 
@@ -327,11 +327,13 @@ export default function OrderFormModal({
                     </span>
                     <span className="font-bold text-forest-950 flex items-center gap-1 justify-end">
                       <Calendar className="w-3.5 h-3.5 text-forest-700" />
-                      {new Date(currentDestination.expected_arrival_date).toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })}
+                      {currentDestination.expected_arrival_date
+                        ? new Date(currentDestination.expected_arrival_date).toLocaleDateString("fr-FR", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })
+                        : "Date à confirmer"}
                     </span>
                   </div>
                 </div>

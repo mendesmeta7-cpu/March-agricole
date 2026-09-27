@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-09-25 — Phase 23 Validée et Homologuée (Stabilisation RLS & Catalogues)*
+*Dernière mise à jour : 2026-09-27 — Phase 24 Validée (Audit & Correction Éligibilité Régionale + TypeScript 0 erreur)*
 
 ---
 
@@ -31,6 +31,7 @@
 | **21** | **Éligibilité Régionale Stricte des Commandes Revendeurs** | 🟢 **TERMINÉ** | Source de vérité serveur (`resellers.province_id`), contrôle inviolable dans `create_order_with_reservation`, verrouillage de la destination/dépôt sur le territoire revendeur, bouton conditionnel UI (Commander vs Non disponible dans votre région), notification ciblée régionale, suite de 10 tests SQL validée à 100%, build 36/36 certifié. |
 | **22** | **Workflow Demandes, Notifications Ciblées & Consultation Détaillée** | 🟢 **TERMINÉ** | Notification ciblée par produit avec URL directe `/dashboard/company/demands/[id]`, vue détaillée `CompanyDemandDetailView` avec soumission de proposition ferme et consultation multi-propositions, décloisonnement complet de l'analyse territoriale, migration 20. |
 | **23** | **Stabilisation RLS & Élimination de Récursion Infinie (42P17)** | 🟢 **TERMINÉ** | Fonctions helper `SECURITY DEFINER` (`can_company_view_demand`, `reseller_has_order_or_demand_on_production`, `reseller_has_order_on_company_product`), restauration intégrale de la visibilité des catalogues société, des productions et du flux revendeur, migration 21 appliquée via Supabase MCP, 0 régression, build 36/36 certifié. |
+| **24** | **Audit & Correction Éligibilité Régionale** | 🟢 **TERMINÉ** | Audit complet du circuit d'éligibilité territoriale, diagnostic d'incohérence de données (province_id Haut-Katanga vs city Kinshasa), correction directe en base via Supabase MCP, fix UX bug `ResellerLocationEditModal` (nom province cible affiché), correction 3 erreurs TypeScript préexistantes (`feed.ts` x2 + `OrderFormModal.tsx` x3), TypeScript 0 erreur certifié. |
 
 ---
 

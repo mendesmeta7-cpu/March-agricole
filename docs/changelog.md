@@ -3,7 +3,24 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
-## [1.9.0-rls-recursion-fix] - 2026-09-25
+## [2.0.0-regional-eligibility-audit] - 2026-09-27
+### Audit & Correction Éligibilité Régionale + Stabilisation TypeScript (Phase 24)
+
+#### Diagnostiqué & Corrigé
+* **Cause Racine Identifiée — Incohérence de Données Profil Revendeur** :
+  - Audit complet du circuit d'éligibilité : service `campaignEligibility.ts`, `feed.ts`, `campaigns.ts`, page de détail `/productions/[id]`.
+  - Diagnostic confirmé : le revendeur `1ebb4058` avait `city = "Kinshasa"` mais `province_id = Haut-Katanga (bf5142de)`. Les campagnes actives livrent exclusivement en province Kinshasa (`23233c48`). Le code d'éligibilité était correct ; c'est la donnée en base qui était incohérente.
+  - Correction directe via Supabase MCP : `UPDATE resellers SET province_id = '23233c48-3e87-47d8-8147-bb67bf535007' WHERE id = '1ebb4058-c787-4db3-811b-b712b563773c'` — le revendeur est maintenant correctement rattaché à Kinshasa.
+* **Bug UX `ResellerLocationEditModal`** :
+  - La variable `currentProvince` affichait la province initiale (à l'ouverture) dans le message de confirmation, et non la province nouvellement sélectionnée par l'utilisateur.
+  - Correction : renommée en `selectedProvince` pointant sur `provinceId` (état réactif du select), le message reflète désormais correctement la province cible.
+* **3 Erreurs TypeScript Préexistantes Corrigées** :
+  - `src/lib/queries/feed.ts` (x2) : variable `eligibility` initialisée avec type littéral `reason: "UNAUTHENTICATED" as const` incompatible avec la réassignation par `CampaignEligibilityResult`. Import et annotation explicite du type `CampaignEligibilityResult` ajoutée.
+  - `src/components/orders/OrderFormModal.tsx` (x3) : `matchingDestination.id` et `.city_name` potentiellement `undefined` passés à `SetStateAction<string>` → ajout de fallbacks `|| ""`. `currentDestination.expected_arrival_date` potentiellement `undefined` passé à `new Date()` → guard conditionnel avec fallback `"Date à confirmer"`.
+* **Validation** :
+  - Typecheck TypeScript (`npx tsc --noEmit`) : **0 erreur**.
+
+
 ### Stabilisation RLS & Élimination de Récursion Infinie (Phase 23)
 
 #### Corrigé & Blindé

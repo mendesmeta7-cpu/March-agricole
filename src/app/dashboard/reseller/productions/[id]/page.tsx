@@ -26,21 +26,37 @@ interface ResellerProductionDetailPageProps {
   params: {
     id: string;
   };
+  searchParams?: {
+    order?: string;
+  };
 }
 
 export default async function ResellerProductionDetailPage({
   params,
+  searchParams,
 }: ResellerProductionDetailPageProps) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Chargement conjoint production, provinces et localisation revendeur
-  const [production, provincesRes, resellerProfileRes] = await Promise.all([
-    getPublicProductionDetail(params.id),
+  // 1. Récupération préalable de la localisation officielle du revendeur connecté
+  let reseller: any = null;
+  if (user) {
+    const { data: resellerData, error: resellerErr } = await supabase
+      .from("resellers")
+      .select("id, country_id, province_id, city, delivery_address, provinces (id, name, code), countries (id, name, code)")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!resellerErr && resellerData) {
+      reseller = resellerData;
+    }
+  }
+
+  // 2. Chargement conjoint production, provinces et campagne active avec éligibilité
+  const [production, provincesRes, activeCampaign] = await Promise.all([
+    getPublicProductionDetail(params.id, reseller),
     supabase.from("provinces").select("id, country_id, code, name").order("name"),
-    user
-      ? supabase.from("resellers").select("province_id, city, address, provinces (name)").eq("id", user.id).maybeSingle()
-      : Promise.resolve({ data: null }),
+    getActiveCampaignByProductionId(params.id, reseller),
   ]);
 
   if (!production) {
@@ -48,8 +64,7 @@ export default async function ResellerProductionDetailPage({
   }
 
   const provinces = provincesRes.data || [];
-  const defaultProvinceId = resellerProfileRes?.data?.province_id || undefined;
-  const activeCampaign = await getActiveCampaignByProductionId(params.id, defaultProvinceId);
+  const defaultProvinceId = reseller?.province_id || undefined;
 
   // Formatage des dates du cycle
   const formatDate = (dateString?: string | null) => {
@@ -197,11 +212,16 @@ export default async function ResellerProductionDetailPage({
                 provinces={provinces}
                 defaultProvinceId={defaultProvinceId}
                 activeCampaign={activeCampaign}
+                autoOpenOrder={searchParams?.order === "true" || searchParams?.order === "1"}
                 resellerInfo={{
+                  id: reseller?.id,
+                  countryId: reseller?.country_id,
+                  countryName: (reseller?.countries as any)?.name || "",
                   provinceId: defaultProvinceId,
-                  provinceName: (resellerProfileRes?.data?.provinces as any)?.name || "",
-                  city: resellerProfileRes?.data?.city || "",
-                  address: resellerProfileRes?.data?.address || "",
+                  provinceName: (reseller?.provinces as any)?.name || "",
+                  city: reseller?.city || "",
+                  address: reseller?.delivery_address || "",
+                  deliveryAddress: reseller?.delivery_address || "",
                 }}
               />
             </div>

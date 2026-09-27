@@ -1,4 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import {
+  isResellerEligibleForCampaign,
+  ResellerLocationContext,
+} from "@/lib/services/campaignEligibility";
 
 export type CampaignStatus = "draft" | "active" | "paused" | "completed" | "cancelled";
 
@@ -96,7 +100,10 @@ export interface ResellerCampaignItem extends CompanyCampaignItem {
     provinces?: { name: string } | null;
     countries?: { name: string } | null;
   };
-  is_eligible: boolean; // Vrai si la province du revendeur est dans les zones desservies
+  is_eligible: boolean; // Vrai si le territoire du revendeur est dans les zones desservies
+  can_order?: boolean;
+  eligibility_reason?: string;
+  eligibility_message?: string;
 }
 
 export interface EligibleProductionOption {
@@ -433,7 +440,7 @@ export async function getCompanyCampaignById(
  * Calcule l'éligibilité géographique et le stock restant réel
  */
 export async function getResellerCampaigns(
-  resellerProvinceId?: string,
+  resellerOrProvinceId?: ResellerLocationContext | string | null,
   filters: CampaignFilterParams = {}
 ): Promise<ResellerCampaignItem[]> {
   const supabase = createClient();
@@ -575,17 +582,29 @@ export async function getResellerCampaigns(
       depots: dest.depots || [],
     }));
 
-    // Évaluation d'éligibilité territoriale (zones provinciales ou villes de destinations)
-    const isEligible = resellerProvinceId
-      ? deliveryZones.some((z: any) => z.province_id === resellerProvinceId) ||
-        destinations.some((d: any) => d.province_id === resellerProvinceId)
-      : false;
+    const resellerContext: ResellerLocationContext | null =
+      typeof resellerOrProvinceId === "object" && resellerOrProvinceId !== null
+        ? resellerOrProvinceId
+        : typeof resellerOrProvinceId === "string" && resellerOrProvinceId.trim() !== ""
+        ? { province_id: resellerOrProvinceId }
+        : null;
 
     const marketableQty = Number(item.marketable_quantity);
     const reservedQty = (item.stock_reservations || [])
       .filter((sr: any) => sr.status === "active")
       .reduce((acc: number, curr: any) => acc + Number(curr.quantity), 0);
     const availableQty = Math.max(0, marketableQty - reservedQty);
+
+    // Évaluation d'éligibilité via la source unique de vérité
+    const eligibility = isResellerEligibleForCampaign({
+      reseller: resellerContext,
+      campaign: {
+        ...item,
+        available_quantity: availableQty,
+        delivery_zones: deliveryZones,
+        destinations: destinations,
+      },
+    });
 
     return {
       ...item,
@@ -602,12 +621,15 @@ export async function getResellerCampaigns(
       },
       delivery_zones: deliveryZones,
       destinations: destinations,
-      is_eligible: isEligible,
+      is_eligible: eligibility.eligible,
+      can_order: eligibility.canOrder,
+      eligibility_reason: eligibility.reason,
+      eligibility_message: eligibility.message,
     };
   });
 
   // Filtre optionnel : afficher uniquement les offres éligibles
-  if (filters.eligibleOnly && resellerProvinceId) {
+  if (filters.eligibleOnly && resellerOrProvinceId) {
     return campaigns.filter((c) => c.is_eligible);
   }
 
@@ -619,7 +641,7 @@ export async function getResellerCampaigns(
  */
 export async function getActiveCampaignByProductionId(
   productionId: string,
-  resellerProvinceId?: string
+  resellerOrProvinceId?: ResellerLocationContext | string | null
 ): Promise<ResellerCampaignItem | null> {
   const supabase = createClient();
 
@@ -749,16 +771,28 @@ export async function getActiveCampaignByProductionId(
     depots: dest.depots || [],
   }));
 
-  const isEligible = resellerProvinceId
-    ? deliveryZones.some((z: any) => z.province_id === resellerProvinceId) ||
-      destinations.some((d: any) => d.province_id === resellerProvinceId)
-    : false;
+  const resellerContext: ResellerLocationContext | null =
+    typeof resellerOrProvinceId === "object" && resellerOrProvinceId !== null
+      ? resellerOrProvinceId
+      : typeof resellerOrProvinceId === "string" && resellerOrProvinceId.trim() !== ""
+      ? { province_id: resellerOrProvinceId }
+      : null;
 
   const marketableQty = Number(rawItem.marketable_quantity);
   const reservedQty = (rawItem.stock_reservations || [])
     .filter((sr: any) => sr.status === "active")
     .reduce((acc: number, curr: any) => acc + Number(curr.quantity), 0);
   const availableQty = Math.max(0, marketableQty - reservedQty);
+
+  const eligibility = isResellerEligibleForCampaign({
+    reseller: resellerContext,
+    campaign: {
+      ...rawItem,
+      available_quantity: availableQty,
+      delivery_zones: deliveryZones,
+      destinations: destinations,
+    },
+  });
 
   return {
     ...rawItem,
@@ -775,7 +809,10 @@ export async function getActiveCampaignByProductionId(
     },
     delivery_zones: deliveryZones,
     destinations: destinations,
-    is_eligible: isEligible,
+    is_eligible: eligibility.eligible,
+    can_order: eligibility.canOrder,
+    eligibility_reason: eligibility.reason,
+    eligibility_message: eligibility.message,
   };
 }
 

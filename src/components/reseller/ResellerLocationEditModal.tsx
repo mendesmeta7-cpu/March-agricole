@@ -40,7 +40,7 @@ export default function ResellerLocationEditModal({
 
   if (!isOpen) return null;
 
-  const currentProvince = provinces.find((p) => p.id === provinceId);
+  const selectedProvince = provinces.find((p) => p.id === provinceId);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,7 +186,7 @@ export default function ResellerLocationEditModal({
                 className="mt-0.5 rounded text-earth-700 focus:ring-earth-500"
               />
               <span className="text-xs">
-                Je confirme vouloir modifier mon territoire d&apos;opération vers {currentProvince?.name || "cette province"}.
+                Je confirme vouloir modifier mon territoire d&apos;opération vers {selectedProvince?.name || "cette province"}.
               </span>
             </label>
           </div>

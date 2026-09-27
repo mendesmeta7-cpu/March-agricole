@@ -21,11 +21,16 @@ interface ResellerProductionDetailActionsProps {
   provinces: Province[];
   defaultProvinceId?: string;
   activeCampaign?: ResellerCampaignItem | null;
+  autoOpenOrder?: boolean;
   resellerInfo?: {
+    id?: string;
+    countryId?: string;
+    countryName?: string;
     provinceId?: string;
     provinceName?: string;
     city?: string;
     address?: string;
+    deliveryAddress?: string;
   };
 }
 
@@ -34,9 +39,17 @@ export default function ResellerProductionDetailActions({
   provinces,
   defaultProvinceId,
   activeCampaign,
+  autoOpenOrder = false,
   resellerInfo,
 }: ResellerProductionDetailActionsProps) {
-  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const isEligible = Boolean(activeCampaign?.is_eligible);
+  const canOrder = activeCampaign ? activeCampaign.can_order !== false && isEligible : false;
+  const isOutOfStock = Boolean(
+    activeCampaign &&
+    (activeCampaign.available_quantity <= 0 || activeCampaign.eligibility_reason === "OUT_OF_STOCK")
+  );
+
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(Boolean(autoOpenOrder && canOrder));
   const [isDemandModalOpen, setIsDemandModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -74,7 +87,7 @@ export default function ResellerProductionDetailActions({
             )}
           </div>
 
-          {activeCampaign.is_eligible ? (
+          {canOrder ? (
             <button
               type="button"
               onClick={() => setIsOrderModalOpen(true)}
@@ -83,6 +96,15 @@ export default function ResellerProductionDetailActions({
               <ShoppingCart className="w-4 h-4" />
               Commander sur cette production
             </button>
+          ) : isOutOfStock ? (
+            <div className="p-3 bg-gray-50 border border-gray-200 text-gray-800 text-xs rounded-xl space-y-1">
+              <span className="font-bold block">
+                Stock disponible épuisé sur cette offre
+              </span>
+              <p className="text-[11px] text-gray-600 leading-relaxed">
+                Le volume commercialisable de cette offre a été entièrement réservé. Vous pouvez toutefois formuler une demande spécifique ci-dessous.
+              </p>
+            </div>
           ) : (
             <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl space-y-1.5">
               <span className="font-bold block">
@@ -101,7 +123,7 @@ export default function ResellerProductionDetailActions({
               className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-forest-700 hover:text-forest-900 hover:bg-forest-50/50 rounded-lg transition-colors cursor-pointer"
             >
               <TrendingUp className="w-3.5 h-3.5" />
-              {activeCampaign.is_eligible ? "Ou formuler une demande spécifique" : "Formuler une demande sur cette denrée"}
+              {isEligible ? "Ou formuler une demande spécifique" : "Formuler une demande sur cette denrée"}
             </button>
           )}
         </div>
@@ -131,7 +153,7 @@ export default function ResellerProductionDetailActions({
           resellerProvinceId={resellerInfo?.provinceId || defaultProvinceId}
           resellerProvinceName={resellerInfo?.provinceName}
           defaultCity={resellerInfo?.city || ""}
-          defaultAddress={resellerInfo?.address || ""}
+          defaultAddress={resellerInfo?.deliveryAddress || resellerInfo?.address || ""}
         />
       )}
 

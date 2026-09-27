@@ -16,14 +16,14 @@ export default async function ResellerCampaignsPage() {
   // 1. Récupération du profil revendeur et de sa localisation
   const { data: reseller } = await supabase
     .from("resellers")
-    .select("id, province_id, city, delivery_address, provinces(name)")
+    .select("id, country_id, province_id, city, delivery_address, provinces(id, name, code), countries(id, name, code)")
     .eq("id", user.id)
     .maybeSingle();
 
   const provinceName = (reseller?.provinces as any)?.name;
 
   // 2. Chargement des campagnes actives avec calcul d'éligibilité et stock restant réel
-  const campaigns = await getResellerCampaigns(reseller?.province_id);
+  const campaigns = await getResellerCampaigns(reseller);
 
   return (
     <ResellerCampaignsView
