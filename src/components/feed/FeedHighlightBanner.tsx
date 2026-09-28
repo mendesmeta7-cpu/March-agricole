@@ -118,7 +118,7 @@ export default function FeedHighlightBanner({
       onTouchEnd={handleTouchEnd}
     >
       {/* Conteneur principal avec hauteur fixe adaptative */}
-      <div className="relative w-full min-h-[190px] sm:min-h-[220px]">
+      <div className="relative w-full h-[190px] sm:h-[220px]">
         {activeBanners.map((banner, index) => {
           const isActive = index === currentIndex;
           const optimizedBg = getOptimizedCloudinaryUrl(banner.image_url, {
@@ -135,11 +135,11 @@ export default function FeedHighlightBanner({
                 isActive ? "opacity-100 z-10 pointer-events-auto" : "opacity-0 z-0 pointer-events-none"
               }`}
             >
-              {/* Image d'arrière-plan Cloudinary */}
+              {/* Image d'arrière-plan Cloudinary — absolute pour ne pas pousser le texte hors du conteneur */}
               <img
                 src={optimizedBg}
                 alt={banner.title}
-                className="w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-cover"
                 loading={index === 0 ? "eager" : "lazy"}
               />
 
@@ -165,16 +165,29 @@ export default function FeedHighlightBanner({
                   )}
                 </div>
 
-                {banner.button_label && (
+                {banner.button_label && banner.button_label.trim() !== "" && (
                   <div className="pt-3">
-                    <Link
-                      href={banner.button_url || "/dashboard/reseller/campaigns"}
-                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-white text-forest-900 font-bold text-xs sm:text-sm hover:bg-forest-50 active:scale-97 transition-all shadow-md group"
-                    >
-                      <Megaphone className="w-4 h-4 text-forest-700" />
-                      <span>{banner.button_label}</span>
-                      <ArrowRight className="w-4 h-4 text-forest-700 group-hover:translate-x-0.5 transition-transform" />
-                    </Link>
+                    {banner.button_url && /^https?:\/\//i.test(banner.button_url) ? (
+                      <a
+                        href={banner.button_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-white text-forest-900 font-bold text-xs sm:text-sm hover:bg-forest-50 active:scale-97 transition-all shadow-md group"
+                      >
+                        <Megaphone className="w-4 h-4 text-forest-700" />
+                        <span>{banner.button_label}</span>
+                        <ArrowRight className="w-4 h-4 text-forest-700 group-hover:translate-x-0.5 transition-transform" />
+                      </a>
+                    ) : (
+                      <Link
+                        href={banner.button_url || "/dashboard/reseller/campaigns"}
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-white text-forest-900 font-bold text-xs sm:text-sm hover:bg-forest-50 active:scale-97 transition-all shadow-md group"
+                      >
+                        <Megaphone className="w-4 h-4 text-forest-700" />
+                        <span>{banner.button_label}</span>
+                        <ArrowRight className="w-4 h-4 text-forest-700 group-hover:translate-x-0.5 transition-transform" />
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>
