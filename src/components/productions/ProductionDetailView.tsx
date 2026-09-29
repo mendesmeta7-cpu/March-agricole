@@ -12,6 +12,7 @@ import {
 import ProductionStatusBadge from "./ProductionStatusBadge";
 import ProductionFormModal from "./ProductionFormModal";
 import Card from "@/components/ui/Card";
+import { formatProductionSeasonCalendar } from "@/lib/utils/seasonalMonths";
 import {
   ArrowLeft,
   Calendar,
@@ -291,26 +292,39 @@ export default function ProductionDetailView({
               <p className="text-xs text-forest-700">Unité : {production.unit}</p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200/80 space-y-1">
+            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200/80 space-y-3 col-span-2">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700">
                 <Calendar className="w-4 h-4 text-gray-500" />
-                Début de cycle / Semis
+                Calendrier saisonnier récurrent
               </div>
-              <p className="text-base font-bold text-gray-900">
-                {formatDate(production.period_start)}
-              </p>
-              <p className="text-xs text-gray-500">Lancement cultural</p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200/80 space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700">
-                <Calendar className="w-4 h-4 text-gray-500" />
-                Récolte prévue / effective
-              </div>
-              <p className="text-base font-bold text-gray-900">
-                {formatDate(production.period_end)}
-              </p>
-              <p className="text-xs text-gray-500">Échéance prévisionnelle</p>
+              {(() => {
+                const { plantingPeriod, harvestPeriod, hasPlanting, hasHarvest } = formatProductionSeasonCalendar(production);
+                return hasPlanting || hasHarvest ? (
+                  <div className="space-y-2">
+                    {hasPlanting && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] uppercase font-semibold text-gray-500 w-24 shrink-0">Plantation</span>
+                        <span className="text-sm font-bold text-forest-800 bg-forest-50 px-2.5 py-0.5 rounded-lg border border-forest-100">
+                          🌱 {plantingPeriod}
+                        </span>
+                      </div>
+                    )}
+                    {hasHarvest && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] uppercase font-semibold text-gray-500 w-24 shrink-0">Récolte</span>
+                        <span className="text-sm font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-lg border border-amber-100">
+                          🌾 {harvestPeriod}
+                        </span>
+                      </div>
+                    )}
+                    <p className="text-[11px] text-gray-400 italic">
+                      Ces mois sont récurrents et valables chaque année jusqu’à modification.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">Calendrier saisonnier non renseigné.</p>
+                );
+              })()}
             </div>
           </div>
 

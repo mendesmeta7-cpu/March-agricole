@@ -26,6 +26,12 @@ export interface CompanyPublicProductionItem {
   location_name: string;
   expected_quantity: number;
   unit: string;
+  // Saisons agricoles récurrentes (mois cycliques, sans année)
+  planting_start_month: number | null;
+  planting_end_month: number | null;
+  harvest_start_month: number | null;
+  harvest_end_month: number | null;
+  // Colonnes historiques conservées
   period_start: string;
   period_end: string | null;
   status: ProductionStatus;
@@ -96,6 +102,10 @@ export async function getCompanyPublicProductions(
       location_name,
       expected_quantity,
       unit,
+      planting_start_month,
+      planting_end_month,
+      harvest_start_month,
+      harvest_end_month,
       period_start,
       period_end,
       status,

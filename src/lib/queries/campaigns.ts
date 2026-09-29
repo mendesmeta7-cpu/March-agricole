@@ -81,6 +81,10 @@ export interface CompanyCampaignItem {
     main_image_url: string | null;
     expected_quantity: number;
     unit: string;
+    planting_start_month: number | null;
+    planting_end_month: number | null;
+    harvest_start_month: number | null;
+    harvest_end_month: number | null;
     period_start: string;
     period_end: string | null;
     status: string;
@@ -114,6 +118,10 @@ export interface EligibleProductionOption {
   product_category: string;
   expected_quantity: number;
   unit: string;
+  planting_start_month: number | null;
+  planting_end_month: number | null;
+  harvest_start_month: number | null;
+  harvest_end_month: number | null;
   period_start: string;
   period_end: string | null;
   status: string;
@@ -169,6 +177,10 @@ export async function getCompanyCampaigns(
         main_image_url,
         expected_quantity,
         unit,
+        planting_start_month,
+        planting_end_month,
+        harvest_start_month,
+        harvest_end_month,
         period_start,
         period_end,
         status
@@ -271,6 +283,10 @@ export async function getCompanyEligibleProductions(
       product_id,
       expected_quantity,
       unit,
+      planting_start_month,
+      planting_end_month,
+      harvest_start_month,
+      harvest_end_month,
       period_start,
       period_end,
       status,
@@ -299,6 +315,10 @@ export async function getCompanyEligibleProductions(
       product_category: product?.category || "Non catégorisé",
       expected_quantity: Number(item.expected_quantity),
       unit: item.unit,
+      planting_start_month: item.planting_start_month ?? null,
+      planting_end_month: item.planting_end_month ?? null,
+      harvest_start_month: item.harvest_start_month ?? null,
+      harvest_end_month: item.harvest_end_month ?? null,
       period_start: item.period_start,
       period_end: item.period_end,
       status: item.status,

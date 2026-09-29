@@ -13,6 +13,7 @@ import {
   ImageOff,
   PackageOpen,
 } from "lucide-react";
+import { formatProductionSeasonCalendar } from "@/lib/utils/seasonalMonths";
 
 interface CompanyPublicProductionsListProps {
   productions: CompanyPublicProductionItem[];
@@ -49,22 +50,7 @@ export default function CompanyPublicProductionsList({
 function ProductionItemCard({ production }: { production: CompanyPublicProductionItem }) {
   const [imgError, setImgError] = useState(false);
 
-  // Formatage des dates du cycle
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return null;
-    try {
-      return new Intl.DateTimeFormat("fr-FR", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }).format(new Date(dateString));
-    } catch {
-      return dateString;
-    }
-  };
-
-  const formattedStart = formatDate(production.period_start);
-  const formattedEnd = formatDate(production.period_end);
+  const { plantingPeriod, harvestPeriod, hasPlanting, hasHarvest } = formatProductionSeasonCalendar(production);
 
   return (
     <div className="group bg-white rounded-2xl border border-gray-200/80 hover:border-forest-300 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col overflow-hidden">
@@ -120,12 +106,14 @@ function ProductionItemCard({ production }: { production: CompanyPublicProductio
             </div>
           )}
 
-          {/* Période prévisionnelle */}
+          {/* Calendrier saisonnier */}
           <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50/80 px-2.5 py-1.5 rounded-lg border border-gray-100">
             <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
             <span className="truncate">
-              Cycle : {formattedStart || "Date début non définie"}
-              {formattedEnd ? ` → ${formattedEnd}` : " (en cours)"}
+              {hasPlanting && <span>🌱 <strong className="text-forest-800">{plantingPeriod}</strong></span>}
+              {hasPlanting && hasHarvest && <span className="text-gray-300 mx-1">·</span>}
+              {hasHarvest && <span>🌾 <strong className="text-amber-700">{harvestPeriod}</strong></span>}
+              {!hasPlanting && !hasHarvest && <span className="text-gray-400 italic">Calendrier non renseigné</span>}
             </span>
           </div>
         </div>

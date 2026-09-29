@@ -3,8 +3,63 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [2.3.0-seasonal-production-calendar] - 2026-09-29
+### Phase 27 — Saisons Agricoles Sans Année Calendaire (Production Cycle)
+
+#### Objectif Métier
+Remplacer les dates calendaires avec année (`period_start` DATE, `period_end` DATE) par une représentation **saisonnière récurrente basée sur des mois (1-12)**, valable chaque année jusqu'à modification explicite. Ex: "Plantation : avril–juin / Récolte : août–décembre".
+
+#### Ajouté — Base de données (Supabase)
+* **Migration `20260929000023_production_seasonal_months.sql`** :
+  - 4 nouvelles colonnes `SMALLINT` sur `productions` : `planting_start_month`, `planting_end_month`, `harvest_start_month`, `harvest_end_month`.
+  - Contraintes `CHECK` : valeur dans `[1, 12]` uniquement (NULL autorisé).
+  - Pas de contrainte `start < end` : une saison peut traverser l'année civile (ex: octobre→février est valide).
+  - Index partiels `idx_productions_planting_start_month` et `idx_productions_harvest_end_month`.
+  - Commentaires documentaires sur toutes les colonnes.
+  - Migration conservative des données existantes : `planting_start_month` ← `EXTRACT(MONTH FROM period_start)`, `harvest_end_month` ← `EXTRACT(MONTH FROM period_end)`.
+  - Colonnes historiques `period_start` et `period_end` **conservées** (non supprimées) pour compatibilité.
+
+#### Ajouté — Utilitaire
+* **`src/lib/utils/seasonalMonths.ts`** (nouveau) :
+  - `MONTHS_FR` : tableau des 12 mois en français.
+  - `getMonthName(month)` : nom du mois (1→"Janvier", 12→"Décembre").
+  - `getMonthShortName(month)` : abréviation 3 lettres.
+  - `formatSeasonalPeriod(start, end)` : "avril–juin", "octobre–février" (gère le cyclique).
+  - `isSeasonCyclical(start, end)` : détecte saison traversant l'année civile.
+  - `formatProductionSeasonCalendar(production)` : retourne `{ plantingPeriod, harvestPeriod, hasPlanting, hasHarvest }`.
+
+#### Modifié — Types TypeScript
+* **`src/lib/queries/productions.ts`** : `ProductionItem` + SELECT `getCompanyProductions` et `getProductionById` — ajout des 4 colonnes saisonnières. Tri `ORDER BY created_at DESC` (anciennement `period_start DESC`).
+* **`src/lib/queries/feed.ts`** : `FeedProductionItem` + 2 SELECT (`getPublicFeedProductions`, `getPublicProductionDetail`) — ajout des 4 colonnes.
+* **`src/lib/queries/companies.ts`** : `CompanyPublicProductionItem` + SELECT `getCompanyPublicProductions` — ajout des 4 colonnes.
+* **`src/lib/queries/campaigns.ts`** : `CompanyCampaignItem.production`, `EligibleProductionOption` + SELECT `getEligibleProductionsForCampaign` + JOIN `production:productions!inner` — ajout des 4 colonnes.
+
+#### Modifié — Actions Serveur
+* **`src/lib/actions/productions.ts`** :
+  - `createProductionAction` : lecture de `plantingStartMonth`, `plantingEndMonth`, `harvestStartMonth`, `harvestEndMonth` (FormData), parsing sécurisé en entier [1-12], validation. `period_start` forcé à `CURRENT_DATE` (colonne NOT NULL legacy).
+  - `updateProductionAction` : même logique pour la mise à jour.
+
+#### Modifié — Interface Utilisateur
+* **`src/components/productions/ProductionFormModal.tsx`** (refonte complète) :
+  - Remplacement des `<input type="date">` par 4 `<select>` de mois (plantation début/fin, récolte début/fin).
+  - Aperçu temps réel de la saison formatée ("🌱 Plantation : avril–juin").
+  - Note explicative sur les saisons cycliques (octobre→février).
+  - Import `MONTHS_FR` et `formatSeasonalPeriod` depuis l'utilitaire.
+* **`src/components/productions/ProductionCard.tsx`** : calendrier saisonnier "🌱 Plantation : X · 🌾 Récolte : Y" au lieu des dates.
+* **`src/components/productions/ProductionDetailView.tsx`** : bloc calendrier saisonnier unifié avec badges colorés, note de récurrence.
+* **`src/components/companies/CompanyPublicProductionsList.tsx`** : calendrier saisonnier dans les cartes publiques.
+* **`src/app/dashboard/reseller/productions/[id]/page.tsx`** : calendrier saisonnier dans la page détail revendeur.
+
+#### Validation
+* TypeScript `npx tsc --noEmit` : **0 erreur**.
+* Supabase : migration appliquée, 7 productions existantes migrées automatiquement.
+* Règle Métier respectée : aucune donnée d'année n'est stockée dans les champs saisonniers.
+
+---
+
 ## [2.2.0-marketplace-feed-compact-cards] - 2026-09-29
 ### Phase 26 — Refonte UI/UX Flux des Productions : Cartes Compactes Style Marketplace
+
 
 #### Modifié — UI/UX uniquement (aucune modification backend/Supabase)
 

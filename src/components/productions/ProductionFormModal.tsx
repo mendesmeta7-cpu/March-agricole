@@ -4,6 +4,7 @@ import { useState, useRef, useTransition, useEffect } from "react";
 import { ProductionItem, ProductionStatus } from "@/lib/queries/productions";
 import { CompanyProductItem } from "@/lib/queries/products";
 import { createProductionAction, updateProductionAction } from "@/lib/actions/productions";
+import { MONTHS_FR, formatSeasonalPeriod } from "@/lib/utils/seasonalMonths";
 import {
   X,
   Upload,
@@ -15,6 +16,7 @@ import {
   Eye,
   Info,
   CheckCircle2,
+  Sprout,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -44,11 +46,15 @@ export default function ProductionFormModal({
   const [description, setDescription] = useState("");
   const [expectedQuantity, setExpectedQuantity] = useState<string>("");
   const [unit, setUnit] = useState("tonne");
-  const [periodStart, setPeriodStart] = useState("");
-  const [periodEnd, setPeriodEnd] = useState("");
   const [locationName, setLocationName] = useState("");
   const [status, setStatus] = useState<ProductionStatus>("planned");
   const [isPublic, setIsPublic] = useState(true);
+
+  // Saisons agricoles (mois cycliques, 1-12, sans année)
+  const [plantingStartMonth, setPlantingStartMonth] = useState<string>("");
+  const [plantingEndMonth, setPlantingEndMonth] = useState<string>("");
+  const [harvestStartMonth, setHarvestStartMonth] = useState<string>("");
+  const [harvestEndMonth, setHarvestEndMonth] = useState<string>("");
 
   // Gestion de la photo
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -67,8 +73,10 @@ export default function ProductionFormModal({
       setDescription(editingProduction.description || "");
       setExpectedQuantity(String(editingProduction.expected_quantity));
       setUnit(editingProduction.unit);
-      setPeriodStart(editingProduction.period_start);
-      setPeriodEnd(editingProduction.period_end || "");
+      setPlantingStartMonth(String(editingProduction.planting_start_month ?? ""));
+      setPlantingEndMonth(String(editingProduction.planting_end_month ?? ""));
+      setHarvestStartMonth(String(editingProduction.harvest_start_month ?? ""));
+      setHarvestEndMonth(String(editingProduction.harvest_end_month ?? ""));
       setLocationName(editingProduction.location_name);
       setStatus(editingProduction.status);
       setIsPublic(editingProduction.is_public);
@@ -82,10 +90,10 @@ export default function ProductionFormModal({
       setDescription("");
       setExpectedQuantity("");
       setUnit(defaultProd?.product.default_unit || "tonne");
-      // Date du jour par défaut
-      const today = new Date().toISOString().split("T")[0];
-      setPeriodStart(today);
-      setPeriodEnd("");
+      setPlantingStartMonth("");
+      setPlantingEndMonth("");
+      setHarvestStartMonth("");
+      setHarvestEndMonth("");
       setLocationName("");
       setStatus("planned");
       setIsPublic(true);
@@ -93,7 +101,7 @@ export default function ProductionFormModal({
     }
   }, [isOpen, editingProduction, companyProducts]);
 
-  // Changement de produit sélectionné (mise à jour du titre suggéré et de l'unité)
+  // Changement de produit sélectionné
   const handleProductChange = (newCompanyProductId: string) => {
     setSelectedCompanyProductId(newCompanyProductId);
     const prod = companyProducts.find((p) => p.id === newCompanyProductId);
@@ -111,12 +119,10 @@ export default function ProductionFormModal({
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (file.size > 5 * 1024 * 1024) {
       setErrorMessage("La taille de l'image ne doit pas dépasser 5 Mo.");
       return;
     }
-
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result as string);
@@ -153,10 +159,20 @@ export default function ProductionFormModal({
 
   const activeCompanyProducts = companyProducts.filter((p) => p.is_active);
 
+  // Aperçu de la saison formatée
+  const plantingPreview = formatSeasonalPeriod(
+    plantingStartMonth ? parseInt(plantingStartMonth) : null,
+    plantingEndMonth ? parseInt(plantingEndMonth) : null
+  );
+  const harvestPreview = formatSeasonalPeriod(
+    harvestStartMonth ? parseInt(harvestStartMonth) : null,
+    harvestEndMonth ? parseInt(harvestEndMonth) : null
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 mt-auto sm:mt-0"
+        className="relative w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 mt-auto sm:mt-0"
         role="dialog"
         aria-modal="true"
       >
@@ -202,7 +218,7 @@ export default function ProductionFormModal({
             </div>
           </div>
 
-          {/* Sélection du produit (Obligatoire, issu de company_products) */}
+          {/* Sélection du produit */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-gray-800">
               Produit cultivé par votre exploitation <span className="text-rose-500">*</span>
@@ -228,9 +244,6 @@ export default function ProductionFormModal({
                 ))}
               </select>
             )}
-            <p className="text-[11px] text-gray-500">
-              Seuls les produits déjà configurés dans votre exploitation peuvent faire l&apos;objet d&apos;un cycle de culture.
-            </p>
           </div>
 
           {/* Titre & Localisation */}
@@ -270,7 +283,7 @@ export default function ProductionFormModal({
             </div>
           </div>
 
-          {/* Quantité prévisionnelle & Unité */}
+          {/* Quantité & Unité */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-gray-800">
@@ -313,41 +326,113 @@ export default function ProductionFormModal({
             </div>
           </div>
 
-          {/* Dates du cycle culturel */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-800">
-                Début de cycle / Semis <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                <input
-                  type="date"
-                  name="periodStart"
-                  value={periodStart}
-                  onChange={(e) => setPeriodStart(e.target.value)}
-                  required
-                  className="w-full pl-9 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-forest-600 focus:border-forest-600 transition-all"
-                />
-              </div>
+          {/* ═══════════════════════════════════════════════════════════
+              CALENDRIER DE PRODUCTION — SAISONS AGRICOLES RÉCURRENTES
+              ═══════════════════════════════════════════════════════════ */}
+          <div className="space-y-3 p-4 rounded-2xl bg-forest-50/60 border border-forest-100">
+            <div className="flex items-center gap-2 mb-1">
+              <Calendar className="w-4 h-4 text-forest-700" />
+              <span className="text-xs font-bold text-forest-900">Calendrier de production</span>
+              <span className="text-[11px] text-forest-700/70 italic">(estimation saisonnière récurrente)</span>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-800">
-                Date prévue de récolte (estimée)
-              </label>
-              <div className="relative">
-                <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                <input
-                  type="date"
-                  name="periodEnd"
-                  value={periodEnd}
-                  min={periodStart || undefined}
-                  onChange={(e) => setPeriodEnd(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-forest-600 focus:border-forest-600 transition-all"
-                />
+            <p className="text-[11px] text-forest-800/80 leading-relaxed">
+              Indiquez les mois estimés de plantation et de récolte. Ces informations sont valables chaque année
+              jusqu&apos;à modification. Pas d&apos;année spécifique — juste les mois du cycle.
+            </p>
+
+            {/* Plantation */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Sprout className="w-3.5 h-3.5 text-forest-600" />
+                <span className="text-[11px] font-semibold text-forest-800 uppercase tracking-wide">Plantation / Semis</span>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-[11px] text-gray-600 font-medium">Mois de début</label>
+                  <select
+                    name="plantingStartMonth"
+                    value={plantingStartMonth}
+                    onChange={(e) => setPlantingStartMonth(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-forest-600 focus:border-forest-600 bg-white transition-all"
+                  >
+                    <option value="">— Non défini —</option>
+                    {MONTHS_FR.map((m) => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[11px] text-gray-600 font-medium">Mois de fin</label>
+                  <select
+                    name="plantingEndMonth"
+                    value={plantingEndMonth}
+                    onChange={(e) => setPlantingEndMonth(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-forest-600 focus:border-forest-600 bg-white transition-all"
+                  >
+                    <option value="">— Non défini —</option>
+                    {MONTHS_FR.map((m) => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {plantingPreview && (
+                <div className="flex items-center gap-1.5 text-[11px] text-forest-700 bg-forest-100/60 px-2.5 py-1 rounded-lg">
+                  <CheckCircle2 className="w-3 h-3 text-forest-600 shrink-0" />
+                  <span>Plantation : <strong>{plantingPreview}</strong></span>
+                </div>
+              )}
             </div>
+
+            {/* Récolte */}
+            <div className="space-y-2 pt-2 border-t border-forest-100/80">
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                <span className="text-[11px] font-semibold text-gray-700 uppercase tracking-wide">Récolte</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-[11px] text-gray-600 font-medium">Mois de début</label>
+                  <select
+                    name="harvestStartMonth"
+                    value={harvestStartMonth}
+                    onChange={(e) => setHarvestStartMonth(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-forest-600 focus:border-forest-600 bg-white transition-all"
+                  >
+                    <option value="">— Non défini —</option>
+                    {MONTHS_FR.map((m) => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[11px] text-gray-600 font-medium">Mois de fin</label>
+                  <select
+                    name="harvestEndMonth"
+                    value={harvestEndMonth}
+                    onChange={(e) => setHarvestEndMonth(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-forest-600 focus:border-forest-600 bg-white transition-all"
+                  >
+                    <option value="">— Non défini —</option>
+                    {MONTHS_FR.map((m) => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {harvestPreview && (
+                <div className="flex items-center gap-1.5 text-[11px] text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg">
+                  <CheckCircle2 className="w-3 h-3 text-amber-600 shrink-0" />
+                  <span>Récolte : <strong>{harvestPreview}</strong></span>
+                </div>
+              )}
+            </div>
+
+            {/* Note saison cyclique */}
+            <p className="text-[10px] text-gray-500 italic">
+              💡 Une saison peut traverser l&apos;année civile (ex : octobre → février). C&apos;est tout à fait normal et accepté.
+            </p>
           </div>
 
           {/* Statut & Visibilité */}
@@ -373,12 +458,8 @@ export default function ProductionFormModal({
 
             <div className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gray-50/50 mt-auto">
               <div>
-                <span className="text-xs font-semibold text-gray-800 block">
-                  Visibilité publique
-                </span>
-                <span className="text-[11px] text-gray-500 block">
-                  Visible aux revendeurs (si statut actif)
-                </span>
+                <span className="text-xs font-semibold text-gray-800 block">Visibilité publique</span>
+                <span className="text-[11px] text-gray-500 block">Visible aux revendeurs (si statut actif)</span>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -408,7 +489,7 @@ export default function ProductionFormModal({
             />
           </div>
 
-          {/* Photo de production */}
+          {/* Photo */}
           <div className="space-y-2">
             <label className="block text-xs font-semibold text-gray-800">
               Photographie du champ / de la culture
@@ -416,12 +497,7 @@ export default function ProductionFormModal({
             <div className="flex items-center gap-4">
               <div className="relative w-24 h-20 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center shrink-0">
                 {imagePreview ? (
-                  <Image
-                    src={imagePreview}
-                    alt="Aperçu production"
-                    fill
-                    className="object-cover"
-                  />
+                  <Image src={imagePreview} alt="Aperçu production" fill className="object-cover" />
                 ) : (
                   <Upload className="w-6 h-6 text-gray-400" />
                 )}
@@ -443,9 +519,7 @@ export default function ProductionFormModal({
                   <Upload className="w-3.5 h-3.5" />
                   {imagePreview ? "Changer la photographie" : "Sélectionner une photo"}
                 </label>
-                <p className="text-[11px] text-gray-500">
-                  JPG, PNG ou WebP. Max 5 Mo. Stockée sur Supabase Storage.
-                </p>
+                <p className="text-[11px] text-gray-500">JPG, PNG ou WebP. Max 5 Mo. Stockée sur Supabase Storage.</p>
               </div>
             </div>
           </div>

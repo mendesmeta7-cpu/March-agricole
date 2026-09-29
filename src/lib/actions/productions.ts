@@ -63,8 +63,11 @@ export async function createProductionAction(
   const description = (formData.get("description") as string)?.trim() || null;
   const rawQuantity = formData.get("expectedQuantity") as string;
   const unit = (formData.get("unit") as string)?.trim() || "tonne";
-  const periodStart = (formData.get("periodStart") as string)?.trim();
-  const periodEnd = (formData.get("periodEnd") as string)?.trim() || null;
+  // Saisons agricoles : mois cycliques (1-12), sans année calendaire
+  const rawPlantingStart = formData.get("plantingStartMonth") as string;
+  const rawPlantingEnd = formData.get("plantingEndMonth") as string;
+  const rawHarvestStart = formData.get("harvestStartMonth") as string;
+  const rawHarvestEnd = formData.get("harvestEndMonth") as string;
   const locationName = (formData.get("locationName") as string)?.trim();
   const rawStatus = (formData.get("status") as string)?.trim() || "planned";
   const isPublic = formData.get("isPublic") === "true" || formData.get("isPublic") === "on";
@@ -83,13 +86,17 @@ export async function createProductionAction(
     return { error: "La quantité planifiée doit être un nombre strictement positif." };
   }
 
-  if (!periodStart) {
-    return { error: "Veuillez renseigner la date ou période de début de cycle." };
-  }
+  // Validation des mois saisonniers (optionnels, mais doivent être valides si fournis)
+  const parseMonth = (raw: string): number | null => {
+    if (!raw || raw.trim() === "") return null;
+    const n = parseInt(raw, 10);
+    return (isNaN(n) || n < 1 || n > 12) ? null : n;
+  };
 
-  if (periodEnd && periodEnd < periodStart) {
-    return { error: "La date de récolte prévue ne peut pas être antérieure au début du cycle." };
-  }
+  const plantingStartMonth = parseMonth(rawPlantingStart);
+  const plantingEndMonth = parseMonth(rawPlantingEnd);
+  const harvestStartMonth = parseMonth(rawHarvestStart);
+  const harvestEndMonth = parseMonth(rawHarvestEnd);
 
   if (!locationName || locationName.length < 2) {
     return { error: "Veuillez renseigner la localisation ou le site de l'exploitation." };
@@ -174,8 +181,13 @@ export async function createProductionAction(
       location_name: locationName,
       expected_quantity: expectedQuantity,
       unit,
-      period_start: periodStart,
-      period_end: periodEnd,
+      planting_start_month: plantingStartMonth,
+      planting_end_month: plantingEndMonth,
+      harvest_start_month: harvestStartMonth,
+      harvest_end_month: harvestEndMonth,
+      // period_start requis NOT NULL en base : on stocke une date fictive d'ancrage au 1er janvier
+      // pour les nouvelles productions (valeur vide de sens, usage historique uniquement)
+      period_start: new Date().toISOString().split("T")[0],
       status,
       is_public: isPublic,
     })
@@ -240,8 +252,11 @@ export async function updateProductionAction(
   const description = (formData.get("description") as string)?.trim() || null;
   const rawQuantity = formData.get("expectedQuantity") as string;
   const unit = (formData.get("unit") as string)?.trim() || "tonne";
-  const periodStart = (formData.get("periodStart") as string)?.trim();
-  const periodEnd = (formData.get("periodEnd") as string)?.trim() || null;
+  // Saisons agricoles : mois cycliques (1-12), sans année calendaire
+  const rawPlantingStart = formData.get("plantingStartMonth") as string;
+  const rawPlantingEnd = formData.get("plantingEndMonth") as string;
+  const rawHarvestStart = formData.get("harvestStartMonth") as string;
+  const rawHarvestEnd = formData.get("harvestEndMonth") as string;
   const locationName = (formData.get("locationName") as string)?.trim();
   const rawStatus = (formData.get("status") as string)?.trim();
   const isPublic = formData.get("isPublic") === "true" || formData.get("isPublic") === "on";
@@ -256,13 +271,17 @@ export async function updateProductionAction(
     return { error: "La quantité planifiée doit être un nombre strictement positif." };
   }
 
-  if (!periodStart) {
-    return { error: "Veuillez renseigner la date de début de cycle." };
-  }
+  // Validation des mois saisonniers (optionnels, mais doivent être valides si fournis)
+  const parseMonth = (raw: string): number | null => {
+    if (!raw || raw.trim() === "") return null;
+    const n = parseInt(raw, 10);
+    return (isNaN(n) || n < 1 || n > 12) ? null : n;
+  };
 
-  if (periodEnd && periodEnd < periodStart) {
-    return { error: "La date de fin ne peut pas être antérieure au début du cycle." };
-  }
+  const plantingStartMonth = parseMonth(rawPlantingStart);
+  const plantingEndMonth = parseMonth(rawPlantingEnd);
+  const harvestStartMonth = parseMonth(rawHarvestStart);
+  const harvestEndMonth = parseMonth(rawHarvestEnd);
 
   if (!locationName || locationName.length < 2) {
     return { error: "Veuillez renseigner la localisation." };
@@ -314,8 +333,10 @@ export async function updateProductionAction(
     location_name: locationName,
     expected_quantity: expectedQuantity,
     unit,
-    period_start: periodStart,
-    period_end: periodEnd,
+    planting_start_month: plantingStartMonth,
+    planting_end_month: plantingEndMonth,
+    harvest_start_month: harvestStartMonth,
+    harvest_end_month: harvestEndMonth,
     is_public: isPublic,
     updated_at: new Date().toISOString(),
   };

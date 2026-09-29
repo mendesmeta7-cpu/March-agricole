@@ -27,8 +27,15 @@ export interface ProductionItem {
   location_name: string;
   expected_quantity: number;
   unit: string;
-  period_start: string;
-  period_end: string | null;
+  // Saisons agricoles récurrentes (mois cycliques, 1=janvier à 12=décembre)
+  // Ces champs remplacent period_start/period_end pour les nouvelles productions
+  planting_start_month: number | null; // Mois de début de plantation
+  planting_end_month: number | null;   // Mois de fin de plantation
+  harvest_start_month: number | null;  // Mois de début de récolte
+  harvest_end_month: number | null;    // Mois de fin de récolte
+  // Colonnes historiques — conservées pour compatibilité, ne plus utiliser pour nouvelles saisies
+  period_start: string;  // [HISTORIQUE] Date calendaire de début
+  period_end: string | null; // [HISTORIQUE] Date calendaire de fin
   status: ProductionStatus;
   is_public: boolean;
   created_at: string;
@@ -55,6 +62,10 @@ export async function getCompanyProductions(companyId: string): Promise<Producti
       location_name,
       expected_quantity,
       unit,
+      planting_start_month,
+      planting_end_month,
+      harvest_start_month,
+      harvest_end_month,
       period_start,
       period_end,
       status,
@@ -75,7 +86,7 @@ export async function getCompanyProductions(companyId: string): Promise<Producti
       )
     `)
     .eq("company_id", companyId)
-    .order("period_start", { ascending: false });
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error("Erreur récupération productions de l'entreprise:", error);
@@ -111,6 +122,10 @@ export async function getProductionById(
       location_name,
       expected_quantity,
       unit,
+      planting_start_month,
+      planting_end_month,
+      harvest_start_month,
+      harvest_end_month,
       period_start,
       period_end,
       status,

@@ -21,6 +21,7 @@ import {
   Megaphone,
 } from "lucide-react";
 import Link from "next/link";
+import { formatProductionSeasonCalendar } from "@/lib/utils/seasonalMonths";
 
 interface ResellerProductionDetailPageProps {
   params: {
@@ -66,22 +67,7 @@ export default async function ResellerProductionDetailPage({
   const provinces = provincesRes.data || [];
   const defaultProvinceId = reseller?.province_id || undefined;
 
-  // Formatage des dates du cycle
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return null;
-    try {
-      return new Intl.DateTimeFormat("fr-FR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }).format(new Date(dateString));
-    } catch {
-      return dateString;
-    }
-  };
-
-  const formattedStart = formatDate(production.period_start);
-  const formattedEnd = formatDate(production.period_end);
+  const { plantingPeriod, harvestPeriod, hasPlanting, hasHarvest } = formatProductionSeasonCalendar(production);
 
   const provinceName = (production.company as any)?.provinces?.name || "";
   const countryName = (production.company as any)?.countries?.name || "RDC";
@@ -306,17 +292,33 @@ export default async function ResellerProductionDetailPage({
 
               <div>
                 <span className="text-[11px] text-gray-400 block uppercase font-medium">
-                  Calendrier cultural
+                  Calendrier saisonnier
                 </span>
-                <div className="mt-1 space-y-1 text-gray-800">
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                    <span>Début : {formattedStart || "Non spécifié"}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                    <span>Fin estimée : {formattedEnd || "En cours de maturation"}</span>
-                  </div>
+                <div className="mt-1.5 space-y-1.5 text-gray-800">
+                  {hasPlanting && (
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-forest-500" />
+                      <span className="text-xs">
+                        🌱 Plantation : 
+                        <strong className="text-forest-800">{plantingPeriod}</strong>
+                      </span>
+                    </div>
+                  )}
+                  {hasHarvest && (
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="text-xs">
+                        🌾 Récolte : 
+                        <strong className="text-amber-700">{harvestPeriod}</strong>
+                      </span>
+                    </div>
+                  )}
+                  {!hasPlanting && !hasHarvest && (
+                    <span className="text-xs text-gray-400 italic">Calendrier non renseigné</span>
+                  )}
+                  <p className="text-[10px] text-gray-400 italic mt-1">
+                    Cycle récurrent — valable chaque année
+                  </p>
                 </div>
               </div>
 

@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-09-29 — Phase 26 Complète (Refonte UI/UX Cartes de Productions Compactes — Marketplace Feed responsive — TypeScript 0 erreur)*
+*Dernière mise à jour : 2026-09-29 — Phase 27 Complète (Saisons Agricoles Sans Année — TypeScript 0 erreur)*
 
 ---
 
@@ -33,7 +33,38 @@
 | **23** | **Stabilisation RLS & Élimination de Récursion Infinie (42P17)** | 🟢 **TERMINÉ** | Fonctions helper `SECURITY DEFINER` (`can_company_view_demand`, `reseller_has_order_or_demand_on_production`, `reseller_has_order_on_company_product`), restauration intégrale de la visibilité des catalogues société, des productions et du flux revendeur, migration 21 appliquée via Supabase MCP, 0 régression, build 36/36 certifié. |
 | **24** | **Audit & Correction Éligibilité Régionale** | 🟢 **TERMINÉ** | Audit complet du circuit d'éligibilité territoriale, diagnostic d'incohérence de données (province_id Haut-Katanga vs city Kinshasa), correction directe en base via Supabase MCP, fix UX bug `ResellerLocationEditModal` (nom province cible affiché), correction 3 erreurs TypeScript préexistantes (`feed.ts` x2 + `OrderFormModal.tsx` x3), TypeScript 0 erreur certifié. |
 | **25** | **Isolation Admin, Sécurité des Sessions & Navigation** | 🟢 **TERMINÉ** | Correction critique isolation Admin/Revendeur/Société : layouts et middleware RBAC restreints strictement par rôle (admin redirigé vers `/dashboard/admin` si tentative d'accès aux espaces tiers). Désactivation du Router Cache client (`staleTimes.dynamic=0`) pour éliminer les pages privées servies en stale lors de la navigation arrière/avant. Suppression du lien mort `/dashboard/admin/audits`. TypeScript 0 erreur certifié. |
+| **27** | **Saisons Agricoles Sans Année Calendaire** | 🟢 **TERMINÉ** | 4 colonnes `planting/harvest_start/end_month` (SMALLINT) sur `productions`, contraintes CHECK [1-12], migration conservative des données existantes, utilitaire `seasonalMonths.ts`, formulaire avec sélecteurs de mois et aperçu temps réel, affichage saisonnier sur toutes les vues (société + revendeur + public), TypeScript 0 erreur. |
 | **26** | **Refonte UI/UX — Cartes de Productions Compactes (Marketplace Feed)** | 🟢 **TERMINÉ** | Transformation des cartes de production en Product Cards compactes style marketplace. Grille responsive `grid-cols-2 / lg:grid-cols-3 / xl:grid-cols-4`. Images `aspect-ratio: 4/3` + `object-fit: cover` (aucune hauteur fixe). Suppression des informations secondaires (localisation, longue description) de la carte. Badges statut compacts avec émojis. Typographies adaptées mobile 2 colonnes. Skeleton aligné sur la nouvelle grille. `prefers-reduced-motion` respecté. TypeScript 0 erreur certifié. |
+
+---
+
+## 2. BILAN DE LA PHASE 27 (SAISONS AGRICOLES SANS ANNÉE CALENDAIRE)
+
+* **Date de validation finale** : 2026-09-29
+* **Statut du projet** : 🟢 **STABLE — CALENDRIER SAISONNIER DÉPLOYÉ, TYPESCRIPT 0 ERREUR**
+* **Réalisations clés** :
+  1. **Schéma Base de Données (Migration 23)** :
+     - 4 nouvelles colonnes `SMALLINT` nullable : `planting_start_month`, `planting_end_month`, `harvest_start_month`, `harvest_end_month`.
+     - Contraintes `CHECK (value IS NULL OR (value >= 1 AND value <= 12))` sur chaque colonne.
+     - Pas de contrainte `start < end` : les saisons cycliques (ex: octobre→février) sont parfaitement valides.
+     - 7 productions existantes migrées automatiquement (extraction du mois depuis l'ancienne date).
+     - Colonnes legacy `period_start` / `period_end` **préservées** (aucun breaking change).
+  2. **Utilitaire Partagé (`src/lib/utils/seasonalMonths.ts`)** :
+     - `MONTHS_FR`, `getMonthName`, `getMonthShortName`, `formatSeasonalPeriod` (gère les saisons cycliques), `formatProductionSeasonCalendar`.
+  3. **Types TypeScript mis à jour** :
+     - `ProductionItem`, `FeedProductionItem`, `CompanyPublicProductionItem`, `CompanyCampaignItem.production`, `EligibleProductionOption` — ajout des 4 colonnes, conservation des legacy.
+  4. **Actions Serveur refactorées** :
+     - `createProductionAction` et `updateProductionAction` : saisie de 4 mois entiers, `period_start` auto-géré (NOT NULL legacy).
+  5. **Formulaire de Création/Édition (`ProductionFormModal.tsx`)** :
+     - 4 sélecteurs de mois (plantation début/fin, récolte début/fin) remplaçant les `<input type="date">`.
+     - Aperçu temps réel : "🌱 Plantation : avril–juin".
+     - Note contextuelle sur les saisons cycliques.
+  6. **Affichage Saisonnier sur toutes les Vues** :
+     - `ProductionCard`, `ProductionDetailView`, `CompanyPublicProductionsList`, page détail revendeur `/dashboard/reseller/productions/[id]`.
+     - État vide élégant : "Calendrier non renseigné" (aucune donnée fictive).
+* **Validation** :
+  - TypeScript (`npx tsc --noEmit`) : **0 erreur**.
+  - Supabase : migration 23 appliquée, données migrées, contraintes actives.
 
 ---
 

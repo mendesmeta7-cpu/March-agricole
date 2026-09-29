@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { formatProductionSeasonCalendar } from "@/lib/utils/seasonalMonths";
 
 interface ProductionCardProps {
   production: ProductionItem;
@@ -22,17 +23,7 @@ interface ProductionCardProps {
 }
 
 export default function ProductionCard({ production, onEdit }: ProductionCardProps) {
-  const formatDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      return new Intl.DateTimeFormat("fr-FR", {
-        month: "short",
-        year: "numeric",
-      }).format(date);
-    } catch {
-      return dateStr;
-    }
-  };
+  const { plantingPeriod, harvestPeriod, hasPlanting, hasHarvest } = formatProductionSeasonCalendar(production);
 
   return (
     <Card className="overflow-hidden border border-gray-100 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col group">
@@ -130,9 +121,11 @@ export default function ProductionCard({ production, onEdit }: ProductionCardPro
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-              <span>
-                Début : {formatDate(production.period_start)}
-                {production.period_end && ` → Récolte : ${formatDate(production.period_end)}`}
+              <span className="truncate text-gray-600">
+                {hasPlanting && <span>🌱 Plantation : <strong className="text-forest-800">{plantingPeriod}</strong></span>}
+                {hasPlanting && hasHarvest && <span className="text-gray-300 mx-1">·</span>}
+                {hasHarvest && <span>🌾 Récolte : <strong className="text-amber-700">{harvestPeriod}</strong></span>}
+                {!hasPlanting && !hasHarvest && <span className="text-gray-400 italic">Calendrier non renseigné</span>}
               </span>
             </div>
           </div>
