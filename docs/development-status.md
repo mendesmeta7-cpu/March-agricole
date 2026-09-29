@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-09-29 — Phase 25 Complète (Isolation sessions, server-only audit global, erreur client-side résolue — TypeScript 0 erreur)*
+*Dernière mise à jour : 2026-09-29 — Phase 26 Complète (Refonte UI/UX Cartes de Productions Compactes — Marketplace Feed responsive — TypeScript 0 erreur)*
 
 ---
 
@@ -33,10 +33,52 @@
 | **23** | **Stabilisation RLS & Élimination de Récursion Infinie (42P17)** | 🟢 **TERMINÉ** | Fonctions helper `SECURITY DEFINER` (`can_company_view_demand`, `reseller_has_order_or_demand_on_production`, `reseller_has_order_on_company_product`), restauration intégrale de la visibilité des catalogues société, des productions et du flux revendeur, migration 21 appliquée via Supabase MCP, 0 régression, build 36/36 certifié. |
 | **24** | **Audit & Correction Éligibilité Régionale** | 🟢 **TERMINÉ** | Audit complet du circuit d'éligibilité territoriale, diagnostic d'incohérence de données (province_id Haut-Katanga vs city Kinshasa), correction directe en base via Supabase MCP, fix UX bug `ResellerLocationEditModal` (nom province cible affiché), correction 3 erreurs TypeScript préexistantes (`feed.ts` x2 + `OrderFormModal.tsx` x3), TypeScript 0 erreur certifié. |
 | **25** | **Isolation Admin, Sécurité des Sessions & Navigation** | 🟢 **TERMINÉ** | Correction critique isolation Admin/Revendeur/Société : layouts et middleware RBAC restreints strictement par rôle (admin redirigé vers `/dashboard/admin` si tentative d'accès aux espaces tiers). Désactivation du Router Cache client (`staleTimes.dynamic=0`) pour éliminer les pages privées servies en stale lors de la navigation arrière/avant. Suppression du lien mort `/dashboard/admin/audits`. TypeScript 0 erreur certifié. |
+| **26** | **Refonte UI/UX — Cartes de Productions Compactes (Marketplace Feed)** | 🟢 **TERMINÉ** | Transformation des cartes de production en Product Cards compactes style marketplace. Grille responsive `grid-cols-2 / lg:grid-cols-3 / xl:grid-cols-4`. Images `aspect-ratio: 4/3` + `object-fit: cover` (aucune hauteur fixe). Suppression des informations secondaires (localisation, longue description) de la carte. Badges statut compacts avec émojis. Typographies adaptées mobile 2 colonnes. Skeleton aligné sur la nouvelle grille. `prefers-reduced-motion` respecté. TypeScript 0 erreur certifié. |
 
 ---
 
-## 2. BILAN DE LA PHASE 23 (STABILISATION RLS & RESTAURATION DES FLUX)
+## 2. BILAN DE LA PHASE 26 (REFONTE UI/UX — MARKETPLACE FEED)
+
+* **Date de validation finale** : 2026-09-29
+* **Statut du projet** : 🟢 **STABLE — CARTES COMPACTES VALIDÉES, TYPESCRIPT 0 ERREUR**
+* **Réalisations clés** :
+  1. **Grille Responsive Marketplace (`FeedView.tsx`)** :
+     - Remplacement de `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` par `grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`.
+     - 2 colonnes dès 320px mobile, 3 colonnes à 1024px (lg), 4 colonnes à 1280px (xl).
+     - Gaps adaptés : `gap-3 sm:gap-4 lg:gap-5`.
+  2. **Carte de Production Compacte (`FeedProductionCard.tsx`)** :
+     - Image `aspect-ratio: 4/3` avec `object-fit: cover` via `absolute inset-0` — aucune hauteur fixe.
+     - Zoom image au survol desktop : `motion-safe:group-hover:scale-[1.04]`.
+     - **Informations retirées de la carte** : localisation géographique (disponible en page détail uniquement).
+     - Badges compacts : catégorie `max-w-[80px]`, statut avec émoji (`🌱`, `✓`, `📅`), campagne avec icône `Megaphone`.
+     - Typographies mobiles-first : `text-[9px] sm:text-[10px]`, `text-[11px] sm:text-sm`.
+     - Padding réduit : `p-2 sm:p-3` (contre `p-3.5 sm:p-4` précédemment).
+     - Boutons compacts : `py-1.5 text-[9px] sm:text-[10px]`.
+     - Animations préservées : `animate-fade-in-up` avec stagger `min(index*55, 330)ms`.
+     - `motion-safe:` préfixé sur toutes les animations — respect `prefers-reduced-motion`.
+  3. **Skeleton Aligné (`FeedSkeleton.tsx`)** :
+     - Grille identique à la vraie : `grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`.
+     - Zone image skeleton `style={{ aspectRatio: "4/3" }}`.
+     - Corps skeleton réduit : padding `p-2 sm:p-3`, bouton `h-7`.
+  4. **Images des productions** :
+     - Mécanisme de stockage et de récupération inchangé (Supabase Storage `public-assets/productions`).
+     - **Non migrées vers Cloudinary** dans cette tâche — la migration Cloudinary concerne uniquement les images admin/bannières.
+  5. **Logique métier inchangée** :
+     - Boutons d'action : `Commander` (campagne active + éligible), `Faire une demande` (growing/harvested), `Hors zone` (non éligible).
+     - Éligibilité régionale, RLS, Supabase, commandes, demandes — zéro modification.
+  6. **Breakpoints utilisés** :
+     - Mobile : 320px–430px → 2 colonnes
+     - Tablette : 768px+ → 2 colonnes (lg non encore atteint)
+     - Desktop : 1024px+ (lg) → 3 colonnes
+     - Grand écran : 1280px+ (xl) → 4 colonnes
+* **Validation** :
+  - TypeScript (`npx tsc --noEmit`) : **0 erreur**.
+  - Composants modifiés : `FeedProductionCard.tsx`, `FeedSkeleton.tsx`, `FeedView.tsx`.
+  - Supabase, tables, RLS, logique métier : **zéro modification**.
+
+---
+
+## 3. BILAN DE LA PHASE 23 (STABILISATION RLS & RESTAURATION DES FLUX)
 
 * **Date de validation finale** : 2026-09-25
 * **Statut du projet** : 🟢 **STABLE — RÉCURSION RLS ÉLIMINÉE, CATALOGUES & FLUX RESTAURÉS À 100%**

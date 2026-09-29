@@ -202,7 +202,7 @@ L'application web est découpée en trois espaces protégés et hermétiques :
 | :--- | :--- | :--- |
 | **Framework Web** | **Next.js 14+ (App Router)** | Architecture moderne React, Server Components, API routes légères, rendu optimisé. |
 | **Langage** | **TypeScript** | Typage strict de bout en bout garantissant l'intégrité des données et des contrats d'interface. |
-| **Styling & UI** | **Tailwind CSS + Vanilla CSS** | Conception responsive, design épuré, mode clair prioritaire (B2B), micro-interactions subtiles. |
+| **Styling & UI** | **Tailwind CSS + Vanilla CSS** | Conception responsive Mobile-First, design épuré, mode clair prioritaire (B2B), micro-interactions subtiles. Feed revendeur avec grille marketplace compacte (2→3→4 colonnes selon breakpoint), images `aspect-ratio` responsive, animations légères avec `motion-safe:` pour respect `prefers-reduced-motion`. |
 | **Backend & BaaS** | **Supabase** | Authentification JWT, base PostgreSQL managée, Storage S3-compatible pour les médias. |
 | **Base de Données** | **PostgreSQL** | Moteur relationnel robuste, transactions ACID pour les réservations, contraintes CHECK et triggers. |
 | **Sécurité** | **Row Level Security (RLS)** | Cloisonnement strict des données au niveau des lignes de table SQL. |

@@ -3,6 +3,45 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [2.2.0-marketplace-feed-compact-cards] - 2026-09-29
+### Phase 26 — Refonte UI/UX Flux des Productions : Cartes Compactes Style Marketplace
+
+#### Modifié — UI/UX uniquement (aucune modification backend/Supabase)
+
+* **`src/components/feed/FeedView.tsx`** :
+  - Grille responsive `grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` (précédemment `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`).
+  - Gaps ajustés : `gap-3 sm:gap-4 lg:gap-5`.
+
+* **`src/components/feed/FeedProductionCard.tsx`** — refonte complète :
+  - **Image** : `aspectRatio: "4/3"` inline avec `absolute inset-0 w-full h-full object-cover` — aucune hauteur fixe, 100% responsive.
+  - **Zoom image desktop** : `motion-safe:group-hover:scale-[1.04] transition-transform duration-300`.
+  - **Informations retirées de la carte** : localisation géographique — visible uniquement en page détail.
+  - **Badge catégorie** : `max-w-[80px] sm:max-w-[100px]`, `text-[8px] sm:text-[10px]`, `bg-white/90`.
+  - **Badge statut** : émojis compacts `🌱` `✓` `📅` au lieu des grands badges précédents.
+  - **Badge campagne** : icône `Megaphone w-2`, label court `Campagne`, `bg-emerald-600`.
+  - **Corps** : `p-2 sm:p-3`, `gap-1.5 sm:gap-2` (vs `p-3.5 sm:p-4 gap-2.5`).
+  - **Société** : `text-[9px] sm:text-[10px]`, avatar `w-3.5 h-3.5`.
+  - **Nom produit** : `text-[11px] sm:text-sm`, `line-clamp-2`.
+  - **Boutons** : `py-1.5 rounded-lg text-[9px] sm:text-[10px]` (vs `py-2 rounded-xl text-xs`).
+  - `motion-safe:` prefix sur toutes les animations pour `prefers-reduced-motion`.
+  - Import `ProductionStatusBadge` retiré (remplacé par la fonction locale `getStatusInfo`).
+  - Import `MapPin` retiré (localisation supprimée de la carte).
+
+* **`src/components/feed/FeedSkeleton.tsx`** :
+  - Grille alignée : `grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`.
+  - Image skeleton : `style={{ aspectRatio: "4/3" }}`.
+  - Corps réduit : `p-2 sm:p-3`, bouton `h-7 rounded-lg`.
+
+#### Non modifié (confirmation explicite)
+- Supabase / tables / RLS / authentification / commandes / campagnes / demandes / stock.
+- Images des productions : stockage Supabase `public-assets/productions` inchangé, **non migré vers Cloudinary**.
+- Logique métier d'éligibilité régionale des commandes.
+- Page détail de la production.
+- Navigation inférieure mobile (`ResellerBottomNav`).
+
+#### Validé
+- TypeScript : **0 erreur** (`npx tsc --noEmit`).
+
 ## [2.1.0-admin-security-isolation] - 2026-09-29
 ### Phase 25 — Correction Admin : Isolation des Sessions, Erreurs Client-Side & Navigation
 
