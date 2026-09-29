@@ -5,7 +5,7 @@ import { Province } from "@/lib/queries/geography";
 import { ResellerCampaignItem } from "@/lib/queries/campaigns";
 import ProductionDemandModal from "@/components/demands/ProductionDemandModal";
 import OrderFormModal from "@/components/orders/OrderFormModal";
-import { TrendingUp, CheckCircle2, ShoppingCart } from "lucide-react";
+import { TrendingUp, CheckCircle2, ShoppingCart, Clock, AlertTriangle } from "lucide-react";
 
 interface ResellerProductionDetailActionsProps {
   production: {
@@ -34,6 +34,43 @@ interface ResellerProductionDetailActionsProps {
   };
 }
 
+/**
+ * Calcule le statut de la deadline (de destination ou globale) pour le revendeur.
+ * Retourne le nombre de jours restants, ou null si pas de limite.
+ * Retourne isExpired = true si la deadline est passée.
+ */
+function computeDeadlineStatus(deadlineDateStr?: string | null): {
+  daysLeft: number | null;
+  isExpired: boolean;
+  isUrgent: boolean; // ≤ 3 jours
+  formattedDate: string | null;
+} {
+  if (!deadlineDateStr) {
+    return { daysLeft: null, isExpired: false, isUrgent: false, formattedDate: null };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const deadline = new Date(deadlineDateStr);
+  deadline.setHours(0, 0, 0, 0);
+
+  const diffMs = deadline.getTime() - today.getTime();
+  const daysLeft = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  const formattedDate = new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(deadline);
+
+  return {
+    daysLeft,
+    isExpired: daysLeft < 0,
+    isUrgent: daysLeft >= 0 && daysLeft <= 3,
+    formattedDate,
+  };
+}
+
 export default function ResellerProductionDetailActions({
   production,
   provinces,
@@ -51,6 +88,27 @@ export default function ResellerProductionDetailActions({
     activeCampaign &&
     (activeCampaign.available_quantity <= 0 || eligibilityReason === "OUT_OF_STOCK")
   );
+
+  // Phase 28 : Résolution de la deadline de la destination du revendeur
+  const matchingDest = (activeCampaign as any)?.destinations?.find(
+    (d: any) => d.province_id === (resellerInfo?.provinceId || defaultProvinceId)
+  );
+
+  const destinationDeadlineDate =
+    (activeCampaign as any)?.destination_deadline_date ||
+    matchingDest?.order_deadline_date ||
+    null;
+
+  const destinationCityName =
+    (activeCampaign as any)?.destination_city_name ||
+    matchingDest?.city_name ||
+    resellerInfo?.provinceName ||
+    null;
+
+  // Calcul des jours restants : priorité à la deadline de destination, fallback sur la fin de campagne globale
+  const effectiveDeadlineDate = destinationDeadlineDate || activeCampaign?.end_date || null;
+  const hasSpecificDestinationDeadline = Boolean(destinationDeadlineDate);
+  const deadlineInfo = computeDeadlineStatus(effectiveDeadlineDate);
 
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(Boolean(autoOpenOrder && canOrder));
   const [isDemandModalOpen, setIsDemandModalOpen] = useState(false);
@@ -88,6 +146,36 @@ export default function ResellerProductionDetailActions({
                 <span>{activeCampaign.min_order_quantity} {activeCampaign.unit}</span>
               </div>
             )}
+
+            {/* Phase 28 : Compte à rebours / Jours restants visible côté revendeur */}
+            {canOrder && !deadlineInfo.isExpired && deadlineInfo.daysLeft !== null && (
+              <div className={`mt-1 pt-2 border-t ${deadlineInfo.isUrgent ? "border-orange-200" : "border-emerald-200/60"}`}>
+                <div className={`flex items-center gap-2 text-xs rounded-lg px-2.5 py-1.5 ${
+                  deadlineInfo.isUrgent
+                    ? "bg-orange-50 border border-orange-200 text-orange-900"
+                    : "bg-emerald-100/60 text-emerald-800"
+                }`}>
+                  {deadlineInfo.isUrgent
+                    ? <AlertTriangle className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+                    : <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  }
+                  <div className="flex flex-wrap items-baseline gap-1">
+                    <span className="font-bold">
+                      {deadlineInfo.isUrgent
+                        ? `⚠️ Plus que ${deadlineInfo.daysLeft === 0 ? "aujourd'hui !" : `${deadlineInfo.daysLeft} jour${deadlineInfo.daysLeft > 1 ? "s" : ""} !`}`
+                        : `${deadlineInfo.daysLeft} jour${deadlineInfo.daysLeft > 1 ? "s" : ""} restant${deadlineInfo.daysLeft > 1 ? "s" : ""}`
+                      }
+                    </span>
+                    <span className="text-[11px] font-normal opacity-85">
+                      — {hasSpecificDestinationDeadline
+                        ? `Commandes${destinationCityName ? ` à ${destinationCityName}` : ""} jusqu'au ${deadlineInfo.formattedDate}`
+                        : `Fin de campagne le ${deadlineInfo.formattedDate}`
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {canOrder ? (
@@ -102,7 +190,7 @@ export default function ResellerProductionDetailActions({
           ) : isDeadlineExpired ? (
             <div className="p-3 bg-orange-50 border border-orange-200 text-orange-900 text-xs rounded-xl space-y-1">
               <span className="font-bold block">
-                ⚠️ Période de commande terminée pour {resellerInfo?.provinceName || "votre région"}
+                ⚠️ Période de commande terminée{destinationCityName ? ` à ${destinationCityName}` : ` pour ${resellerInfo?.provinceName || "votre région"}`}
               </span>
               <p className="text-[11px] text-orange-800 leading-relaxed">
                 {eligibilityMessage || "La date limite de commande pour votre destination est dépassée. Vos commandes existantes restent valides. Vous pouvez formuler une demande ci-dessous."}
@@ -184,4 +272,3 @@ export default function ResellerProductionDetailActions({
     </div>
   );
 }
-

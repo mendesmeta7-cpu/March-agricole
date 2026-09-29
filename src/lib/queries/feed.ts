@@ -39,6 +39,10 @@ export interface FeedCampaignSummary {
   can_order?: boolean;
   eligibility_reason?: string;
   eligibility_message?: string;
+  /** Date limite de commande de la destination du revendeur (null = pas de limite). Phase 28. */
+  destination_deadline_date?: string | null;
+  /** Nom de la ville de la destination du revendeur. Phase 28. */
+  destination_city_name?: string | null;
 }
 
 export interface FeedProductionItem {
@@ -257,6 +261,9 @@ export async function getPublicFeedProductions(
         can_order: eligibility.canOrder,
         eligibility_reason: eligibility.reason,
         eligibility_message: eligibility.message,
+        // Phase 28 : deadline de la destination du revendeur
+        destination_deadline_date: eligibility.matchingDestination?.order_deadline_date || null,
+        destination_city_name: eligibility.matchingDestination?.city_name || null,
       } : null,
     } as unknown as FeedProductionItem;
   });
@@ -330,7 +337,7 @@ export async function getPublicProductionDetail(
         start_date,
         end_date,
         status,
-        campaign_destinations (id, province_id, city_name),
+        campaign_destinations (id, province_id, city_name, order_deadline_date),
         campaign_delivery_zones (id, country_id, province_id),
         stock_reservations (id, quantity, status)
       )
@@ -406,6 +413,9 @@ export async function getPublicProductionDetail(
       can_order: eligibility.canOrder,
       eligibility_reason: eligibility.reason,
       eligibility_message: eligibility.message,
+      // Phase 28 : deadline de la destination du revendeur
+      destination_deadline_date: eligibility.matchingDestination?.order_deadline_date || null,
+      destination_city_name: eligibility.matchingDestination?.city_name || null,
     } : null,
   } as unknown as FeedProductionItem;
 }

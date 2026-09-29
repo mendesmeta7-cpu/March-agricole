@@ -110,6 +110,10 @@ export interface ResellerCampaignItem extends CompanyCampaignItem {
   can_order?: boolean;
   eligibility_reason?: string;
   eligibility_message?: string;
+  /** Date limite de commande pour la destination du revendeur (null = aucune limite). Phase 28. */
+  destination_deadline_date?: string | null;
+  /** Nom de la ville de destination du revendeur. Phase 28. */
+  destination_city_name?: string | null;
 }
 
 export interface EligibleProductionOption {
@@ -650,6 +654,8 @@ export async function getResellerCampaigns(
       can_order: eligibility.canOrder,
       eligibility_reason: eligibility.reason,
       eligibility_message: eligibility.message,
+      destination_deadline_date: eligibility.matchingDestination?.order_deadline_date || null,
+      destination_city_name: eligibility.matchingDestination?.city_name || null,
     };
   });
 
@@ -839,6 +845,8 @@ export async function getActiveCampaignByProductionId(
     can_order: eligibility.canOrder,
     eligibility_reason: eligibility.reason,
     eligibility_message: eligibility.message,
+    destination_deadline_date: eligibility.matchingDestination?.order_deadline_date || null,
+    destination_city_name: eligibility.matchingDestination?.city_name || null,
   };
 }
 

@@ -83,6 +83,16 @@ export default function CompanyCampaignCard({
     e.preventDefault();
     if (!editingDestination || !newArrivalDate) return;
 
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (newArrivalDate < todayStr) {
+      setUpdateDateError("La nouvelle date d'arrivée ne peut pas être dans le passé.");
+      return;
+    }
+    if (newDeadlineDate && newDeadlineDate < todayStr) {
+      setUpdateDateError("La date limite de commande ne peut pas être dans le passé.");
+      return;
+    }
+
     setIsUpdatingDate(true);
     setUpdateDateError(null);
 
@@ -372,6 +382,7 @@ export default function CompanyCampaignCard({
                 </label>
                 <input
                   type="date"
+                  min={new Date().toISOString().split("T")[0]}
                   value={newArrivalDate}
                   onChange={(e) => setNewArrivalDate(e.target.value)}
                   required
@@ -387,6 +398,7 @@ export default function CompanyCampaignCard({
                 </label>
                 <input
                   type="date"
+                  min={new Date().toISOString().split("T")[0]}
                   value={newDeadlineDate}
                   onChange={(e) => setNewDeadlineDate(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden"

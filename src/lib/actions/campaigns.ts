@@ -79,6 +79,7 @@ export async function createCampaignAction(
     province_id: string;
     city_name: string;
     expected_arrival_date: string;
+    order_deadline_date?: string | null;
     depots?: Array<{
       id?: string;
       name: string;
@@ -131,12 +132,31 @@ export async function createCampaignAction(
     return { success: false, error: "La quantité minimale de commande doit être strictement positive." };
   }
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
   if (!startDate) {
     return { success: false, error: "La date de début de commercialisation est obligatoire." };
   }
 
+  if (startDate < todayStr) {
+    return { success: false, error: "La date d'ouverture de vente ne peut pas être dans le passé." };
+  }
+
+  if (endDate && endDate < todayStr) {
+    return { success: false, error: "La date de clôture ne peut pas être dans le passé." };
+  }
+
   if (endDate && new Date(endDate) < new Date(startDate)) {
     return { success: false, error: "La date de fin ne peut être antérieure à la date de début." };
+  }
+
+  for (const d of parsedDestinations) {
+    if (d.expected_arrival_date && d.expected_arrival_date < todayStr) {
+      return { success: false, error: `La date prévue d'arrivée pour la destination ${d.city_name} ne peut pas être dans le passé.` };
+    }
+    if (d.order_deadline_date && d.order_deadline_date < todayStr) {
+      return { success: false, error: `La date limite de commande pour la destination ${d.city_name} ne peut pas être dans le passé.` };
+    }
   }
 
   if (provinceIds.length === 0 && parsedDestinations.length === 0) {
@@ -243,6 +263,7 @@ export async function createCampaignAction(
           province_id: dest.province_id,
           city_name: dest.city_name.trim(),
           expected_arrival_date: dest.expected_arrival_date,
+          order_deadline_date: dest.order_deadline_date || null,
         })
         .select("id")
         .single();
@@ -348,6 +369,7 @@ export async function updateCampaignAction(
     province_id: string;
     city_name: string;
     expected_arrival_date: string;
+    order_deadline_date?: string | null;
     depots?: Array<{
       id?: string;
       name: string;
@@ -391,8 +413,23 @@ export async function updateCampaignAction(
 
   const minOrderQuantity = parseFloat(minOrderQuantityStr) || 1;
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  if (endDate && endDate < todayStr) {
+    return { success: false, error: "La date de clôture ne peut pas être dans le passé." };
+  }
+
   if (endDate && startDate && new Date(endDate) < new Date(startDate)) {
     return { success: false, error: "La date de fin ne peut être antérieure à la date de début." };
+  }
+
+  for (const d of parsedDestinations) {
+    if (d.expected_arrival_date && d.expected_arrival_date < todayStr) {
+      return { success: false, error: `La date prévue d'arrivée pour la destination ${d.city_name} ne peut pas être dans le passé.` };
+    }
+    if (d.order_deadline_date && d.order_deadline_date < todayStr) {
+      return { success: false, error: `La date limite de commande pour la destination ${d.city_name} ne peut pas être dans le passé.` };
+    }
   }
 
   const parentProd = Array.isArray(currentCampaign.productions)
@@ -487,6 +524,7 @@ export async function updateCampaignAction(
             province_id: dest.province_id,
             city_name: dest.city_name.trim(),
             expected_arrival_date: dest.expected_arrival_date,
+            order_deadline_date: dest.order_deadline_date || null,
           })
           .eq("id", destinationId);
       } else {
@@ -498,6 +536,7 @@ export async function updateCampaignAction(
             province_id: dest.province_id,
             city_name: dest.city_name.trim(),
             expected_arrival_date: dest.expected_arrival_date,
+            order_deadline_date: dest.order_deadline_date || null,
           })
           .select("id")
           .single();

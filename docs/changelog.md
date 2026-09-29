@@ -49,9 +49,18 @@ Permettre la fermeture des commandes **par destination** (ville/province) au lie
   - Bouton "Délai dépassé" (orange) quand deadline expirée, distinct de "Stock épuisé" (gris).
 * **`src/components/feed/ResellerProductionDetailActions.tsx`** :
   - Cas `isDeadlineExpired` : bandeau orange avec message personnalisé incluant le nom de la province.
+  - Compte à rebours dynamique des jours restants ciblé sur la région du revendeur connecté (`⚠️ Plus que X jour(s) !` si urgent ≤ 3 jours, décompte émeraude standard sinon) avec mention de la date formatée en français.
+* **`src/components/campaigns/CampaignFormModal.tsx`** :
+  - Interdiction stricte de toute date passée : attributs `min` dynamiques sur date d'ouverture (`startDate`), date de clôture (`endDate`) et dates d'arrivée (`expected_arrival_date`).
+  - Validation client bloquante dans `handleSubmit` avec messages explicites en français.
+  - Champ de saisie optionnel de date limite de commande (`order_deadline_date`) par destination avec validation `min={today}`.
+* **`src/lib/actions/campaigns.ts`** :
+  - Contrôles serveur stricts anti-dates passées dans `createCampaignAction` et `updateCampaignAction`.
+  - Persistance de `order_deadline_date` lors de la création et mise à jour différentielle des destinations.
 * **`src/components/campaigns/CompanyCampaignCard.tsx`** :
   - Affichage de la `order_deadline_date` sur chaque destination (badge rouge "Fermée" si dépassée, orange si future).
   - Modal "Reporter la date" étendu avec champ optionnel "Date Limite de Commande".
+  - Garde-fous interdisant la saisie de dates passées lors du report de date.
   - Mise à jour optimiste locale de `order_deadline_date` après sauvegarde.
 
 #### Règles Métier Respectées

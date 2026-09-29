@@ -22,6 +22,7 @@ import {
   Plus,
   Trash2,
   Building,
+  Clock,
 } from "lucide-react";
 
 export interface FormDepot {
@@ -38,6 +39,7 @@ export interface FormDestination {
   province_id: string;
   city_name: string;
   expected_arrival_date: string;
+  order_deadline_date?: string | null;
   depots: FormDepot[];
 }
 
@@ -100,6 +102,7 @@ export default function CampaignFormModal({
             province_id: d.province_id,
             city_name: d.city_name,
             expected_arrival_date: d.expected_arrival_date,
+            order_deadline_date: d.order_deadline_date || null,
             depots: (d.depots || []).map((dep) => ({
               id: dep.id,
               name: dep.name,
@@ -165,6 +168,7 @@ export default function CampaignFormModal({
   const selectedProduction = eligibleProductions.find((p) => p.id === productionId);
   const maxAllowedQuantity = selectedProduction?.expected_quantity || 0;
   const currentUnit = selectedProduction?.unit || "tonne";
+  const todayStr = new Date().toISOString().split("T")[0];
 
   // Demandes observées pertinentes pour ce produit (aide à la décision)
   const relevantDemands = selectedProduction
@@ -195,6 +199,7 @@ export default function CampaignFormModal({
           province_id: prov.id,
           city_name: prov.name,
           expected_arrival_date: defaultDate,
+          order_deadline_date: null,
           depots: [
             {
               name: `Dépôt principal ${prov.name}`,
@@ -218,6 +223,7 @@ export default function CampaignFormModal({
         province_id: prov.id,
         city_name: prov.name,
         expected_arrival_date: defaultDate,
+        order_deadline_date: null,
         depots: [
           {
             name: `Dépôt principal ${prov.name}`,
@@ -240,6 +246,14 @@ export default function CampaignFormModal({
     setDestinations((prev) => {
       const next = [...prev];
       next[destIndex] = { ...next[destIndex], expected_arrival_date: dateValue };
+      return next;
+    });
+  };
+
+  const handleUpdateDestinationDeadline = (destIndex: number, dateValue: string) => {
+    setDestinations((prev) => {
+      const next = [...prev];
+      next[destIndex] = { ...next[destIndex], order_deadline_date: dateValue || null };
       return next;
     });
   };
@@ -324,6 +338,24 @@ export default function CampaignFormModal({
       return;
     }
 
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    // Contrôle anti-dates passées (Règle métier stricte)
+    if (!isEditing && startDate < todayStr) {
+      setErrorMessage("La date d'ouverture de vente ne peut pas être dans le passé.");
+      return;
+    }
+
+    if (endDate && endDate < todayStr) {
+      setErrorMessage("La date de clôture commerciale ne peut pas être dans le passé.");
+      return;
+    }
+
+    if (endDate && startDate && endDate < startDate) {
+      setErrorMessage("La date de clôture ne peut pas être antérieure à la date d'ouverture.");
+      return;
+    }
+
     // Validation stricte des destinations
     if (destinations.length === 0) {
       setErrorMessage("Veuillez sélectionner au moins une destination à desservir pour cette offre commerciale.");
@@ -335,6 +367,14 @@ export default function CampaignFormModal({
       const dest = destinations[i];
       if (!dest.expected_arrival_date) {
         setErrorMessage(`Veuillez renseigner la date prévue d'arrivée pour la destination ${dest.city_name}.`);
+        return;
+      }
+      if (dest.expected_arrival_date < todayStr) {
+        setErrorMessage(`La date prévue d'arrivée pour ${dest.city_name} ne peut pas être dans le passé.`);
+        return;
+      }
+      if (dest.order_deadline_date && dest.order_deadline_date < todayStr) {
+        setErrorMessage(`La date limite de commande pour ${dest.city_name} ne peut pas être dans le passé.`);
         return;
       }
       if (!dest.depots || dest.depots.length === 0) {
@@ -547,6 +587,7 @@ export default function CampaignFormModal({
               </label>
               <input
                 type="date"
+                min={isEditing && startDate && startDate < todayStr ? startDate : todayStr}
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 required
@@ -560,7 +601,7 @@ export default function CampaignFormModal({
               </label>
               <input
                 type="date"
-                min={startDate || undefined}
+                min={startDate && startDate > todayStr ? startDate : todayStr}
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden"
@@ -727,19 +768,40 @@ export default function CampaignFormModal({
                       </button>
                     </div>
 
-                    {/* Champ Date Prévue d'Arrivée pour cette destination */}
-                    <div className="space-y-1 max-w-sm">
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-forest-600" />
-                        Date Prévue d&apos;Arrivée à {dest.city_name} *
-                      </label>
-                      <input
-                        type="date"
-                        value={dest.expected_arrival_date}
-                        onChange={(e) => handleUpdateDestinationDate(destIdx, e.target.value)}
-                        required
-                        className="w-full px-3 py-2 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-hidden bg-white"
-                      />
+                    {/* Dates pour cette destination : Arrivée & Date limite de commande */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-forest-600" />
+                          Date Prévue d&apos;Arrivée à {dest.city_name} *
+                        </label>
+                        <input
+                          type="date"
+                          min={todayStr}
+                          value={dest.expected_arrival_date}
+                          onChange={(e) => handleUpdateDestinationDate(destIdx, e.target.value)}
+                          required
+                          className="w-full px-3 py-2 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-hidden bg-white"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-forest-600" />
+                          Date Limite de Commande
+                          <span className="text-gray-400 font-normal normal-case ml-1">(optionnel)</span>
+                        </label>
+                        <input
+                          type="date"
+                          min={todayStr}
+                          value={dest.order_deadline_date || ""}
+                          onChange={(e) => handleUpdateDestinationDeadline(destIdx, e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-hidden bg-white"
+                        />
+                        <span className="text-[10px] text-gray-500 block">
+                          Fermera automatiquement les commandes pour {dest.city_name}.
+                        </span>
+                      </div>
                     </div>
 
                     {/* Dépôts / Points de retrait exclusifs à cette destination */}

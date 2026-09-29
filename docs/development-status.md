@@ -50,6 +50,8 @@
   4. **Service `campaignEligibility.ts`** : raison `DESTINATION_DEADLINE_EXPIRED` avec message localisé par province.
   5. **UI** : badge "Délai dépassé" (orange), "Stock épuisé" (gris), "Offre fermée" (gris foncé) distinctement rendu dans FeedProductionCard et ResellerProductionDetailActions.
   6. **CompanyCampaignCard** : affichage inline deadline + badge rouge/orange, champ "Date Limite de Commande" dans le modal de modification.
+  7. **Compte à rebours Revendeur** : décompte dynamique des jours restants dans `ResellerProductionDetailActions` ciblé sur la région du revendeur connecté (alerte ambre si ≤ 3 jours, émeraude sinon).
+  8. **Garde-fous anti-dates passées** : interdiction stricte de toute date passée (ouverture, clôture, arrivée destination, deadline destination) via attributs `min`, validations formulaires et contrôles serveur Server Actions.
 * **Règles métier respectées** :
   - ✅ Jamais de fermeture globale si une seule destination expire.
   - ✅ Commandes existantes toujours intactes (fermeture = pas de nouvelles commandes).
