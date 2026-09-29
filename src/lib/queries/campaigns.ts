@@ -38,6 +38,8 @@ export interface CampaignDestination {
   city_name: string;
   expected_arrival_date: string;
   previous_arrival_date: string | null;
+  /** Date limite de commande pour cette destination (NULL = pas de limite). Phase 28. */
+  order_deadline_date: string | null;
   created_at?: string;
   updated_at?: string;
   provinces?: {
@@ -202,6 +204,7 @@ export async function getCompanyCampaigns(
         province_id,
         city_name,
         expected_arrival_date,
+        order_deadline_date,
         previous_arrival_date,
         created_at,
         provinces (
@@ -390,6 +393,7 @@ export async function getCompanyCampaignById(
         province_id,
         city_name,
         expected_arrival_date,
+        order_deadline_date,
         previous_arrival_date,
         created_at,
         provinces (
@@ -529,6 +533,7 @@ export async function getResellerCampaigns(
         province_id,
         city_name,
         expected_arrival_date,
+        order_deadline_date,
         previous_arrival_date,
         created_at,
         provinces (
@@ -729,6 +734,7 @@ export async function getActiveCampaignByProductionId(
         province_id,
         city_name,
         expected_arrival_date,
+        order_deadline_date,
         previous_arrival_date,
         created_at,
         provinces (

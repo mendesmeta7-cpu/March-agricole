@@ -44,9 +44,12 @@ export default function ResellerProductionDetailActions({
 }: ResellerProductionDetailActionsProps) {
   const isEligible = Boolean(activeCampaign?.is_eligible);
   const canOrder = activeCampaign ? activeCampaign.can_order !== false && isEligible : false;
+  const eligibilityReason = activeCampaign?.eligibility_reason;
+  const eligibilityMessage = activeCampaign?.eligibility_message;
+  const isDeadlineExpired = eligibilityReason === "DESTINATION_DEADLINE_EXPIRED";
   const isOutOfStock = Boolean(
     activeCampaign &&
-    (activeCampaign.available_quantity <= 0 || activeCampaign.eligibility_reason === "OUT_OF_STOCK")
+    (activeCampaign.available_quantity <= 0 || eligibilityReason === "OUT_OF_STOCK")
   );
 
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(Boolean(autoOpenOrder && canOrder));
@@ -96,6 +99,15 @@ export default function ResellerProductionDetailActions({
               <ShoppingCart className="w-4 h-4" />
               Commander sur cette production
             </button>
+          ) : isDeadlineExpired ? (
+            <div className="p-3 bg-orange-50 border border-orange-200 text-orange-900 text-xs rounded-xl space-y-1">
+              <span className="font-bold block">
+                ⚠️ Période de commande terminée pour {resellerInfo?.provinceName || "votre région"}
+              </span>
+              <p className="text-[11px] text-orange-800 leading-relaxed">
+                {eligibilityMessage || "La date limite de commande pour votre destination est dépassée. Vos commandes existantes restent valides. Vous pouvez formuler une demande ci-dessous."}
+              </p>
+            </div>
           ) : isOutOfStock ? (
             <div className="p-3 bg-gray-50 border border-gray-200 text-gray-800 text-xs rounded-xl space-y-1">
               <span className="font-bold block">

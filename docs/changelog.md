@@ -3,6 +3,71 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [2.4.0-campaign-regional-closure] - 2026-09-29
+### Phase 28 — Fermeture Automatique des Campagnes par Destination/Région
+
+#### Objectif Métier
+Permettre la fermeture des commandes **par destination** (ville/province) au lieu d'une fermeture globale de la campagne. Une campagne peut rester active pour Haut-Katanga même si Kinshasa a atteint sa date limite. Distinction stricte des motifs de refus : `DATE_EXPIRÉE` ≠ `STOCK_ÉPUISÉ`.
+
+#### Ajouté — Base de données (Supabase)
+* **Migration `20260929000024_campaign_destination_order_deadline.sql`** :
+  - Colonne `order_deadline_date DATE NULL` sur `campaign_destinations` : date limite de commande par destination (indépendante de `expected_arrival_date` et `campaigns.end_date`).
+  - Index partiel `idx_campaign_destinations_order_deadline` pour performances.
+  - Commentaire documentaire sur la colonne.
+  - Toutes les destinations existantes ont `order_deadline_date = NULL` (aucune limite — comportement inchangé).
+
+#### Modifié — Base de données (RPCs)
+* **`create_order_with_reservation`** (remplacement de la version migration 19) :
+  - Nouvelle étape 7bis : après résolution de la destination, vérification de `order_deadline_date`. Si dépassée → `RAISE EXCEPTION 'La période de commande pour la destination "X" est terminée...'`.
+  - Le message distingue clairement la fermeture par date (motif région) du stock insuffisant.
+  - Contrôle serveur inviolable : impossible de contourner via le frontend.
+* **`update_destination_arrival_date`** (mise à jour backward-compatible) :
+  - Nouveau paramètre optionnel `p_new_order_deadline DATE DEFAULT NULL` : permet de mettre à jour date d'arrivée ET date limite en un seul appel atomique.
+* **`update_destination_order_deadline`** (nouvelle RPC) :
+  - Modifie uniquement la `order_deadline_date` d'une destination.
+  - Si la nouvelle date est dans le passé : fermeture immédiate + notification `DESTINATION_FERMEE` aux revendeurs ayant des commandes actives.
+  - `NULL` = suppression de la limite (réouverture de la destination).
+  - Journalisation dans `audit_logs`.
+
+#### Modifié — Contrainte notifications
+* Ajout de `'DESTINATION_FERMEE'` dans `notifications_type_check`.
+
+#### Modifié — TypeScript / Frontend
+* **`src/lib/queries/campaigns.ts`** :
+  - Interface `CampaignDestination` : ajout de `order_deadline_date: string | null`.
+  - 4 SELECT Supabase mis à jour avec `order_deadline_date` dans les blocs `campaign_destinations`.
+* **`src/lib/services/campaignEligibility.ts`** :
+  - Nouvelle raison `DESTINATION_DEADLINE_EXPIRED` dans `CampaignEligibilityReason`.
+  - Interface `CampaignDestinationContext` : ajout de `order_deadline_date?: string | null`.
+  - Logique phase 5a dans `isResellerEligibleForCampaign` : si `matchingDestination.order_deadline_date < today` → retourne `{eligible: true, canOrder: false, reason: 'DESTINATION_DEADLINE_EXPIRED', message: ...}`.
+  - Ordre de priorité : DATE_EXPIRÉE (5a) → CAMPAIGN_NOT_OPEN (5b) → OUT_OF_STOCK (6).
+* **`src/lib/actions/campaigns.ts`** :
+  - `updateDestinationArrivalDateAction` : signature étendue avec `newOrderDeadline?: string | null` (backward-compatible).
+  - Nouvelle Server Action `updateDestinationOrderDeadlineAction(destinationId, newDeadlineDate)`.
+* **`src/components/feed/FeedProductionCard.tsx`** :
+  - Détection de `DESTINATION_DEADLINE_EXPIRED`, `OUT_OF_STOCK`, `CAMPAIGN_NOT_OPEN` séparément.
+  - Bouton "Délai dépassé" (orange) quand deadline expirée, distinct de "Stock épuisé" (gris).
+* **`src/components/feed/ResellerProductionDetailActions.tsx`** :
+  - Cas `isDeadlineExpired` : bandeau orange avec message personnalisé incluant le nom de la province.
+* **`src/components/campaigns/CompanyCampaignCard.tsx`** :
+  - Affichage de la `order_deadline_date` sur chaque destination (badge rouge "Fermée" si dépassée, orange si future).
+  - Modal "Reporter la date" étendu avec champ optionnel "Date Limite de Commande".
+  - Mise à jour optimiste locale de `order_deadline_date` après sauvegarde.
+
+#### Règles Métier Respectées
+* ✅ La fermeture d'une destination **ne supprime jamais** les commandes, réservations, historique ou notifications existants.
+* ✅ La campagne globale reste active si d'autres destinations sont encore ouvertes.
+* ✅ Le stock global de la campagne reste partagé : `create_order_with_reservation` vérifie la deadline par destination AVANT le stock.
+* ✅ Distinction stricte : `DESTINATION_DEADLINE_EXPIRED` ≠ `OUT_OF_STOCK` (motifs et messages distincts).
+* ✅ Sécurité serveur : vérification transactionnelle dans la RPC avec verrouillage pessimiste.
+* ✅ Aucune donnée fictive — `NULL` = comportement inchangé pour les destinations existantes.
+
+#### Validation
+* TypeScript : **0 erreur** (`npx tsc --noEmit`).
+* Supabase : migration 24 appliquée, colonne créée, index créé, RPCs déployées, contrainte notifications mise à jour.
+
+---
+
 ## [2.3.0-seasonal-production-calendar] - 2026-09-29
 ### Phase 27 — Saisons Agricoles Sans Année Calendaire (Production Cycle)
 

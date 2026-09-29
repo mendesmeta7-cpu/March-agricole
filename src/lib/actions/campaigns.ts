@@ -637,10 +637,12 @@ export async function updateCampaignStatusAction(
 /**
  * Modifie la date d'arrivée prévue d'une ville sans altérer la campagne ni la commande,
  * et notifie automatiquement tous les revendeurs ayant une commande sur cette destination.
+ * Accepte optionnellement une nouvelle date limite de commande (Phase 28).
  */
 export async function updateDestinationArrivalDateAction(
   destinationId: string,
-  newArrivalDate: string
+  newArrivalDate: string,
+  newOrderDeadline?: string | null
 ): Promise<CampaignActionResult> {
   const supabase = createClient();
   const {
@@ -659,6 +661,7 @@ export async function updateDestinationArrivalDateAction(
     const { data, error } = await supabase.rpc("update_destination_arrival_date", {
       p_destination_id: destinationId,
       p_new_arrival_date: newArrivalDate,
+      p_new_order_deadline: newOrderDeadline || null,
     });
 
     if (error) {
@@ -680,6 +683,65 @@ export async function updateDestinationArrivalDateAction(
     };
   } catch (err: any) {
     console.error("Exception updateDestinationArrivalDateAction:", err);
+    return { success: false, error: err.message || "Une erreur inattendue est survenue." };
+  }
+}
+
+/**
+ * Phase 28 — Fermeture régionale des campagnes
+ * Modifie la date limite de commande d'une destination spécifique.
+ * Si la nouvelle date est dans le passé, la destination est immédiatement fermée
+ * et les revendeurs ayant des commandes actives sont notifiés (DESTINATION_FERMEE).
+ * Null = suppression de toute limite de commande (réouverture de la destination).
+ */
+export async function updateDestinationOrderDeadlineAction(
+  destinationId: string,
+  newDeadlineDate: string | null
+): Promise<CampaignActionResult> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Vous devez être authentifié pour modifier une date limite de commande." };
+  }
+
+  if (!destinationId) {
+    return { success: false, error: "Identifiant de destination manquant." };
+  }
+
+  // Validation de la date si fournie
+  if (newDeadlineDate) {
+    const parsed = new Date(newDeadlineDate);
+    if (isNaN(parsed.getTime())) {
+      return { success: false, error: "La date limite fournie est invalide." };
+    }
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("update_destination_order_deadline", {
+      p_destination_id: destinationId,
+      p_new_deadline_date: newDeadlineDate,
+    });
+
+    if (error) {
+      console.error("Erreur RPC update_destination_order_deadline:", error);
+      return { success: false, error: error.message || "Erreur lors de la mise à jour de la date limite." };
+    }
+
+    revalidatePath("/dashboard/company/campaigns");
+    revalidatePath("/dashboard/reseller/campaigns");
+    revalidatePath("/dashboard/reseller/feed");
+    revalidatePath("/dashboard/reseller/notifications");
+
+    const result = data && data.length > 0 ? data[0] : null;
+    return {
+      success: true,
+      message: result?.message || "Date limite de commande mise à jour avec succès.",
+    };
+  } catch (err: any) {
+    console.error("Exception updateDestinationOrderDeadlineAction:", err);
     return { success: false, error: err.message || "Une erreur inattendue est survenue." };
   }
 }

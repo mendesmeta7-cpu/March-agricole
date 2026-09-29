@@ -38,9 +38,10 @@ export default function CompanyCampaignCard({
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Gestion du report de date d'arrivée par ville
+  // Gestion du report de date d'arrivée et de la date limite de commande par ville
   const [editingDestination, setEditingDestination] = useState<CampaignDestination | null>(null);
   const [newArrivalDate, setNewArrivalDate] = useState("");
+  const [newDeadlineDate, setNewDeadlineDate] = useState("");
   const [isUpdatingDate, setIsUpdatingDate] = useState(false);
   const [updateDateError, setUpdateDateError] = useState<string | null>(null);
 
@@ -74,6 +75,7 @@ export default function CompanyCampaignCard({
   const openDateModal = (dest: CampaignDestination) => {
     setEditingDestination(dest);
     setNewArrivalDate(dest.expected_arrival_date || "");
+    setNewDeadlineDate(dest.order_deadline_date || "");
     setUpdateDateError(null);
   };
 
@@ -87,12 +89,14 @@ export default function CompanyCampaignCard({
     try {
       const res = await updateDestinationArrivalDateAction(
         editingDestination.id,
-        newArrivalDate
+        newArrivalDate,
+        newDeadlineDate || null
       );
 
       if (res.success) {
         // Mise à jour optimiste locale de la destination
         editingDestination.expected_arrival_date = newArrivalDate;
+        editingDestination.order_deadline_date = newDeadlineDate || null;
         setEditingDestination(null);
       } else {
         setUpdateDateError(res.error || "Impossible de mettre à jour la date.");
@@ -226,6 +230,19 @@ export default function CompanyCampaignCard({
                           </span>
                         )}
                       </span>
+                      {/* Phase 28 : Affichage de la date limite de commande */}
+                      {dest.order_deadline_date && (() => {
+                        const todayStr = new Date().toISOString().split("T")[0];
+                        const isClosed = dest.order_deadline_date < todayStr;
+                        return (
+                          <span className={`text-[11px] flex items-center gap-1 font-semibold mt-0.5 ${
+                            isClosed ? "text-rose-700" : "text-amber-700"
+                          }`}>
+                            <AlertCircle className="w-3 h-3" />
+                            {isClosed ? "Fermée" : "Clôt."} : {formatDate(dest.order_deadline_date)}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {campaign.status !== "completed" && campaign.status !== "cancelled" && (
@@ -360,6 +377,23 @@ export default function CompanyCampaignCard({
                   required
                   className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden"
                 />
+              </div>
+
+              {/* Phase 28 : Date limite de commande par destination */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider">
+                  Date Limite de Commande
+                  <span className="text-gray-400 font-normal normal-case ml-1">(optionnel)</span>
+                </label>
+                <input
+                  type="date"
+                  value={newDeadlineDate}
+                  onChange={(e) => setNewDeadlineDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden"
+                />
+                <p className="text-[11px] text-gray-500 leading-relaxed">
+                  Après cette date, aucune nouvelle commande ne sera acceptée pour {editingDestination?.city_name}. Les autres destinations restent actives. Laisser vide pour aucune limite.
+                </p>
               </div>
 
               <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs leading-relaxed space-y-1">

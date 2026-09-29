@@ -10,6 +10,7 @@ export type CampaignEligibilityReason =
   | "COUNTRY_NOT_ELIGIBLE"
   | "PROVINCE_NOT_SERVED"
   | "CAMPAIGN_NOT_OPEN"
+  | "DESTINATION_DEADLINE_EXPIRED"
   | "OUT_OF_STOCK"
   | "UNAUTHENTICATED"
   | "PROFILE_INCOMPLETE";
@@ -42,6 +43,8 @@ export interface CampaignDestinationContext {
   city_name?: string | null;
   expected_arrival_date?: string | null;
   previous_arrival_date?: string | null;
+  /** Date limite de commande pour cette destination. NULL = pas de limite. Phase 28. */
+  order_deadline_date?: string | null;
   provinces?: { id?: string; name?: string; code?: string } | null;
   depots?: any[];
 }
@@ -202,7 +205,24 @@ export function isResellerEligibleForCampaign(params: {
   }
 
   // Le territoire est éligible !
-  // 5. Vérification de l'ouverture de la campagne
+  // 5a. Vérification de la date limite de commande pour cette destination (Phase 28)
+  // Si la destination correspondant à la province du revendeur a une order_deadline_date dépassée,
+  // la commande est refusée avec un message spécifique (distinct du stock épuisé et de la campagne fermée).
+  if (matchingDestination && matchingDestination.order_deadline_date) {
+    const deadlineStr = matchingDestination.order_deadline_date;
+    if (deadlineStr < todayStr) {
+      const cityName = matchingDestination.city_name || provinceName;
+      return {
+        eligible: true,
+        canOrder: false,
+        reason: "DESTINATION_DEADLINE_EXPIRED",
+        message: `La période de commande pour ${cityName} est terminée (date limite : ${new Date(deadlineStr).toLocaleDateString("fr-FR")}). Les autres destinations de cette offre peuvent être encore disponibles.`,
+        matchingDestination,
+      };
+    }
+  }
+
+  // 5b. Vérification de l'ouverture globale de la campagne
   if (!isOpen) {
     return {
       eligible: true,

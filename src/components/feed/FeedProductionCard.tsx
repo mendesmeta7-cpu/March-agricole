@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -38,7 +38,11 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
 
   const hasActiveCampaign = !!production.active_campaign;
   const isEligible = production.active_campaign?.is_eligible ?? false;
-  const canOrder = production.active_campaign?.can_order !== false;
+  const eligibilityReason = production.active_campaign?.eligibility_reason;
+  const canOrder = production.active_campaign?.can_order !== false && isEligible;
+  const isDeadlineExpired = eligibilityReason === "DESTINATION_DEADLINE_EXPIRED";
+  const isOutOfStock = eligibilityReason === "OUT_OF_STOCK";
+  const isCampaignClosed = eligibilityReason === "CAMPAIGN_NOT_OPEN";
   const availableStock =
     production.active_campaign?.available_quantity ??
     production.active_campaign?.marketable_quantity ??
@@ -172,7 +176,17 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
                   <ShoppingCart className="w-2.5 h-2.5 flex-shrink-0" />
                   <span>Commander</span>
                 </Link>
-              ) : (
+              ) : isDeadlineExpired ? (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-orange-50 text-orange-700 font-semibold text-[9px] sm:text-[10px] border border-orange-200 cursor-not-allowed"
+                  title={production.active_campaign?.eligibility_message || "Période de commande terminée"}
+                >
+                  <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                  <span>Délai dépassé</span>
+                </button>
+              ) : isOutOfStock ? (
                 <button
                   type="button"
                   disabled
@@ -180,6 +194,24 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
                 >
                   <Layers className="w-2.5 h-2.5 flex-shrink-0" />
                   <span>Stock épuisé</span>
+                </button>
+              ) : isCampaignClosed ? (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-gray-100 text-gray-500 font-semibold text-[9px] sm:text-[10px] border border-gray-200 cursor-not-allowed"
+                >
+                  <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                  <span>Offre fermée</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-gray-100 text-gray-400 font-semibold text-[9px] sm:text-[10px] border border-gray-200 cursor-not-allowed"
+                >
+                  <Layers className="w-2.5 h-2.5 flex-shrink-0" />
+                  <span>Indisponible</span>
                 </button>
               )
             ) : (

@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-09-29 — Phase 27 Complète (Saisons Agricoles Sans Année — TypeScript 0 erreur)*
+*Dernière mise à jour : 2026-09-29 — Phase 28 Complète (Fermeture Régionale des Campagnes — TypeScript 0 erreur)*
 
 ---
 
@@ -35,13 +35,30 @@
 | **25** | **Isolation Admin, Sécurité des Sessions & Navigation** | 🟢 **TERMINÉ** | Correction critique isolation Admin/Revendeur/Société : layouts et middleware RBAC restreints strictement par rôle (admin redirigé vers `/dashboard/admin` si tentative d'accès aux espaces tiers). Désactivation du Router Cache client (`staleTimes.dynamic=0`) pour éliminer les pages privées servies en stale lors de la navigation arrière/avant. Suppression du lien mort `/dashboard/admin/audits`. TypeScript 0 erreur certifié. |
 | **27** | **Saisons Agricoles Sans Année Calendaire** | 🟢 **TERMINÉ** | 4 colonnes `planting/harvest_start/end_month` (SMALLINT) sur `productions`, contraintes CHECK [1-12], migration conservative des données existantes, utilitaire `seasonalMonths.ts`, formulaire avec sélecteurs de mois et aperçu temps réel, affichage saisonnier sur toutes les vues (société + revendeur + public), TypeScript 0 erreur. |
 | **26** | **Refonte UI/UX — Cartes de Productions Compactes (Marketplace Feed)** | 🟢 **TERMINÉ** | Transformation des cartes de production en Product Cards compactes style marketplace. Grille responsive `grid-cols-2 / lg:grid-cols-3 / xl:grid-cols-4`. Images `aspect-ratio: 4/3` + `object-fit: cover` (aucune hauteur fixe). Suppression des informations secondaires (localisation, longue description) de la carte. Badges statut compacts avec émojis. Typographies adaptées mobile 2 colonnes. Skeleton aligné sur la nouvelle grille. `prefers-reduced-motion` respecté. TypeScript 0 erreur certifié. |
+| **28** | **Fermeture Automatique des Campagnes par Destination/Région** | 🟢 **TERMINÉ** | `order_deadline_date` sur `campaign_destinations`, RPC `create_order_with_reservation` étendue (vérification deadline par destination avant stock), RPC `update_destination_order_deadline` (fermeture + notifications), raison `DESTINATION_DEADLINE_EXPIRED` dans `campaignEligibility.ts`, UI distincte par motif dans feed et detail, TypeScript 0 erreur. |
 
 ---
 
-## 2. BILAN DE LA PHASE 27 (SAISONS AGRICOLES SANS ANNÉE CALENDAIRE)
+## 2. BILAN DE LA PHASE 28 (FERMETURE AUTOMATIQUE PAR DESTINATION)
 
 * **Date de validation finale** : 2026-09-29
-* **Statut du projet** : 🟢 **STABLE — CALENDRIER SAISONNIER DÉPLOYÉ, TYPESCRIPT 0 ERREUR**
+* **Statut du projet** : 🟢 **STABLE — FERMETURE RÉGIONALE DES CAMPAGNES DÉPLOYÉE, TYPESCRIPT 0 ERREUR**
+* **Réalisations clés** :
+  1. **Colonne `order_deadline_date`** : sur `campaign_destinations`, nullable, avec index partiel. `NULL` = pas de limite (backward-compatible).
+  2. **RPC `create_order_with_reservation`** : étape 7bis de vérification deadline avant stock. Message distinct selon le motif.
+  3. **RPC `update_destination_order_deadline`** : fermeture ciblée, notification `DESTINATION_FERMEE` aux revendeurs concernés uniquement.
+  4. **Service `campaignEligibility.ts`** : raison `DESTINATION_DEADLINE_EXPIRED` avec message localisé par province.
+  5. **UI** : badge "Délai dépassé" (orange), "Stock épuisé" (gris), "Offre fermée" (gris foncé) distinctement rendu dans FeedProductionCard et ResellerProductionDetailActions.
+  6. **CompanyCampaignCard** : affichage inline deadline + badge rouge/orange, champ "Date Limite de Commande" dans le modal de modification.
+* **Règles métier respectées** :
+  - ✅ Jamais de fermeture globale si une seule destination expire.
+  - ✅ Commandes existantes toujours intactes (fermeture = pas de nouvelles commandes).
+  - ✅ Contrôle serveur inviolable dans la transaction SQL.
+  - ✅ 0 donnée fictive — NULL = comportement inchangé.
+
+---
+
+## 3. BILAN DE LA PHASE 27 (SAISONS AGRICOLES SANS ANNÉE CALENDAIRE)
 * **Réalisations clés** :
   1. **Schéma Base de Données (Migration 23)** :
      - 4 nouvelles colonnes `SMALLINT` nullable : `planting_start_month`, `planting_end_month`, `harvest_start_month`, `harvest_end_month`.
