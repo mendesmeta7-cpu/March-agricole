@@ -22,6 +22,22 @@ Toutes les modifications notables apportées à ce projet sont consignées dans 
 #### Validé
 - TypeScript : **0 erreur** (`npx tsc --noEmit` code 0).
 
+## [2.1.1-cloudinary-server-only] - 2026-09-29
+### Phase 25 (suite) — Correction Erreur Client-Side Admin Bannières
+
+#### Cause Racine Identifiée et Corrigée
+
+* **Erreur "Application error: a client-side exception has occurred" sur `/dashboard/admin/banners`** :
+  - **Cause exacte** : Le fichier `src/lib/cloudinary.ts` était inclus dans le bundle webpack `action-browser` (bundle client) par Next.js lors du bundling des Server Actions référencées dans `AdminBannerModal.tsx`. Le guard manuel `if (typeof window !== "undefined") { throw new Error(...) }` se déclenchait alors côté client au chargement de la page, produisant l'erreur.
+  - **Preuve** : La chaîne `sourceURL=webpack-internal:///(action-browser)/./src/lib/cloudinary.ts` était visible dans le bundle compilé `.next/server/app/dashboard/admin/banners/page.js`.
+  - **Correction** : Remplacement du guard `throw` par `import "server-only"` (ligne 1 de `src/lib/cloudinary.ts`). Le package `server-only` force Next.js à refuser à la compilation l'inclusion de ce module dans tout bundle client — erreur de compilation explicite plutôt qu'erreur runtime silencieuse.
+  - **Package installé** : `server-only` ajouté aux dépendances (`npm install server-only --save`).
+
+#### Validé
+- TypeScript : **0 erreur** (`npx tsc --noEmit` code 0).
+- Package `server-only` installé et opérationnel.
+
+
 ## [2.0.0-regional-eligibility-audit] - 2026-09-27
 ### Audit & Correction Éligibilité Régionale + Stabilisation TypeScript (Phase 24)
 

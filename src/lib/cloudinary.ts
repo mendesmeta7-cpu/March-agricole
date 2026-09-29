@@ -1,9 +1,5 @@
+import "server-only";
 import { v2 as cloudinary } from "cloudinary";
-
-// Garde de sécurité stricte : ce module ne doit JAMAIS s'exécuter côté client
-if (typeof window !== "undefined") {
-  throw new Error("Le module Cloudinary ne peut être exécuté que côté serveur (Node.js).");
-}
 
 /**
  * Initialise et configure le client Cloudinary avec les variables d'environnement serveur.
