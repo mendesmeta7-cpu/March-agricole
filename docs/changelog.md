@@ -22,6 +22,21 @@ Toutes les modifications notables apportées à ce projet sont consignées dans 
 #### Validé
 - TypeScript : **0 erreur** (`npx tsc --noEmit` code 0).
 
+## [2.1.2-server-only-audit] - 2026-09-29
+### Audit Global — Protection `server-only` sur tous les modules strictement serveur
+
+#### Audit et Corrections
+
+* **Audit complet** de tous les fichiers `src/lib/` pour détecter les modules serveur susceptibles d'être inclus dans un bundle client.
+* **`src/lib/supabase/server.ts`** : Ajout de `import "server-only"`. Ce module utilise `cookies()` de `next/headers`, une API strictement réservée au contexte serveur. Sans protection, toute tentative de bundling client produirait une erreur runtime.
+* **`src/lib/cloudinary.ts`** : Déjà corrigé (v2.1.1). La protection cascade automatiquement vers tous les Server Actions qui l'importent (`feedBanners.ts`, `feedCategories.ts`, `resellerProfile.ts`).
+* **`src/lib/queries/geography.ts`** : Utilise `@/lib/supabase/client` (client browser Supabase) — aucune protection nécessaire, c'est du code client-safe.
+* **`src/lib/queries/*.ts` (autres)** : Importés par les composants clients **uniquement pour leurs types TypeScript** (interfaces, enums). Les types sont effacés à la compilation — aucun code serveur n'est bundlé.
+
+#### Fichiers modifiés
+- `src/lib/supabase/server.ts` — `import "server-only"` ajouté
+- `src/lib/cloudinary.ts` — déjà protégé (v2.1.1)
+
 ## [2.1.1-cloudinary-server-only] - 2026-09-29
 ### Phase 25 (suite) — Correction Erreur Client-Side Admin Bannières
 

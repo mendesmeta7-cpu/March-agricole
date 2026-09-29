@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-09-29 — Phase 25 Validée (Isolation Admin/Rôles, Router Cache, Lien mort sidebar)*
+*Dernière mise à jour : 2026-09-29 — Phase 25 Complète (Isolation sessions, server-only audit global, erreur client-side résolue — TypeScript 0 erreur)*
 
 ---
 
