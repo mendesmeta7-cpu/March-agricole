@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-09-27 — Phase 24 Validée (Audit & Correction Éligibilité Régionale + TypeScript 0 erreur)*
+*Dernière mise à jour : 2026-09-29 — Phase 25 Validée (Isolation Admin/Rôles, Router Cache, Lien mort sidebar)*
 
 ---
 
@@ -32,6 +32,7 @@
 | **22** | **Workflow Demandes, Notifications Ciblées & Consultation Détaillée** | 🟢 **TERMINÉ** | Notification ciblée par produit avec URL directe `/dashboard/company/demands/[id]`, vue détaillée `CompanyDemandDetailView` avec soumission de proposition ferme et consultation multi-propositions, décloisonnement complet de l'analyse territoriale, migration 20. |
 | **23** | **Stabilisation RLS & Élimination de Récursion Infinie (42P17)** | 🟢 **TERMINÉ** | Fonctions helper `SECURITY DEFINER` (`can_company_view_demand`, `reseller_has_order_or_demand_on_production`, `reseller_has_order_on_company_product`), restauration intégrale de la visibilité des catalogues société, des productions et du flux revendeur, migration 21 appliquée via Supabase MCP, 0 régression, build 36/36 certifié. |
 | **24** | **Audit & Correction Éligibilité Régionale** | 🟢 **TERMINÉ** | Audit complet du circuit d'éligibilité territoriale, diagnostic d'incohérence de données (province_id Haut-Katanga vs city Kinshasa), correction directe en base via Supabase MCP, fix UX bug `ResellerLocationEditModal` (nom province cible affiché), correction 3 erreurs TypeScript préexistantes (`feed.ts` x2 + `OrderFormModal.tsx` x3), TypeScript 0 erreur certifié. |
+| **25** | **Isolation Admin, Sécurité des Sessions & Navigation** | 🟢 **TERMINÉ** | Correction critique isolation Admin/Revendeur/Société : layouts et middleware RBAC restreints strictement par rôle (admin redirigé vers `/dashboard/admin` si tentative d'accès aux espaces tiers). Désactivation du Router Cache client (`staleTimes.dynamic=0`) pour éliminer les pages privées servies en stale lors de la navigation arrière/avant. Suppression du lien mort `/dashboard/admin/audits`. TypeScript 0 erreur certifié. |
 
 ---
 

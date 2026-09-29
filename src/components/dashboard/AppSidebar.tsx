@@ -16,7 +16,6 @@ import {
   User,
   Users,
   Compass,
-  FileSpreadsheet,
   Bell,
   Layers,
   Image as ImageIcon,
@@ -182,11 +181,6 @@ export default function AppSidebar({
       label: "Demandes Marché",
       href: "/dashboard/admin/demands",
       icon: <TrendingUp className="w-5 h-5" />,
-    },
-    {
-      label: "Audits & Traces",
-      href: "/dashboard/admin/audits",
-      icon: <FileSpreadsheet className="w-5 h-5" />,
     },
   ];
 

@@ -25,7 +25,9 @@ export default async function CompanyLayout({
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "company" && profile?.role !== "admin") {
+  // Isolation stricte : seul le rôle "company" est admis dans cet espace.
+  // Un admin ne doit JAMAIS hériter de l'espace société, même via navigation arrière.
+  if (profile?.role !== "company") {
     redirect("/unauthorized");
   }
 

@@ -86,19 +86,20 @@ export async function updateSession(request: NextRequest) {
       return redirectWithCookies(url, supabaseResponse);
     }
 
-    // Contrôle RBAC strict : cloisonnement étanche
+    // Contrôle RBAC strict : cloisonnement étanche par rôle
+    // Un admin ne peut accéder qu'à /dashboard/admin — jamais aux espaces company ou reseller.
     if (pathname.startsWith("/dashboard/company")) {
-      if (userRole !== "company" && userRole !== "admin") {
+      if (userRole !== "company") {
         const url = request.nextUrl.clone();
-        url.pathname = "/unauthorized";
+        url.pathname = userRole === "admin" ? "/dashboard/admin" : "/unauthorized";
         return redirectWithCookies(url, supabaseResponse);
       }
     }
 
     if (pathname.startsWith("/dashboard/reseller")) {
-      if (userRole !== "reseller" && userRole !== "admin") {
+      if (userRole !== "reseller") {
         const url = request.nextUrl.clone();
-        url.pathname = "/unauthorized";
+        url.pathname = userRole === "admin" ? "/dashboard/admin" : "/unauthorized";
         return redirectWithCookies(url, supabaseResponse);
       }
     }

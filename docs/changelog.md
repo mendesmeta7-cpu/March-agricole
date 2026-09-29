@@ -3,6 +3,25 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [2.1.0-admin-security-isolation] - 2026-09-29
+### Phase 25 — Correction Admin : Isolation des Sessions, Erreurs Client-Side & Navigation
+
+#### Corrigé — CRITIQUE
+
+* **Bug Isolation Admin/Revendeur (Confusion de Session)** :
+  - `src/app/dashboard/reseller/layout.tsx` : La condition `profile?.role !== "reseller" && profile?.role !== "admin"` autorisait incorrectement un admin à traverser le layout revendeur. Via le bouton retour du navigateur, un admin pouvait se retrouver dans le shell revendeur avec ses propres données. Correction : restriction stricte `profile?.role !== "reseller"` uniquement.
+  - `src/app/dashboard/company/layout.tsx` : Même correction appliquée — seul le rôle `company` est admis.
+  - `src/lib/supabase/middleware.ts` : Alignement du RBAC middleware avec les layouts. Les admins tentant d'accéder à `/dashboard/company` ou `/dashboard/reseller` sont désormais redirigés vers `/dashboard/admin` (et non plus laissés passer).
+
+* **Router Cache Next.js (Pages privées servies en stale)** :
+  - `next.config.mjs` : Ajout de `experimental.staleTimes` avec `dynamic: 0`. Les pages `force-dynamic` (toutes les pages privées) ne sont plus mises en cache côté client Router Cache. Élimine les cas où une navigation arrière/avant affichait des données obsolètes d'une session ou d'un utilisateur différent.
+
+* **Lien mort "Audits & Traces" dans la sidebar Admin** :
+  - `src/components/dashboard/AppSidebar.tsx` : Suppression de l'entrée pointant vers `/dashboard/admin/audits` (page inexistante → 404). Import `FileSpreadsheet` retiré.
+
+#### Validé
+- TypeScript : **0 erreur** (`npx tsc --noEmit` code 0).
+
 ## [2.0.0-regional-eligibility-audit] - 2026-09-27
 ### Audit & Correction Éligibilité Régionale + Stabilisation TypeScript (Phase 24)
 

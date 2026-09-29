@@ -25,7 +25,9 @@ export default async function ResellerLayout({
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "reseller" && profile?.role !== "admin") {
+  // Isolation stricte : seul le rôle "reseller" est admis dans cet espace.
+  // Un admin ne doit JAMAIS être présenté comme revendeur, même via navigation arrière.
+  if (profile?.role !== "reseller") {
     redirect("/unauthorized");
   }
 
