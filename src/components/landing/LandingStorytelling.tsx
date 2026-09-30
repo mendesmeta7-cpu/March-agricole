@@ -13,6 +13,7 @@ import {
   Play,
   CheckCircle2,
   Boxes,
+  Leaf,
 } from "lucide-react";
 
 interface StoryStep {
@@ -27,6 +28,7 @@ interface StoryStep {
   badge: string;
   roleHighlight: string;
   keyPoints: string[];
+  objectPosition?: string;
 }
 
 const STEPS: StoryStep[] = [
@@ -47,6 +49,7 @@ const STEPS: StoryStep[] = [
       "Visibilité directe auprès des acheteurs qualifiés",
       "Sécurisation des campagnes et des enlèvements",
     ],
+    objectPosition: "center 28%",
   },
   {
     id: "grossistes",
@@ -65,6 +68,7 @@ const STEPS: StoryStep[] = [
       "Réservation directe sans intermédiaires informels",
       "Optimisation des dépôts et des coûts logistiques",
     ],
+    objectPosition: "center 38%",
   },
   {
     id: "detaillants",
@@ -83,6 +87,7 @@ const STEPS: StoryStep[] = [
       "Planification des commandes selon les arrivages",
       "Transparence sur les prix et l'origine",
     ],
+    objectPosition: "center 30%",
   },
   {
     id: "revendeurs",
@@ -101,6 +106,7 @@ const STEPS: StoryStep[] = [
       "Commandes fermes avec réservation de stock vérifiée",
       "Confirmation de livraison sécurisée par QR code",
     ],
+    objectPosition: "center 35%",
   },
   {
     id: "chaine",
@@ -119,6 +125,7 @@ const STEPS: StoryStep[] = [
       "Réduction drastique des pertes post-récolte",
       "Développement concerté et partagé de l'agriculture",
     ],
+    objectPosition: "center center",
   },
 ];
 
@@ -370,8 +377,61 @@ export default function LandingStorytelling() {
             </div>
           </div>
 
-          {/* Colonne Droite : Visuel photographique immersif */}
-          <div className="lg:col-span-7 relative min-h-[260px] sm:min-h-[340px] lg:min-h-[500px] order-1 lg:order-2 bg-forest-900/10">
+          {/* Colonne Droite : Visuel photographique immersif avec séparation oblique responsive */}
+          <div className="lg:col-span-7 relative min-h-[260px] xs:min-h-[290px] sm:min-h-[360px] lg:min-h-[500px] order-1 lg:order-2 bg-forest-900/10 overflow-hidden">
+            {/* 1. Séparateur oblique DESKTOP (diagonale / pure et douce reliant texte et image) */}
+            <div
+              aria-hidden="true"
+              className="hidden lg:block absolute inset-y-0 -left-px w-20 xl:w-28 2xl:w-32 pointer-events-none z-20 overflow-hidden"
+            >
+              <svg
+                viewBox="0 0 100 500"
+                fill="none"
+                preserveAspectRatio="none"
+                className="w-full h-full text-white"
+              >
+                {/* Découpe oblique élégante de x=85 en haut à x=0 en bas */}
+                <path
+                  d="M0 0 L85 0 C68 150, 24 350, 0 500 L0 500 Z"
+                  fill="currentColor"
+                />
+                {/* Ligne d'accent végétale douce */}
+                <path
+                  d="M85 0 C68 150, 24 350, 0 500"
+                  stroke="#bbf7d0"
+                  strokeWidth="1.5"
+                  opacity="0.85"
+                />
+              </svg>
+            </div>
+
+            {/* 2. Séparateur oblique MOBILE (transition diagonale douce entre image et texte) */}
+            <div
+              aria-hidden="true"
+              className="lg:hidden absolute -bottom-px inset-x-0 h-7 xs:h-8 sm:h-11 pointer-events-none z-20 overflow-hidden"
+            >
+              <svg
+                viewBox="0 0 400 32"
+                fill="none"
+                preserveAspectRatio="none"
+                className="w-full h-full text-white"
+              >
+                {/* Découpe oblique de x=0, y=32 à x=400, y=6 */}
+                <path
+                  d="M0 32 L400 32 L400 6 C260 20, 120 28, 0 32 Z"
+                  fill="currentColor"
+                />
+                {/* Ligne d'accent végétale */}
+                <path
+                  d="M0 32 C120 28, 260 20, 400 6"
+                  stroke="#bbf7d0"
+                  strokeWidth="1.5"
+                  opacity="0.85"
+                />
+              </svg>
+            </div>
+
+            {/* Slider photographique */}
             {STEPS.map((step, idx) => {
               const isCurrent = idx === currentStep;
 
@@ -393,12 +453,13 @@ export default function LandingStorytelling() {
                     priority={idx === 0}
                     loading={idx === 0 ? "eager" : "lazy"}
                     className="object-cover"
+                    style={{ objectPosition: step.objectPosition || "center center" }}
                   />
                   {/* Voile dégradé subtil pour la lisibilité et l'harmonie */}
                   <div className="absolute inset-0 bg-gradient-to-t from-forest-950/60 via-transparent to-transparent lg:bg-gradient-to-r lg:from-forest-950/30 lg:via-transparent lg:to-transparent" />
 
                   {/* Cartouche d'information flottant sur l'image */}
-                  <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-20">
+                  <div className="absolute bottom-7 xs:bottom-8 left-3.5 right-3.5 sm:bottom-10 sm:left-6 sm:right-6 lg:bottom-6 z-20">
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur-md text-white text-xs sm:text-sm font-medium border border-white/15 shadow-md">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                       <span>{step.tagline}</span>
@@ -411,23 +472,41 @@ export default function LandingStorytelling() {
         </div>
       </div>
 
-      {/* 3. Schéma de synthèse horizontal : Production → Distribution → Marché */}
-      <div className="mt-6 sm:mt-8 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-forest-50/80 border border-forest-200/60 text-center flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm text-forest-900 font-medium">
-        <span className="font-semibold text-forest-800">
-          Circuit intégré de la valeur :
-        </span>
-        <div className="inline-flex items-center gap-2 flex-wrap justify-center">
-          <span className="px-2.5 py-1 rounded-md bg-white border border-forest-200 text-forest-900 shadow-2xs font-semibold">
-            1. Production agricole
-          </span>
-          <span className="text-forest-500 font-bold" aria-hidden="true">→</span>
-          <span className="px-2.5 py-1 rounded-md bg-white border border-forest-200 text-forest-900 shadow-2xs font-semibold">
-            2. Distribution & Logistique
-          </span>
-          <span className="text-forest-500 font-bold" aria-hidden="true">→</span>
-          <span className="px-2.5 py-1 rounded-md bg-white border border-forest-200 text-forest-900 shadow-2xs font-semibold">
-            3. Marchés & Revendeurs
-          </span>
+      {/* 3. Schéma de synthèse : Production → Distribution → Marché */}
+      <div className="mt-6 sm:mt-8 p-3.5 sm:p-5 rounded-2xl bg-white/90 border border-forest-200/70 shadow-xs">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 text-xs sm:text-sm text-forest-900">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-forest-100/90 text-forest-700 flex items-center justify-center flex-shrink-0 shadow-2xs">
+              <Sprout className="w-4 h-4" />
+            </div>
+            <span className="font-bold text-forest-950">Production</span>
+          </div>
+
+          <div className="hidden sm:flex items-center text-forest-400">
+            <span className="w-8 lg:w-12 h-px bg-forest-200" />
+            <ArrowRight className="w-3.5 h-3.5 -ml-1 text-forest-400" />
+          </div>
+          <div className="sm:hidden text-forest-400 text-xs">↓</div>
+
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-forest-100/90 text-forest-700 flex items-center justify-center flex-shrink-0 shadow-2xs">
+              <Truck className="w-4 h-4" />
+            </div>
+            <span className="font-bold text-forest-950">Distribution</span>
+          </div>
+
+          <div className="hidden sm:flex items-center text-forest-400">
+            <span className="w-8 lg:w-12 h-px bg-forest-200" />
+            <ArrowRight className="w-3.5 h-3.5 -ml-1 text-forest-400" />
+          </div>
+          <div className="sm:hidden text-forest-400 text-xs">↓</div>
+
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-forest-100/90 text-forest-700 flex items-center justify-center flex-shrink-0 shadow-2xs">
+              <Store className="w-4 h-4" />
+            </div>
+            <span className="font-bold text-forest-950">Marché</span>
+          </div>
         </div>
       </div>
     </section>

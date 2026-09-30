@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Sprout,
   LogIn,
@@ -62,12 +63,6 @@ export default function HomePage() {
 
       {/* 2. Section HERO — Titre « Bienvenue », Vocation & 2 Boutons Exclusifs */}
       <section className="relative pt-8 pb-10 sm:pt-14 sm:pb-16 lg:pt-16 lg:pb-20 text-center px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-        {/* Badge d'introduction contextuelle */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-forest-100/80 border border-forest-200/80 text-forest-900 text-xs sm:text-sm font-medium mb-4 sm:mb-6 shadow-2xs">
-          <Leaf className="w-3.5 h-3.5 text-forest-700 flex-shrink-0" />
-          <span>La mise en relation directe des acteurs de la terre au marché</span>
-        </div>
-
         {/* Titre Principal STRICTEMENT « Bienvenue » (aucun nom de marque inventé) */}
         <h1 className="text-4xl xs:text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-forest-950 mb-4 sm:mb-6 leading-[1.08]">
           Bienvenue
@@ -227,26 +222,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 7. Footer Sobre & Transparent */}
-      <footer className="bg-forest-950 text-forest-200/70 py-8 px-4 sm:px-6 lg:px-8 border-t border-forest-900 text-xs">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-          <div className="flex items-center gap-2">
-            <Sprout className="w-4 h-4 text-forest-400" />
-            <span className="font-medium text-white">Plateforme Numérique B2B Agricole</span>
+      {/* 7. Footer Minimaliste & Discret — Signature « Développé par Synapta » intégrée à la bande verte */}
+      <footer className="w-full py-5 sm:py-6 px-4 border-t border-forest-800/80 bg-forest-950 text-white">
+        <div className="max-w-4xl mx-auto flex flex-col xs:flex-row items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm text-center">
+          <span className="text-forest-200/90 font-medium">Développé par</span>
+          <div className="inline-flex items-center gap-2">
+            <Image
+              src="/images/synapta-logo-white.png"
+              alt="Logo Synapta"
+              width={20}
+              height={32}
+              className="h-4 sm:h-5 w-auto object-contain"
+            />
+            <span className="font-bold text-white tracking-tight text-xs sm:text-sm">
+              Synapta
+            </span>
           </div>
-
-          <div className="flex items-center gap-6">
-            <Link href="/login" className="hover:text-white transition-colors">
-              Se connecter
-            </Link>
-            <Link href="/register" className="hover:text-white transition-colors">
-              Créer un compte
-            </Link>
-          </div>
-
-          <p className="text-forest-400/60">
-            Infrastructure de mise en relation de la chaîne de valeur agricole.
-          </p>
         </div>
       </footer>
     </div>
