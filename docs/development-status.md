@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-09-29 — Phase 28 Complète (Fermeture Régionale des Campagnes — TypeScript 0 erreur)*
+*Dernière mise à jour : 2026-10-01 — Phase LANDING Complète (Refonte Page d'Accueil Interactive — TypeScript 0 erreur — Build ✓)*
 
 ---
 
@@ -36,10 +36,47 @@
 | **27** | **Saisons Agricoles Sans Année Calendaire** | 🟢 **TERMINÉ** | 4 colonnes `planting/harvest_start/end_month` (SMALLINT) sur `productions`, contraintes CHECK [1-12], migration conservative des données existantes, utilitaire `seasonalMonths.ts`, formulaire avec sélecteurs de mois et aperçu temps réel, affichage saisonnier sur toutes les vues (société + revendeur + public), TypeScript 0 erreur. |
 | **26** | **Refonte UI/UX — Cartes de Productions Compactes (Marketplace Feed)** | 🟢 **TERMINÉ** | Transformation des cartes de production en Product Cards compactes style marketplace. Grille responsive `grid-cols-2 / lg:grid-cols-3 / xl:grid-cols-4`. Images `aspect-ratio: 4/3` + `object-fit: cover` (aucune hauteur fixe). Suppression des informations secondaires (localisation, longue description) de la carte. Badges statut compacts avec émojis. Typographies adaptées mobile 2 colonnes. Skeleton aligné sur la nouvelle grille. `prefers-reduced-motion` respecté. TypeScript 0 erreur certifié. |
 | **28** | **Fermeture Automatique des Campagnes par Destination/Région** | 🟢 **TERMINÉ** | `order_deadline_date` sur `campaign_destinations`, RPC `create_order_with_reservation` étendue (vérification deadline par destination avant stock), RPC `update_destination_order_deadline` (fermeture + notifications), raison `DESTINATION_DEADLINE_EXPIRED` dans `campaignEligibility.ts`, UI distincte par motif dans feed et detail, TypeScript 0 erreur. |
+| **LANDING** | **Refonte Interactive de la Page d'Accueil Publique** | 🟢 **TERMINÉ** | 6 nouveaux composants (`DemandTrendChart`, `DemandGeoChart`, `MarketDistributionChart`, `WorkflowJourney`, `PlatformBenefits`, `ScrollRevealObserver`), SVG natif React (sans dépendance externe), données 100% illustratives clairement labelisées, scroll-reveal CSS + IntersectionObserver, `prefers-reduced-motion` respecté, `page.tsx` restructuré en 11 sections narratives, TypeScript 0 erreur, build ✓ (`/ 14.6 kB`). |
 
 ---
 
-## 2. BILAN DE LA PHASE 28 (FERMETURE AUTOMATIQUE PAR DESTINATION)
+## 2. BILAN DE LA PHASE LANDING (REFONTE PAGE D'ACCUEIL INTERACTIVE)
+
+* **Date de validation finale** : 2026-10-01
+* **Statut du projet** : 🟢 **STABLE — LANDING PAGE INTERACTIVE DÉPLOYÉE, TYPESCRIPT 0 ERREUR, BUILD ✓**
+* **Réalisations clés** :
+  1. **`DemandTrendChart`** : Area/Line Chart SVG natif, sélecteur [ Maïs / Tomates / Manioc ], tooltip interactif, données illustratives.
+  2. **`DemandGeoChart`** : Horizontal Bar Chart, 4 régions fictives, fiche territoire interactive, responsive.
+  3. **`MarketDistributionChart`** : Donut Chart SVG, 4 filières, interactivité survol/clic, légende active.
+  4. **`WorkflowJourney`** : Parcours 5 étapes (Producteur → Livraison), pastilles numérotées, ligne de connexion décorative desktop.
+  5. **`PlatformBenefits`** : Refonte des 4 piliers (qualité, sécurité, logistique, croissance), grille responsive, micro-interactions hover.
+  6. **`ScrollRevealObserver`** : IntersectionObserver léger, `prefers-reduced-motion` géré côté JS + CSS.
+  7. **`globals.css`** : Keyframes enrichis, système `.reveal`/`.is-visible`/`.reveal-delay-*`, utilitaires complémentaires.
+  8. **`src/lib/utils.ts`** : Fonction `cn()` locale (aucune dépendance npm ajoutée).
+  9. **`components.json`** : Registres `@bklit` et `@kokonutui` pré-configurés (non utilisés en V1).
+* **Règles métier respectées** :
+  - ✅ Aucune donnée fictive dans Supabase.
+  - ✅ Aucune logique métier touchée.
+  - ✅ Routes `/login` et `/register` inchangées.
+  - ✅ Authentification Supabase intacte.
+  - ✅ Stockage images productions non migré.
+  - ✅ Cloudinary : uniquement bannières flux, catégories, avatars revendeurs.
+
+## 3. PROCHAINES ÉTAPES SUGGÉRÉES
+
+Le périmètre de la V1 Expérimentale est entièrement couvert. Les pistes d'amélioration future (hors périmètre V1) :
+
+| Priorité | Action | Contexte |
+| :--- | :--- | :--- |
+| 🟡 Haute | Graphiques réels dans l'espace Société | Utiliser les vraies données `demands`, `orders`, `productions` de Supabase pour des KPI réels |
+| 🟡 Haute | Statistiques de demandes par production | Vue agrégée disponible (`v_market_demands_aggregated`) |
+| 🟢 Moyenne | Optimisation images landing (lazy loading, WebP) | Les 5 images slider font ~1 Mo chacune |
+| 🟢 Moyenne | Animation donut (stroke-dashoffset CSS) | Réveil visuel du graphique annulaire au scroll |
+| ⚪ Basse | Intégration Bklit (charts library) | Nécessite `clsx`, `tailwind-merge`, `motion`, `@visx/*` |
+
+---
+
+## 4. BILAN DE LA PHASE 28 (FERMETURE AUTOMATIQUE PAR DESTINATION) — ARCHIVÉ
 
 * **Date de validation finale** : 2026-09-29
 * **Statut du projet** : 🟢 **STABLE — FERMETURE RÉGIONALE DES CAMPAGNES DÉPLOYÉE, TYPESCRIPT 0 ERREUR**

@@ -2,16 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  Sprout,
   LogIn,
   UserPlus,
-  ShieldCheck,
-  Truck,
-  TrendingUp,
-  Leaf,
   ArrowRight,
 } from "lucide-react";
 import LandingStorytelling from "@/components/landing/LandingStorytelling";
+import DemandTrendChart from "@/components/landing/DemandTrendChart";
+import DemandGeoChart from "@/components/landing/DemandGeoChart";
+import MarketDistributionChart from "@/components/landing/MarketDistributionChart";
+import WorkflowJourney from "@/components/landing/WorkflowJourney";
+import PlatformBenefits from "@/components/landing/PlatformBenefits";
+import ScrollRevealObserver from "@/components/landing/ScrollRevealObserver";
+import StickyHeader from "@/components/landing/StickyHeader";
 
 export const metadata: Metadata = {
   title: "Bienvenue — Plateforme Agricole B2B",
@@ -21,49 +23,15 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#f8fbf9] via-[#f2f7f4] to-white text-forest-950 overflow-x-hidden">
-      {/* 1. Header Minimaliste & Professionnel (sans nom commercial fictif) */}
-      <header className="w-full border-b border-forest-100/80 bg-white/70 backdrop-blur-md sticky top-0 z-40 transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
-          {/* Logo / Sceau de la Plateforme */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-forest-700 flex items-center justify-center text-white shadow-sm flex-shrink-0">
-              <Sprout className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div>
-              <p className="text-xs sm:text-sm font-semibold text-forest-900 tracking-tight leading-tight">
-                Plateforme Agricole B2B
-              </p>
-              <p className="hidden xs:block text-[11px] sm:text-xs text-forest-700/80">
-                Pour une meilleure distribution agricole
-              </p>
-            </div>
-          </div>
-
-          {/* Deux CTA principaux accessibles dans la barre de navigation */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-forest-900 hover:text-forest-950 hover:bg-forest-100/70 border border-transparent transition-all min-h-[40px] sm:min-h-[44px]"
-            >
-              <LogIn className="w-4 h-4 text-forest-700" />
-              <span>Se connecter</span>
-            </Link>
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white text-xs sm:text-sm font-semibold shadow-sm hover:shadow transition-all min-h-[40px] sm:min-h-[44px]"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span className="hidden sm:inline">Créer un compte</span>
-              <span className="sm:hidden">Créer</span>
-            </Link>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#f8fbf9] via-[#f2f7f4] to-white text-forest-950 overflow-x-hidden pt-16 sm:pt-20">
+      {/* Observateur d'animation au scroll (IntersectionObserver) — composant léger sans rendu visuel */}
+      <ScrollRevealObserver />
+      {/* 1. Header Fixe avec comportement scroll intelligent */}
+      <StickyHeader />
 
       {/* 2. Section HERO — Titre « Bienvenue », Vocation & 2 Boutons Exclusifs */}
       <section className="relative pt-8 pb-10 sm:pt-14 sm:pb-16 lg:pt-16 lg:pb-20 text-center px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-        {/* Titre Principal STRICTEMENT « Bienvenue » (aucun nom de marque inventé) */}
+        {/* Titre Principal STRICTEMENT « Bienvenue » */}
         <h1 className="text-4xl xs:text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-forest-950 mb-4 sm:mb-6 leading-[1.08]">
           Bienvenue
         </h1>
@@ -78,7 +46,7 @@ export default function HomePage() {
           Connectez les sociétés de production agricole, grossistes, détaillants et revendeurs autour d’une même plateforme.
         </p>
 
-        {/* LES SEULEMENT DEUX ACTIONS PRINCIPALES (Règle d'or de la page d'accueil) */}
+        {/* Deux actions principales exclusives */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-5 max-w-md mx-auto w-full">
           {/* Action 1 : Se connecter */}
           <Link
@@ -107,18 +75,18 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* 3. Section STORYTELLING VISUEL — Évolution douce en 5 écrans & photos réelles */}
+      {/* 3. Section STORYTELLING VISUEL — Découvrir la plateforme avec slider photo existant */}
       <section className="relative pb-12 sm:pb-20">
         <LandingStorytelling />
       </section>
 
-      {/* 4. Transition Graphique en Vague Organique (inspirée du design de référence) */}
+      {/* 4. Transition Graphique en Vague Organique */}
       <div className="relative w-full overflow-hidden leading-none z-10 -mb-1">
         <svg
           viewBox="0 0 1440 90"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="w-full h-12 sm:h-16 lg:h-24 text-white preserve-3d"
+          className="w-full h-10 sm:h-14 lg:h-20 text-white preserve-3d"
           preserveAspectRatio="none"
         >
           <path
@@ -128,73 +96,32 @@ export default function HomePage() {
         </svg>
       </div>
 
-      {/* 5. Section LES 4 VALEURS CLÉS (Piliers fondateurs de la plateforme) */}
-      <section className="bg-white py-12 sm:py-16 lg:py-20 border-t border-forest-100/50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-            {/* Pilier 1 */}
-            <div className="flex flex-col items-center text-center p-5 rounded-2xl bg-forest-50/40 border border-forest-100/70 transition-transform duration-200 hover:-translate-y-0.5">
-              <div className="w-12 h-12 rounded-xl bg-forest-100 text-forest-700 flex items-center justify-center mb-4">
-                <Leaf className="w-6 h-6" />
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-forest-950 mb-1.5">
-                Des produits de qualité
-              </h3>
-              <p className="text-xs sm:text-sm text-forest-900/70 leading-relaxed">
-                Des productions locales, fraîches et rigoureusement traçables.
-              </p>
-            </div>
-
-            {/* Pilier 2 */}
-            <div className="flex flex-col items-center text-center p-5 rounded-2xl bg-forest-50/40 border border-forest-100/70 transition-transform duration-200 hover:-translate-y-0.5">
-              <div className="w-12 h-12 rounded-xl bg-forest-100 text-forest-700 flex items-center justify-center mb-4">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-forest-950 mb-1.5">
-                Des échanges sécurisés
-              </h3>
-              <p className="text-xs sm:text-sm text-forest-900/70 leading-relaxed">
-                Une plateforme fiable, transparente et vérifiée à chaque étape.
-              </p>
-            </div>
-
-            {/* Pilier 3 */}
-            <div className="flex flex-col items-center text-center p-5 rounded-2xl bg-forest-50/40 border border-forest-100/70 transition-transform duration-200 hover:-translate-y-0.5">
-              <div className="w-12 h-12 rounded-xl bg-forest-100 text-forest-700 flex items-center justify-center mb-4">
-                <Truck className="w-6 h-6" />
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-forest-950 mb-1.5">
-                Une logistique optimisée
-              </h3>
-              <p className="text-xs sm:text-sm text-forest-900/70 leading-relaxed">
-                De la production agricole directement à votre point de vente.
-              </p>
-            </div>
-
-            {/* Pilier 4 */}
-            <div className="flex flex-col items-center text-center p-5 rounded-2xl bg-forest-50/40 border border-forest-100/70 transition-transform duration-200 hover:-translate-y-0.5">
-              <div className="w-12 h-12 rounded-xl bg-forest-100 text-forest-700 flex items-center justify-center mb-4">
-                <TrendingUp className="w-6 h-6" />
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-forest-950 mb-1.5">
-                Une croissance partagée
-              </h3>
-              <p className="text-xs sm:text-sm text-forest-900/70 leading-relaxed">
-                Ensemble pour une filière agricole plus performante et équitable.
-              </p>
-            </div>
-          </div>
-
-          {/* Slogan Final en Signature */}
-          <div className="mt-12 sm:mt-16 text-center">
-            <p className="text-base sm:text-lg font-semibold italic text-forest-800 tracking-wide">
-              « Ensemble, cultivons de meilleures opportunités »
-            </p>
-          </div>
-        </div>
+      {/* 5. Section interactive : « LA DEMANDE ÉVOLUE » (Line / Area Chart animé avec sélecteur de produit) */}
+      <section className="bg-gradient-to-b from-white via-forest-50/20 to-white reveal">
+        <DemandTrendChart />
       </section>
 
-      {/* 6. Bannière d'Appel à l'Action de Pied de Page (Rappel épuré des 2 CTA) */}
+      {/* 6. Section interactive : « OÙ SE TROUVE LA DEMANDE ? » (Horizontal Bar Chart géographique) */}
+      <section className="bg-gradient-to-b from-white via-[#f4f8f5] to-white reveal reveal-delay-1">
+        <DemandGeoChart />
+      </section>
+
+      {/* 7. Section interactive : « COMPRENDRE LE MARCHÉ » (Ring Chart / Donut compact sectoriel) */}
+      <section className="bg-gradient-to-b from-white via-forest-50/20 to-white reveal reveal-delay-2">
+        <MarketDistributionChart />
+      </section>
+
+      {/* 8. Section interactive : « DE LA PRODUCTION À LA LIVRAISON » (Parcours visuel humain & étapes connectées) */}
+      <section className="bg-white reveal">
+        <WorkflowJourney />
+      </section>
+
+      {/* 9. Section : « LES BÉNÉFICES DE LA PLATEFORME » (Repensée de façon compacte et responsive) */}
+      <section className="bg-gradient-to-b from-white via-forest-50/30 to-white border-t border-forest-100/50 reveal">
+        <PlatformBenefits />
+      </section>
+
+      {/* 10. Bannière d'Appel à l'Action de Pied de Page */}
       <section className="bg-forest-900 text-white py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-extrabold mb-3">
@@ -222,7 +149,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 7. Footer Minimaliste & Discret — Signature « Développé par Synapta » intégrée à la bande verte */}
+      {/* 11. Footer Minimaliste & Discret — Signature « Développé par Synapta » */}
       <footer className="w-full py-5 sm:py-6 px-4 border-t border-forest-800/80 bg-forest-950 text-white">
         <div className="max-w-4xl mx-auto flex flex-col xs:flex-row items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm text-center">
           <span className="text-forest-200/90 font-medium">Développé par</span>

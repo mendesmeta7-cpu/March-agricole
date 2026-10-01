@@ -45,11 +45,15 @@ body {
   scrollbar-width: none;
 }
 
-/* Animations légères & Scroll Reveal */
+/* ============================================================
+   ANIMATIONS — Landing Page & Scroll Reveal
+   ============================================================ */
+
+/* Fade + translate léger au montage du composant */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -57,11 +61,122 @@ body {
   }
 }
 
-.animate-fade-in-up {
-  animation: fadeInUp 360ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+/* Apparition latérale gauche */
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
-/* Respect absolu de l'accessibilité des animations (Section 23) */
+/* Apparition latérale droite */
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Prise d'échelle légère */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Barre de progression horizontale (bar chart) */
+@keyframes growX {
+  from { transform: scaleX(0); transform-origin: left; }
+  to   { transform: scaleX(1); transform-origin: left; }
+}
+
+/* Réveil du donut SVG (rotation initiale) */
+@keyframes spinOnce {
+  from { stroke-dashoffset: 0; }
+}
+
+/* Classes utilitaires d'animation */
+.animate-fade-in-up {
+  animation: fadeInUp 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in-left {
+  animation: fadeInLeft 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in-right {
+  animation: fadeInRight 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-scale-in {
+  animation: scaleIn 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ============================================================
+   SCROLL REVEAL — État initial (masqué) + état visible
+   Activé via IntersectionObserver qui ajoute la classe is-visible
+   ============================================================ */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-20px);
+  transition:
+    opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-left.is-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.reveal-right {
+  opacity: 0;
+  transform: translateX(20px);
+  transition:
+    opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-right.is-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Délais de cascade pour les éléments de grille */
+.reveal-delay-1 { transition-delay: 80ms; }
+.reveal-delay-2 { transition-delay: 160ms; }
+.reveal-delay-3 { transition-delay: 240ms; }
+.reveal-delay-4 { transition-delay: 320ms; }
+
+/* ============================================================
+   ACCESSIBILITÉ — Respect total de prefers-reduced-motion
+   ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
@@ -71,4 +186,38 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  /* Les éléments scroll-reveal s'affichent directement */
+  .reveal,
+  .reveal-left,
+  .reveal-right {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* ============================================================
+   UTILITAIRES COMPLÉMENTAIRES
+   ============================================================ */
+
+/* Empêche le débordement horizontal sur toute la page */
+.landing-safe {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Hover shimmer léger sur les cartes interactives */
+.card-interactive {
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.2s ease;
+}
+
+.card-interactive:hover {
+  transform: translateY(-2px);
+}
+
+/* Transitions fluides des barres chart horizontales */
+.bar-grow {
+  animation: growX 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: left;
 }

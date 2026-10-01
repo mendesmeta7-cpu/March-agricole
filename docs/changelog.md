@@ -3,6 +3,113 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [2.5.0-landing-page-redesign] - 2026-10-01
+### Phase LANDING — Refonte Interactive de la Page d'Accueil Publique
+
+#### Objectif
+Transformer la page d'accueil publique (`/`) en une expérience moderne, agricole, premium et interactive qui explique progressivement la valeur de la plateforme aux visiteurs. Aucune modification du backend, de Supabase, des routes protégées ou de l'authentification.
+
+#### Ajouté — Composants Landing Page (`src/components/landing/`)
+
+* **`DemandTrendChart.tsx`** (Client Component) :
+  - Graphique de tendance **Area / Line Chart** dessiné en SVG natif (aucune dépendance externe — pas de Bklit installé, le projet n'a pas shadcn/ui initialisé avec les registres appropriés).
+  - Sélecteur interactif de produit : `[ Maïs ] [ Tomates ] [ Manioc ]`.
+  - Tooltip flottant au survol/clic sur chaque point de données.
+  - **Données 100 % illustratives** — clairement labelisées "Données illustratives" dans l'interface.
+  - Aucune donnée fictive insérée dans Supabase.
+  - Section 5 : "La demande évolue."
+
+* **`DemandGeoChart.tsx`** (Client Component) :
+  - **Horizontal Bar Chart interactif** présentant 4 régions fictives (Kinshasa, Kongo-Central, Haut-Katanga, Kasaï-Central).
+  - Clic sur une région → fiche détaillée du profil des acheteurs et besoins identifiés.
+  - **Données 100 % illustratives** — label "Données illustratives" affiché.
+  - Responsive : aucun scroll horizontal, barres contenues sur mobile.
+  - Section 6 : "Où se trouve la demande ?"
+
+* **`MarketDistributionChart.tsx`** (Client Component) :
+  - **Donut Chart SVG natif** avec 4 filières : Céréales, Légumes, Tubercules, Fruits.
+  - Interactivité : survol/clic sur un segment → mise en évidence + affichage centré du %.
+  - Légende interactive cliquable à droite du graphique.
+  - **Données 100 % illustratives**.
+  - Section 7 : "Comprendre le marché."
+
+* **`WorkflowJourney.tsx`** (Client Component) :
+  - Parcours visuel interactif en 5 étapes : Producteur → Offre → Revendeur → Commande → Livraison.
+  - Pastilles numérotées avec icônes, ligne de connexion décorative sur desktop.
+  - Fiche contextuelle animée de l'étape active.
+  - Section 8 : "De la production à la livraison."
+
+* **`PlatformBenefits.tsx`** (Server Component — aucun état) :
+  - Refonte compacte et élégante des 4 piliers fondateurs (qualité, sécurité, logistique, croissance partagée).
+  - Grille `1 col mobile → 2 col tablette → 4 col desktop`.
+  - Micro-interactions hover : icône bascule en vert, ombre élévée.
+  - Section 9 : "Pourquoi choisir cette plateforme ?"
+
+* **`ScrollRevealObserver.tsx`** (Client Component minimal) :
+  - Installe un `IntersectionObserver` global qui active la classe `.is-visible` sur les éléments `.reveal`.
+  - Respecte `prefers-reduced-motion` : si activé, tous les éléments sont rendus visibles directement sans animation.
+  - Aucun rendu visuel — composant utilitaire pur.
+
+#### Modifié — `src/app/page.tsx`
+- Réorganisation complète de la page d'accueil selon l'ordre narratif :
+  1. Header sticky (inchangé)
+  2. Hero "Bienvenue" (inchangé — routes `/login` et `/register` préservées)
+  3. `LandingStorytelling` (inchangé — slider photo existant)
+  4. Vague de transition SVG (inchangée)
+  5. `DemandTrendChart` (nouveau)
+  6. `DemandGeoChart` (nouveau)
+  7. `MarketDistributionChart` (nouveau)
+  8. `WorkflowJourney` (nouveau)
+  9. `PlatformBenefits` (nouveau — remplace les cartes statiques)
+  10. Bannière CTA (inchangée)
+  11. Footer Synapta (inchangé)
+- Import de `ScrollRevealObserver` ajouté (composant client léger).
+- Classes `.reveal` et `.reveal-delay-*` appliquées sur les nouvelles sections.
+
+#### Modifié — `src/app/globals.css`
+- Ajout des keyframes : `fadeInLeft`, `fadeInRight`, `scaleIn`, `growX`, `spinOnce`.
+- Système de **Scroll Reveal CSS** complet :
+  - `.reveal`, `.reveal-left`, `.reveal-right` : état initial masqué + transition.
+  - `.is-visible` : état visible activé par `ScrollRevealObserver`.
+  - `.reveal-delay-1/2/3/4` : délais de cascade pour animations en grille.
+- Utilitaires additionnels : `.card-interactive`, `.bar-grow`, `.landing-safe`.
+- **Bloc `prefers-reduced-motion`** étendu : désactive toutes les transitions CSS **et** force l'affichage immédiat des éléments `.reveal` (sans animation).
+
+#### Ajouté — `src/lib/utils.ts`
+- Fonction `cn()` légère de concaténation de classes CSS (alternative à `clsx`/`tailwind-merge` — aucune dépendance npm ajoutée).
+
+#### Ajouté — `components.json`
+- Fichier de configuration shadcn/ui (non initialisé) avec registres `@bklit` et `@kokonutui` pré-configurés pour usage futur.
+- Note : Bklit nécessite `clsx`, `tailwind-merge` et `motion` + `@visx/*` — non installés en V1 pour éviter d'alourdir le bundle. Les graphiques sont réalisés en SVG natif React.
+
+#### Règles métier respectées
+- ✅ **Aucune donnée fictive dans Supabase** — toutes les données des graphiques sont définies localement dans les composants, clairement labelisées "Données illustratives".
+- ✅ **Aucune logique métier modifiée** — backend, RLS, commandes, demandes, campagnes, livraisons : intacts.
+- ✅ **Routes préservées** : `/login` → connexion, `/register` → choix Société/Revendeur (inchangé).
+- ✅ **Authentification Supabase** : non touchée.
+- ✅ **Stockage images productions** : non migré (conforme à la décision en vigueur).
+- ✅ **Cloudinary** : uniquement pour bannières flux, catégories, avatars revendeurs (inchangé).
+- ✅ **TypeScript** : 0 erreur (`tsc --noEmit` : exit code 0).
+- ✅ **Build Next.js** : ✓ Compiled successfully (38 routes, `/ 14.3 kB`).
+- ✅ **prefers-reduced-motion** : respecté côté CSS et JS.
+- ✅ **Responsive** : testé mentalement de 320px à 1440px+. Aucun débordement horizontal.
+
+#### Architecture prévue — Graphiques futurs (espace Société)
+Les futurs graphiques de l'espace `/dashboard/company` utiliseront les **vraies données Supabase** :
+- Nombre de demandes reçues par production (table `demands`).
+- Évolution temporelle des demandes (agrégation par mois).
+- Volume demandé vs stock disponible.
+- Commandes par statut (table `orders`).
+- Livraisons confirmées (table `orders` où `delivery_confirmed_at IS NOT NULL`).
+
+Ces visualisations respecteront la distinction stricte :
+```
+Demande ≠ Vente  (une demande = un intérêt exprimé)
+Production ≠ Campagne ≠ Commande ≠ Livraison
+```
+
+---
+
 ## [2.4.0-campaign-regional-closure] - 2026-09-29
 ### Phase 28 — Fermeture Automatique des Campagnes par Destination/Région
 
