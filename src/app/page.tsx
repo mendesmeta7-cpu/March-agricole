@@ -14,6 +14,7 @@ import WorkflowJourney from "@/components/landing/WorkflowJourney";
 import PlatformBenefits from "@/components/landing/PlatformBenefits";
 import ScrollRevealObserver from "@/components/landing/ScrollRevealObserver";
 import StickyHeader from "@/components/landing/StickyHeader";
+import HeroDynamicTitle from "@/components/landing/HeroDynamicTitle";
 
 export const metadata: Metadata = {
   title: "Bienvenue — Plateforme Agricole B2B",
@@ -29,12 +30,10 @@ export default function HomePage() {
       {/* 1. Header Fixe avec comportement scroll intelligent */}
       <StickyHeader />
 
-      {/* 2. Section HERO — Titre « Bienvenue », Vocation & 2 Boutons Exclusifs */}
+      {/* 2. Section HERO — Titre dynamique multilingue, Vocation & 2 Boutons Exclusifs */}
       <section className="relative pt-8 pb-10 sm:pt-14 sm:pb-16 lg:pt-16 lg:pb-20 text-center px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-        {/* Titre Principal STRICTEMENT « Bienvenue » */}
-        <h1 className="text-4xl xs:text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-forest-950 mb-4 sm:mb-6 leading-[1.08]">
-          Bienvenue
-        </h1>
+        {/* Titre Principal Dynamique Multilingue */}
+        <HeroDynamicTitle />
 
         {/* Message expliquant simplement la vocation de la plateforme */}
         <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-forest-900 mb-3 sm:mb-5 max-w-3xl mx-auto leading-snug">

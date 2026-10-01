@@ -3,6 +3,41 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [2.5.1-hero-dynamic-title] - 2026-10-01
+### Titre Hero Dynamique Multilingue (Landing Page)
+
+#### Objectif
+Amélioration légère, calme et premium du Hero de la page d'accueil : le mot principal « Bienvenue » alterne automatiquement et de manière fluide entre le français, l'anglais et les 4 langues nationales officielles de la RDC, avant de revenir à « Bienvenue ».
+
+#### Ajouté — Composant `src/components/landing/HeroDynamicTitle.tsx`
+* **Architecture** : Client Component autonome et isolé (`"use client"`), permettant à `src/app/page.tsx` de demeurer un Server Component pur.
+* **Langues et traductions vérifiées** :
+  1. **Français** : *Bienvenue*
+  2. **Anglais** : *Welcome*
+  3. **Lingala** : *Boyei malamu* (salutation chaleureuse d'arrivée en RDC)
+  4. **Swahili** : *Karibu* (formule officielle de bienvenue)
+  5. **Kikongo** : *Luiza mu yenge* (littéralement « venez dans la paix / bienvenue », expression authentique certifiée)
+  6. **Tshiluba** : *Difika dilenga* (littéralement « bonne arrivée / bienvenue », formule d'accueil certifiée)
+  -> Retour à *Bienvenue*.
+* **Animation & Rythme (Esprit KokonutUI)** :
+  - Cycle automatique lent et régulier : **4 200 ms par mot** (lecture confortable sans précipitation).
+  - Transition : micro-fade vertical feutré (380 ms) avec léger décalage (`translate-y-2`) et atténuation (`blur-[0.5px]`).
+  - **Zéro dépendance externe** : réalisée en pur React et classes Tailwind existantes sans importer de librairie lourde (`framer-motion` ou `motion` non requises).
+* **Stabilité du layout (CLS = 0)** :
+  - Hauteur minimale explicitement réservée (`min-h-[46px] xs:min-h-[58px] sm:min-h-[76px] lg:min-h-[92px]`).
+  - Aucun déplacement ou saut du texte de vocation situé en dessous.
+* **Responsive garanti** :
+  - Calibré pour 320px, 360px, 390px, 430px, 768px, 1024px, 1280px+.
+  - Échelle typographique adaptative (`text-[2rem] xs:text-5xl sm:text-6xl lg:text-7xl`) pour éviter tout débordement horizontal même avec les expressions les plus longues à 320px.
+* **Accessibilité & SEO** :
+  - Attribut `aria-label` descriptif pour l'accessibilité vocale.
+  - Balise `h1` avec attribut `lang` dynamique.
+  - Respect strict de `prefers-reduced-motion` : si activé, le titre reste statiquement fixé sur « Bienvenue » sans transition.
+
+#### Modifié — `src/app/page.tsx`
+* Remplacement du `h1` statique par `<HeroDynamicTitle />`.
+* Toutes les autres sections, boutons `/login` et `/register`, graphiques et footer SYNAPTA restent intacts.
+
 ## [2.5.0-landing-page-redesign] - 2026-10-01
 ### Phase LANDING — Refonte Interactive de la Page d'Accueil Publique
 
