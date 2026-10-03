@@ -97,6 +97,62 @@ body {
   }
 }
 
+/* Tiroir / Drawer entrée droite */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Tiroir / Drawer sortie droite */
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Bottom sheet mobile / Toast entrée bas */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Toast entrée haut */
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modal pop avec rebond doux (KokonutUI feel) */
+@keyframes modalPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 /* Barre de progression horizontale (bar chart) */
 @keyframes growX {
   from { transform: scaleX(0); transform-origin: left; }
@@ -123,6 +179,22 @@ body {
 
 .animate-scale-in {
   animation: scaleIn 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-slide-in-down {
+  animation: slideInDown 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-modal-pop {
+  animation: modalPop 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* ============================================================

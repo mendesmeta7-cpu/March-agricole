@@ -1,5 +1,5 @@
-import { SkeletonProfileView } from "@/components/ui/Skeleton";
+import ResellerProfileSkeleton from "@/components/reseller/ResellerProfileSkeleton";
 
 export default function ResellerProfileLoading() {
-  return <SkeletonProfileView />;
+  return <ResellerProfileSkeleton />;
 }

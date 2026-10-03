@@ -125,7 +125,7 @@ export default function AppSidebar({
       badgeVariant: "warning",
     },
     {
-      label: "Mon Profil Revendeur",
+      label: "Mon Profil",
       href: "/dashboard/reseller/profile",
       icon: <Store className="w-5 h-5" />,
     },

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,10 +16,9 @@ interface ResellerBottomNavProps {
   unreadNotificationsCount?: number;
 }
 
-interface NavItem {
+interface NavDestination {
   id: string;
   label: string;
-  shortLabel: string;
   href: string;
   icon: typeof Compass;
   badge?: number;
@@ -28,40 +28,38 @@ export default function ResellerBottomNav({
   unreadNotificationsCount = 0,
 }: ResellerBottomNavProps) {
   const pathname = usePathname();
+  const navContainerRef = useRef<HTMLDivElement>(null);
+  const activeItemRef = useRef<HTMLAnchorElement>(null);
 
-  const navItems: NavItem[] = [
+  // EXACTEMENT ces six entrées obligatoires — aucun raccourcissement, aucun texte générique
+  const navItems: NavDestination[] = [
     {
       id: "feed",
       label: "Flux des Productions",
-      shortLabel: "Flux",
       href: "/dashboard/reseller",
       icon: Compass,
     },
     {
       id: "campaigns",
       label: "Offres Commerciales",
-      shortLabel: "Offres",
       href: "/dashboard/reseller/campaigns",
       icon: Megaphone,
     },
     {
       id: "demands",
       label: "Mes Demandes d'Achat",
-      shortLabel: "Demandes",
       href: "/dashboard/reseller/demands",
       icon: TrendingUp,
     },
     {
       id: "orders",
       label: "Mes Commandes",
-      shortLabel: "Commandes",
       href: "/dashboard/reseller/orders",
       icon: ShoppingBag,
     },
     {
       id: "notifications",
       label: "Notifications",
-      shortLabel: "Notifs",
       href: "/dashboard/reseller/notifications",
       icon: Bell,
       badge: unreadNotificationsCount > 0 ? unreadNotificationsCount : undefined,
@@ -69,18 +67,39 @@ export default function ResellerBottomNav({
     {
       id: "profile",
       label: "Mon Profil",
-      shortLabel: "Profil",
       href: "/dashboard/reseller/profile",
       icon: User,
     },
   ];
 
+  // Centrage automatique doux de la destination active sur petits écrans (ex: 320px, 360px)
+  useEffect(() => {
+    if (activeItemRef.current && navContainerRef.current) {
+      const container = navContainerRef.current;
+      const element = activeItemRef.current;
+
+      // Calcul pour centrer l'élément sans à-coup
+      const elementLeft = element.offsetLeft;
+      const elementWidth = element.offsetWidth;
+      const containerWidth = container.offsetWidth;
+      const targetScroll = elementLeft - containerWidth / 2 + elementWidth / 2;
+
+      container.scrollTo({
+        left: Math.max(0, targetScroll),
+        behavior: "smooth",
+      });
+    }
+  }, [pathname]);
+
   return (
     <nav
       aria-label="Navigation principale revendeur"
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] pb-[env(safe-area-inset-bottom)]"
     >
-      <div className="max-w-md sm:max-w-lg mx-auto px-1 sm:px-2 flex items-center justify-around h-16">
+      <div
+        ref={navContainerRef}
+        className="max-w-xl mx-auto px-1 sm:px-2 flex items-stretch justify-start sm:justify-around overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-1"
+      >
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -93,19 +112,21 @@ export default function ResellerBottomNav({
           return (
             <Link
               key={item.id}
+              ref={isActive ? activeItemRef : undefined}
               href={item.href}
-              className={`group flex-1 flex flex-col items-center justify-center py-1.5 px-0.5 relative transition-all duration-150 select-none min-w-0 ${
+              aria-current={isActive ? "page" : undefined}
+              className={`group flex-1 min-w-[68px] xs:min-w-[74px] sm:min-w-0 snap-center flex flex-col items-center justify-between py-1 px-1 relative transition-all duration-150 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-600 rounded-xl active:scale-95 motion-reduce:transform-none ${
                 isActive
-                  ? "text-forest-700 font-bold"
+                  ? "text-forest-800 font-bold"
                   : "text-gray-500 hover:text-gray-900 font-medium"
               }`}
             >
-              {/* Conteneur d'icône avec fond actif doux */}
+              {/* Conteneur d'icône avec fond actif doux en pilule */}
               <div
                 className={`relative px-2.5 py-1 rounded-full transition-all duration-200 ${
                   isActive
-                    ? "bg-forest-100/90 text-forest-800 scale-105"
-                    : "text-gray-500 group-hover:text-gray-800 group-active:scale-95"
+                    ? "bg-forest-100/90 text-forest-800 shadow-2xs"
+                    : "text-gray-500 group-hover:text-gray-800"
                 }`}
               >
                 <Icon
@@ -114,7 +135,7 @@ export default function ResellerBottomNav({
                   }`}
                 />
 
-                {/* Badge pour notifications non lues */}
+                {/* Badge pour notifications non lues (données réelles) */}
                 {typeof item.badge === "number" && item.badge > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold flex items-center justify-center shadow-xs animate-in zoom-in-75">
                     {item.badge > 99 ? "99+" : item.badge}
@@ -122,20 +143,23 @@ export default function ResellerBottomNav({
                 )}
               </div>
 
-              {/* Libellé adaptatif : libellé court sur très petits écrans, complet dès sm */}
+              {/* Libellé intégral obligatoire — Ne jamais raccourcir */}
               <span
-                className={`text-[9px] xs:text-[10px] tracking-tight mt-0.5 text-center truncate max-w-full leading-tight transition-colors ${
-                  isActive ? "text-forest-800 font-bold" : "text-gray-600"
+                className={`text-[9px] xs:text-[9.5px] sm:text-[10px] tracking-tight mt-0.5 text-center leading-[1.15] max-w-full transition-colors line-clamp-2 px-0.5 ${
+                  isActive
+                    ? "text-forest-900 font-bold"
+                    : "text-gray-600 group-hover:text-gray-900"
                 }`}
                 title={item.label}
               >
-                <span className="hidden sm:inline">{item.label}</span>
-                <span className="sm:hidden">{item.shortLabel}</span>
+                {item.label}
               </span>
 
-              {/* Indicateur sous forme de trait discret sous l'onglet actif */}
-              {isActive && (
-                <span className="absolute bottom-0 w-6 h-0.5 bg-forest-600 rounded-full" />
+              {/* Indicateur de position actif */}
+              {isActive ? (
+                <span className="w-4 h-0.5 bg-forest-600 rounded-full mt-0.5" />
+              ) : (
+                <span className="w-4 h-0.5 bg-transparent rounded-full mt-0.5" />
               )}
             </Link>
           );

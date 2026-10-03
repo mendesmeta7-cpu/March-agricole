@@ -3,6 +3,213 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [REV-AUDIT] - 2026-10-03
+### Audit Global de Non-Régression du Parcours Revendeur (Post R1 → R7)
+
+#### Objectif
+Contrôle complet de non-régression du parcours Revendeur suite aux phases R1 → R7. Aucune modification de code ni de logique métier. Vérification exhaustive des 6 pages, de la navigation, des composants R1, des données réelles, de l'auth/sécurité, du responsive et des workflows.
+
+#### Résultat de l'audit
+* **État général** : 🟢 SAIN — Aucune régression fonctionnelle critique détectée.
+* **6 pages accessibles et fonctionnelles** : Flux des Productions, Offres Commerciales, Mes Demandes d'Achat, Mes Commandes, Notifications, Mon Profil.
+* **Navigation** : 6 entrées strictes conformes dans `ResellerBottomNav` et `ResellerSidebar`. Badge notifications réel uniquement si > 0.
+* **Flux des Productions** : INTACT. `FeedView` non modifié. Shell R2 uniquement ajuste les paddings.
+* **Distinctions métier** : Demande ≠ Proposition ≠ Commande ≠ Livraison — confirmées intactes dans tous les composants.
+* **QR Code** : `qrCodeToken` opaque immuable utilisé dans `QRCodeModal` — workflow non modifié.
+* **Cloudinary** : Strictement limité à l'avatar revendeur (`profiles.avatar_url`). Productions non migrées.
+* **0 Mock Data** : Confirmé sur l'ensemble des composants Revendeur.
+* **Auth/Rôles** : Layout vérifie `role === "reseller"`, isolation admin/société préservée (Phase 25).
+* **Composants R1** : 19 composants présents et utilisés correctement.
+
+#### Anomalies documentées (aucune correction requise)
+* `ResellerAvatarSection.tsx` — orphelin bénin (non importé par `ResellerProfileView`).
+* `ResellerProfileTerritoryCard.tsx` + `ResellerLocationEditModal.tsx` — orphelins en chaîne (remplacés par `ResellerEditLocationDrawer` R1, non supprimés).
+* `NotificationsView.tsx` (ancienne) — subsiste, non utilisée par la route revendeur.
+* `npm run lint` — ESLint non configuré (absence pré-existante).
+
+#### Tests techniques
+* `npx tsc --noEmit` : ✅ Code 0 (0 erreur TypeScript).
+* `npm run lint` : ⚠️ Non configuré (interactif, pré-existant).
+* `npm run build` : ✅ Code 0 — 41/41 routes compilées, build certifié.
+
+#### Aucun fichier de code modifié
+Cet audit est une étape de contrôle pur. Zéro modification de code. Memory Bank mise à jour.
+
+---
+
+## [2.11.0-reseller-profile-r7] - 2026-10-03
+### Phase R7 — Mon Profil Côté Revendeur (Refonte UI/UX, Style Application Pro Facebook/Twitter, Cloudinary Intact, Drawers R1)
+
+#### Objectif
+Moderniser entièrement l'interface de la page « Mon Profil » côté Revendeur (`/dashboard/reseller/profile`) pour offrir une expérience de type application professionnelle de référence (bannière cover immersive, avatar chevauchant avec actions directes Cloudinary, badging de vérification SSR), tout en conservant 100 % des fonctionnalités, des données réelles, des contrôles territoriaux et du workflow de déconnexion sécurisée.
+
+#### Ajouté
+* **`src/components/reseller/ResellerProfileView.tsx`** : Vue principale moderne organisée en bannière de couverture, avatar chevauchant avec actions Cloudinary directes (upload et suppression avec confirmation), statistiques réelles d'activité (commandes, demandes, province), grille 2 colonnes avec fiche d'établissement, territoire d'opération pivot, compte utilisateur et raccourcis rapides vers les espaces métier.
+* **`src/components/reseller/ResellerEditProfileDrawer.tsx`** : Tiroir d'édition des informations personnelles et commerciales basé sur le `Drawer` R1 (`side="right"` desktop, responsive mobile). Modification du nom complet du titulaire, de la raison sociale, de la typologie d'achat et du téléphone de contact, avec validation et action serveur dédiée.
+* **`src/components/reseller/ResellerEditLocationDrawer.tsx`** : Tiroir d'édition du territoire d'opération pivot basé sur le `Drawer` R1. Permet le changement de province de rattachement avec rappel contractuel sur l'éligibilité régionale et case à cocher obligatoire de confirmation.
+* **`src/components/reseller/ResellerProfileSkeleton.tsx`** : Squelette de chargement reproduisant fidèlement la bannière, l'avatar, les statistiques et la grille 2 colonnes pour un affichage sans sursaut visuel.
+
+#### Modifié
+* **`src/lib/actions/resellerProfile.ts`** : Ajout de la Server Action `updateResellerGeneralProfileAction` permettant la mise à jour sécurisée des coordonnées (`profiles`) et informations d'établissement (`resellers`) pour l'utilisateur authentifié.
+* **`src/components/reseller/ResellerLogoutButton.tsx`** : Amélioration avec `ConfirmDialog` de R1 pour sécuriser l'action de déconnexion et prévenir les déconnexions accidentelles.
+* **`src/app/dashboard/reseller/profile/page.tsx`** : Intégration de `ResellerProfileView` avec chargement en parallèle des données réelles du profil, des informations revendeur, du catalogue de provinces et des compteurs réels d'activité.
+* **`src/app/dashboard/reseller/profile/loading.tsx`** : Utilisation du nouveau composant `ResellerProfileSkeleton`.
+
+#### Garanties de Non-Régression & Règles d'Or
+* **Flux des Productions (`FeedView.tsx`)** : **Strictement non modifiée.**
+* **Pages R3, R4, R5, R6** : Offres Commerciales, Demandes, Commandes, Notifications — **strictement inchangées.**
+* **Cloudinary** : Workflow 100 % préservé avec upload, recadrage automatique centré visage (400x400), stockage dans `profiles` et suppression de l'ancien `public_id` sans orphelins.
+* **Règles territoriales** : Conservation inviolable de la validation de province et des contraintes d'éligibilité aux campagnes.
+* **Données réelles (0 Mock Data)** : Toutes les informations affichées proviennent exclusivement des tables Supabase (`profiles`, `resellers`, `provinces`, `orders`, `demands`). Aucun faux champ inventé.
+* **TypeScript** : 0 erreur (`npx tsc --noEmit` code 0).
+* **Next.js Build** : Compilé avec succès (38/38 routes certifiées, `/dashboard/reseller/profile` optimisée à 13.7 kB).
+
+## [2.10.1-reseller-orders-r5] - 2026-10-03
+### Phase R5 — Mes Commandes d'Achat Côté Revendeur (Refonte UI/UX, Stepper de Progression, Drawer Détail, QR & Annulation Préservés)
+
+#### Objectif
+Moderniser entièrement l'interface de la page « Mes Commandes d'Achat » côté Revendeur (`/dashboard/reseller/orders`) pour offrir une expérience de suivi claire, professionnelle et réactive, tout en conservant 100 % des fonctionnalités, des données réelles, des workflows QR Code, de livraison et d'annulation transactionnelle.
+
+#### Ajouté
+* **`src/components/orders/ResellerOrderDetailDrawer.tsx`** : Tiroir de consultation approfondie d'une commande basé sur le `Drawer` R1 (`side="right"` desktop, responsive mobile). Présentation exhaustive : visuel grand format du produit commandé, numéro de commande avec copie, stepper complet 5 étapes, société productrice (logo + lien profil public), détails campagne, quantité/prix immuable snapshot, destination + adresse dépôt complète, date d'arrivée (alerte si reportée `previous_arrival_date`), bouton QR Code et bouton d'annulation conditionnelle.
+* **`src/components/orders/ResellerOrderSkeleton.tsx`** : Composant squelette de chargement calqué sur la structure réelle (4 cartes statistiques, barre de filtres, 6 cartes de commandes), assurant une transition visuelle fluide sans sursaut d'affichage.
+
+#### Modifié
+* **`src/components/orders/ResellerOrderCard.tsx`** : Refonte moderne avec en-tête `font-mono` pour le numéro de commande + bouton copie rapide (feedback `Check`), badge QR Code accessible sur la carte, stepper visuel horizontal 5 étapes (Passée → Confirmée → Préparation → Prête → Livrée) coloré selon l'avancement réel + gestion `cancelled`, bloc produit/campagne complet avec photo fallback, bloc de destination (ville, dépôt, adresse, date d'arrivée avec alerte de report), actions contextuelles par statut : Détails, QR, Annuler (pending uniquement) avec Dialog de confirmation.
+* **`src/components/orders/ResellerOrdersView.tsx`** : En-tête moderne avec titre officiel « Mes Commandes d'Achat », fil d'Ariane, compteurs statistiques réels (Total, En attente, En cours, Livrées, Annulées), bouton raccourci Offres Commerciales, recherche textuelle instantanée multi-champs (numéro, entreprise, campagne, ville, dépôt, produit) avec effacement rapide, filtres de statut desktop + `Drawer` R1 mobile `side="bottom"`, intégration du tiroir de détail, QR Code modal global, annulation centralisée sécurisée avec `useToast`.
+
+#### Garanties de Non-Régression & Règles d'Or
+* **Flux des Productions (`FeedView.tsx`)** : **Strictement non modifiée.**
+* **Pages R3, R4, R6** : Offres Commerciales, Demandes, Notifications — **strictement inchangées.**
+* **`QRCodeModal`** : Token opaque immuable, logique d'affichage 100 % préservée.
+* **`cancelOrderAction`** : Libération atomique du stock réservé via RPC, 100 % préservée.
+* **`confirm_order_delivery` RPC** : Circuit anti-double livraison 100 % préservé.
+* **`ResellerOrderDetailView` (`/orders/[id]`)** : Page de détail complète existante strictement inchangée.
+* **Données réelles (0 Mock Data)** : Toutes les données proviennent de requêtes Supabase authentiques via `getResellerOrders`. Zéro fausse commande, faux statut ou fausse quantité.
+* **TypeScript** : 0 erreur (`npx tsc --noEmit` code 0).
+* **Next.js Build** : Compilé avec succès (38/38 routes certifiées, `/dashboard/reseller/orders` optimisée à 11.7 kB).
+
+## [2.10.0-reseller-notifications-r6] - 2026-10-03
+### Phase R6 — Centre de Notifications Côté Revendeur (Refonte UI/UX, Filtres Thématiques, Groupement Chronologique)
+
+#### Objectif
+Moderniser l'interface du centre de notifications de l'espace Revendeur (`/dashboard/reseller/notifications`) pour offrir une expérience fluide, réactive et ergonomique, avec catégorisation thématique, groupement chronologique, marquage individuel ou groupé comme lu, et redirection sécurisée anti-fuite inter-rôles.
+
+#### Ajouté
+* **`src/components/notifications/ResellerNotificationsView.tsx`** : Interface complète de gestion des notifications revendeur. Comprend les compteurs en temps réel (Total, Non lues, Demandes, Campagnes, Commandes), filtres thématiques instantanés, groupement chronologique dynamique (« Aujourd'hui », « Hier », « Cette semaine », « Plus ancien »), actions « Tout marquer comme lu » et marquage individuel avec optimistic updates et toasts de retour, et liens d'action contextualisés selon le type d'événement métier.
+* **`src/components/notifications/ResellerNotificationSkeleton.tsx`** : Squelette de chargement calqué sur la structure des notifications avec filtres et cartes.
+
+#### Modifié
+* **`src/app/dashboard/reseller/notifications/page.tsx`** : Intégration de `ResellerNotificationsView` avec transmission des données réelles de `getUserNotifications`.
+
+#### Garanties de Non-Régression & Règles d'Or
+* **0 Mock Data** : 100 % des notifications proviennent des requêtes authentiques Supabase.
+* **Sécurité des redirections** : Sanitisation hermétique de `getTargetUrl` garantissant qu'aucune notification ne redirige vers l'espace `/dashboard/company`.
+* **TypeScript** : 0 erreur (`npx tsc --noEmit` code 0).
+* **Next.js Build** : Compilé avec succès (38/38 routes, route `/dashboard/reseller/notifications` optimisée à 8.05 kB).
+
+## [2.9.0-reseller-demands-r4] - 2026-10-03
+### Phase R4 — Mes Demandes d'Achat Côté Revendeur (Refonte UI/UX, Drawer Détail, Filtres & Propositions Intactes)
+
+#### Objectif
+Moderniser l'interface de la page « Mes Demandes d'Achat » côté Revendeur (`/dashboard/reseller/demands`) pour offrir une expérience claire, fluide et professionnelle, tout en conservant 100 % des fonctionnalités, des données réelles, du flux des propositions chiffrées des exploitants et de la conversion en commande ferme.
+
+#### Ajouté
+* **`src/components/demands/ResellerDemandDetailDrawer.tsx`** : Tiroir de consultation approfondie d'une demande d'achat basé sur le `Drawer` R1 (`side="right"` desktop, responsive mobile). Présentation complète : visuel grand format de la denrée, volume recherché, destination et bassin de consommation, calendrier souhaité, fiche de la production liée (si demande sur production), fiche de l'entreprise ciblée (si applicable), notes et spécifications, et liste exhaustive des devis et propositions reçues avec boutons d'accès direct.
+* **`src/components/demands/ResellerDemandSkeleton.tsx`** : Composant squelette de chargement calqué sur la grille des demandes, assurant une transition visuelle fluide sans sursaut d'affichage.
+
+#### Modifié
+* **`src/components/demands/ResellerDemandCard.tsx`** : Refonte moderne avec visuel denrée soigné, badges clairs (catégorie, type `Demande générale` vs `Sur production`, badge de statut officiel `DemandStatusBadge`), bloc volumique très lisible, badge interactif dynamique vert émeraude pour les propositions reçues, informations géographiques et temporelles complètes, extrait des notes, et actions rapides : « Détails », « Offres », « Modifier » et « Annuler » sécurisée.
+* **`src/components/demands/ResellerDemandsView.tsx`** : En-tête de section moderne avec titre officiel « Mes Demandes d'Achat », fil d'Ariane de retour vers le flux, compteurs statistiques réels (Total exprimé, Besoins actifs, Propositions reçues, Converties en commande), cartouche d'aide et de transparence explicitant la règle fondamentale ($\text{Demande} \neq \text{Proposition} \neq \text{Commande}$), barre de recherche textuelle instantanée multi-champs avec effacement, sélecteurs de filtres (type, statut, denrée, toggle offres), tiroir de filtres mobile (`Drawer` R1 `side="bottom"`), intégration du tiroir de détails, annulation sécurisée avec `ConfirmDialog` de R1 et notifications via `useToast`.
+* **`next.config.mjs` & `package.json`** : Optimisation de la compilation Next.js (`cpus: 1` dans experimental et allocation mémoire ajustée à 2048 MB) pour garantir une exécution robuste et sans OOM sur les environnements à mémoire physique contrainte.
+
+#### Garanties de Non-Régression & Règles d'Or
+* **Flux des Productions (`FeedView.tsx`)** : **Strictement non modifiée ni refactorée.**
+* **Page Offres Commerciales R3 (`/dashboard/reseller/campaigns`)** : **Strictement non modifiée.**
+* **Autres pages métier** : Commandes, Notifications, Profil, Société, Admin strictement inchangées.
+* **Circuit des propositions & commande (`DemandResponsesModal.tsx` & `createOrderFromDemandResponseAction`)** : 100 % des flux métier, formulaires de livraison, calculs, réservations atomiques de stock et notifications conservés.
+* **Données réelles (0 Mock Data)** : Toutes les données proviennent de requêtes Supabase authentiques via `getResellerDemands`. Zéro faux prix, fausse quantité, faux statut ou faux producteur.
+* **TypeScript** : 0 erreur (`npx tsc --noEmit` code 0).
+* **Next.js Build** : Compilé avec succès (38/38 routes certifiées, `/dashboard/reseller/demands` optimisée à 17.8 kB).
+
+## [2.8.0-reseller-campaigns-r3] - 2026-10-03
+### Phase R3 — Offres Commerciales Côté Revendeur (Marketplace UI, Drawer Détail, Filtres & Commande Intacte)
+
+#### Objectif
+Moderniser l’interface de la page « Offres Commerciales » côté Revendeur (`/dashboard/reseller/campaigns`) afin d’offrir une expérience de type marketplace agricole professionnelle, claire et accessible, tout en conservant 100 % des fonctionnalités, des données réelles et du circuit de commande transactionnel avec réservation atomique.
+
+#### Ajouté
+* **`src/components/campaigns/ResellerCampaignDetailDrawer.tsx`** : Tiroir de consultation approfondie d'une offre commerciale basé sur le `Drawer` R1 (`side="right"` desktop, responsive mobile). Présentation complète : visuel grand format, culture, exploitation avec lien public, description, prix unitaire, stock restant réel, période, arrivages et dépôts de retrait avec adresses complètes, et bouton direct « Commander » ou suggestion d'expression de besoin si hors zone.
+* **`src/components/campaigns/ResellerCampaignSkeleton.tsx`** : Composant squelette de chargement calqué sur la grille des offres, garantissant une transition visuelle douce sans écran blanc.
+
+#### Modifié
+* **`src/components/campaigns/ResellerCampaignCard.tsx`** : Refonte marketplace agricole avec zone image soignée (`h-48`, `object-cover`), dégradé protecteur, badges superposés (éligibilité territoriale « Votre province est desservie » / « Non desservie », catégorie, statut), société productrice avec logo, titre, culture, bloc financier & volumique distinctif (prix unitaire ferme et stock restant réel), calendrier et arrivages prévus, et double action : bouton « Détails » et bouton principal « Commander » (ou avertissement régional et lien de demande d'achat).
+* **`src/components/campaigns/ResellerCampaignsView.tsx`** : En-tête de section moderne avec titre officiel « Offres Commerciales », fil d'Ariane de retour, compteurs statistiques réels (total offres et offres éligibles dans la province), cartouches d'aide et de transparence territoriale, barre de recherche multi-champs instantanée avec effacement, sélecteur de catégorie, toggle d'éligibilité régionale, tiroir de filtres mobile (`Drawer` R1 `side="bottom"`), intégration du tiroir de détails et conservation intégrale du modal de commande `OrderFormModal`.
+
+#### Garanties de Non-Régression & Règles d'Or
+* **Flux des Productions (`FeedView.tsx`)** : **Strictement non modifiée ni refactorée.**
+* **Autres pages métier** : Demandes, Commandes, Notifications, Profil, Société, Admin strictement inchangées.
+* **Circuit de commande (`OrderFormModal.tsx`)** : 100 % des champs métier, contrôles d'éligibilité, calculs, validations et appels à `createOrderAction` conservés.
+* **Données réelles (0 Mock Data)** : Toutes les données proviennent de requêtes Supabase authentiques via `getResellerCampaigns`. Zéro faux prix, fausse quantité ou faux statut.
+* **TypeScript** : 0 erreur (`npx tsc --noEmit` code 0).
+* **Next.js Build** : Compilé avec succès (38/38 routes certifiées, `/dashboard/reseller/campaigns` optimisée à 11.1 kB).
+
+## [2.7.0-reseller-shell-r2] - 2026-10-03
+### Phase R2 — Navigation + Shell Revendeur (6 Destinations Strictes, Drawer R1, Bottom Nav Mobile-First)
+
+#### Objectif
+Moderniser et harmoniser la navigation et le shell de l'espace Revendeur (`/dashboard/reseller`) sans casser ni masquer l'existant, en conservant strictement les 6 entrées métier obligatoires avec leurs libellés intégraux, sans modifier la page Flux des Productions, sans aucune donnée fictive et en garantissant une réactivité fluide de 320 px à 1440 px+.
+
+#### Ajouté
+* **`src/components/reseller/ResellerSidebar.tsx`** : Sidebar dédiée et élégante pour l'espace Revendeur. Comporte l'en-tête Sprout « Espace Revendeur », le cartouche revendeur avec localisation territoriale (`locationInfo` avec `MapPin`), les 6 destinations obligatoires strictes, le badge de notifications réel dynamique et un bouton de déconnexion direct sécurisé avec retour visuel d'état.
+
+#### Modifié
+* **`src/components/reseller/ResellerBottomNav.tsx`** : Refonte responsive de la navigation inférieure fixe mobile & tablette. Maintien strict des 6 libellés intégraux obligatoires (« Flux des Productions », « Offres Commerciales », « Mes Demandes d'Achat », « Mes Commandes », « Notifications », « Mon Profil »), conteneur défilable doux (`overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory`), centrage automatique de l'onglet actif au chargement et au changement de route, micro-animations au clic (`active:scale-95 motion-reduce:transform-none`), badge numérique réel sur les notifications (uniquement si > 0), et intégration des safe areas iOS/Android.
+* **`src/components/reseller/ResellerHeader.tsx`** : En-tête supérieur en verre dépoli translucide (`bg-white/95 backdrop-blur-md`), salutation personnalisée (« Bonjour, [Prénom] »), localisation dynamique, bouton menu pour déclencher le tiroir latéral sur mobile/tablette, cloche notifications avec badge dynamique réel, avatar/lien profil et bouton déconnexion directe.
+* **`src/components/reseller/ResellerDashboardLayout.tsx`** : Orchestration globale du shell revendeur coordonnant la sidebar desktop, le tiroir latéral `Drawer` R1 sur mobile/tablette (`side="left"`), le header et la bottom navigation. Application d'un padding compensatoire `pb-28 lg:pb-12` pour éviter tout masquage de contenu sur mobile.
+* **`src/components/dashboard/AppSidebar.tsx`** : Alignement du libellé de profil du rôle `reseller` sur « Mon Profil » (au lieu de « Mon Profil Revendeur ») pour respecter scrupuleusement la nomenclature obligatoire.
+
+#### Garanties de Non-Régression & Règles d'Or
+* **Flux des Productions (`FeedView.tsx`)** : **Strictement non modifiée ni refactorée.**
+* **Données réelles (0 Mock Data)** : Le badge des notifications s'appuie exclusivement sur `getUnreadNotificationCount(user.id)`. Zéro faux chiffre ou pastille statique.
+* **Déconnexion sécurisée** : Purge du stockage local, `signOut` Supabase client, Server Action `logoutAction` (purge des cookies de session SSR) et redirection propre vers `/login`.
+* **TypeScript** : 0 erreur (`npx tsc --noEmit` code 0).
+* **Next.js Build** : Compilé avec succès (38/38 routes).
+
+## [2.6.0-ui-foundations-r1] - 2026-10-01
+### Phase R1 — Fondations UI/UX Communes (Design System, Drawers, Modales, Formulaires, Toasts)
+
+#### Objectif
+Normaliser et enrichir la suite de composants d'interface utilisateur (UI) réutilisables, accessibles et responsive pour préparer la refonte progressive des espaces Revendeur et Société, sans modifier la logique métier ni la page Flux des Productions.
+
+#### Ajouté — Composants UI (`src/components/ui/`)
+* **`Button.tsx`** : Bouton standardisé avec 7 variantes (`primary`, `secondary`, `earth`, `outline`, `ghost`, `destructive`, `success`), 5 tailles (`xs`, `sm`, `md`, `lg`, `icon`), icônes gauche/droite, état `isLoading` avec spinner et texte paramétrable, micro-interaction tactile `active:scale-[0.98]`.
+* **`Drawer.tsx` & `Sheet.tsx`** : Panneau coulissant polyvalent (tiroir droit sur desktop, feuille basse sur mobile), flou d'arrière-plan, verrouillage du défilement, gestion de la touche Échap, pied d'action adhésif.
+* **`Dialog.tsx` & `Modal.tsx`** : Modale accessible (`role="dialog"`) avec animation `animate-modal-pop` KokonutUI, flou d'arrière-plan et helper `ConfirmDialog` pour actions de confirmation sensibles.
+* **`FormField.tsx`** : Structure de champ standardisée avec label, astérisque obligatoire, texte d'aide, infobulle contextuelle et message d'erreur avec icône `AlertCircle`.
+* **`Input.tsx`** : Champ texte/numérique/date avec icône gauche/droite, bouton d'effacement rapide (`clearable`), et états de focus forest.
+* **`Textarea.tsx`** : Champ de saisie multiligne avec compteur de caractères optionnel et hauteur dynamique.
+* **`Select.tsx`** : Menu déroulant habillé avec chevron SVG et support de placeholders et groupes d'options.
+* **`Switch.tsx`** : Interrupteur à bascule accessible avec indicateur animé et teintes forest.
+* **`Checkbox.tsx`** : Case à cocher accessible avec coche SVG animée et états d'erreur.
+* **`RadioGroup.tsx`** : Sélecteur d'options sous forme de cartes tactiles interactives ou boutons radio classiques.
+* **`Toast.tsx` & `useToast()`** : Système de notifications Toast léger (0 dépendance), gérant succès, erreur, avertissement, information, auto-fermeture et bouton d'action.
+* **`Alert.tsx`** : Bannières d'alerte contextuelles (`info`, `success`, `warning`, `error`, `neutral`).
+* **`Skeleton.tsx`** : Enrichi avec `SkeletonAvatar`, `SkeletonButton`, `SkeletonFormField`, `SkeletonDrawer` (100% rétrocompatible).
+* **`Toolbar.tsx`** : Barre d'outils et de navigation avec bouton retour, titre, badge, recherche et actions.
+* **`Tabs.tsx`** : Onglets accessibles défilables horizontalement sur mobile (`no-scrollbar`) sous forme de pilules, lignes soulignées ou cartes segmentées.
+* **`Tooltip.tsx`** : Infobulles accessibles au survol et au focus clavier.
+* **`index.ts`** : Barrel export centralisant l'ensemble du Design System.
+
+#### Modifié — Layouts & Styles
+* **`src/app/layout.tsx`** : Intégration du `ToastProvider` global autour de l'application.
+* **`src/app/globals.css`** : Ajout des keyframes et classes utilitaires d'animation (`slideInRight`, `slideInUp`, `slideInDown`, `modalPop`, `.animate-slide-in-right`, `.animate-slide-in-up`, `.animate-slide-in-down`, `.animate-modal-pop`) avec respect strict de `prefers-reduced-motion`.
+
+#### Validé
+* **TypeScript** : 0 erreur (`npx tsc --noEmit` code 0).
+* **Next.js Build** : Compilé avec succès (38/38 routes).
+* **Règles d'or** : 0 mock data, logique métier intacte, page Flux des Productions non modifiée.
+
 ## [2.5.1-hero-dynamic-title] - 2026-10-01
 ### Titre Hero Dynamique Multilingue (Landing Page)
 

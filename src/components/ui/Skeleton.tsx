@@ -269,3 +269,79 @@ export function SkeletonProfileView() {
     </div>
   );
 }
+
+/**
+ * Squelette d'avatar circulaire ou avec coins arrondis
+ */
+export function SkeletonAvatar({
+  size = "md",
+  shape = "circle",
+  className = "",
+}: {
+  size?: "sm" | "md" | "lg" | "xl";
+  shape?: "circle" | "rounded";
+  className?: string;
+}) {
+  const sizeStyles = {
+    sm: "w-8 h-8",
+    md: "w-10 h-10",
+    lg: "w-14 h-14",
+    xl: "w-20 h-20",
+  };
+  const shapeStyles = shape === "circle" ? "rounded-full" : "rounded-2xl";
+
+  return <Skeleton className={`${sizeStyles[size]} ${shapeStyles} shrink-0 ${className}`} />;
+}
+
+/**
+ * Squelette d'un bouton d'action
+ */
+export function SkeletonButton({
+  size = "md",
+  width = "w-28",
+  className = "",
+}: {
+  size?: "xs" | "sm" | "md" | "lg";
+  width?: string;
+  className?: string;
+}) {
+  const heightStyles = {
+    xs: "h-7",
+    sm: "h-8 sm:h-9",
+    md: "h-10 sm:h-11",
+    lg: "h-12 sm:h-13",
+  };
+
+  return <Skeleton className={`${heightStyles[size]} ${width} rounded-xl ${className}`} />;
+}
+
+/**
+ * Squelette d'un champ de formulaire
+ */
+export function SkeletonFormField({ className = "" }: { className?: string }) {
+  return (
+    <div className={`space-y-1.5 ${className}`}>
+      <Skeleton className="h-4 w-28 rounded" />
+      <Skeleton className="h-10 sm:h-11 w-full rounded-xl" />
+    </div>
+  );
+}
+
+/**
+ * Squelette pour Drawer / Sheet en cours de chargement
+ */
+export function SkeletonDrawer({ fieldCount = 4 }: { fieldCount?: number }) {
+  return (
+    <div className="space-y-5">
+      <div className="space-y-2 pb-4 border-b border-gray-100">
+        <Skeleton className="h-6 w-48 rounded-lg" />
+        <Skeleton className="h-4 w-72 max-w-full rounded" />
+      </div>
+      <div className="space-y-4">
+        {Array.from({ length: fieldCount }).map((_, i) => (
+          <SkeletonFormField key={i} />
+        ))}
+      </div>
+    </div>
+  );
+}

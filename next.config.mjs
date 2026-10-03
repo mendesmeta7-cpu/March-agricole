@@ -9,6 +9,7 @@ const nextConfig = {
       dynamic: 0,  // Les pages force-dynamic ne sont jamais mises en cache côté client
       static: 180, // Les pages statiques restent cachées 3 minutes (comportement par défaut)
     },
+    cpus: 1, // Évite les OOM en limitant le parallélisme des workers de build
   },
   images: {
     remotePatterns: [

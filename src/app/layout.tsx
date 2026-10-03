@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
   title: "Marché Agricole B2B — Plateforme de Mise en Relation",
@@ -14,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className="h-full">
       <body className="antialiased font-sans flex flex-col min-h-screen text-gray-900 bg-gray-50 overflow-x-hidden">
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );

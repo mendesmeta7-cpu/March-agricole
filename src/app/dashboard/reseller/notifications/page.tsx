@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getUserNotifications } from "@/lib/queries/notifications";
-import NotificationsView from "@/components/notifications/NotificationsView";
+import ResellerNotificationsView from "@/components/notifications/ResellerNotificationsView";
 
 export default async function ResellerNotificationsPage() {
   const supabase = createClient();
@@ -14,9 +14,10 @@ export default async function ResellerNotificationsPage() {
   const result = await getUserNotifications(user.id);
 
   return (
-    <NotificationsView
+    <ResellerNotificationsView
       initialNotifications={result.notifications}
-      userRole="reseller"
+      unreadCount={result.unreadCount}
+      totalCount={result.totalCount}
     />
   );
 }

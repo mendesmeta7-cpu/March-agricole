@@ -154,3 +154,83 @@ export async function deleteResellerAvatarAction(): Promise<ActionResponse> {
     avatarUrl: null,
   };
 }
+
+export interface UpdateResellerGeneralProfileInput {
+  full_name: string;
+  phone?: string;
+  business_name?: string;
+  reseller_type: "wholesaler" | "semi_wholesaler" | "retailer" | "processor";
+}
+
+/**
+ * Met à jour les informations générales et commerciales du profil revendeur
+ */
+export async function updateResellerGeneralProfileAction(
+  input: UpdateResellerGeneralProfileInput
+): Promise<ActionResponse> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Session expirée. Veuillez vous reconnecter." };
+  }
+
+  // 1. Contrôle du rôle de l'utilisateur
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "reseller") {
+    return { success: false, error: "Action réservée aux acheteurs professionnels." };
+  }
+
+  const trimmedFullName = input.full_name?.trim();
+  if (!trimmedFullName || trimmedFullName.length < 2) {
+    return { success: false, error: "Le nom du titulaire est obligatoire (au moins 2 caractères)." };
+  }
+
+  const validTypes = ["wholesaler", "semi_wholesaler", "retailer", "processor"];
+  if (!validTypes.includes(input.reseller_type)) {
+    return { success: false, error: "Typologie commerciale invalide." };
+  }
+
+  // 2. Mise à jour dans profiles
+  const { error: profileErr } = await supabase
+    .from("profiles")
+    .update({
+      full_name: trimmedFullName,
+      phone: input.phone?.trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
+
+  if (profileErr) {
+    return { success: false, error: `Erreur profil : ${profileErr.message}` };
+  }
+
+  // 3. Mise à jour dans resellers
+  const { error: resellerErr } = await supabase
+    .from("resellers")
+    .update({
+      business_name: input.business_name?.trim() || null,
+      reseller_type: input.reseller_type,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
+
+  if (resellerErr) {
+    return { success: false, error: `Erreur revendeur : ${resellerErr.message}` };
+  }
+
+  revalidatePath("/dashboard/reseller/profile");
+  revalidatePath("/dashboard/reseller", "layout");
+
+  return {
+    success: true,
+    message: "Profil mis à jour avec succès.",
+  };
+}
