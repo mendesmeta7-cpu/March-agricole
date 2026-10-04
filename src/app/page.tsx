@@ -17,7 +17,7 @@ import StickyHeader from "@/components/landing/StickyHeader";
 import HeroDynamicTitle from "@/components/landing/HeroDynamicTitle";
 
 export const metadata: Metadata = {
-  title: "Bienvenue — Plateforme Agricole B2B",
+  title: "Radiza — Bienvenue",
   description:
     "La plateforme qui rapproche la production agricole des marchés. Connectez les sociétés de production agricole, grossistes, détaillants et revendeurs.",
 };

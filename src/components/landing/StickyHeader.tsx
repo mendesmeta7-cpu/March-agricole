@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Sprout, LogIn, UserPlus } from "lucide-react";
+import { LogIn, UserPlus } from "lucide-react";
+import BrandLogo from "@/components/ui/BrandLogo";
 
 export default function StickyHeader() {
   const [visible, setVisible] = useState(true);
@@ -51,19 +52,21 @@ export default function StickyHeader() {
         .join(" ")}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
-        {/* Logo / Sceau de la Plateforme */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-forest-700 flex items-center justify-center text-white shadow-sm flex-shrink-0">
-            <Sprout className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm font-semibold text-forest-900 tracking-tight leading-tight">
-              Plateforme Agricole B2B
-            </p>
-            <p className="hidden xs:block text-[11px] sm:text-xs text-forest-700/80">
-              Pour une meilleure distribution agricole
-            </p>
-          </div>
+        {/* Logo Radiza */}
+        <div className="flex items-center">
+          {/* Compact sur mobile (< sm), horizontal sur tablette+ */}
+          <Link
+            href="/"
+            className="inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-600 rounded-lg"
+            aria-label="Accueil Radiza"
+          >
+            <span className="sm:hidden">
+              <BrandLogo variant="compact" height={36} priority />
+            </span>
+            <span className="hidden sm:inline-flex">
+              <BrandLogo variant="horizontal" height={38} priority />
+            </span>
+          </Link>
         </div>
 
         {/* Deux CTA principaux */}

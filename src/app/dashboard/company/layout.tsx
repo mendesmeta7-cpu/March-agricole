@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import CompanyDashboardLayout from "@/components/company/CompanyDashboardLayout";
 import { getUnreadNotificationCount } from "@/lib/queries/notifications";
 
 export const dynamic = "force-dynamic";
@@ -65,8 +65,7 @@ export default async function CompanyLayout({
     : undefined;
 
   return (
-    <DashboardLayout
-      role="company"
+    <CompanyDashboardLayout
       entityName={company?.name}
       userName={profile?.full_name}
       userEmail={user.email}
@@ -75,6 +74,6 @@ export default async function CompanyLayout({
       unreadNotificationsCount={unreadCount}
     >
       {children}
-    </DashboardLayout>
+    </CompanyDashboardLayout>
   );
 }

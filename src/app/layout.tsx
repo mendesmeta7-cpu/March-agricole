@@ -3,7 +3,7 @@ import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
-  title: "Marché Agricole B2B — Plateforme de Mise en Relation",
+  title: "Radiza — Plateforme Agricole B2B",
   description: "Infrastructure numérique B2B de mise en relation et de distribution de produits agricoles.",
 };
 

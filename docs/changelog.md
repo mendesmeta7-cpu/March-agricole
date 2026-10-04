@@ -3,6 +3,312 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [RADIZA-BRANDING] - 2026-10-04
+### Intégration du Nouveau Branding Radiza — Identité Visuelle Officielle
+
+#### Objectif
+Remplacement complet de l'ancienne identité textuelle (« Marché Agricole », « Plateforme Agricole B2B ») par le branding officiel **Radiza**, via les deux fichiers SVG fournis et un composant centralisé. Aucune fonctionnalité backend ni aucune donnée n'ont été modifiées.
+
+#### Assets intégrés
+- **Logo horizontal** : `public/brand/radiza-horizontal.svg` (viewBox 995×320, ratio ~3.11:1)  
+  → Utilisé dans les headers desktop/tablette, sidebars, pages publiques (h≈32–42 px).
+- **Logo compact** : `public/brand/radiza-compact.svg` (viewBox 1024×1024, ratio 1:1)  
+  → Utilisé sur mobile dans le StickyHeader landing (h=36 px).
+
+#### Composant créé
+- **`src/components/ui/BrandLogo.tsx`** : Composant centralisé React/Next.js.
+  - Props : `variant` (`"horizontal"` | `"compact"`), `height` (px), `className`, `priority`.
+  - Dimensions calculées automatiquement selon le ratio SVG réel (aucune déformation possible).
+  - Utilise `next/image` pour optimisation automatique (lazy loading, CLS=0).
+
+#### Fichiers frontend modifiés
+| Fichier | Modification |
+|:--|:--|
+| `src/components/landing/StickyHeader.tsx` | Sprout + "Plateforme Agricole B2B" → `<BrandLogo variant="compact" height={36} />` (mobile) + `<BrandLogo variant="horizontal" height={38} />` (tablette+) |
+| `src/app/login/page.tsx` | Sprout + "Marché Agricole" → `<BrandLogo variant="horizontal" height={42} />` |
+| `src/components/dashboard/AppSidebar.tsx` | Sprout + "Marché Agricole" + "Plateforme B2B V1" → `<BrandLogo variant="horizontal" height={34} />` |
+| `src/components/reseller/ResellerSidebar.tsx` | Sprout + "Marché Agricole" + "Espace Revendeur" → `<BrandLogo variant="horizontal" height={34} />` |
+| `src/components/company/CompanySidebar.tsx` | Sprout + "Marché Agricole" + "Espace Entreprise" → `<BrandLogo variant="horizontal" height={34} />` |
+| `src/components/reseller/ResellerHeader.tsx` | aria-label → "Accueil Radiza" |
+| `src/components/company/CompanyHeader.tsx` | aria-label → "Accueil Radiza" |
+| `src/app/companies/[id]/page.tsx` | Sprout + "Marché Agricole" → `<BrandLogo variant="horizontal" height={32} />` |
+| `src/app/layout.tsx` | title méta → "Radiza — Plateforme Agricole B2B" |
+| `src/app/page.tsx` | title méta → "Radiza — Bienvenue" |
+| `src/app/register/page.tsx` | title méta → "Radiza — Créer un compte" |
+
+#### Occurrences intentionnellement conservées
+- Textes descriptifs métier (« plateforme agricole B2B », « distribution agricole ») dans les sections descriptives de la landing page — ils décrivent le service, pas le nom de la marque.
+- `Sprout` dans les headers de Société et Revendeur (`CompanyHeader`, `ResellerHeader`) : icône décorative du lien logo, pas de texte d'identité.
+
+#### Résultats des tests
+- **TypeScript** : `npx tsc --noEmit` → ✅ 0 erreur
+- **Build Next.js** : `npm run build` → ✅ Code 0, 41/41 routes compilées
+
+
+## [S3] - 2026-10-04
+### Catalogue Produits Société — Refonte Ergonomique & Intégrité Agronomique
+
+#### Objectif
+Modernisation complète de l'interface du Catalogue Produits de l'espace Société (`/dashboard/company/products`). Amélioration forte de l'expérience utilisateur et de l'accessibilité sur desktop et mobile sans casser la moindre fonctionnalité existante. Protection absolue de la distinction entre Référentiel Commun (`products`), Configurations d'Exploitation (`company_products`) et Cycles Culturaux (`productions`).
+
+#### Composants créés & refondus (`src/components/products/`)
+1. **`CompanyProductsView.tsx`** (Client Component) :
+   - En-tête moderne avec fil d'Ariane de retour au dashboard, titre officiel, description et badge des denrées actives.
+   - 4 cartes métriques réelles (0 mock data) : Total Références configurées, Denrées Actives, Cycles Culturaux rattachés, Volume Total Déclaré cumulé.
+   - Barre de recherche instantanée multi-champs (culture, variété, catégorie, unité, notes) avec effacement rapide.
+   - Sélecteur de catégorie dynamique fondé exclusivement sur les catégories réelles de la base de données.
+   - Segmented control de statut avec compteurs dynamiques réels : Tous, Actifs, Archivés.
+   - État vide élégant (`EmptyState` R1) avec action d'ajout pour les nouveaux producteurs.
+   - État aucun résultat filtré avec bouton de réinitialisation.
+   - Intégration de `ConfirmDialog` pour la suppression sécurisée et des notifications `useToast` R1.
+
+2. **`CompanyProductCard.tsx`** (Client Component) :
+   - Carte produit compacte et réactive avec zone visuelle au ratio préservé.
+   - Badges superposés clairs : catégorie agronomique, statut d'activité (Actif / Archivé), badge distinctif "Photo d'exploitation" et badge "Produit privé" si hors catalogue commun.
+   - Dénomination d'exploitation mise en valeur, avec rappel de la référence officielle administrée.
+   - Puces métriques d'exploitation : unité de mesure, nombre de productions rattachées et volume déclaré cumulé.
+   - Boutons d'action rapides accessibles avec états de chargement : "Modifier", "Archiver / Réactiver", "Supprimer".
+
+3. **`AddProductDrawer.tsx`** (Client Component) :
+   - Tiroir coulissant accessible R1 `Drawer` (`size="xl"`, responsive desktop/mobile).
+   - Parcours en 2 étapes ergonomiques :
+     - **Étape 1 (Sélection Catalogue)** : Moteur de recherche et filtres par pilules parmi les références administrées du catalogue national commun.
+     - **Étape 2A (Configuration Référence)** : Personnalisation de l'unité de mesure, dénomination d'exploitation, description, notes techniques internes et photo d'exploitation (stockée dans Supabase Storage `public-assets/company-products/` sans jamais altérer l'image officielle du catalogue).
+     - **Étape 2B (Produit Personnalisé Privé)** : Création d'une denrée strictement privée à l'exploitation si absente du référentiel commun.
+   - Utilisation des primitives de formulaires R1 (`FormField`, `Input`, `Select`, `Textarea`, `Button`, `Alert`).
+
+4. **`EditProductDrawer.tsx`** (Client Component) :
+   - Tiroir coulissant accessible R1 `Drawer` (`size="lg"`).
+   - Rappel de la référence officielle verrouillée (avec cadenas et catégorie).
+   - Alerte informative sur les productions liées et le volume déclaré cumulé.
+   - Modification de la dénomination d'exploitation, de l'unité, de la description et des notes internes.
+   - Gestion de la photo d'exploitation avec option "Rétablir visuel catalogue" (`removeCustomImage`).
+   - Actions intégrées : "Enregistrer", "Archiver / Réactiver" et "Supprimer" (déclenchant `ConfirmDialog`).
+
+5. **`AddProductModal.tsx` & `EditProductModal.tsx`** :
+   - Wrappers rétrocompatibles assurant la continuité pour tout import existant.
+
+6. **`CompanyProductsSkeleton.tsx`** :
+   - Composant squelette calqué sur la structure réelle (en-tête, 4 cartes de métriques, barre d'outils, grille de cartes).
+   - Intégré dans `src/app/dashboard/company/products/loading.tsx`.
+
+#### Requêtes et Données Réelles (0 Mock Data)
+- **`src/lib/queries/products.ts`** :
+  - `CompanyProductItem` étendu avec `productions_count` et `total_declared_volume`.
+  - `getCompanyProducts(companyId)` enrichi d'une jointure sur `productions(id, expected_quantity, status)` pour calculer le nombre exact de cycles culturaux et le volume déclaré cumulé sans altération de schéma DB.
+- **`src/app/dashboard/company/products/page.tsx`** :
+  - Harmonisation de la résolution `companyId` (vérification de `company_members` d'abord, puis de `companies.created_by = user.id`), garantissant l'accès pour tous les collaborateurs de l'entreprise.
+
+#### Règles Métier & Protections
+- ✅ **Séparation stricte des entités** : Produit Catalogue (`products`) ≠ Configuration Exploitation (`company_products`) ≠ Cycle Cultural (`productions`).
+- ✅ **Protection de l'historique** : Remplacement de `window.confirm()` par le composant accessible `ConfirmDialog`. La suppression physique d'un produit est rejetée côté serveur s'il possède des productions rattachées (`deleteCompanyProductAction`), avec recommandation d'archivage doux.
+- ✅ **Indépendance des visuels** : La photo d'exploitation est isolée dans `company_products.image_url` et ne modifie jamais l'image globale du catalogue.
+- ✅ **Architecture Cloudinary préservée** : Aucune migration superflue, stockage dans Supabase Storage `public-assets/company-products/` maintenu.
+- ✅ **0 Mock Data** : 100% des cartes, catégories, compteurs et filtres reposent sur les enregistrements réels de Supabase.
+- ✅ **Espaces tiers intacts** : Le Dashboard Société S2, le parcours Revendeur (R1–R7) et l'espace Admin restent strictement inchangés.
+
+#### Validation Technique
+- `npx tsc --noEmit` : ✅ Code 0 (0 erreur TypeScript).
+- `npm run build` : ✅ Code 0 (38/38 routes compilées, `/dashboard/company/products` optimisée à 15.5 kB).
+
+---
+
+## [S2] - 2026-10-04
+### Dashboard Société — Tableau de Bord Intelligent avec Données Réelles Supabase
+
+#### Objectif
+Refonte complète du tableau de bord de l'espace Société (`/dashboard/company`). Remplacement de la page générique existante par un centre de pilotage métier construit exclusivement sur des données réelles Supabase. Aucune donnée fictive. Aucune statistique inventée.
+
+#### Page assemblée
+- **`src/app/dashboard/company/page.tsx`** : Remplace l'implémentation générique. Server Component orchestrant 10 requêtes Supabase parallèles, assemblant les 6 composants S2 avec les types exacts attendus.
+
+#### Composants créés (répertoire `src/components/company/dashboard/`)
+1. **`CompanyDashboardHeader.tsx`** (Client) :
+   - Bloc identitaire avec logo/icône Building2, nom d'exploitation, badge de vérification, localisation, date du jour en français.
+   - Raccourcis rapides vers Productions et Campagnes.
+
+2. **`CompanyOverviewMetrics.tsx`** (Client) :
+   - 4 cartes métriques : Productions Déclarées (en culture / récoltées), Demandes du Marché (actives / sans proposition), Campagnes Actives (stock réservé / disponible), Commandes Reçues (à traiter / livrées + revenu réel).
+   - Tooltip explicatif "Source de vérité : transactions réelles Supabase".
+
+3. **`CompanyDemandTrendChart.tsx`** (Client) :
+   - Graphique SVG natif (sans dépendance externe) de tendance des demandes sur 6 mois.
+   - Filtrable par produit agricole, toggle Volume/Nombre, tooltip interactif.
+   - Props : `demands: DemandTrendPoint[]`, `availableProducts: { id, name }[]`.
+
+4. **`CompanyDemandGeoChart.tsx`** (Client) :
+   - Visualisation de la distribution provinciale des demandes actives.
+   - Barres proportionnelles par province, Drawer de détail par province avec liste des demandes.
+   - Props : `provincesData: ProvinceDemandData[]` (inclut `demands: DemandItem[]` par province).
+
+5. **`CompanyPendingActions.tsx`** (Client) :
+   - Alertes métier réelles : demandes sans réponse + commandes en attente/en cours.
+   - État "Opérations à jour" élégant quand aucune action n'est requise.
+   - Props : `actions: PendingActionItem[]` (max 6 alertes pour le dashboard).
+
+6. **`CompanyRecentActivity.tsx`** (Client) :
+   - Grille 2 colonnes : Dernières Demandes du Marché + Dernières Commandes Fermes.
+   - Listes des 4 entrées les plus récentes, liens directs vers le détail de chaque entité.
+   - Props : `recentDemands: DemandItem[]`, `recentOrders: OrderDetail[]`.
+
+#### Données réelles agrégées (0 mock data)
+- **Productions** : `productions` table, filtrée par `company_id`, comptages par statut.
+- **Demandes** : `getCompanyGeneralDemands(companyId)` — demandes actives visibles par la société, avec état de réponse `my_response`.
+- **Campagnes** : `campaigns` table, filtrage `status=active`, calcul stock disponible = `marketable_quantity - reserved_quantity`.
+- **Commandes** : `getCompanyOrders(companyId)` — toutes les commandes reçues avec statuts et montants.
+- **Tendance** : `demands` table, `created_at >= 6 mois`, avec `products` jointure pour filtre par produit.
+- **Géographie** : `demands` table avec `provinces` + `countries` jointure, agrégation côté serveur par province.
+
+#### Règles métier respectées
+- ✅ Entités séparées : Production ≠ Demande ≠ Campagne ≠ Commande ≠ Livraison.
+- ✅ Isolation multi-tenant : chaque agrégat est filtré strictement sur `company_id`.
+- ✅ RLS préservée : aucune désactivation, aucun contournement.
+- ✅ 0 donnée fictive : états vides élégants si la base est vide.
+- ✅ `prefers-reduced-motion` respecté sur les micro-animations.
+
+#### Validation Technique
+- TypeScript : 0 erreur (`npx tsc --noEmit` code 0).
+- Next.js Build : certifié (build ✓).
+
+---
+
+## [S1] - 2026-10-04
+### Navigation & Shell Espace Société — Architecture Responsive & Déconnexion Sécurisée
+
+#### Objectif
+Mise en place de l'infrastructure de navigation et du shell/layout de l'espace Société (Producteur agricole) sans modifier les pages métier ni la logique business. Remplacement du layout partagé générique par des composants dédiés et harmonisés avec le Design System R1, tout en respectant l'identité agricole (palette forest).
+
+#### Composants créés
+1. **`src/components/company/CompanySidebar.tsx`** :
+   - Navigation desktop/tablette reprenant strictement les 8 sections attendues :
+     1. Dashboard (`/dashboard/company`)
+     2. Catalogue Produits (`/dashboard/company/products`)
+     3. Productions & Récoltes (`/dashboard/company/productions`)
+     4. Demande du marché (`/dashboard/company/demands`)
+     5. Campagne de vente (`/dashboard/company/campaigns`)
+     6. Commandes reçues (`/dashboard/company/orders`)
+     7. Notifications (`/dashboard/company/notifications`) avec badge réel dynamique
+     8. Profil entreprise (`/dashboard/company/profile`)
+   - Cartouche d'identité visuelle : logo réel de l'entreprise (Supabase Storage) ou icône `Building2`, nom d'entreprise, badge « Producteur Agricole » et localisation (`locationInfo`).
+   - Pied de sidebar : utilisateur connecté, lien vers profil, et bouton de déconnexion sécurisée couplé au composant `ConfirmDialog` R1.
+
+2. **`src/components/company/CompanyHeader.tsx`** :
+   - En-tête supérieur sticky (`h-16`) avec flou doux (`backdrop-blur-md`).
+   - Bouton burger mobile/tablette déclenchant le Drawer latéral complet.
+   - Logo végétal Sprout + salutation contextuelle personnalisée + localisation.
+   - Cloche de notifications avec compteur réel non lu (badge `bg-forest-700`).
+   - Avatar / logo entreprise cliquable redirigeant vers le Profil entreprise.
+
+3. **`src/components/company/CompanyBottomNav.tsx`** :
+   - Barre de navigation mobile inférieure compacte à 5 onglets ergonomiques (adaptée aux petits écrans 320px–430px sans coupure ni scroll forcé) :
+     - 4 sections opérationnelles fréquentes : Dashboard, Productions, Campagnes, Commandes.
+     - 1 onglet « Plus » avec badge dynamique si notifications non lues.
+   - Tiroir coulissant inférieur (Bottom Sheet via `Drawer` R1 `side="bottom"`) pour l'accès aux sections complémentaires :
+     - Catalogue Produits, Demande du marché, Notifications, Profil entreprise.
+     - Action de déconnexion sécurisée avec `ConfirmDialog`.
+
+4. **`src/components/company/CompanyDashboardLayout.tsx`** :
+   - Shell unifié assemblant la sidebar desktop, le Drawer mobile gauche (`Drawer` R1 `side="left"`), le header et la barre de navigation mobile inférieure.
+   - Zone de contenu avec padding de sécurité bas (`pb-28 lg:pb-12`) pour éliminer tout risque de superposition sur mobile.
+
+#### Fichiers modifiés
+1. **`src/app/dashboard/company/layout.tsx`** :
+   - Remplacement de l'import et du composant `DashboardLayout` générique par `CompanyDashboardLayout`.
+   - Conservation stricte de l'authentification SSR, de l'isolation par rôle (`profile?.role === "company"`), de la résolution de `companyId` (membership ou créateur) et des requêtes réelles.
+2. **`package.json`** :
+   - Allocation mémoire augmentée (`--max-old-space-size=4096`) dans le script `build` pour prévenir les crashs OOM des workers Next.js sur Windows lors de la compilation complète du graphe de routes.
+
+#### Vérifications et Tests techniques
+- `npx tsc --noEmit` : ✅ **Code 0** — 0 erreur TypeScript.
+- `npm run build` : ✅ **Code 0** — 41/41 routes compilées avec succès, build de production certifié.
+- `npm run lint` : ⚠️ **Non disponible** — configuration ESLint interactive pré-existante (non installée).
+- Zero mock data : 100% des données proviennent de la session Supabase authentifiée.
+- Préservation intégrale : aucune page métier ni route existante n'a été modifiée.
+
+---
+
+## [REV-FINAL] - 2026-10-03
+### Ajustement Minimal Navigation Revendeur — Suppression Doublons Header
+
+#### Objectif
+Suppression chirurgicale des éléments dupliqués dans le header Revendeur avant le passage au chantier Société. Aucune modification de logique métier, de données, de Supabase, de RLS ou de pages existantes.
+
+#### Modifications effectuées
+
+**Fichier modifié : `src/components/reseller/ResellerHeader.tsx`**
+
+Éléments **supprimés** (doublons desktop) :
+- Bouton « Déconnexion » (`hidden sm:inline-flex`) — doublon de la déconnexion dans la sidebar via `ResellerLogoutButton` + `ConfirmDialog`.
+- Texte nom utilisateur `hidden md:inline` dans le lien avatar — micro-doublon desktop de la sidebar.
+- Imports inutilisés : `LogOut`, `Loader2`, `logoutAction`, `createClient`, `useState`.
+
+Éléments **conservés intacts** :
+- ✅ Cloche notifications (`Bell`) avec badge dynamique réel (`unreadNotificationsCount`) — header mobile et desktop.
+- ✅ Lien vers Mon Profil avec avatar (initiale ou photo Cloudinary).
+- ✅ Bouton menu hamburger (mobile/tablette `lg:hidden`).
+- ✅ Logo Sprout + salutation personnalisée + localisation.
+- ✅ Déconnexion dans la sidebar (pied de `ResellerSidebar`) — non touchée.
+- ✅ Notifications comme entrée de la bottom navigation (`ResellerBottomNav`) — non touchée.
+- ✅ 6 entrées de navigation (sidebar + bottom nav) — inchangées.
+
+#### Tests techniques
+- `npx tsc --noEmit` : ✅ **Code 0** — 0 erreur TypeScript.
+- `npm run lint` : ⚠️ **Non disponible** — packages ESLint absents (pré-existant).
+- `npm run build` : ✅ **Code 0** — 41/41 routes compilées, build certifié.
+
+#### Vérifications responsive
+- **Mobile** : `Menu | Logo+salutation | Cloche🔔 | Avatar` — ✅ intact.
+- **Desktop** : Header sans doublon déconnexion, sidebar conserve profil + déconnexion — ✅.
+- **Bottom nav** : 6 entrées strictes dont Notifications — ✅ non touchée.
+
+#### Confirmation de non-régression
+0 page fonctionnelle modifiée. FeedView, OrderFormModal, QRCodeModal, ResellerSidebar, ResellerBottomNav, Auth, RLS, Cloudinary — strictement intacts.
+
+---
+
+
+### Contrôle Final Avant Passage Côté Société — Vérification Orphelins, ESLint, Tests
+
+#### Objectif
+Stabilisation légère post-REV-AUDIT : vérification globale des composants orphelins identifiés dans tout le projet (Revendeur, Société, Admin), état ESLint, tests TypeScript et build. Aucune modification fonctionnelle.
+
+#### A. Composants vérifiés — Recherche globale dans tout `src/`
+
+| Composant | Résultat |
+|---|---|
+| `ResellerAvatarSection.tsx` | **ORPHELIN CONFIRMÉ** — Aucun import dans tout le projet. Conservé (ne pas supprimer sans validation). |
+| `ResellerProfileTerritoryCard.tsx` | **ORPHELIN CONFIRMÉ** — Uniquement référencé en interne dans sa propre déclaration. Conservé. |
+| `ResellerLocationEditModal.tsx` | **ORPHELIN EN CHAÎNE** — Importé uniquement par `ResellerProfileTerritoryCard` (lui-même orphelin). Conservé. |
+| `NotificationsView.tsx` | ✅ **UTILISÉE PAR LA SOCIÉTÉ** — Importée dans `/dashboard/company/notifications/page.tsx` (prop `userRole="company"`). **NE PAS SUPPRIMER.** |
+
+> ⚠️ Les 3 composants orphelins Revendeur sont marqués **OBSOLETE — À SUPPRIMER APRÈS VALIDATION** mais conservés physiquement dans cette phase.
+
+#### B. ESLint
+- **État** : Packages `eslint` et `eslint-config-next` absents des `devDependencies`.
+- **`npm run lint`** : Script présent dans `package.json` mais non exécutable sans les packages.
+- **Installation tentée** : Échec — connexion npm registry inaccessible depuis l'agent (timeout réseau).
+- **`.eslintrc.json`** : Fichier créé puis supprimé (ne doit pas exister sans les packages).
+- **Décision** : ESLint — à configurer dans une phase dédiée avec accès réseau (`npm install --save-dev eslint eslint-config-next`).
+
+#### C. Tests techniques
+- `npx tsc --noEmit` : ✅ **Code 0** — 0 erreur TypeScript.
+- `npm run lint` : ⚠️ **Non disponible** — packages ESLint absents.
+- `npm run build` : ✅ **Code 0** — 41/41 routes compilées, build certifié.
+
+#### D. Modifications réellement effectuées
+**Aucune modification de code applicatif.** Seul fichier créé et immédiatement supprimé : `.eslintrc.json` (nettoyé).
+
+#### E. Confirmation de non-régression
+Parcours Revendeur 100% intact. 0 fichier de composant ou de page modifié. `FeedView`, `OrderFormModal`, `QRCodeModal`, RLS, Cloudinary, Auth — non touchés.
+
+#### F. État des composants orphelins pour la suite
+- `ResellerAvatarSection.tsx` → OBSOLETE, supprimer après validation S1.
+- `ResellerProfileTerritoryCard.tsx` → OBSOLETE, supprimer après validation S1.
+- `ResellerLocationEditModal.tsx` → OBSOLETE (dépend de TerritoryCard), supprimer en même temps.
+- `NotificationsView.tsx` → ACTIVE côté Société, conserver impérativement.
+
+---
+
 ## [REV-AUDIT] - 2026-10-03
 ### Audit Global de Non-Régression du Parcours Revendeur (Post R1 → R7)
 

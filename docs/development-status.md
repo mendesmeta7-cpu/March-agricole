@@ -1,6 +1,7 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-10-03 — REV-AUDIT Validé (Audit Global Non-Régression Parcours Revendeur R1→R7, 0 régression critique, TypeScript 0 erreur — Build ✓ 41/41)*
+*Dernière mise à jour : 2026-10-04 — RADIZA Branding terminé (composant BrandLogo, 11 fichiers mis à jour, TypeScript 0 erreur, Build ✓ 41/41 routes — Prêt pour S4 Productions Société)*
+
 
 ---
 
@@ -45,10 +46,45 @@
 | **R5** | **Mes Commandes d'Achat (Revendeur)** | 🟢 **TERMINÉ** | Refonte interface commandes (`ResellerOrdersView`, `ResellerOrderCard`, `ResellerOrderDetailDrawer`, `ResellerOrderSkeleton`), stepper visuel de progression (Passée → Confirmée → Préparation → Prête → Livrée), compteurs statistiques réels, recherche multi-critères, filtres desktop + drawer mobile, QR Code modal intégré, copie numéro commande, annulation sécurisée avec libération de stock, conservation intégrale des workflows (QR, livraison, confirmations), 0 donnée fictive, TypeScript 0 erreur, build 38/38 routes certifié. |
 | **R6** | **Centre de Notifications Revendeur** | 🟢 **TERMINÉ** | Refonte UI/UX centre de notifications (`ResellerNotificationsView`, `ResellerNotificationSkeleton`), filtres thématiques (Toutes, Non lues, Demandes, Offres, Commandes), groupement chronologique dynamique, actions de lecture atomiques, sanitisation des redirections anti-fuite inter-espaces, TypeScript 0 erreur, build 38/38 certifié. |
 | **R7** | **Mon Profil (Revendeur)** | 🟢 **TERMINÉ** | Refonte interface profil façon application professionnelle moderne (Facebook/Twitter style avec cover banner et avatar chevauchant), Cloudinary 100% préservé (upload direct avec face crop, suppression avec confirmation), tiroir d'édition générale (`ResellerEditProfileDrawer`), tiroir d'édition de localisation (`ResellerEditLocationDrawer`) avec règle régionale et confirmation contractuelle, boutons d'actions contextuels, compteurs réels d'activité, déconnexion avec `ConfirmDialog`, 0 donnée fictive, TypeScript 0 erreur, build 38/38 routes certifié. |
+| **REV-FINAL** | **Ajustement Navigation Revendeur & Nettoyage** | 🟢 **TERMINÉ** | Suppression des doublons de déconnexion et de nom dans le header Revendeur, conformité stricte 6 entrées, build certifié. |
+| **S1** | **Navigation & Shell Espace Société** | 🟢 **TERMINÉ** | Shell Société dédié (`CompanyDashboardLayout`, `CompanySidebar`, `CompanyHeader`, `CompanyBottomNav`), 8 sections officielles, tiroir mobile R1 Drawer + Bottom Sheet "Plus", déconnexion ConfirmDialog, 0 donnée fictive, TypeScript 0 erreur, build ✓ 41/41 routes. |
+| **S2** | **Dashboard Société** | 🟢 **TERMINÉ** | 6 composants (`CompanyDashboardHeader`, `CompanyOverviewMetrics`, `CompanyDemandTrendChart`, `CompanyDemandGeoChart`, `CompanyPendingActions`, `CompanyRecentActivity`), données 100% réelles Supabase, graphiques SVG natifs, 0 donnée fictive, TypeScript 0 erreur, build ✓. |
+| **S3** | **Catalogue Produits Société** | 🟢 **TERMINÉ** | `CompanyProductCard`, `AddProductDrawer`, `EditProductDrawer`, `CompanyProductsView` (métriques réelles, recherche, filtres, segmented control), `CompanyProductsSkeleton`, jointures productions (décompte + volume cumulé), 0 donnée fictive, TypeScript 0 erreur, build ✓ 41/41 routes. |
+| **RADIZA** | **Intégration Branding Radiza** | 🟢 **TERMINÉ** | Composant centralisé `BrandLogo` (horizontal + compact), SVG intégrés dans `public/brand/`, 11 fichiers frontend mis à jour (sidebars, headers, login, register, landing, metadata, profil public), titres méta mis à jour, aria-labels accessibles, TypeScript 0 erreur, build ✓ 41/41 routes. |
 
 ---
 
-## 2. BILAN DE LA PHASE R7 (MON PROFIL REVENDEUR)
+## 2. BILAN DE LA PHASE S1 (NAVIGATION & SHELL ESPACE SOCIÉTÉ)
+
+* **Date de validation finale** : 2026-10-04
+* **Statut du projet** : 🟢 **STABLE — SHELL & NAVIGATION SOCIÉTÉ DÉPLOYÉS, TYPESCRIPT 0 ERREUR, BUILD ✓ (41/41 ROUTES)**
+* **Rappel crucial de périmètre** :
+  - ⚠️ **Les pages métier de l'espace Société (Dashboard S2, Catalogue S3, Productions S4, Demande S5, Campagnes S6, Commandes S7, Notifications S8, Profil S9) restent STRICTEMENT intactes dans leur contenu.**
+  - Aucune modification de logique métier, de schéma DB, de RLS ni des droits d'accès.
+  - **Règle fondamentale respectée** : Zéro donnée fictive (0 Mock Data). 100% des informations affichées proviennent de la base de données et du compte authentifié.
+
+* **Réalisations clés** :
+  1. **Sidebar Professionnelle Desktop (`CompanySidebar.tsx`)** :
+     - Identité de marque avec logo Sprout végétal et libellé « Espace Entreprise ».
+     - Cartouche d'identité dynamique : logo réel (Supabase Storage) ou icône `Building2`, dénomination d'entreprise, badge « Producteur Agricole » et localisation (`locationInfo`).
+     - 8 sections officielles avec intitulé exact et icônes adaptées (Dashboard, Catalogue Produits, Productions & Récoltes, Demande du marché, Campagne de vente, Commandes reçues, Notifications, Profil entreprise).
+     - Badge réel dynamique sur l'entrée Notifications (sans badge si 0).
+     - Pied de sidebar : utilisateur connecté, raccourci profil et bouton de déconnexion sécurisée couplé au composant `ConfirmDialog` R1.
+  2. **Header Supérieur Cohérent (`CompanyHeader.tsx`)** :
+     - Bouton burger mobile/tablette ouvrant le Drawer de navigation latérale complet.
+     - Logo végétal Sprout + salutation contextuelle personnalisée + localisation avec icône `MapPin`.
+     - Cloche de notifications avec badge dynamique non lu.
+     - Avatar / logo cliquable accédant directement au profil d'entreprise.
+  3. **Navigation Mobile Ergonomique (`CompanyBottomNav.tsx`)** :
+     - Barre inférieure compacte 5 onglets : Dashboard, Productions, Campagnes, Commandes + bouton « Plus ».
+     - Tiroir coulissant inférieur (Bottom Sheet `Drawer` R1 `side="bottom"`) pour les sections Catalogue Produits, Demande du marché, Notifications (avec badge) et Profil entreprise.
+     - Action de déconnexion intégrée au tiroir avec dialogue de confirmation `ConfirmDialog`.
+  4. **Shell Unifié (`CompanyDashboardLayout.tsx`)** :
+     - Découplage de `DashboardLayout` générique au profit d'un composant dédié à la Société.
+     - Prise en charge fluide du Drawer mobile gauche via `Drawer` R1.
+---
+
+## 3. BILAN DE LA PHASE R7 (MON PROFIL REVENDEUR)
 
 * **Date de validation finale** : 2026-10-03
 * **Statut du projet** : 🟢 **STABLE — INTERFACE MON PROFIL REVENDEUR DÉPLOYÉE, TYPESCRIPT 0 ERREUR, BUILD ✓ (38/38 ROUTES)**

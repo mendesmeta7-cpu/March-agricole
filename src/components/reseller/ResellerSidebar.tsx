@@ -10,7 +10,6 @@ import {
   ShoppingBag,
   Bell,
   User,
-  Sprout,
   Store,
   MapPin,
   LogOut,
@@ -19,6 +18,7 @@ import {
 } from "lucide-react";
 import { logoutAction } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/client";
+import BrandLogo from "@/components/ui/BrandLogo";
 
 interface ResellerSidebarProps {
   businessName?: string;
@@ -122,19 +122,9 @@ export default function ResellerSidebar({
           href="/dashboard/reseller"
           className="flex items-center gap-3 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-600 rounded-xl"
           onClick={onClose}
-          aria-label="Accueil Marché Agricole"
+          aria-label="Accueil Radiza"
         >
-          <div className="w-10 h-10 rounded-xl bg-forest-600 flex items-center justify-center text-white shadow-xs group-hover:bg-forest-700 transition-colors">
-            <Sprout className="w-6 h-6 stroke-[2.2]" />
-          </div>
-          <div>
-            <span className="font-bold text-base text-gray-900 tracking-tight block">
-              Marché Agricole
-            </span>
-            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest block">
-              Espace Revendeur
-            </span>
-          </div>
+          <BrandLogo variant="horizontal" height={34} />
         </Link>
 
         {onClose && (

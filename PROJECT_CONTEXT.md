@@ -232,3 +232,28 @@ Pour garantir le respect des délais et la solidité de la V1, les fonctionnalit
 | **Géospatial PostGIS complexe (polygones, isochrones)** | ❌ REPORTÉ | 🔮 FUTUR | Le filtrage relationnel hiérarchique (Pays > Province > Ville) suffit en V1. |
 | **Notifications multicanales externes (WhatsApp Cloud API)** | ❌ REPORTÉ | 🔮 FUTUR | En V1 : centre de notifications applicatif et alertes email simples. |
 | **Application Mobile Flutter** | ❌ REPORTÉ | 🔮 FUTUR | L'application web responsive Next.js couvre les besoins mobiles initiaux. |
+
+---
+
+## 10. IDENTITÉ VISUELLE — BRANDING RADIZA
+
+**Nom officiel de la plateforme : RADIZA**
+
+Mis à jour le : 2026-10-04
+
+### Assets visuels
+| Asset | Fichier | Dimensions | Usage |
+|:--|:--|:--|:--|
+| Logo horizontal | `public/brand/radiza-horizontal.svg` | viewBox 995×320 (ratio ~3.11:1) | Headers desktop/tablette, sidebars, pages publiques |
+| Logo compact | `public/brand/radiza-compact.svg` | viewBox 1024×1024 (ratio 1:1) | Mobile, drawers, espaces réduits |
+
+### Composant centralisé
+- **Fichier** : `src/components/ui/BrandLogo.tsx`
+- **Props** : `variant` (`"horizontal"` | `"compact"`), `height` (px), `className`, `priority`
+- **Usage** : `<BrandLogo variant="horizontal" />` ou `<BrandLogo variant="compact" height={32} />`
+
+### Règles d'utilisation
+- Logo horizontal sur tablette et desktop (h ≈ 32–42 px selon le contexte)
+- Logo compact sur mobile strict (ex : StickyHeader landing < sm)
+- Ne jamais forcer une largeur fixe — toujours laisser `width: auto`
+- Ne jamais modifier les couleurs, proportions ou ratio du logo fourni

@@ -9,7 +9,7 @@ const nextConfig = {
       dynamic: 0,  // Les pages force-dynamic ne sont jamais mises en cache côté client
       static: 180, // Les pages statiques restent cachées 3 minutes (comportement par défaut)
     },
-    cpus: 1, // Évite les OOM en limitant le parallélisme des workers de build
+    // cpus supprimé — experimental.cpus cause une race condition (PageNotFoundError) sur Next.js 14
   },
   images: {
     remotePatterns: [

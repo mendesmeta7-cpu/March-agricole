@@ -2,7 +2,7 @@ import { getPublicCompanyProfile, getCompanyPublicProductions } from "@/lib/quer
 import { notFound } from "next/navigation";
 import CompanyPublicProfileView from "@/components/companies/CompanyPublicProfileView";
 import Link from "next/link";
-import { Sprout } from "lucide-react";
+import BrandLogo from "@/components/ui/BrandLogo";
 
 interface PublicCompanyPageProps {
   params: {
@@ -24,11 +24,12 @@ export default async function PublicCompanyPage({ params }: PublicCompanyPagePro
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Navigation d'en-tête publique */}
         <header className="flex items-center justify-between pb-4 border-b border-gray-200/80">
-          <Link href="/" className="flex items-center gap-2 text-forest-900 font-extrabold text-lg">
-            <div className="w-8 h-8 rounded-xl bg-forest-700 text-white flex items-center justify-center">
-              <Sprout className="w-5 h-5" />
-            </div>
-            <span>Marché Agricole</span>
+          <Link
+            href="/"
+            className="inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-600 rounded-lg"
+            aria-label="Accueil Radiza"
+          >
+            <BrandLogo variant="horizontal" height={32} priority />
           </Link>
 
           <div className="flex items-center gap-3 text-xs sm:text-sm">

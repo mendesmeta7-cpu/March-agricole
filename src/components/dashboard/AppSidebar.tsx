@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Sprout,
   LayoutDashboard,
   Package,
   Tractor,
@@ -20,6 +19,7 @@ import {
   Layers,
   Image as ImageIcon,
 } from "lucide-react";
+import BrandLogo from "@/components/ui/BrandLogo";
 
 interface NavItem {
   label: string;
@@ -211,18 +211,9 @@ export default function AppSidebar({
           href={`/dashboard/${role}`}
           className="flex items-center gap-3 group"
           onClick={onCloseMobile}
+          aria-label="Accueil Radiza"
         >
-          <div className="w-10 h-10 rounded-xl bg-forest-600 flex items-center justify-center text-white shadow-xs group-hover:bg-forest-700 transition-colors">
-            <Sprout className="w-6 h-6 stroke-[2.2]" />
-          </div>
-          <div>
-            <span className="font-bold text-base text-gray-900 tracking-tight block">
-              Marché Agricole
-            </span>
-            <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-widest block">
-              Plateforme B2B V1
-            </span>
-          </div>
+          <BrandLogo variant="horizontal" height={34} priority />
         </Link>
       </div>
 

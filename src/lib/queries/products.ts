@@ -25,6 +25,8 @@ export interface CompanyProductItem {
   created_at: string;
   updated_at: string;
   product: CatalogProduct;
+  productions_count?: number;
+  total_declared_volume?: number;
 }
 
 /**
@@ -75,6 +77,7 @@ export async function getAdminCatalogProducts(): Promise<CatalogProduct[]> {
 
 /**
  * Récupère tous les produits associés à une entreprise agricole donnée
+ * ainsi que le décompte et le volume total déclaré des productions rattachées
  */
 export async function getCompanyProducts(companyId: string): Promise<CompanyProductItem[]> {
   const supabase = createClient();
@@ -102,6 +105,11 @@ export async function getCompanyProducts(companyId: string): Promise<CompanyProd
         is_active,
         is_global,
         created_by_company_id
+      ),
+      productions:productions (
+        id,
+        expected_quantity,
+        status
       )
     `)
     .eq("company_id", companyId)
@@ -115,12 +123,21 @@ export async function getCompanyProducts(companyId: string): Promise<CompanyProd
   // Normalisation du type retourné par Supabase
   return (data || []).map((item: any) => {
     const rawProd = Array.isArray(item.product) ? item.product[0] : item.product;
+    const prods = Array.isArray(item.productions) ? item.productions : [];
+    const productionsCount = prods.length;
+    const totalDeclaredVolume = prods.reduce(
+      (sum: number, p: any) => sum + (Number(p.expected_quantity) || 0),
+      0
+    );
+
     return {
       ...item,
       product: {
         ...rawProd,
         is_global: rawProd?.is_global ?? true,
       },
+      productions_count: productionsCount,
+      total_declared_volume: totalDeclaredVolume,
     };
   }) as CompanyProductItem[];
 }

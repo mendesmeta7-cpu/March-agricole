@@ -3,7 +3,7 @@ import { Sprout, Building2, Store, ArrowRight, ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Créer un compte — Plateforme Agricole B2B",
+  title: "Radiza — Créer un compte",
   description:
     "Choisissez votre profil pour rejoindre la plateforme : Société / Producteur ou Revendeur professionnel.",
 };

@@ -6,7 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { loginAction } from "@/lib/actions/auth";
 import SubmitButton from "@/components/SubmitButton";
-import { Sprout, AlertCircle, Lock, Mail } from "lucide-react";
+import { AlertCircle, Lock, Mail } from "lucide-react";
+import BrandLogo from "@/components/ui/BrandLogo";
 
 function LoginForm() {
   const [state, formAction] = useFormState(loginAction, null);
@@ -85,11 +86,12 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 bg-forest-50/50">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <Link href="/" className="inline-flex items-center gap-2 mb-3 sm:mb-4">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-forest-700 flex items-center justify-center text-white shadow-sm flex-shrink-0">
-            <Sprout className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <span className="font-bold text-xl sm:text-2xl text-forest-950">Marché Agricole</span>
+        <Link
+          href="/"
+          className="inline-flex items-center mb-3 sm:mb-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-600 rounded-lg"
+          aria-label="Accueil Radiza"
+        >
+          <BrandLogo variant="horizontal" height={42} priority />
         </Link>
         <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
           Connexion à votre espace
