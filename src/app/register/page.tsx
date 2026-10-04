@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Sprout, Building2, Store, ArrowRight, ArrowLeft } from "lucide-react";
+import { Building2, Store, ArrowRight, ArrowLeft } from "lucide-react";
+import BrandLogo from "@/components/ui/BrandLogo";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -25,8 +26,8 @@ export default function RegisterChoicePage() {
       {/* Contenu Principal */}
       <main className="max-w-4xl mx-auto w-full my-auto py-4 sm:py-8">
         <div className="text-center mb-8 sm:mb-12">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-forest-700 text-white shadow-sm mb-4">
-            <Sprout className="w-6 h-6" />
+          <div className="flex justify-center mb-6">
+            <BrandLogo variant="horizontal" height={44} priority />
           </div>
           <h1 className="text-2xl sm:text-4xl font-extrabold text-forest-950 tracking-tight mb-2 sm:mb-3">
             Créer un compte

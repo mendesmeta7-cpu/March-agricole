@@ -23,7 +23,7 @@ const GREETINGS: WelcomeGreeting[] = [
   { word: "Welcome", lang: "en", langName: "Anglais" },
   { word: "Boyei malamu", lang: "ln", langName: "Lingala" },
   { word: "Karibu", lang: "sw", langName: "Swahili" },
-  { word: "Luiza mu yenge", lang: "kg", langName: "Kikongo" },
+  { word: "Kukwisa ya mbote", lang: "kg", langName: "Kikongo" },
   { word: "Difika dilenga", lang: "lua", langName: "Tshiluba" },
 ];
 
@@ -86,11 +86,10 @@ export default function HeroDynamicTitle() {
       <span
         key={reducedMotion ? "static" : current.word}
         lang={current.lang}
-        className={`inline-block transition-all duration-400 ease-out transform ${
-          isTransitioning
+        className={`inline-block transition-all duration-400 ease-out transform ${isTransitioning
             ? "opacity-0 -translate-y-2 scale-[0.98] blur-[0.5px]"
             : "opacity-100 translate-y-0 scale-100 blur-0"
-        }`}
+          }`}
       >
         {current.word}
       </span>
