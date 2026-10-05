@@ -16,6 +16,12 @@ export interface ProductionCompanyProduct {
   is_active: boolean;
 }
 
+export interface ProductionCampaignInfo {
+  id: string;
+  status: string;
+  title: string;
+}
+
 export interface ProductionItem {
   id: string;
   company_id: string;
@@ -42,6 +48,12 @@ export interface ProductionItem {
   updated_at: string;
   product: ProductionProduct;
   company_product?: ProductionCompanyProduct | null;
+  // Données commerciales réelles rattachées
+  campaigns?: ProductionCampaignInfo[];
+  has_active_campaign?: boolean;
+  active_campaign_id?: string | null;
+  campaigns_count?: number;
+  demands_count?: number;
 }
 
 /**
@@ -83,6 +95,14 @@ export async function getCompanyProductions(companyId: string): Promise<Producti
         id,
         custom_name,
         is_active
+      ),
+      campaigns:campaigns (
+        id,
+        status,
+        title
+      ),
+      demands:demands (
+        id
       )
     `)
     .eq("company_id", companyId)
@@ -93,12 +113,23 @@ export async function getCompanyProductions(companyId: string): Promise<Producti
     return [];
   }
 
-  return (data || []).map((item: any) => ({
-    ...item,
-    expected_quantity: Number(item.expected_quantity),
-    product: Array.isArray(item.product) ? item.product[0] : item.product,
-    company_product: Array.isArray(item.company_product) ? item.company_product[0] : item.company_product,
-  })) as ProductionItem[];
+  return (data || []).map((item: any) => {
+    const campaignsList = Array.isArray(item.campaigns) ? item.campaigns : [];
+    const activeCamp = campaignsList.find((c: any) => c.status === "active");
+    const demandsList = Array.isArray(item.demands) ? item.demands : [];
+
+    return {
+      ...item,
+      expected_quantity: Number(item.expected_quantity),
+      product: Array.isArray(item.product) ? item.product[0] : item.product,
+      company_product: Array.isArray(item.company_product) ? item.company_product[0] : item.company_product,
+      campaigns: campaignsList,
+      has_active_campaign: Boolean(activeCamp),
+      active_campaign_id: activeCamp?.id || null,
+      campaigns_count: campaignsList.length,
+      demands_count: demandsList.length,
+    };
+  }) as ProductionItem[];
 }
 
 /**
@@ -143,6 +174,14 @@ export async function getProductionById(
         id,
         custom_name,
         is_active
+      ),
+      campaigns:campaigns (
+        id,
+        status,
+        title
+      ),
+      demands:demands (
+        id
       )
     `)
     .eq("id", productionId);
@@ -158,10 +197,19 @@ export async function getProductionById(
     return null;
   }
 
+  const campaignsList = Array.isArray(data.campaigns) ? data.campaigns : [];
+  const activeCamp = campaignsList.find((c: any) => c.status === "active");
+  const demandsList = Array.isArray(data.demands) ? data.demands : [];
+
   return {
     ...data,
     expected_quantity: Number(data.expected_quantity),
     product: Array.isArray(data.product) ? data.product[0] : data.product,
     company_product: Array.isArray(data.company_product) ? data.company_product[0] : data.company_product,
+    campaigns: campaignsList,
+    has_active_campaign: Boolean(activeCamp),
+    active_campaign_id: activeCamp?.id || null,
+    campaigns_count: campaignsList.length,
+    demands_count: demandsList.length,
   } as ProductionItem;
 }

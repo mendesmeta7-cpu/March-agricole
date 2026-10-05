@@ -3,6 +3,82 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [S4] - 2026-10-05
+### Productions & Récoltes Société — Modernisation UI/UX, Intégrité Agronomique & R1 Components
+
+#### Objectif
+Refonte complète de l'interface des Productions & Récoltes de l'espace Société (`/dashboard/company/productions` et `/dashboard/company/productions/[id]`). Modernisation ergonomique et accessibilité conformes aux composants R1, préservation intégrale des statuts réels, des saisons cycliques (mois 1-12), du stockage des images sur Supabase Storage `public-assets/productions/` (0 migration Cloudinary), des protections de l'historique commercial et des distinctions fondamentales entre Production, Stock physique, Campagne et Commande.
+
+#### Composants créés & refondus (`src/components/productions/`)
+1. **`CompanyProductionsView.tsx`** (Client Component) :
+   - En-tête de section moderne avec fil d'Ariane de retour au dashboard, titre officiel, description et badge des productions enregistrées.
+   - 4 cartes métriques réelles (0 mock data) : Total cycles, En cours de culture (`growing`), Récoltées (`harvested`), Campagnes actives (`has_active_campaign`).
+   - Barre de recherche instantanée multi-champs (titre, produit, variété, site de production, description) avec effacement rapide.
+   - Sélecteurs de filtres par statut et par culture d'exploitation, combinés à un segmented control tactile d'accès rapide (« Toutes », « En champ », « Récoltées », « Avec offre »).
+   - États vides contextuels :
+     - Si 0 produit configuré dans le catalogue exploitation → lien d'orientation vers `/dashboard/company/products`.
+     - Si 0 production enregistrée → invitation bienveillante avec bouton "Déclarer une production".
+     - Si aucun résultat après filtrage → état vide avec bouton de réinitialisation.
+   - Intégration de `ConfirmDialog` de R1 pour la suppression sécurisée et l'archivage doux.
+
+2. **`ProductionCard.tsx`** (Client Component) :
+   - Carte de production compacte et réactive avec zone visuelle au ratio `aspect-[16/10]` et zoom tactile doux.
+   - Badges superposés clairs : statut cultural (`ProductionStatusBadge`), indicateur `Campagne active` (`CampaignActiveBadge`), et badge de visibilité (« Public » / « Privé »).
+   - Dénomination d'exploitation et produit catalogue mis en valeur avec catégorie agronomique.
+   - Bloc de volume prévisionnel déclaré avec mention formelle pour proscrire toute confusion avec un stock immédiatement livrable.
+   - Calendrier saisonnier cyclique (semis et récolte) sans année calendaire.
+   - Puces métriques de suivi réel : nombre d'offres commerciales associées, nombre de demandes territoriales exprimées.
+   - Actions rapides accessibles : "Détail", "Modifier", et "Campagne" (conditionnel, accessible uniquement si la production est récoltée).
+
+3. **`ProductionDrawer.tsx`** (Client Component) :
+   - Tiroir coulissant accessible R1 `Drawer` (`size="xl"`, responsive desktop et mobile).
+   - Prise en charge des deux modes (Création et Modification).
+   - Sélection parmi les produits actifs de l'exploitation, dénomination, localisation, volume prévisionnel et unité de mesure.
+   - Saisons agricoles récurrentes cycliques (mois 1 à 12 sans année calendaire) avec sélecteurs de mois pour semis et récolte, aperçu temps réel et prise en compte des saisons traversant deux années (ex : octobre → février).
+   - Téléversement d'image hébergée sur **Supabase Storage** `public-assets/productions/` (interdiction stricte de toucher à Cloudinary pour les productions) avec prévisualisation et contrôle de taille (5 Mo).
+   - Primitives de formulaires R1 (`FormField`, `Input`, `Select`, `Textarea`, `Switch`, `Button`, `Alert`) et retours par `useToast`.
+
+4. **`ProductionFormModal.tsx`** :
+   - Wrapper rétrocompatible assurant la continuité pour tout import existant en déléguant au `ProductionDrawer`.
+
+5. **`ProductionDetailView.tsx`** (Client Component) :
+   - Page `/dashboard/company/productions/[id]` modernisée avec R1.
+   - Fil d'Ariane, bannière héro grand format avec badges dynamiques, dénomination officielle et localisation.
+   - Cartouche d'avertissement d'intégrité métier : $\text{Production} \neq \text{Stock} \neq \text{Campagne} \neq \text{Commande}$.
+   - Grille des caractéristiques clés : volume prévisionnel déclaré avec unité, calendrier saisonnier cyclique et localisation.
+   - Conditions de culture et précisions agronomiques.
+   - Gestion du cycle de vie cultural avec sélecteur interactif des 5 statuts (`draft` → `planned` → `growing` → `harvested` → `cancelled`) avec notification toast immédiate.
+   - Bouton contextuel mis en avant "Créer une campagne commerciale" vers `/dashboard/company/campaigns/new?production_id=${id}` si la production est récoltée, ou rappel pédagogique sur l'exigence de récolte préalable.
+   - Section d'analyse territoriale des demandes ciblées sur cette denrée (`demandsAnalysis`), avec distribution par province, barres de pourcentage, nombre d'acheteurs et volumes recherchés.
+   - Suppression sécurisée avec `ConfirmDialog` de R1 (rejetée si commandes/campagnes/demandes rattachées).
+
+6. **`ProductionStatusBadge.tsx`** :
+   - Badging modernisé avec dot indicateur et teintes HSL forest/emerald, amber, blue, rose, gray.
+   - Export additionnel de `CampaignActiveBadge` pour signaler les offres actives adossées.
+
+7. **`CompanyProductionsSkeleton.tsx`** :
+   - Squelette de chargement calqué sur la structure réelle (en-tête, 4 statistiques, barre de filtres, grille de cartes).
+   - Intégré dans `src/app/dashboard/company/productions/loading.tsx`.
+
+#### Requêtes et Données Réelles (0 Mock Data)
+- **`src/lib/queries/productions.ts`** :
+  - `ProductionItem` étendu avec `campaigns?: ProductionCampaignInfo[]`, `has_active_campaign?: boolean`, `active_campaign_id?: string | null`, `campaigns_count?: number`, `demands_count?: number`.
+  - `getCompanyProductions` et `getProductionById` enrichis avec jointures `campaigns:campaigns(id, status, title)` et `demands:demands(id)` pour alimenter les indicateurs réels.
+- **`src/app/dashboard/company/productions/page.tsx`** :
+  - Harmonisation de la résolution `companyId` (vérification de `company_members` d'abord, puis de `companies.created_by = user.id`), garantissant l'accès pour tous les collaborateurs de l'entreprise.
+
+#### Règles Métier & Protections
+- ✅ **Séparation stricte des entités** : Produit (`products`) ≠ Configuration Exploitation (`company_products`) ≠ Cycle Cultural (`productions`) ≠ Campagne (`campaigns`) ≠ Commande (`orders`).
+- ✅ **Protection de l'historique** : Suppression protégée avec `ConfirmDialog`. La suppression physique d'une production est rejetée côté serveur (`deleteProductionAction`) si elle possède des campagnes, commandes, demandes, propositions ou réservations rattachées.
+- ✅ **Archivage doux** : `archiveProductionAction` (`is_public = false`, `status = 'cancelled'`) disponible pour masquer du flux sans toucher aux commandes historiques.
+- ✅ **Indépendance des visuels & Stockage** : Photos de productions conservées exclusivement sur Supabase Storage `public-assets/productions/`. Aucune migration vers Cloudinary.
+- ✅ **0 Mock Data** : 100% des cartes, statistiques, filtres et demandes reposent sur les enregistrements réels de Supabase.
+- ✅ **Espaces tiers intacts** : Le Dashboard Société S2, le Catalogue S3, le parcours Revendeur (R1–R7) et l'espace Admin restent strictement inchangés.
+
+#### Validation Technique
+- `npx tsc --noEmit` : ✅ Code 0 (0 erreur TypeScript).
+- `npm run build` : ✅ Code 0 (38/38 routes compilées, `/dashboard/company/productions` optimisée à 6.7 kB, `/dashboard/company/productions/[id]` optimisée à 5.17 kB).
+
 ## [RADIZA-BRANDING] - 2026-10-04
 ### Intégration du Nouveau Branding Radiza — Identité Visuelle Officielle
 

@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-10-04 — RADIZA Branding terminé (composant BrandLogo, 11 fichiers mis à jour, TypeScript 0 erreur, Build ✓ 41/41 routes — Prêt pour S4 Productions Société)*
+*Dernière mise à jour : 2026-10-05 — S4 Productions & Récoltes Société terminé (ProductionDrawer, ProductionCard, ProductionDetailView, CompanyProductionsView, Squelette, ConfirmDialog, TypeScript 0 erreur, Build ✓ 38/38 routes — Prêt pour S5 Demande du Marché)*
 
 
 ---
@@ -51,13 +51,58 @@
 | **S2** | **Dashboard Société** | 🟢 **TERMINÉ** | 6 composants (`CompanyDashboardHeader`, `CompanyOverviewMetrics`, `CompanyDemandTrendChart`, `CompanyDemandGeoChart`, `CompanyPendingActions`, `CompanyRecentActivity`), données 100% réelles Supabase, graphiques SVG natifs, 0 donnée fictive, TypeScript 0 erreur, build ✓. |
 | **S3** | **Catalogue Produits Société** | 🟢 **TERMINÉ** | `CompanyProductCard`, `AddProductDrawer`, `EditProductDrawer`, `CompanyProductsView` (métriques réelles, recherche, filtres, segmented control), `CompanyProductsSkeleton`, jointures productions (décompte + volume cumulé), 0 donnée fictive, TypeScript 0 erreur, build ✓ 41/41 routes. |
 | **RADIZA** | **Intégration Branding Radiza** | 🟢 **TERMINÉ** | Composant centralisé `BrandLogo` (horizontal + compact), SVG intégrés dans `public/brand/`, 11 fichiers frontend mis à jour (sidebars, headers, login, register, landing, metadata, profil public), titres méta mis à jour, aria-labels accessibles, TypeScript 0 erreur, build ✓ 41/41 routes. |
+| **S4** | **Productions & Récoltes Société** | 🟢 **TERMINÉ** | Refonte complète UI/UX (`CompanyProductionsView`, `ProductionCard`, `ProductionDrawer`, `ProductionDetailView`, `ProductionStatusBadge`, `CompanyProductionsSkeleton`), 4 métriques réelles, filtres & segmented control, suppression et archivage protégés (`ConfirmDialog`), R1 Drawer, saisons cycliques 1-12 préservées, stockage Supabase Storage `public-assets/productions/` 100% conservé (0 migration Cloudinary), 0 mock data, TypeScript 0 erreur, build ✓ (38/38 routes). |
 
 ---
 
-## 2. BILAN DE LA PHASE S1 (NAVIGATION & SHELL ESPACE SOCIÉTÉ)
+## 2. BILAN DE LA PHASE S4 (PRODUCTIONS & RÉCOLTES SOCIÉTÉ)
 
-* **Date de validation finale** : 2026-10-04
-* **Statut du projet** : 🟢 **STABLE — SHELL & NAVIGATION SOCIÉTÉ DÉPLOYÉS, TYPESCRIPT 0 ERREUR, BUILD ✓ (41/41 ROUTES)**
+* **Date de validation finale** : 2026-10-05
+* **Statut du projet** : 🟢 **STABLE — INTERFACE PRODUCTIONS & RÉCOLTES MODERNISÉE, TYPESCRIPT 0 ERREUR, BUILD ✓ (38/38 ROUTES)**
+* **Rappel crucial de périmètre** :
+  - ⚠️ **Les autres pages métier de l'espace Société (Dashboard S2, Catalogue S3, Demande S5, Campagnes S6, Commandes S7, Notifications S8, Profil S9) restent STRICTEMENT intactes dans leur contenu.**
+  - Aucune modification de logique métier, de schéma DB, de RLS ni des droits d'accès.
+  - **Règle fondamentale respectée** : Zéro donnée fictive (0 Mock Data). 100% des informations affichées proviennent de la base de données et du compte authentifié.
+  - **Stockage images** : ⚠️ Les photos de productions restent hébergées sur Supabase Storage `public-assets/productions/`. Aucune migration vers Cloudinary.
+
+* **Réalisations clés** :
+  1. **Vue Principale Moderne (`CompanyProductionsView.tsx`)** :
+     - En-tête de section moderne avec cartouche identitaire, compteur dynamique de cycles et bouton primaire « Nouvelle production ».
+     - 4 cartes métriques réelles fondées sur Supabase : Total des cycles, En culture (`growing`), Récoltées (`harvested`), Campagnes actives en cours (`has_active_campaign`).
+     - Barre de recherche textuelle instantanée multi-champs avec bouton d'effacement rapide.
+     - Sélecteurs de filtres par statut et par culture d'exploitation, complétés d'un segmented control tactile d'accès rapide (« Toutes », « En champ », « Récoltées », « Avec offre »).
+     - États vides soignés (absence de produits au catalogue, absence de productions déclarées, absence de résultat aux filtres).
+     - Intégration de `ConfirmDialog` pour la suppression sécurisée et l'archivage doux.
+  2. **Cartes de Production Compactes & Informatives (`ProductionCard.tsx`)** :
+     - Zone visuelle au ratio `aspect-[16/10]` avec zoom tactile doux (`motion-safe:group-hover:scale-105`), dégradés protecteurs et fallback visuel `Tractor`.
+     - Badges superposés clairs : statut agronomique (`ProductionStatusBadge`), indicateur `Campagne active` (`CampaignActiveBadge`), et badge visibilité (« Public » / « Privé »).
+     - Bloc volumique prévisionnel distinctif avec mention explicite « Volume prévisionnel (déclaré) » pour proscrire toute confusion avec un stock immédiatement livrable.
+     - Localisation géographique et calendrier saisonnier cyclique (semis et récolte).
+     - Puces de suivi réel : nombre d'offres commerciales rattachées, nombre de demandes territoriales exprimées.
+     - Barre d'action inférieure : bouton « Détail », bouton « Modifier » et bouton contextuel « Campagne » (accessible dès que la production est récoltée).
+  3. **Tiroir de Création / Modification (`ProductionDrawer.tsx`)** :
+     - Composant basé sur le `Drawer` R1 (`side="right"`, responsive mobile).
+     - Formulaire complet reprenant l'intégralité des champs métier : sélection de la culture active, dénomination, localisation, volume prévisionnel, unité de mesure, description agronomique, statut cultural et bascule de visibilité publique.
+     - Prise en charge des saisons agricoles récurrentes cycliques (mois 1 à 12 sans année calendaire) avec calcul et aperçu instantanés de la période (ex : octobre → février).
+     - Téléversement d'image vers Supabase Storage `public-assets/productions/` avec validation de taille (5 Mo) et de format (JPG, PNG, WebP).
+     - Primitives de formulaires R1 (`FormField`, `Input`, `Select`, `Textarea`, `Switch`, `Button`, `Alert`) et retours par `useToast`.
+  4. **Fiche Détaillée Approfondie (`ProductionDetailView.tsx`)** :
+     - Fil d'Ariane, bannière héro grand format avec badges dynamiques et dénomination officielle.
+     - Rappel d'intégrité métier : $\text{Production} \neq \text{Stock} \neq \text{Campagne} \neq \text{Commande}$.
+     - Grille des caractéristiques clés (volume déclaré, calendrier récurrent, localisation).
+     - Stepper de cycle cultural interactif permettant l'évolution de statut (`draft` → `planned` → `growing` → `harvested` → `cancelled`) avec notification toast.
+     - Bouton prioritaire de création de campagne commerciale adossée disponible exclusivement si la production est récoltée.
+     - Section d'analyse territoriale des demandes du marché ciblées sur cette denrée (`demandsAnalysis`), avec distribution provinciale, barres de pourcentage, nombre d'acheteurs et volumes recherchés.
+     - Suppression sécurisée couplée à `ConfirmDialog` R1 (rejetée si historique transactionnel présent).
+  5. **Composant Squelette Dédié (`CompanyProductionsSkeleton.tsx`)** :
+     - Grille de chargement calquée sur la nouvelle structure (en-tête, 4 statistiques, barre de filtres, grille de cartes).
+     - Branché dans `src/app/dashboard/company/productions/loading.tsx`.
+  6. **Résolution Multi-Tenant Robuste** :
+     - Harmonisation de `src/app/dashboard/company/productions/page.tsx` pour résoudre l'entreprise via `company_members` d'abord puis fallback `created_by`, assurant l'accès pour tous les membres de l'exploitation.
+
+* **Validation Technique** :
+  - TypeScript : 0 erreur (`npx tsc --noEmit` code 0).
+  - Next.js Build : Compilé avec succès (38/38 routes certifiées, `/dashboard/company/productions` optimisée à 6.7 kB, `/dashboard/company/productions/[id]` optimisée à 5.17 kB).
 * **Rappel crucial de périmètre** :
   - ⚠️ **Les pages métier de l'espace Société (Dashboard S2, Catalogue S3, Productions S4, Demande S5, Campagnes S6, Commandes S7, Notifications S8, Profil S9) restent STRICTEMENT intactes dans leur contenu.**
   - Aucune modification de logique métier, de schéma DB, de RLS ni des droits d'accès.

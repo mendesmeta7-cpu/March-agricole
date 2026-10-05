@@ -1,17 +1,5 @@
-import {
-  SkeletonPageHeader,
-  SkeletonStatGrid,
-  SkeletonFilterBar,
-  SkeletonCardGrid,
-} from "@/components/ui/Skeleton";
+import CompanyProductionsSkeleton from "@/components/productions/CompanyProductionsSkeleton";
 
 export default function CompanyProductionsLoading() {
-  return (
-    <div className="space-y-6">
-      <SkeletonPageHeader />
-      <SkeletonStatGrid count={3} />
-      <SkeletonFilterBar />
-      <SkeletonCardGrid count={6} />
-    </div>
-  );
+  return <CompanyProductionsSkeleton />;
 }
