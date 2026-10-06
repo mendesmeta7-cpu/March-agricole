@@ -3,6 +3,160 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [S6] - 2026-10-07
+### Campagnes de Vente Société — Refonte UI/UX + Correction Bug Expiration Automatique
+
+#### VOLET B — Correction du bug d'expiration automatique (Priorité absolue)
+
+##### Problème identifié
+Le statut `campaigns.status` reste `'active'` en base de données même lorsque toutes les
+`order_deadline_date` des destinations sont dépassées. Côté Revendeur, `campaignEligibility.ts`
+calculait correctement le motif `DESTINATION_DEADLINE_EXPIRED` et bloquait les commandes.
+Mais côté Société, `CampaignStatusBadge` affichait le statut DB brut → "Ouverte / Active"
+alors que la campagne était de facto terminée.
+
+##### Correction appliquée (`src/lib/queries/campaigns.ts`)
+1. **`getEffectiveCampaignStatus()`** — Nouvelle fonction pure (sans I/O) :
+   - Si `status !== 'active'` → retourne le statut DB tel quel (pas de sur-correction)
+   - Si `end_date` global dépassé → retourne `'completed'`
+   - Si toutes les destinations ont une `order_deadline_date` dépassée et aucune n'est sans deadline → retourne `'completed'`
+   - Si au moins une destination est ouverte (ou sans deadline) → retourne `'active'`
+   - **Ne modifie jamais la base de données**
+   - Assure la cohérence avec `campaignEligibility.ts` côté Revendeur
+
+2. **`getCampaignDestinationsSummary()`** — Fonction pure de résumé :
+   - Retourne `{ total, active, expired, noDeadline }` pour chaque campagne
+   - Utilisée dans les cartes et le drawer de détail
+
+##### Cas de test validés par la logique
+| Scénario | Résultat |
+|---|---|
+| 1 destination, deadline expirée | `completed` |
+| 2 destinations, 1 expirée / 1 active | `active` |
+| 2 destinations, toutes expirées | `completed` |
+| Destination sans deadline (illimitée) | toujours `active` |
+| Campagne avec `end_date` global dépassé | `completed` |
+| Campagne `paused`, `draft`, `cancelled` | statut DB conservé |
+
+---
+
+#### VOLET A — Refonte UI/UX Campagnes de Vente Société
+
+##### Composant `CompanyCampaignDetailDrawer.tsx` (nouveau)
+- Drawer R1 `size="xl"` présentant le détail complet d'une campagne
+- **Statut effectif** basé sur `getEffectiveCampaignStatus()` avec badge et note d'information
+- **Alerte expiration automatique** si toutes destinations expirées mais statut DB encore `active`
+- **Indicateurs stock** : total / réservé / disponible + barre de progression visuelle (%)
+- **Tarification** : prix unitaire, devise, minimum de commande
+- **Destinations détaillées** : état par ville (active ✅ / terminée ❌), dates arrivée et deadline,
+  dépôts associés, bouton "Reporter la date →"
+- **Actions avec ConfirmDialog** : Suspendre / Réactiver / Clôturer / Annuler avec messages contextuels
+- `useToast` R1 sur chaque action
+- Modal inline de report de date (date arrivée + deadline optionnelle)
+
+##### Composant `CompanyCampaignCard.tsx` (refonte)
+- **Bande colorée** en tête de carte selon statut effectif (vert / bleu / orange / rouge / gris)
+- **Statut effectif** via `getEffectiveCampaignStatus()` — plus jamais de désynchronisation
+- **Barre de réservation** visuelle (% réservé vs total)
+- **Pills destinations** : badge actif (vert ✅) ou expiré (rouge ❌) par ville — max 3 affichés
+- **Compteur** destinations actives / terminées
+- **Alerte auto-expiration** si toutes destinations expirées (message bleu informatif)
+- Bouton **"Voir le détail"** → ouvre `CompanyCampaignDetailDrawer`
+- Bouton **"Modifier"** → ouvre `CampaignFormModal` (désactivé si `completed/cancelled`)
+
+##### Composant `CompanyCampaignsView.tsx` (refonte)
+- **En-tête héro immersif** : dégradé `forest-900 → earth-900` avec motif décoratif,
+  compteurs rapides (actives / total / tonnes actives)
+- **4 métriques** basées sur `effectiveStatus` (plus jamais de chiffre erroné)
+- **Onglets de statut** avec compteurs dynamiques (Toutes / Actives / Brouillons / Suspendues / Clôturées / Annulées)
+- **Barre de recherche** avec bouton effacement rapide
+- **Bouton Nouvelle Campagne** (texte responsive : "Nouvelle Campagne" desktop / "Nouveau" mobile)
+- **État vide** différencié : 0 campagne totale vs 0 résultat filtre, avec actions contextuelles
+- **ToastProvider** encapsulé pour les actions depuis le Drawer
+- **Intégration `CompanyCampaignDetailDrawer`** : gestion d'état `detailCampaign` / `isDetailOpen`
+
+#### Règles métier respectées
+- ✅ **Zéro donnée fictive** — toutes les métriques proviennent de Supabase réel
+- ✅ **Commandes historiques intactes** — aucune suppression ni modification d'historique
+- ✅ **Stock non altéré** — `getEffectiveCampaignStatus` est pure, sans effet de bord
+- ✅ **RLS/Auth/Permissions** — aucune modification de sécurité
+- ✅ **Séparation Destination ≠ Campagne** — la logique distingue clairement les deux niveaux
+- ✅ **Arrêt manuel préservé** — le ConfirmDialog "Clôturer" reste distinct de l'expiration auto
+- ✅ **Revendeur inchangé** — aucune modification du flux Revendeur
+
+#### Validation technique
+- `npx tsc --noEmit` : ✅ Code 0 (0 erreur TypeScript)
+- `npm run build` : ✅ Code 0 (build complet certifié)
+
+#### Fichiers modifiés / créés
+- `src/lib/queries/campaigns.ts` — ajout `getEffectiveCampaignStatus()` + `getCampaignDestinationsSummary()`
+- `src/components/campaigns/CompanyCampaignDetailDrawer.tsx` — **NOUVEAU**
+- `src/components/campaigns/CompanyCampaignCard.tsx` — **REFONTE**
+- `src/components/campaigns/CompanyCampaignsView.tsx` — **REFONTE**
+- `docs/development-status.md` — mise à jour phase S6
+- `docs/changelog.md` — entrée S6
+
+---
+
+## [S5] - 2026-10-06
+### Demande du Marché Société — Refonte Complète UI/UX (MarketDemandsAnalysisView)
+
+#### Objectif
+Transformation de la page « Demande du marché » de l'espace Société en une interface moderne, claire et professionnelle. Amélioration ergonomique conforme aux composants R1, sans aucune modification de logique métier, de schéma DB, de RLS ou des workflows existants. 0 Mock Data.
+
+#### Composant refondu (`src/components/demands/MarketDemandsAnalysisView.tsx`)
+1. **En-tête Héro Immersif** :
+   - Bannière dégradée `earth-900 → earth-800 → forest-900` avec motif de fond décoratif discret.
+   - Badge de catégorie « Espace Société — Flux Commercial ».
+   - Titre h1, description personnalisée avec le nom de l'exploitation.
+   - Compteurs rapides : Demandes générales actives & Provinces couvertes.
+2. **4 Cartes Métriques Réelles** :
+   - Demandes actives (`generalDemands.length`), Volume total recherché, Provinces en demande, Denrées ciblées.
+   - 100% calculé depuis `initialAggregates` et `generalDemands` — 0 Mock Data.
+3. **Cartouche Pédagogique Métier** :
+   - Explication du cycle Demande → Proposition → Commande.
+   - Rappel règle : Demande ≠ Stock réservé.
+4. **Onglets Modernes** :
+   - 2 onglets avec compteur en badge temps réel : « Demandes générales » et « Analyse territoriale ».
+   - Indicateur de soulignement actif (border-b-2).
+5. **Barre de Filtres Dépliable** :
+   - Recherche multi-champs (denrée, province, localité, notes) avec icône X d'effacement rapide.
+   - Bouton « Filtres » avec badge de comptage des filtres actifs (`activeFiltersCount`).
+   - Panneau dépliable avec selects Denrée et Province.
+   - Bouton « Réinitialiser » contextuel (visible uniquement si filtres actifs).
+6. **Cartes de Demandes Modernes** :
+   - Bande colorée supérieure `earth-600 → earth-800` avec transition hover.
+   - Visuel produit (image réelle Supabase ou icône Package).
+   - Badges « catégorie agronomique » + « Besoin exprimé ».
+   - Bloc volume avec dégradé `earth-50 → earth-100` et mise en valeur typographique.
+   - Informations contextuelles : province, période souhaitée (formatée), entreprise ciblée, notes.
+   - **Indicateur de compatibilité productions** : badge vert « X production(s) compatible(s) » si l'exploitation possède des productions correspondantes, badge gris sinon.
+   - 3 actions : « Examiner » (lien `/dashboard/company/demands/[id]`), « Répondre » (modal proposition), bouton XCircle « Écarter » (ConfirmDialog).
+7. **ConfirmDialog R1 Correct** :
+   - Props : `confirmText`, `variant="destructive"`, `isLoading`.
+   - Pattern `startTransition` sécurisé : capture de `demandId` avant la closure pour éviter les problèmes de référence.
+8. **`useToast` R1 Correct** :
+   - `toast.success(title, { description })` et `toast.error(title, { description })`.
+9. **Onglet Analyse Territoriale Enrichi** :
+   - Sous-titre contextuel sur l'anonymisation.
+   - Tableau responsive avec icône `Users` sur les acheteurs.
+   - Colonnes catégorie masquées sur mobile (`hidden md:table-cell`).
+   - Pied de tableau avec totaux réels (acheteurs + volume).
+   - Bloc d'orientation vers `/dashboard/company/productions` pour créer une campagne commerciale.
+
+#### Squelette de chargement (`src/app/dashboard/company/demands/loading.tsx`)
+- Mis à jour avec : fil d'Ariane, bannière héro, 4 métriques, cartouche, onglets, filtres, grille de cartes.
+
+#### Règles Métier & Protections
+- ✅ **Séparation stricte** : Demande ≠ Proposition ≠ Commande. La page ne réserve, crée, ni supprime aucun stock.
+- ✅ **0 Mock Data** : Toutes les métriques, cartes et agrégats proviennent de la base Supabase réelle.
+- ✅ **Logique métier préservée** : `CompanyDemandProposalModal`, `refuseDemandAction`, `DemandResponsesModal`, `CompanyDemandDetailView` — 100% inchangés.
+- ✅ **Espaces tiers intacts** : Productions S4, Catalogue S3, Dashboard S2, Revendeur, Admin — strictement inchangés.
+
+#### Validation Technique
+- `npx tsc --noEmit` : ✅ Code 0 (0 erreur TypeScript).
+- `npm run build` : ✅ Code 0 (build complet certifié).
+
 ## [S4] - 2026-10-05
 ### Productions & Récoltes Société — Modernisation UI/UX, Intégrité Agronomique & R1 Components
 

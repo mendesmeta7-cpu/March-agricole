@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-10-05 — S4 Productions & Récoltes Société terminé (ProductionDrawer, ProductionCard, ProductionDetailView, CompanyProductionsView, Squelette, ConfirmDialog, TypeScript 0 erreur, Build ✓ 38/38 routes — Prêt pour S5 Demande du Marché)*
+*Dernière mise à jour : 2026-10-07 — S6 Campagnes de Vente Société terminé (refonte UX/UI complète + correction bug expiration automatique Volet B : `getEffectiveCampaignStatus`, `getCampaignDestinationsSummary`, `CompanyCampaignDetailDrawer`, `CompanyCampaignCard` refonte, `CompanyCampaignsView` refonte héro, onglets statut effectif, TypeScript 0 erreur, Build ✓)*
 
 
 ---
@@ -52,10 +52,64 @@
 | **S3** | **Catalogue Produits Société** | 🟢 **TERMINÉ** | `CompanyProductCard`, `AddProductDrawer`, `EditProductDrawer`, `CompanyProductsView` (métriques réelles, recherche, filtres, segmented control), `CompanyProductsSkeleton`, jointures productions (décompte + volume cumulé), 0 donnée fictive, TypeScript 0 erreur, build ✓ 41/41 routes. |
 | **RADIZA** | **Intégration Branding Radiza** | 🟢 **TERMINÉ** | Composant centralisé `BrandLogo` (horizontal + compact), SVG intégrés dans `public/brand/`, 11 fichiers frontend mis à jour (sidebars, headers, login, register, landing, metadata, profil public), titres méta mis à jour, aria-labels accessibles, TypeScript 0 erreur, build ✓ 41/41 routes. |
 | **S4** | **Productions & Récoltes Société** | 🟢 **TERMINÉ** | Refonte complète UI/UX (`CompanyProductionsView`, `ProductionCard`, `ProductionDrawer`, `ProductionDetailView`, `ProductionStatusBadge`, `CompanyProductionsSkeleton`), 4 métriques réelles, filtres & segmented control, suppression et archivage protégés (`ConfirmDialog`), R1 Drawer, saisons cycliques 1-12 préservées, stockage Supabase Storage `public-assets/productions/` 100% conservé (0 migration Cloudinary), 0 mock data, TypeScript 0 erreur, build ✓ (38/38 routes). |
+| **S5** | **Demande du Marché Société** | 🟢 **TERMINÉ** | Refonte complète UI/UX `MarketDemandsAnalysisView` : en-tête héro dégradé, 4 cartes métriques réelles (demandes actives, volume total, provinces en demande, denrées ciblées), cartouche pédagogique métier, onglets (Demandes générales / Analyse territoriale), barre de filtres dépliable avec badge compteur, cartes de demandes avec indicateur de compatibilité productions (`eligible X production(s)`), `ConfirmDialog` R1 pour écartement, `useToast.success/error` R1, tableau agrégé enrichi avec totaux et pied de tableau, squelette de chargement amélioré (`loading.tsx`), 0 mock data, TypeScript 0 erreur, build ✓. |
+| **S6** | **Campagnes de Vente Société** | 🟢 **TERMINÉ** | **Volet A — Refonte UI/UX** : héro immersif dégradé `forest-900 → earth-900`, 4 métriques réelles basées sur `effectiveStatus`, onglets de statut avec compteurs dynamiques, `CompanyCampaignDetailDrawer` (Drawer R1 xl avec stock, barre de progression, destinations par état, actions ConfirmDialog), `CompanyCampaignCard` refonte (bande colorée, barre réservation, pills destinations active/expirée, alerte auto-expiration). **Volet B — Correction bug expiration** : `getEffectiveCampaignStatus()` calcul dynamique (toutes destinations expirées → `completed`), `getCampaignDestinationsSummary()` résumé destinations par état, cohérence totale Société/Revendeur, 0 modification DB, commandes historiques intactes. TypeScript 0 erreur, build ✓. |
 
 ---
 
-## 2. BILAN DE LA PHASE S4 (PRODUCTIONS & RÉCOLTES SOCIÉTÉ)
+## 2. BILAN DE LA PHASE S5 (DEMANDE DU MARCHÉ SOCIÉTÉ)
+
+* **Date de validation finale** : 2026-10-06
+* **Statut du projet** : 🟢 **STABLE — INTERFACE DEMANDE DU MARCHÉ MODERNISÉE, TYPESCRIPT 0 ERREUR, BUILD ✓**
+* **Rappel crucial de périmètre** :
+  - ⚠️ **Les autres pages métier de l'espace Société (Dashboard S2, Catalogue S3, Productions S4, Campagnes S6, Commandes S7, Notifications S8, Profil S9) restent STRICTEMENT intactes.**
+  - Aucune modification de logique métier, de schéma DB, de RLS ni des droits d'accès.
+  - **Règle fondamentale respectée** : Zéro donnée fictive (0 Mock Data). 100% des métriques affichées proviennent de la base de données réelle.
+
+* **Réalisations clés** :
+  1. **En-tête Héro Immersive** :
+     - Bannière dégradée `earth-900 → earth-800 → forest-900` avec motif de fond décoratif, identité de section et nom de l'exploitation.
+     - Compteurs clés en lecture rapide : demandes générales actives et provinces couvertes.
+  2. **4 Cartes Métriques Réelles (0 Mock Data)** :
+     - Demandes actives, Volume total recherché (toutes demandes), Provinces en demande, Denrées ciblées.
+     - Données calculées depuis `initialAggregates` et `generalDemands` (Supabase réel).
+  3. **Cartouche Pédagogique Métier** :
+     - Explication claire du cycle Demande → Proposition → Commande.
+     - Rappel de la règle fondamentale : Demande ≠ Stock réservé.
+  4. **Onglets Modernes (Demandes générales / Analyse territoriale)** :
+     - Sélecteur avec compteur en temps réel sur chaque onglet.
+     - Bascule fluide avec indicateur de soulignement actif.
+  5. **Barre de Filtres Dépliable** :
+     - Barre de recherche textuelle multi-champs (denrée, province, localité, notes) avec effacement rapide.
+     - Bouton "Filtres" dépliable avec badge de comptage des filtres actifs.
+     - Sélecteurs Denrée et Province dans un panneau repliable.
+     - Bouton "Réinitialiser" contextuel (apparaît seulement si filtres actifs).
+  6. **Cartes de Demandes Modernes** :
+     - Bande colorée supérieure `earth-600 → earth-800` avec effet hover.
+     - Visuel produit (image réelle ou icône Package), badges catégorie + "Besoin exprimé".
+     - Bloc volume demandé mis en valeur avec dégradé `earth-50 → earth-100`.
+     - Informations contextuelles : province, période souhaitée, société ciblée, notes.
+     - **Indicateur de compatibilité** : badge vert si l'exploitation possède des productions correspondant au produit demandé, badge gris sinon.
+     - 3 actions : "Examiner" (lien détail), "Répondre" (ouvre la modale de proposition), icône "Écarter" (ConfirmDialog).
+  7. **ConfirmDialog R1 pour Écartement** :
+     - `confirmText="Confirmer l'écartement"`, `variant="destructive"`, `isLoading` correct.
+     - Correction du pattern `startTransition` : capture de `demand.id` avant la transition pour éviter les captures de closure.
+  8. **`useToast` R1 Correct** :
+     - Utilisation de `toast.success(title, { description })` et `toast.error(title, { description })` conformément à l'API réelle.
+  9. **Onglet Analyse Territoriale Enrichi** :
+     - Sous-titre explicatif de l'anonymisation.
+     - Tableau avec `Users` icon sur le compteur acheteurs, colonnes catégorie masquée sur mobile, totaux en pied de tableau.
+     - Bloc d'orientation vers `/dashboard/company/productions` pour création de campagne.
+  10. **Squelette de Chargement Amélioré (`loading.tsx`)** :
+      - Fil d'Ariane, bannière héro, 4 cartes métriques, cartouche, onglets, barre de filtres, grille de cartes.
+
+* **Validation Technique** :
+  - TypeScript : 0 erreur (`npx tsc --noEmit` code 0).
+  - Next.js Build : ✓ (build complet certifié).
+
+---
+
+## 3. BILAN DE LA PHASE S4 (PRODUCTIONS & RÉCOLTES SOCIÉTÉ)
 
 * **Date de validation finale** : 2026-10-05
 * **Statut du projet** : 🟢 **STABLE — INTERFACE PRODUCTIONS & RÉCOLTES MODERNISÉE, TYPESCRIPT 0 ERREUR, BUILD ✓ (38/38 ROUTES)**
