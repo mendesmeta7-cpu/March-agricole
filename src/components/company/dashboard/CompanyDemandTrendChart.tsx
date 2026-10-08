@@ -3,6 +3,7 @@
 import { useState, useMemo, useId } from "react";
 import { TrendingUp, Filter, Info, Calendar } from "lucide-react";
 import EmptyState from "@/components/ui/EmptyState";
+import Select from "@/components/ui/Select";
 
 export interface DemandTrendPoint {
   date: string; // ISO date string
@@ -25,6 +26,14 @@ export default function CompanyDemandTrendChart({
   const [selectedProductId, setSelectedProductId] = useState<string>("all");
   const [displayMode, setDisplayMode] = useState<"volume" | "count">("volume");
   const [activeHoverIndex, setActiveHoverIndex] = useState<number | null>(null);
+
+  const productOptions = useMemo(
+    () => [
+      { value: "all", label: "Toutes les denrées" },
+      ...availableProducts.map((p) => ({ value: p.id, label: p.name })),
+    ],
+    [availableProducts]
+  );
 
   // 1. Filtrage selon le produit sélectionné
   const filteredDemands = useMemo(() => {
@@ -178,20 +187,14 @@ export default function CompanyDemandTrendChart({
 
           {/* Sélecteur de produit réel */}
           {availableProducts.length > 0 && (
-            <div className="relative">
-              <select
+            <div className="w-48">
+              <Select
                 value={selectedProductId}
                 onChange={(e) => setSelectedProductId(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 rounded-xl px-3 py-1.5 pr-8 text-xs font-semibold text-gray-800 shadow-2xs hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-forest-600"
-              >
-                <option value="all">Toutes les denrées</option>
-                {availableProducts.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-              <Filter className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                options={productOptions}
+                searchable
+                selectSize="sm"
+              />
             </div>
           )}
         </div>

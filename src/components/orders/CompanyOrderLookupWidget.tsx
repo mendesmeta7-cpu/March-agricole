@@ -90,20 +90,21 @@ export default function CompanyOrderLookupWidget({
 
           {/* Actions : Bouton Scanner Mobile + Saisie Manuelle */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
-            {/* Bouton Caméra Scanner */}
+            {/* Bouton Caméra Scanner unique (repositionné & accessible au pouce sur mobile pendant le scroll, statique sur desktop) */}
             <button
               type="button"
               onClick={() => {
                 setLookupError(null);
                 setIsScannerOpen(true);
               }}
-              className="px-4 py-2.5 text-xs font-bold text-forest-950 bg-emerald-400 hover:bg-emerald-300 active:scale-98 rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 shrink-0 group"
+              aria-label="Scanner un QR code"
+              className="fixed sm:static right-4 sm:right-auto bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] sm:bottom-auto z-40 sm:z-auto px-4 py-3 sm:py-2.5 text-xs font-bold text-forest-950 bg-emerald-400 hover:bg-emerald-300 active:scale-95 sm:active:scale-98 rounded-full sm:rounded-2xl transition-all shadow-2xl sm:shadow-md flex items-center justify-center gap-2 shrink-0 group border border-emerald-300/80 sm:border-transparent ring-2 ring-forest-950/20 sm:ring-0 focus:outline-none focus:ring-2 focus:ring-emerald-400"
             >
-              <Camera className="w-4 h-4 text-forest-950 group-hover:rotate-6 transition-transform" />
-              <span>Scanner un QR</span>
+              <Camera className="w-4 h-4 text-forest-950 group-hover:rotate-6 transition-transform shrink-0" />
+              <span className="font-bold">Scanner un QR</span>
             </button>
 
-            <span className="text-[11px] text-forest-300/80 text-center font-medium sm:px-1">ou</span>
+            <span className="hidden sm:inline text-[11px] text-forest-300/80 text-center font-medium sm:px-1">ou</span>
 
             {/* Champ de recherche par numéro */}
             <form onSubmit={handleManualSubmit} className="flex items-center gap-1.5 flex-1 sm:w-72">

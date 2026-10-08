@@ -105,7 +105,7 @@ export async function createOrderAction(
     }
 
     if (!data || data.length === 0) {
-      return { success: false, error: "Échec de l'enregistrement transactionnel de la commande." };
+      return { success: false, error: "Échec de l'enregistrement de la commande. Veuillez réessayer." };
     }
 
     const createdOrder = data[0];
@@ -131,7 +131,7 @@ export async function createOrderAction(
     console.error("Exception inattendue création commande:", err);
     return {
       success: false,
-      error: err.message || "Une erreur inattendue est survenue lors de la commande.",
+      error: err.message || "Une erreur inattendue est survenue lors de la commande. Veuillez réessayer.",
     };
   }
 }
@@ -164,7 +164,7 @@ export async function cancelOrderAction(
 
     if (error) {
       console.error("Erreur RPC cancel_order_and_release_reservation:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: "L'annulation de la commande a échoué. Veuillez réessayer." };
     }
 
     // Revalidation
@@ -178,7 +178,7 @@ export async function cancelOrderAction(
     return { success: true };
   } catch (err: any) {
     console.error("Exception inattendue annulation commande:", err);
-    return { success: false, error: err.message || "Erreur lors de l'annulation de la commande." };
+    return { success: false, error: err.message || "Une erreur inattendue est survenue lors de l'annulation. Veuillez réessayer." };
   }
 }
 
@@ -395,9 +395,34 @@ export interface LookupDeliveryOrderResult {
   }>;
 }
 
+async function getCompanyIdForUser(supabase: any, userId: string): Promise<string | null> {
+  const { data: memberData } = await supabase
+    .from("company_members")
+    .select("company_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (memberData?.company_id) {
+    return memberData.company_id;
+  }
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("created_by", userId)
+    .maybeSingle();
+
+  return company?.id || null;
+}
+
 /**
  * Recherche sécurisée d'une commande par son numéro lisible ou jeton QR code
- * RÈGLE ANTI-FUITE : Si la commande n'appartient pas à l'entreprise connectée, renvoie neutre "Commande introuvable"
+ * RÈGLE ANTI-FUITE :
+ * - Si le compte est Société : vérifie que order.company_id === société_connectée.id.
+ *   Si mismatch ou introuvable : renvoie neutre "Ce QR code ou numéro de commande n'est pas valide pour votre société."
+ * - Si le compte est Revendeur : vérifie que order.reseller_id === user.id.
+ *   Si mismatch ou introuvable : renvoie neutre "Ce QR code ou numéro de commande n'est pas valide pour votre compte."
+ * Aucune information n'est jamais divulguée sur une commande appartenant à un tiers.
  */
 export async function lookupOrderForDeliveryAction(
   identifier: string
@@ -420,56 +445,244 @@ export async function lookupOrderForDeliveryAction(
   }
 
   try {
-    const { data, error } = await supabase.rpc("lookup_order_for_delivery", {
-      p_identifier: cleanIdentifier,
-    });
+    // 1. Détection du rôle de l'utilisateur authentifié
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
 
-    if (error) {
-      console.error("Erreur RPC lookup_order_for_delivery:", error);
-      return { success: false, error: "Commande introuvable." };
+    const userRole = profile?.role;
+
+    // 2. Contexte Société : étanchéité par entreprise vendeuse
+    if (userRole === "company") {
+      const companyId = await getCompanyIdForUser(supabase, user.id);
+      if (!companyId) {
+        return {
+          success: false,
+          error: "Ce QR code ou numéro de commande n'est pas valide pour votre société.",
+        };
+      }
+
+      const { data, error } = await supabase.rpc("lookup_order_for_delivery", {
+        p_identifier: cleanIdentifier,
+      });
+
+      if (error || !data || data.length === 0) {
+        return {
+          success: false,
+          error: "Ce QR code ou numéro de commande n'est pas valide pour votre société.",
+        };
+      }
+
+      const raw = data[0];
+      if (raw.company_id !== companyId) {
+        return {
+          success: false,
+          error: "Ce QR code ou numéro de commande n'est pas valide pour votre société.",
+        };
+      }
+
+      const result: LookupDeliveryOrderResult = {
+        order_id: raw.order_id,
+        order_number: raw.order_number,
+        qr_code_token: raw.qr_code_token,
+        status: raw.status,
+        total_amount: Number(raw.total_amount || 0),
+        currency: raw.currency,
+        created_at: raw.created_at,
+        delivered_at: raw.delivered_at || null,
+        delivered_quantity: raw.delivered_quantity ? Number(raw.delivered_quantity) : null,
+        delivery_notes: raw.delivery_notes || null,
+        delivery_province_name: raw.delivery_province_name || null,
+        delivery_city: raw.delivery_city || null,
+        delivery_address: raw.delivery_address || null,
+        reseller_id: raw.reseller_id,
+        reseller_business_name: raw.reseller_business_name,
+        company_id: raw.company_id,
+        company_name: raw.company_name,
+        campaign_title: raw.campaign_title || null,
+        production_title: raw.production_title || null,
+        total_ordered_quantity: Number(raw.total_ordered_quantity || 0),
+        unit: raw.unit || "tonne",
+        items: (raw.items || []).map((it: any) => ({
+          product_id: it.product_id,
+          product_name: it.product_name,
+          quantity: Number(it.quantity || 0),
+          unit: it.unit || "tonne",
+          unit_price: Number(it.unit_price || 0),
+          subtotal: Number(it.subtotal || 0),
+        })),
+      };
+
+      return { success: true, data: result };
     }
 
-    if (!data || data.length === 0) {
-      return { success: false, error: "Commande introuvable." };
-    }
+    // 3. Contexte Revendeur : étanchéité par acheteur revendeur
+    if (userRole === "reseller") {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        cleanIdentifier
+      );
 
-    const raw = data[0];
-    const result: LookupDeliveryOrderResult = {
-      order_id: raw.order_id,
-      order_number: raw.order_number,
-      qr_code_token: raw.qr_code_token,
-      status: raw.status,
-      total_amount: Number(raw.total_amount || 0),
-      currency: raw.currency,
-      created_at: raw.created_at,
-      delivered_at: raw.delivered_at || null,
-      delivered_quantity: raw.delivered_quantity ? Number(raw.delivered_quantity) : null,
-      delivery_notes: raw.delivery_notes || null,
-      delivery_province_name: raw.delivery_province_name || null,
-      delivery_city: raw.delivery_city || null,
-      delivery_address: raw.delivery_address || null,
-      reseller_id: raw.reseller_id,
-      reseller_business_name: raw.reseller_business_name,
-      company_id: raw.company_id,
-      company_name: raw.company_name,
-      campaign_title: raw.campaign_title || null,
-      production_title: raw.production_title || null,
-      total_ordered_quantity: Number(raw.total_ordered_quantity || 0),
-      unit: raw.unit || "tonne",
-      items: (raw.items || []).map((it: any) => ({
+      const orClause = isUuid
+        ? `order_number.eq.${cleanIdentifier},qr_code_token.eq.${cleanIdentifier},id.eq.${cleanIdentifier}`
+        : `order_number.eq.${cleanIdentifier},qr_code_token.eq.${cleanIdentifier}`;
+
+      const { data: orderData, error: orderErr } = await supabase
+        .from("orders")
+        .select(`
+          id,
+          order_number,
+          qr_code_token,
+          status,
+          total_amount,
+          currency,
+          created_at,
+          delivered_at,
+          delivered_quantity,
+          delivery_notes,
+          delivery_city,
+          delivery_address,
+          destination_city_snapshot,
+          reseller_id,
+          company_id,
+          company_name_snapshot,
+          campaign_title_snapshot,
+          production_title_snapshot,
+          companies:company_id ( id, name ),
+          resellers:reseller_id ( id, business_name ),
+          provinces:delivery_province_id ( name ),
+          campaigns:campaign_id ( title ),
+          productions:production_id ( title ),
+          order_items (
+            id,
+            product_id,
+            quantity,
+            unit,
+            unit_price,
+            subtotal,
+            product_name_snapshot,
+            products:product_id ( name )
+          )
+        `)
+        .or(orClause)
+        .maybeSingle();
+
+      if (orderErr || !orderData) {
+        return {
+          success: false,
+          error: "Ce QR code ou numéro de commande n'est pas valide pour votre compte.",
+        };
+      }
+
+      // Règle stricte d'appartenance revendeur
+      if (orderData.reseller_id !== user.id) {
+        return {
+          success: false,
+          error: "Ce QR code ou numéro de commande n'est pas valide pour votre compte.",
+        };
+      }
+
+      const items = ((orderData.order_items as any[]) || []).map((it: any) => ({
         product_id: it.product_id,
-        product_name: it.product_name,
+        product_name: it.products?.name || it.product_name_snapshot || "Produit",
         quantity: Number(it.quantity || 0),
         unit: it.unit || "tonne",
         unit_price: Number(it.unit_price || 0),
         subtotal: Number(it.subtotal || 0),
-      })),
-    };
+      }));
 
-    return { success: true, data: result };
+      const totalQty = items.reduce((sum: number, it: any) => sum + it.quantity, 0);
+
+      const result: LookupDeliveryOrderResult = {
+        order_id: orderData.id,
+        order_number: orderData.order_number,
+        qr_code_token: orderData.qr_code_token,
+        status: orderData.status,
+        total_amount: Number(orderData.total_amount || 0),
+        currency: orderData.currency,
+        created_at: orderData.created_at,
+        delivered_at: orderData.delivered_at || null,
+        delivered_quantity: orderData.delivered_quantity
+          ? Number(orderData.delivered_quantity)
+          : null,
+        delivery_notes: orderData.delivery_notes || null,
+        delivery_province_name: (orderData.provinces as any)?.name || null,
+        delivery_city: orderData.destination_city_snapshot || orderData.delivery_city || null,
+        delivery_address: orderData.delivery_address || null,
+        reseller_id: orderData.reseller_id,
+        reseller_business_name: (orderData.resellers as any)?.business_name || "",
+        company_id: orderData.company_id,
+        company_name: (orderData.companies as any)?.name || orderData.company_name_snapshot || "",
+        campaign_title:
+          (orderData.campaigns as any)?.title || orderData.campaign_title_snapshot || null,
+        production_title:
+          (orderData.productions as any)?.title || orderData.production_title_snapshot || null,
+        total_ordered_quantity: totalQty,
+        unit: items[0]?.unit || "tonne",
+        items,
+      };
+
+      return { success: true, data: result };
+    }
+
+    // 4. Contexte Administrateur : vue de supervision
+    if (userRole === "admin") {
+      const { data, error } = await supabase.rpc("lookup_order_for_delivery", {
+        p_identifier: cleanIdentifier,
+      });
+
+      if (error || !data || data.length === 0) {
+        return { success: false, error: "Commande introuvable." };
+      }
+
+      const raw = data[0];
+      const result: LookupDeliveryOrderResult = {
+        order_id: raw.order_id,
+        order_number: raw.order_number,
+        qr_code_token: raw.qr_code_token,
+        status: raw.status,
+        total_amount: Number(raw.total_amount || 0),
+        currency: raw.currency,
+        created_at: raw.created_at,
+        delivered_at: raw.delivered_at || null,
+        delivered_quantity: raw.delivered_quantity ? Number(raw.delivered_quantity) : null,
+        delivery_notes: raw.delivery_notes || null,
+        delivery_province_name: raw.delivery_province_name || null,
+        delivery_city: raw.delivery_city || null,
+        delivery_address: raw.delivery_address || null,
+        reseller_id: raw.reseller_id,
+        reseller_business_name: raw.reseller_business_name,
+        company_id: raw.company_id,
+        company_name: raw.company_name,
+        campaign_title: raw.campaign_title || null,
+        production_title: raw.production_title || null,
+        total_ordered_quantity: Number(raw.total_ordered_quantity || 0),
+        unit: raw.unit || "tonne",
+        items: (raw.items || []).map((it: any) => ({
+          product_id: it.product_id,
+          product_name: it.product_name,
+          quantity: Number(it.quantity || 0),
+          unit: it.unit || "tonne",
+          unit_price: Number(it.unit_price || 0),
+          subtotal: Number(it.subtotal || 0),
+        })),
+      };
+
+      return { success: true, data: result };
+    }
+
+    // Autre rôle non autorisé
+    return {
+      success: false,
+      error: "Ce QR code ou numéro de commande n'est pas valide pour votre compte.",
+    };
   } catch (err: any) {
     console.error("Exception inattendue lookupOrderForDeliveryAction:", err);
-    return { success: false, error: "Commande introuvable." };
+    return {
+      success: false,
+      error: "Ce QR code ou numéro de commande n'est pas valide pour votre compte.",
+    };
   }
 }
 
@@ -509,9 +722,13 @@ export async function confirmOrderDeliveryAction(
 
     if (error) {
       console.error("Erreur RPC confirm_order_delivery:", error);
+      let friendlyMessage = "La confirmation de la livraison a échoué. Veuillez réessayer.";
+      if (error.message?.includes("déjà") || error.message?.includes("already")) {
+        friendlyMessage = "Cette commande a déjà été confirmée comme livrée.";
+      }
       return {
         success: false,
-        error: error.message || "Erreur lors de la confirmation de livraison.",
+        error: friendlyMessage,
       };
     }
 
@@ -544,7 +761,7 @@ export async function confirmOrderDeliveryAction(
     console.error("Exception inattendue confirmOrderDeliveryAction:", err);
     return {
       success: false,
-      error: err.message || "Erreur inattendue lors de la confirmation de livraison.",
+      error: err.message || "Une erreur inattendue est survenue lors de la confirmation de livraison. Veuillez réessayer.",
     };
   }
 }

@@ -28,7 +28,7 @@ export async function markNotificationAsReadAction(
     .eq("user_id", user.id);
 
   if (error) {
-    return { success: false, error: error.message };
+    return { success: false, error: "La mise à jour de la notification a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/reseller/notifications");
@@ -54,7 +54,7 @@ export async function markAllNotificationsAsReadAction(): Promise<NotificationAc
     .is("read_at", null);
 
   if (error) {
-    return { success: false, error: error.message };
+    return { success: false, error: "La mise à jour des notifications a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/reseller/notifications");

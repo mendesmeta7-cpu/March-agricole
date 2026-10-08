@@ -371,19 +371,18 @@ export default function ResellerOrderDetailDrawer({
           </div>
         </div>
 
-        {/* 5. Preuve de réservation atomique de stock */}
+        {/* 5. Garantie de disponibilité de stock */}
         <div className="p-3.5 rounded-2xl bg-blue-50/50 border border-blue-200/80 text-xs space-y-1.5">
           <div className="flex items-center gap-2 text-blue-950 font-bold">
             <ShieldCheck className="w-4 h-4 text-blue-700" />
-            <span>Garantie de Réservation Transactionnelle</span>
+            <span>Stock Réservé et Garanti</span>
           </div>
           <p className="text-[11px] text-blue-900 leading-relaxed">
-            Volume de <strong>{itemQuantity.toLocaleString("fr-FR")} {itemUnit}</strong> déduit
-            atomiquement du stock disponible de l&apos;exploitation dans <code>stock_reservations</code>.
+            Votre volume de <strong>{itemQuantity.toLocaleString("fr-FR")} {itemUnit}</strong> est formellement réservé auprès de l&apos;exploitation et vous est exclusivement attribué.
           </p>
           <div className="flex items-center gap-4 text-[11px] text-blue-800 font-semibold pt-1">
-            <span>Statut : <strong>{order.stock_reservation?.status || "active"}</strong></span>
-            <span>Quantité : <strong>{order.stock_reservation?.quantity || itemQuantity} {itemUnit}</strong></span>
+            <span>Réservation : <strong>Confirmée</strong></span>
+            <span>Quantité : <strong>{itemQuantity.toLocaleString("fr-FR")} {itemUnit}</strong></span>
           </div>
         </div>
 

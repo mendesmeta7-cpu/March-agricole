@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/Toast";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import Card from "@/components/ui/Card";
+import Select from "@/components/ui/Select";
 import {
   Tractor,
   Plus,
@@ -72,6 +73,30 @@ export default function CompanyProductionsView({
   const activeCompanyProducts = useMemo(
     () => companyProducts.filter((p) => p.is_active),
     [companyProducts]
+  );
+
+  const statusFilterOptions = useMemo(
+    () => [
+      { value: "all", label: "Tous les statuts" },
+      { value: "growing", label: "En culture" },
+      { value: "harvested", label: "Récoltée" },
+      { value: "planned", label: "Planifiée" },
+      { value: "draft", label: "Brouillon" },
+      { value: "cancelled", label: "Annulée" },
+    ],
+    []
+  );
+
+  const productFilterOptions = useMemo(
+    () => [
+      { value: "all", label: "Toutes les cultures" },
+      ...activeCompanyProducts.map((cp) => ({
+        value: cp.product.id,
+        label: cp.custom_name || cp.product.name,
+        badge: cp.product.category,
+      })),
+    ],
+    [activeCompanyProducts]
   );
 
   // Filtrage combiné réactif
@@ -290,36 +315,27 @@ export default function CompanyProductionsView({
             </div>
 
             {/* Filtre par statut */}
-            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-              <div className="flex items-center gap-1.5 w-full sm:w-auto">
-                <Filter className="w-3.5 h-3.5 text-gray-400 shrink-0 hidden sm:block" />
-                <select
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+              <div className="w-full sm:w-48">
+                <Select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full sm:w-auto px-3 py-2 text-xs sm:text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-600 bg-white"
-                >
-                  <option value="all">Tous les statuts</option>
-                  <option value="growing">En culture</option>
-                  <option value="harvested">Récoltée</option>
-                  <option value="planned">Planifiée</option>
-                  <option value="draft">Brouillon</option>
-                  <option value="cancelled">Annulée</option>
-                </select>
+                  options={statusFilterOptions}
+                  leftIcon={<Filter className="w-3.5 h-3.5 text-gray-400" />}
+                  selectSize="sm"
+                />
               </div>
 
               {/* Filtre par produit d'exploitation */}
-              <select
-                value={productFilter}
-                onChange={(e) => setProductFilter(e.target.value)}
-                className="w-full sm:w-auto px-3 py-2 text-xs sm:text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-600 bg-white"
-              >
-                <option value="all">Toutes les cultures</option>
-                {activeCompanyProducts.map((cp) => (
-                  <option key={cp.product.id} value={cp.product.id}>
-                    {cp.custom_name || cp.product.name}
-                  </option>
-                ))}
-              </select>
+              <div className="w-full sm:w-56">
+                <Select
+                  value={productFilter}
+                  onChange={(e) => setProductFilter(e.target.value)}
+                  options={productFilterOptions}
+                  searchable
+                  selectSize="sm"
+                />
+              </div>
             </div>
           </div>
 

@@ -8,6 +8,7 @@ import ResellerCampaignSkeleton from "./ResellerCampaignSkeleton";
 import OrderFormModal from "@/components/orders/OrderFormModal";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
+import Select from "@/components/ui/Select";
 import Link from "next/link";
 import {
   Megaphone,
@@ -61,6 +62,14 @@ export default function ResellerCampaignsView({
       new Set(campaigns.map((c) => c.product.category))
     ).filter(Boolean);
   }, [campaigns]);
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: "all", label: "Toutes les catégories" },
+      ...categories.map((cat) => ({ value: cat, label: cat, badge: cat })),
+    ],
+    [categories]
+  );
 
   // Filtrage réactif côté client
   const filteredCampaigns = useMemo(() => {
@@ -190,18 +199,15 @@ export default function ResellerCampaignsView({
         {/* Contrôles Desktop : Catégories + Toggle Éligibilité */}
         <div className="hidden sm:flex items-center gap-2.5 shrink-0 flex-wrap">
           {/* Menu déroulant des catégories */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 text-xs sm:text-sm rounded-xl border border-gray-200 bg-white text-gray-800 font-medium focus:ring-2 focus:ring-forest-600 focus:border-forest-600 outline-none transition-all cursor-pointer shadow-2xs"
-          >
-            <option value="all">Toutes les catégories</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
+          <div className="w-52">
+            <Select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              options={categoryOptions}
+              searchable
+              selectSize="sm"
+            />
+          </div>
 
           {/* Toggle Éligibilité */}
           <label className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-50 hover:bg-forest-50 border border-gray-200 text-xs sm:text-sm font-medium text-gray-800 cursor-pointer select-none transition-colors shadow-2xs">
@@ -340,18 +346,13 @@ export default function ResellerCampaignsView({
             <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block">
               Catégorie de produit
             </label>
-            <select
+            <Select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-forest-600 outline-none"
-            >
-              <option value="all">Toutes les catégories</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+              options={categoryOptions}
+              searchable
+              selectSize="sm"
+            />
           </div>
 
           {/* Éligibilité territoriale */}

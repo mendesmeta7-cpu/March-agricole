@@ -145,7 +145,7 @@ export async function createProductionAction(
       });
 
     if (uploadError) {
-      return { error: `Erreur de téléversement de la photo : ${uploadError.message}` };
+      return { error: "Le téléchargement de la photo a échoué. Vérifiez le format (JPG, PNG, WebP) et la taille du fichier (max. 5 Mo)." };
     }
 
     const { data: publicUrlData } = supabase.storage
@@ -195,7 +195,7 @@ export async function createProductionAction(
     .single();
 
   if (insertError) {
-    return { error: `Erreur lors de l'enregistrement de la production : ${insertError.message}` };
+    return { error: "L'enregistrement de la production a échoué. Veuillez vérifier les informations saisies et réessayer." };
   }
 
   revalidatePath("/dashboard/company/productions");
@@ -311,7 +311,7 @@ export async function updateProductionAction(
       });
 
     if (uploadError) {
-      return { error: `Erreur d'upload photo : ${uploadError.message}` };
+      return { error: "Le téléchargement de la photo a échoué. Vérifiez le format (JPG, PNG, WebP) et la taille du fichier (max. 5 Mo)." };
     }
 
     const { data: publicUrlData } = supabase.storage
@@ -352,7 +352,7 @@ export async function updateProductionAction(
     .eq("company_id", companyId);
 
   if (updateError) {
-    return { error: `Erreur de mise à jour : ${updateError.message}` };
+    return { error: "La mise à jour de la production a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/company/productions");
@@ -397,7 +397,7 @@ export async function updateProductionStatusAction(
     .eq("company_id", companyId);
 
   if (error) {
-    return { error: `Erreur de modification du statut : ${error.message}` };
+    return { error: "La modification du statut a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/company/productions");
@@ -438,7 +438,7 @@ export async function toggleProductionVisibilityAction(
     .eq("company_id", companyId);
 
   if (error) {
-    return { error: `Erreur visibilité : ${error.message}` };
+    return { error: "La modification de la visibilité a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/company/productions");
@@ -550,7 +550,7 @@ export async function deleteProductionAction(
     .eq("company_id", companyId);
 
   if (deleteErr) {
-    return { error: `Erreur lors de la suppression : ${deleteErr.message}` };
+    return { error: "La suppression a échoué. Veuillez réessayer ou contacter le support." };
   }
 
   revalidatePath("/dashboard/company/productions");
@@ -589,7 +589,7 @@ export async function archiveProductionAction(
     .eq("company_id", companyId);
 
   if (error) {
-    return { error: `Erreur d'archivage : ${error.message}` };
+    return { error: "L'archivage de la production a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/company/productions");

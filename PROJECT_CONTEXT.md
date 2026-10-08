@@ -93,8 +93,9 @@ La plateforme repose sur 5 piliers conceptuels strictement distincts dans les mo
 * **Propriétés** :
   - Définit un volume commercialisable dédié (qui ne peut dépasser le stock de la production) ;
   - Fixe un prix unitaire ferme, une devise (ex. : USD) et une période de disponibilité ;
-  - **Spécifie explicitement les zones géographiques desservies** (liste des pays et provinces/régions éligibles à la livraison) ;
-  - Possède des statuts stricts : `brouillon`, `active` (ouverte aux commandes), `suspendue`, `terminée`, `annulée`.
+  - **Spécifie explicitement les zones géographiques desservies** (liste des pays et provinces/régions éligibles à la livraison) ainsi que les destinations par ville avec dates limites (`campaign_destinations`) ;
+  - Possède des statuts stricts : `brouillon`, `active` (ouverte aux commandes), `suspendue`, `terminée` (`completed`), `annulée` ;
+  - **Règle fondamentale multi-destinations (Étape 4)** : Une campagne reste active tant qu'au moins une destination reste active (`order_deadline_date >= aujourd'hui` ou non bornée). Elle bascule automatiquement à terminée dès que TOUTES ses destinations sont expirées ou que sa date de fin globale `end_date` est atteinte. Société et Revendeur partagent rigoureusement la même vérité métier (`campaignStatus.ts`).
 
 ### 4. Commande (`Order`)
 * **Définition** : Engagement commercial formel et ferme passé par un revendeur sur une campagne active dont la zone géographique couvre sa localisation.

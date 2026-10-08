@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { DemandItem, DemandResponseItem } from "@/lib/queries/demands";
 import { Province } from "@/lib/queries/geography";
 import { createOrderFromDemandResponseAction } from "@/lib/actions/orders";
+import Select from "@/components/ui/Select";
 import {
   X,
   CheckCircle,
@@ -50,6 +51,11 @@ export default function DemandResponsesModal({
   const [deliveryCity, setDeliveryCity] = useState(demand?.city || "");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
+
+  const provinceOptions = useMemo(
+    () => provinces.map((p) => ({ value: p.id, label: p.name })),
+    [provinces]
+  );
 
   if (!isOpen || !demand) return null;
 
@@ -198,18 +204,15 @@ export default function DemandResponsesModal({
                 <label className="block text-xs font-semibold text-gray-800">
                   Province de livraison <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <Select
                   required
+                  searchable
+                  leftIcon={<MapPin className="w-4 h-4 text-earth-700" />}
+                  placeholder="Sélectionner une province..."
                   value={deliveryProvinceId}
                   onChange={(e) => setDeliveryProvinceId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600 focus:border-earth-600 bg-white"
-                >
-                  {provinces.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                  options={provinceOptions}
+                />
               </div>
 
               {/* Ville & Adresse */}

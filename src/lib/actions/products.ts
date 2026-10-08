@@ -88,7 +88,7 @@ export async function associateCatalogProductAction(
       });
 
     if (uploadError) {
-      return { error: `Erreur de téléversement : ${uploadError.message}` };
+      return { error: "Le téléchargement de la photo a échoué. Vérifiez le format (JPG, PNG, WebP) et la taille du fichier." };
     }
 
     const { data: publicUrlData } = supabase.storage
@@ -124,7 +124,7 @@ export async function associateCatalogProductAction(
         .eq("id", existing.id);
 
       if (updateErr) {
-        return { error: `Erreur de réactivation : ${updateErr.message}` };
+        return { error: "La réactivation du produit a échoué. Veuillez réessayer." };
       }
 
       revalidatePath("/dashboard/company/products");
@@ -147,7 +147,7 @@ export async function associateCatalogProductAction(
   });
 
   if (insertErr) {
-    return { error: `Erreur d'association : ${insertErr.message}` };
+    return { error: "L'ajout de ce produit à votre exploitation a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/company/products");
@@ -238,7 +238,7 @@ export async function createAndAssociateProductAction(
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: "L'enregistrement du produit personnalisé a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/company/products");
@@ -313,7 +313,7 @@ export async function updateCompanyProductAction(
       });
 
     if (uploadError) {
-      return { error: `Erreur d'upload : ${uploadError.message}` };
+      return { error: "Le téléchargement de la photo a échoué. Vérifiez le format (JPG, PNG, WebP) et la taille du fichier." };
     }
 
     const { data: publicUrlData } = supabase.storage
@@ -331,7 +331,7 @@ export async function updateCompanyProductAction(
     .eq("company_id", companyId);
 
   if (updateErr) {
-    return { error: `Erreur de mise à jour : ${updateErr.message}` };
+    return { error: "La mise à jour du produit a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/company/products");
@@ -371,7 +371,7 @@ export async function toggleCompanyProductStatusAction(
     .eq("company_id", companyId);
 
   if (error) {
-    return { error: error.message };
+    return { error: "La modification du statut du produit a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/company/products");
@@ -434,7 +434,7 @@ export async function deleteCompanyProductAction(
     .eq("company_id", companyId);
 
   if (delErr) {
-    return { error: `Erreur lors de la suppression : ${delErr.message}` };
+    return { error: "La suppression du produit a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/company/products");

@@ -3,6 +3,312 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [ETAPE-4-CAMPAIGN-STATUS-FIX] - 2026-10-08
+### Étape 4 — Correctif Définitif du Statut des Campagnes Commerciales (Société / Revendeur)
+
+#### 1. Contexte & Cause Racine
+- **Incohérence constatée** : Une campagne expirée par sa date de fin globale ou par l'expiration de ses destinations était considérée comme terminée côté Revendeur, mais continuait d'apparaître dans les « Campagnes en cours » côté Société (sur le Dashboard d'accueil `/dashboard/company` et dans les listes).
+- **Cause racine 1** : `src/app/dashboard/company/page.tsx` sélectionnait `status` sans récupérer `start_date`, `end_date` ni `campaign_destinations`, et filtrait superficiellement sur `c.status === "active"`.
+- **Cause racine 2** : `getCompanyCampaigns` dans `src/lib/queries/campaigns.ts` renvoyait `item.status` brut de la base sans recalculer son statut effectif.
+- **Cause racine 3** : La fonction PostgreSQL `check_and_close_expired_campaigns()` ne vérifiait que `end_date < CURRENT_DATE` sans vérifier si toutes les destinations étaient expirées.
+- **Cause racine 4** : Absence d'appel à `revalidatePath("/dashboard/company")` lors des modifications de campagne.
+
+#### 2. Solutions Appliquées & Source Unique de Vérité
+1. **Source Unique de Vérité (`src/lib/utils/campaignStatus.ts`)** :
+   - Création / harmonisation des helpers purs `getEffectiveCampaignStatus`, `isCampaignActive`, et `getCampaignDestinationsSummary`.
+   - **Règle métier fondamentale respectée** : Une destination expirée ne termine **pas** la campagne si d'autres destinations restent actives. La campagne ne devient `completed` que si **TOUTES** ses destinations sont expirées ou si `end_date` globale est dépassée.
+2. **Requêtes Société (`src/lib/queries/campaigns.ts`)** :
+   - Application de `getEffectiveCampaignStatus` dans `getCompanyCampaigns` et `getCompanyCampaignById` (`status: effectiveStatus`).
+   - Utilisation de `isCampaignActive` dans `getResellerCampaigns`.
+   - Réexportation centralisée des fonctions utilitaires pour compatibilité ascendante.
+3. **Tableau de Bord Société (`src/app/dashboard/company/page.tsx`)** :
+   - Sélection enrichie des dates et de `campaign_destinations (id, order_deadline_date)`.
+   - Calcul de `effectiveStatus` sur chaque campagne pour un décompte strict et exact des campagnes actives en cours.
+4. **Flux Public Revendeur (`src/lib/queries/feed.ts`)** :
+   - Sélection de `order_deadline_date` dans `campaign_destinations`.
+   - Utilisation de `isCampaignActive` pour la détection de la campagne active attachée à chaque production.
+5. **Server Actions (`src/lib/actions/campaigns.ts`)** :
+   - Contrôle préventif dans `updateCampaignStatusAction` interdisant de basculer à `active` une campagne expirée.
+   - Ajout systématique de `revalidatePath("/dashboard/company")` pour rafraîchir instantanément le compteur d'accueil.
+6. **Migration SQL & Fonction RPC (`20261008000025_fix_campaign_expiration_and_destinations.sql`)** :
+   - Mise à jour de `public.check_and_close_expired_campaigns()` pour couvrir l'expiration de `end_date` ET l'expiration de toutes les destinations (`NOT EXISTS active destination`).
+   - Exécution immédiate sur Supabase via MCP `execute_sql` (3 campagnes réelles périmées closes en base proprement).
+
+#### 3. Validation & Intégrité
+- **Tests** : 12 scénarios d'homologation exécutés avec succès (`scripts/test-campaign-status-rules.mjs` — code 0).
+- **Données historiques** : 100% préservées (les 6 commandes réelles en base sont intactes, 0 donnée fictive).
+- **TypeScript** : 0 erreur (`npx tsc --noEmit` code 0).
+- **Build Next.js** : 38/38 routes compilées avec succès (`npm run build` code 0).
+
+## [UX-CLEANUP-TECH-TERMS] - 2026-10-08
+### Audit & Nettoyage Global des Informations Techniques Visibles Côté Utilisateur
+
+#### 1. Contexte & Objectif
+Élimination intégrale des termes techniques et détails d'implémentation (Supabase, Cloudinary, Next.js, React, TypeScript, RLS, Server Actions, API, backend, base de données, stockage, architecture V1, atomique, RPC) susceptibles d'apparaître dans les interfaces utilisateur, toasts ou retours d'actions. L'expérience utilisateur est désormais 100% axée sur le vocabulaire métier agricole et transactionnel.
+
+#### 2. Fichiers et Actions Nettoyés
+1. **Server Actions (Sécurisation et humanisation des retours)** :
+   - `src/lib/actions/auth.ts` : Encapsulation des erreurs Supabase Auth en messages français clairs.
+   - `src/lib/actions/orders.ts` : Suppression des messages techniques (« transactionnel », « RPC FOR UPDATE »), reformulation des confirmations de livraison et réservations.
+   - `src/lib/actions/campaigns.ts` : Encapsulation des retours RPC et élimination des messages bruts d'exceptions.
+   - `src/lib/actions/admin/products.ts`, `feedCategories.ts`, `feedBanners.ts` : Remplacement des erreurs de téléversement et base de données par des consignes explicites.
+   - `src/lib/actions/notifications.ts`, `company.ts`, `demands.ts`, `productions.ts`, `resellers.ts` : Retrait de toute exposition brute de `error.message`.
+2. **Composants UI & Modales** :
+   - `OrderFormModal.tsx` & `CompanyOrderDetailView.tsx` : Remplacement du jargon « Réservation transactionnelle atomique » par « Garantie de stock réservé ».
+   - `ResellerDemandsView.tsx` : Remplacement de « réservation atomique » par « garantie de stock ».
+   - `ResellerProfileView.tsx` : Suppression de toutes les mentions « Cloudinary » (bouton de changement de photo, confirmation de suppression).
+   - `EditProductDrawer.tsx` & `AddProductDrawer.tsx` : Reformulation de « Notes techniques » en « Notes d'exploitation ».
+3. **Espace Administration** :
+   - `AdminCategoriesView.tsx` : Remplacement de « Cloudinary ✓ » par « Image configurée ✓ ».
+   - `admin/banners/page.tsx` & `admin/categories/page.tsx` : Reformulation des visuels Cloudinary en visuels haute définition / illustratifs.
+   - `admin/orders/page.tsx` : Suppression des références au « Jalon Phase 10 » et « réservations atomiques ».
+   - `admin/page.tsx` : Remplacement de « Données PostgreSQL », « Row Level Security (RLS) », « RPC FOR UPDATE » par « Données système », « Cloisonnement des données », « Contrôle anti-surréservation ».
+
+#### 3. Validation Technique
+- TypeScript : 0 erreur (`npx tsc --noEmit` code 0).
+- Next.js Build : ✓ Code 0 — 38/38 routes compilées avec succès.
+
+## [DASHBOARD-SOCIETE-REFONTE] - 2026-10-08
+### Dashboard Société — Refonte Complète UX/UI & Architecture de Données
+
+#### 1. Contexte & Objectif
+Modernisation intégrale du tableau de bord de l'exploitation agricole (`/dashboard/company`) pour répondre aux standards SaaS professionnels les plus exigeants (hiérarchie visuelle claire, cartes métriques épurées sans jargon technique, requêtes parallèles, graphiques expressifs à couleurs dynamiques, fil d'activité soigné et squelette de chargement sur-mesure).
+
+#### 2. Composants et Fichiers Refondus
+1. **`src/app/dashboard/company/page.tsx`** :
+   - Parallélisation complète des requêtes Supabase via `Promise.all` (élimination des latences séquentielles).
+   - Intégration fine des statuts et enrichissement des statistiques sans aucune donnée fictive.
+   - Suppression du logo de l'en-tête principal (déjà présent dans la sidebar desktop et le header mobile).
+2. **`CompanyDashboardHeader.tsx`** :
+   - Salutation contextuelle sublimée et proéminente (*Bonjour*, *Bon après-midi*, *Bonsoir* avec emoji de bienvenue et typographie émeraude vive `text-xl sm:text-3xl font-extrabold`).
+   - Pastille supérieure chic avec point de pulsation en direct (*Espace Exploitation Agricole* et date du jour).
+   - Badges d'état et localisation géographique intégrés en glassmorphism translucide haute lisibilité.
+   - **Correction critique de visibilité du bouton « Campagnes »** : Élimination du conflit de classes Tailwind (texte blanc sur fond blanc causé par la variante par défaut du composant Button) grâce à un typage de contraste garanti (`text-forest-950 font-bold` sur fond blanc pur avec icône mise en valeur).
+3. **`CompanyOverviewMetrics.tsx`** :
+   - 4 cartes KPI avec accent coloré supérieur, élévation au survol, et hiérarchie visuelle contrastée.
+   - Suppression absolue de tout jargon technique (`Supabase`, `RLS`, `atomique`, etc.) au profit d'un vocabulaire purement métier et compréhensible pour les exploitants.
+4. **`CompanyDemandGeoChart.tsx`** :
+   - Nuancier dynamique calculé selon le rang de volume des provinces (vert forêt dominant pour la province n°1, ambre/jaune/rose/violet pour les rangs suivants) remplaçant la couleur monochrome uniforme précédente.
+   - Tiroir de consultation détaillée par province préservé avec toutes ses données réelles.
+5. **`CompanyPendingActions.tsx`** :
+   - Cartouche d'alerte opérationnelle avec barre d'accent visuelle gauche par type d'événement.
+   - État vide apaisant et soigné lorsque toutes les opérations sont à jour.
+   - Liens directs et rapides vers les demandes et commandes concernées.
+6. **`CompanyRecentActivity.tsx`** :
+   - 2 flux distincts harmonisés (*Dernières Demandes du Marché* et *Dernières Commandes Reçues*).
+   - Intégration du composant officiel `OrderStatusBadge` pour une parfaite cohérence visuelle.
+   - Boutons de consultation directe et liens de synthèse en bas de carte.
+7. **`src/app/dashboard/company/loading.tsx`** :
+   - Squelette de chargement sur-mesure reproduisant fidèlement la disposition en grille (en-tête, 4 KPIs, actions en attente, 2 graphiques, 2 flux d'activité) afin de supprimer tout layout shift.
+
+#### 3. Respect des Principes d'Or de la V1
+- **Règle 2 (No Mock Data)** : 100% des métriques, graphiques et listes sont alimentés par des requêtes et transactions Supabase réelles.
+- **Règle 3 (Séparation des Entités)** : Distinction stricte Présentation de l'exploitation ≠ Productions ≠ Demandes ≠ Campagnes ≠ Commandes.
+
+#### 4. Validation Technique
+- TypeScript : 0 erreur (`npx tsc --noEmit` code 0).
+- Next.js Build : ✓ Code 0 — 38/38 routes compilées avec succès.
+
+## [SELECT-MIGRATION] - 2026-10-08
+### Raffinement UI/UX Global — Migration `<select>` natifs → Composant `Select` R1
+
+#### 1. Objectif
+Uniformisation de tous les sélecteurs de l'application vers le composant `Select` R1 (`src/components/ui/Select.tsx`) pour garantir une cohérence visuelle absolue (design premium, animations fluides, support `searchable`) dans tout le codebase.
+
+#### 2. Fichiers migrés (14 composants)
+- `DemandResponsesModal.tsx` — select province
+- `CompanyDemandDetailView.tsx` — selects production + devise
+- `CompanyOrderDetailView.tsx` — select statut
+- `CampaignFormModal.tsx` — selects production + devise
+- `register/reseller/page.tsx` — select typologie revendeur
+- `AdminProductModal.tsx` — selects catégorie + unité
+- `AdminProductsView.tsx` — filtre catégorie
+- `CompanyProductionsView.tsx` — filtres statut + produit
+- `CompanyProductsView.tsx` — filtre catégorie
+- `CompanyDemandTrendChart.tsx` — filtre produit
+- `FeedFilters.tsx` — selects province + statut
+- `ResellerCampaignsView.tsx` — catégorie (desktop + mobile drawer)
+- `ResellerDemandsView.tsx` — type + statut + denrée (desktop + mobile drawer)
+- `MarketDemandsAnalysisView.tsx` — denrée + province
+
+#### 3. Pattern appliqué
+```tsx
+// Avant
+<select value={x} onChange={(e) => setX(e.target.value)} className="...">
+  <option value="all">Tous</option>
+  {items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+</select>
+
+// Après
+<Select
+  value={x}
+  onChange={(e) => setX(e.target.value)}
+  searchable  // pour les listes longues (produits, provinces)
+  options={useMemo(() => [
+    { value: "all", label: "Tous" },
+    ...items.map(i => ({ value: i.id, label: i.name })),
+  ], [items])}
+/>
+```
+
+#### 4. Corrections TypeScript annexes
+- `DemandFormModal.tsx` : suppression de `p.variety_count` (champ inexistant sur `CatalogProduct`) → remplacé par `p.description`
+- `ProductionDemandModal.tsx` : correction import nommé `{ Select }` → import par défaut `Select`
+
+#### 5. Validation Technique
+- TypeScript : 0 erreur.
+- Next.js Build : ✓ **Code 0 — 38/38 routes compilées avec succès.**
+
+
+## [S9] - 2026-10-07
+### Profil Entreprise — Refonte UI/UX Épurée & Compacte (Retrait du bandeau décoratif)
+
+#### 1. Composants créés & modernisés
+- **`CompanyProfileView.tsx` & `ResellerProfileView.tsx`** :
+  - **Suppression du bandeau vert supérieur (couverture décorative)** : Élimination de 150 à 200px de vide vertical superflu sur les espaces Société et Revendeur.
+  - **Réalignement naturel de l'en-tête** : Suppression des marges négatives de chevauchement (`-mt-10`, `-mt-14`). L'avatar/logo s'intègre désormais harmonieusement dans la carte d'en-tête, directement aligné avec la dénomination, les badges de certification officiels et les boutons d'action.
+  - **Expérience SaaS directe & compacte** : Vue d'ensemble immédiate sans obligation de défilement vers le bas, particulièrement optimisée sur mobile.
+  - **Barre d'Onglets structurée** :
+    1. *Identité & Fiche* : Présentation complète de l'activité, filières agricoles, renseignements juridiques et système.
+    2. *Coordonnées & Siège* : Téléphone officiel, email professionnel, pays, province, ville et adresse physique.
+    3. *Activité en Direct* : 3 cartes métriques réelles (Productions enregistrées, Campagnes de vente, Commandes reçues) avec liens contextuels directs et encadré de transparence (zéro fausse donnée).
+    4. *Gouvernance & Sécurité* : Titulaire du compte, rôle de gouvernance Owner/Administrateur, identifiant unique de session, et bouton de déconnexion sécurisé avec `ConfirmDialog`.
+
+- **`CompanyEditProfileDrawer.tsx`** (Nouveau) :
+  - Tiroir coulissant R1 `size="lg"` pour la modification complète de l'exploitation sans quitter la vue profil.
+  - Téléversement et prévisualisation du logo (JPG, PNG, WebP < 5 Mo) avec option de suppression.
+  - Champs structurés avec `FormField`, `Input`, `Textarea` : Nom de l'exploitation, Présentation & Cultures, Téléphone, Email, Ville/Territoire, Adresse physique.
+  - Validation interactive, retour d'erreur élégant et confirmation par toast Radiza.
+
+- **`loading.tsx` Société & `ResellerProfileSkeleton.tsx` Revendeur** :
+  - Squelettes ajustés avec suppression des bannières de couverture pour un chargement instantané sans layout shift.
+
+- **`src/app/dashboard/company/profile/page.tsx`** (Mise à jour) :
+  - Intégration de `CompanyProfileView`, récupération de l'entreprise via `created_by` ou `company_members`, calcul des statistiques d'activité réelles (productions, campagnes, commandes), état vide propre si aucune exploitation rattachée.
+
+- **`src/lib/actions/company.ts`** (Mise à jour) :
+  - Prise en charge de la mise à jour de `name` et de `removeLogo` dans `updateCompanyProfileAction`, conservation intégrale du stockage Supabase Storage `public-assets/logos` (aucune migration sauvage vers Cloudinary).
+
+#### 2. Respect des Principes d'Or de la V1
+- **Règle 2 (No Mock Data)** : 100% des compteurs, coordonnées et statuts proviennent des enregistrements authentiques Supabase. Pas de chiffres fictifs, pas de faux avis, pas de faux scores.
+- **Règle 3 (Séparation des Entités)** : L'entité Entreprise reste strictement découplée des Productions, Campagnes et Commandes.
+- **Sécurité & Multi-Tenant** : Requêtes filtrées sur l'entreprise rattachée à l'utilisateur connecté via les politiques RLS Supabase.
+
+#### 3. Validation Technique
+- `npx tsc --noEmit` : 0 erreur TypeScript.
+- `npm run build` : 38/38 routes compilées avec succès (Code 0).
+
+## [S8] - 2026-10-07
+### Notifications Société — Refonte UI/UX & Centre de Notification Dédié
+
+#### 1. Composants créés & modernisés
+- **`CompanyNotificationsView.tsx`** (Nouveau) :
+  - **En-tête Héro Immersif Radiza** : Dégradé signature `forest-900 → forest-800 → earth-900` avec anneaux décoratifs, horodatage en direct, et bouton d'action global "Tout marquer comme lu" avec indicateur de chargement et toast de confirmation.
+  - **4 Métriques Opérationnelles Réelles** : Total, Non Lues, Demandes Marché, Commandes Reçues calculées exclusivement sur les notifications réelles Supabase de la session active (zéro donnée fictive).
+  - **Filtrage Contextuel Avancé** : 5 onglets défilables (`Toutes`, `Non lues`, `Demandes`, `Commandes`, `Campagnes`) avec pastilles de comptage réelles.
+  - **Recherche Instantanée** : Filtre textuel en temps réel sur le titre et le corps des messages avec bouton d'effacement rapide.
+  - **Regroupement Temporel Naturel** : Organisation automatique par sections chronologiques (`Aujourd'hui`, `Hier`, `Cette semaine`, `Plus anciennes`).
+  - **Cartes de Notification Interactives** :
+    - Distinction visuelle nette entre lue et non lue (bordure gauche verte émeraude accentuée, fond teinté doux, pastille non-lue pulsante).
+    - Métadonnées complètes : icône thématique par type, catégorie badgeée, date et heure au format francophone.
+    - Actions rapides : bouton unitaire "Marquer comme lu", bouton de navigation contextuelle vers la ressource métier.
+  - **États Vides Élégants et Pédagogiques** : Visuel soigné sans données fictives lorsque la boîte de réception ou un filtre est vide.
+  - **Sanitisation Sécurisée des Liens (`getCompanyTargetUrl`)** : Redirection garantie vers l'espace `/dashboard/company/...` quel que soit le lien source enregistré, interdisant toute fuite vers des routes revendeur.
+
+- **`src/app/dashboard/company/notifications/loading.tsx`** (Nouveau) :
+  - Skeleton complet Radiza (bannière, cartes métriques, onglets, cartes de notification avec effet shimmer) assurant un affichage instantané sans sursaut de mise en page.
+
+- **`src/app/dashboard/company/notifications/page.tsx`** (Mise à jour) :
+  - Branchement direct sur `CompanyNotificationsView` avec transmission des notifications réelles de l'utilisateur (`getUserNotifications`), du nombre total et du nombre de non-lues (`getUnreadNotificationCount`).
+
+#### 2. Respect des Principes d'Or de la V1
+- **Règle 2 (No Mock Data)** : 100% des cartes, statistiques et compteurs proviennent des données authentiques Supabase. Pas de faux compteurs, pas de badge "0" superflu quand tout est lu.
+- **Règle 3 (Séparation des Entités)** : Typage strict des événements (Commandes, Demandes, Campagnes, Systèmes) avec redirection vers les entités respectives.
+- **Sécurité & Multi-Tenant** : Authentification requise, requêtes filtrées sur `user_id` de l'utilisateur connecté via les politiques RLS Supabase.
+
+#### 3. Validation Technique
+- `npx tsc --noEmit` : 0 erreur TypeScript.
+- `npm run build` : 38/38 routes compilées avec succès (Code 0).
+
+## [CORRECTIF-S7] - 2026-10-07
+### Correctif Ciblé — « Mes Commandes » / QR Code / Numéro de Commande
+
+#### 1. Séparation stricte des responsabilités Revendeur / Société
+- **Côté Société (`/dashboard/company/orders`)** :
+  - Suppression de l'affichage du QR code destiné au Revendeur (`QRCodeModal`, boutons QR code retirés de `CompanyOrderCard.tsx`, `CompanyOrderDetailDrawer.tsx`, `CompanyOrderDetailView.tsx`, et de la vue tableau de `CompanyOrdersView.tsx`).
+  - Suppression de l'affichage proéminent du numéro de commande comme s'il s'agissait d'un identifiant acheteur : suppression du bouton copier le numéro, remplacement par une référence technique interne discrète (`Réf. CMD-...`).
+  - Priorisation des informations nécessaires au traitement opérationnel : nom de l'acheteur revendeur, territoire, denrées, volume ferme, montant, destination, dépôt logistique, dates d'arrivée, statuts et notes.
+- **Côté Revendeur (`/dashboard/reseller/orders`)** :
+  - Maintien intégral du système permettant au revendeur de consulter son numéro de commande et d'afficher son QR code de retrait pour présentation lors de la livraison physique.
+
+#### 2. Validation Serveur Inviolable Multi-Tenant (`src/lib/actions/orders.ts`)
+- Refonte de `lookupOrderForDeliveryAction` avec identification systématique du compte et de son rôle (`profiles.role`) :
+  - **Pour une Société** : Récupération de l'ID entreprise via `getCompanyIdForUser`, vérification stricte `order.company_id === connected_company_id`. En cas d'inadéquation ou d'enregistrement introuvable, retour exclusif du message générique neutre : `"Ce QR code ou numéro de commande n'est pas valide pour votre société."` Aucune donnée sensible ou métadonnée n'est divulguée.
+  - **Pour un Revendeur** : Vérification stricte `order.reseller_id === user.id`. En cas d'inadéquation, retour du message neutre : `"Ce QR code ou numéro de commande n'est pas valide pour votre compte."`
+  - **Pour un Administrateur** : Vue de supervision autorisée via RPC Postgres `lookup_order_for_delivery`.
+- Protection garantie côté serveur : impossible de contourner l'isolation multi-tenant par manipulation de l'URL ou appel direct de la Server Action.
+
+#### 3. Bouton Caméra Mobile Ergonomique & Thumb-Friendly
+- Amélioration du bouton scanner caméra existant dans `CompanyOrderLookupWidget.tsx` :
+  - **Sur Mobile** : Repositionné en mode fixe (`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-40`), restant accessible en permanence sous le pouce pendant le défilement de la liste des commandes, parfaitement positionné au-dessus de la barre de navigation et respectant les safe areas.
+  - **Sur Desktop** : Conservation de l'intégration statique harmonieuse au sein de la bannière de recherche rapide.
+  - **Aucun doublon** : Préservation stricte d'un seul et unique bouton caméra fonctionnel.
+
+#### 4. Validation Technique
+- `npx tsc --noEmit` : 0 erreur TypeScript.
+- `npm run build` : 38/38 routes compilées avec succès (Code 0).
+
+## [S7] - 2026-10-07
+### Commandes Reçues Société — Refonte UI/UX & Workflow Logistique
+
+#### Composants créés & modernisés
+1. **`CompanyOrderCard.tsx`** (Nouveau) :
+   - Présentation responsive en cartes modernes avec bande d'accentuation dynamique de couleur selon statut (`pending` ambre, `confirmed` bleu, `preparing` indigo, `ready` émeraude, `delivered` forêt, `cancelled` rose).
+   - N° de commande en 1 clic avec bouton copie et feedback visuel instantané.
+   - Fiche revendeur acheteur avec logo et territoire d'opération.
+   - Détail produit avec vignette d'image, volume commandé mis en valeur (`Layers`), prix unitaire et montant total.
+   - Pastille logistique avec destination, date d'arrivée prévue et nom du dépôt de retrait.
+   - Boutons d'action rapides intégrés ("Détail", "QR Code", "Changer le statut", transition directe "Confirmer", "Préparer", "Marquer prête").
+
+2. **`CompanyOrderDetailDrawer.tsx`** (Nouveau) :
+   - Tiroir R1 `size="xl"` pour la consultation complète d'une commande sans quitter la vue liste.
+   - **Stepper Visuel de progression** (5 étapes : Passée → Confirmée → En préparation → Prête pour retrait → Livrée ; ou bannière rouge explicative si Annulée).
+   - Bannière d'attestation de livraison si statut `delivered` (date/heure de remise, quantité remise, notes).
+   - Lignes contractuelles fermes avec visuel produit, catégorie, campagne rattachée et montant total.
+   - Cartouche pédagogique de la **réservation transactionnelle de stock** (volume bloqué, statut de réservation, garantie anti-surréservation).
+   - Informations détaillées de l'acheteur revendeur et du point de dépôt logistique.
+   - Bloc QR Code de retrait avec ouverture dans `QRCodeModal`.
+   - Boutons contextuels de transition et dialogue d'annulation `ConfirmDialog`.
+
+3. **`CompanyOrdersView.tsx`** (Refonte) :
+   - En-tête héro immersif dégradé `forest-900 → forest-800 → earth-900` avec anneaux décoratifs en arrière-plan.
+   - 4 cartes métriques réelles calculées dynamiquement (Total, À Valider, En Cours, Livrées) sans aucune donnée fictive.
+   - Intégration du widget de scanning et de recherche rapide `CompanyOrderLookupWidget`.
+   - Onglets de statut défilables avec compteurs dynamiques en temps réel (Toutes, En attente, Confirmées, En préparation, Prêtes, Livrées, Annulées).
+   - Barre de recherche instantanée multi-champs (N° commande, revendeur, produit, offre, destination) avec bouton effacement rapide.
+   - Filtre par campagne unique si applicable.
+   - Bascule de vue Grille de Cartes vs Tableau Dense pour grand écran.
+   - Drawer de filtres mobile avec bouton de réinitialisation.
+   - États vides soignés et informatifs (aucune commande globale vs aucun résultat aux filtres).
+   - Enrobage avec `ToastProvider` pour des notifications toast `useToast` R1 fluides sur chaque action.
+
+4. **`CompanyOrderDetailView.tsx`** (Refonte) :
+   - Modernisation de la page dédiée `/dashboard/company/orders/[id]` pour refléter les mêmes standards Radiza, stepper visuel 5 étapes et garde-fous que le drawer.
+
+5. **`OrderStatusBadge.tsx`** :
+   - Ajout du support de la prop `compact?: boolean` affichant un libellé concis adapté aux cartes mobiles et aux tables denses.
+
+6. **`loading.tsx`** :
+   - Squelette de chargement aligné sur la nouvelle disposition héro, métriques, widget lookup et grille de cartes.
+
+#### Règles métier & intégrité respectées
+- ✅ **Distinction stricte** : Commande ≠ Demande ≠ Campagne ≠ Livraison ≠ Confirmation de livraison.
+- ✅ **Aucune donnée fictive (No Mock Data)** : 100% des métriques et compteurs proviennent des données réelles Supabase.
+- ✅ **Conservation intégrale des historiques** : Les commandes liées à des campagnes clôturées ou des productions inactives restent 100% accessibles et cohérentes grâce aux snapshots DB immuables.
+- ✅ **Workflow de confirmation de livraison préservé** : Utilisation de la procédure RPC atomique `confirm_order_delivery` et de `lookup_order_for_delivery`.
+- ✅ **Libération automatique de stock à l'annulation** : Utilisation de la procédure RPC `cancel_order_and_release_reservation`.
+- ✅ **Vérification technique** : TypeScript 0 erreur (`npx tsc --noEmit` code 0), build Next.js validé avec succès (38/38 routes, code 0).
+
 ## [S6] - 2026-10-07
 ### Campagnes de Vente Société — Refonte UI/UX + Correction Bug Expiration Automatique
 

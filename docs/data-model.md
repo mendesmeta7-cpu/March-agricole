@@ -330,3 +330,13 @@ Fonction `SECURITY DEFINER` assurant la libération du stock :
 
 ### 3.3 `get_campaign_stock_summary(p_campaign_id UUID)`
 Retourne `marketable_quantity`, `reserved_quantity` et `available_quantity`.
+
+### 3.4 `check_and_close_expired_campaigns()` (Migration 20261008000025 — Étape 4)
+Procédure `SECURITY DEFINER` de clôture automatique des campagnes commerciales :
+1. Recherche toutes les campagnes au statut `active` ;
+2. Bascule `status = 'completed'` et `updated_at = NOW()` si :
+   - `c.end_date IS NOT NULL AND c.end_date < CURRENT_DATE` (date globale de fin expirée) ;
+   - OU si la campagne possède des destinations (`campaign_destinations`) et que **TOUTES** ses destinations ont une date limite passée (`order_deadline_date IS NOT NULL AND order_deadline_date < CURRENT_DATE`) ;
+3. Préserve intactes toutes les commandes, réservations, livraisons et productions existantes ;
+4. Retourne le nombre de campagnes passées à `completed`.
+

@@ -5,7 +5,15 @@ import Link from "next/link";
 import { registerResellerAction } from "@/lib/actions/auth";
 import GeographySelector from "@/components/GeographySelector";
 import SubmitButton from "@/components/SubmitButton";
+import Select from "@/components/ui/Select";
 import { Store, AlertCircle, ArrowLeft, MapPin, MailCheck } from "lucide-react";
+
+const RESELLER_TYPES = [
+  { value: "wholesaler", label: "Grossiste" },
+  { value: "semi_wholesaler", label: "Demi-grossiste" },
+  { value: "retailer", label: "Détaillant" },
+  { value: "processor", label: "Transformateur agro-alimentaire" },
+];
 
 export default function RegisterResellerPage() {
   const [state, formAction] = useFormState(registerResellerAction, null);
@@ -163,17 +171,12 @@ export default function RegisterResellerPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Typologie d&apos;acheteur <span className="text-red-500">*</span>
                   </label>
-                  <select
+                  <Select
                     name="resellerType"
                     defaultValue="wholesaler"
+                    options={RESELLER_TYPES}
                     required
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
-                  >
-                    <option value="wholesaler">Grossiste</option>
-                    <option value="semi_wholesaler">Demi-grossiste</option>
-                    <option value="retailer">Détaillant</option>
-                    <option value="processor">Transformateur agro-alimentaire</option>
-                  </select>
+                  />
                 </div>
               </div>
 

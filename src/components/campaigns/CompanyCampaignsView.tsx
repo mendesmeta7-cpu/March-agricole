@@ -251,7 +251,7 @@ export default function CompanyCampaignsView({
             <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
               <span className="font-bold block">
-                Règle d&apos;Or — Découplage Métier (V1) :
+                Rappel de fonctionnement :
               </span>
               <p className="text-amber-800 text-xs leading-relaxed">
                 Une campagne commerciale matérialise une offre ferme adossée à une production.

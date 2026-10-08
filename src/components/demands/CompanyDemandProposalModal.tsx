@@ -1,8 +1,7 @@
-"use client";
-
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef, useTransition, useMemo } from "react";
 import { DemandItem } from "@/lib/queries/demands";
 import { createDemandProposalAction } from "@/lib/actions/demands";
+import { Select } from "@/components/ui/Select";
 import {
   X,
   Send,
@@ -59,6 +58,15 @@ export default function CompanyDemandProposalModal({
   const [currency, setCurrency] = useState("USD");
   const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState("");
   const [message, setMessage] = useState("");
+
+  const productionOptions = useMemo(() => {
+    return eligibleProductions.map((p) => ({
+      value: p.id,
+      label: p.title,
+      badge: p.status === "harvested" ? "Récoltée" : "En culture",
+      description: `${p.expected_quantity} ${p.unit} disponibles`,
+    }));
+  }, [eligibleProductions]);
 
   if (!isOpen || !demand) return null;
 
@@ -166,22 +174,16 @@ export default function CompanyDemandProposalModal({
                 </div>
               </div>
             ) : (
-              <div className="relative">
-                <select
-                  name="production_id"
-                  required
-                  value={selectedProductionId}
-                  onChange={(e) => setSelectedProductionId(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2.5 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600 focus:border-earth-600 bg-white font-medium"
-                >
-                  {eligibleProductions.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title} — ({p.status === "harvested" ? "Récoltée" : "En culture"}, {p.expected_quantity} {p.unit})
-                    </option>
-                  ))}
-                </select>
-                <Sprout className="w-4 h-4 text-earth-600 absolute left-3 top-3 pointer-events-none" />
-              </div>
+              <Select
+                name="production_id"
+                required
+                value={selectedProductionId}
+                onChange={(e) => setSelectedProductionId(e.target.value)}
+                options={productionOptions}
+                searchable={eligibleProductions.length > 4}
+                searchPlaceholder="Rechercher une production..."
+                leftIcon={<Sprout className="w-4 h-4 text-earth-600" />}
+              />
             )}
           </div>
 
@@ -214,28 +216,32 @@ export default function CompanyDemandProposalModal({
               <label className="block text-xs font-semibold text-gray-800">
                 Prix unitaire ({currency}/{demand.unit}) <span className="text-rose-500">*</span>
               </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  name="unit_price"
-                  required
-                  min="0.01"
-                  step="any"
-                  placeholder="Ex: 450"
-                  value={unitPrice}
-                  onChange={(e) => setUnitPrice(e.target.value)}
-                  className="w-full pl-9 pr-16 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600 focus:border-earth-600 font-bold text-earth-900"
-                />
-                <DollarSign className="w-4 h-4 text-earth-700 absolute left-3 top-3" />
-                <select
-                  name="currency"
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="absolute right-1.5 top-1.5 text-xs font-bold text-gray-700 bg-gray-100 border-none rounded-md px-2 py-1.5 focus:ring-0"
-                >
-                  <option value="USD">USD</option>
-                  <option value="CDF">CDF</option>
-                </select>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="number"
+                    name="unit_price"
+                    required
+                    min="0.01"
+                    step="any"
+                    placeholder="Ex: 450"
+                    value={unitPrice}
+                    onChange={(e) => setUnitPrice(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600/20 focus:border-earth-600 outline-none font-bold text-earth-900 transition-all"
+                  />
+                  <DollarSign className="w-4 h-4 text-earth-700 absolute left-3 top-3.5 pointer-events-none" />
+                </div>
+                <div className="w-28 shrink-0">
+                  <Select
+                    name="currency"
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    options={[
+                      { value: "USD", label: "USD" },
+                      { value: "CDF", label: "CDF" },
+                    ]}
+                  />
+                </div>
               </div>
             </div>
           </div>

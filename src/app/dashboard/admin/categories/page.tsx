@@ -33,7 +33,7 @@ export default async function AdminCategoriesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Gestion des Catégories du Flux"
-        description="Associez des visuels Cloudinary haute définition aux filtres horizontaux du Flux revendeur."
+        description="Associez des visuels illustratifs haute définition aux filtres de catégories du Flux revendeur."
         badge={<Badge variant="forest">Contenu du Flux</Badge>}
       />
 

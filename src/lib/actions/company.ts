@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 export interface CompanyActionResult {
   success?: boolean;
   error?: string;
+  logoUrl?: string | null;
 }
 
 export async function updateCompanyProfileAction(
@@ -20,11 +21,13 @@ export async function updateCompanyProfileAction(
   }
 
   const companyId = formData.get("companyId")?.toString().trim();
+  const name = formData.get("name")?.toString().trim();
   const description = formData.get("description")?.toString().trim();
   const address = formData.get("address")?.toString().trim();
   const phone = formData.get("phone")?.toString().trim();
   const email = formData.get("email")?.toString().trim();
   const city = formData.get("city")?.toString().trim();
+  const removeLogo = formData.get("removeLogo")?.toString().trim() === "true";
   const logoFile = formData.get("logo") as File | null;
 
   if (!companyId) {
@@ -45,7 +48,7 @@ export async function updateCompanyProfileAction(
 
       if (uploadError) {
         console.error("Erreur upload logo Storage:", uploadError);
-        return { error: `Échec du téléchargement du logo: ${uploadError.message}` };
+        return { error: "Le téléchargement du logo a échoué. Vérifiez le format et la taille du fichier (JPG, PNG, WebP ≤ 5 Mo)." };
       }
 
       const { data: { publicUrl } } = supabase.storage
@@ -64,7 +67,13 @@ export async function updateCompanyProfileAction(
       updated_at: new Date().toISOString(),
     };
 
-    if (logoUrl) {
+    if (name && name.length >= 2) {
+      updatePayload.name = name;
+    }
+
+    if (removeLogo) {
+      updatePayload.logo_url = null;
+    } else if (logoUrl) {
       updatePayload.logo_url = logoUrl;
     }
 
@@ -100,14 +109,14 @@ export async function updateCompanyProfileAction(
 
     if (updateError) {
       console.error("Erreur mise à jour company:", updateError);
-      return { error: `Erreur lors de la mise à jour: ${updateError.message}` };
+      return { error: "La mise à jour du profil de l'exploitation a échoué. Veuillez réessayer." };
     }
 
     revalidatePath("/dashboard/company");
-  revalidatePath("/dashboard/admin/companies");
+    revalidatePath("/dashboard/admin/companies");
     revalidatePath("/dashboard/company/profile");
 
-    return { success: true };
+    return { success: true, logoUrl: removeLogo ? null : logoUrl };
   } catch (err: any) {
     console.error("Exception updateCompanyProfileAction:", err);
     return { error: err?.message || "Une erreur inattendue est survenue." };

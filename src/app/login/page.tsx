@@ -75,7 +75,7 @@ function LoginForm() {
 
       <div className="mt-6 pt-5 border-t border-gray-100 text-center">
         <p className="text-[11px] text-gray-500 leading-relaxed">
-          Plateforme B2B expérimentale V1 — Authentification sécurisée par Supabase Auth
+          Plateforme B2B de mise en relation agricole — Vos données et vos transactions sont protégées.
         </p>
       </div>
     </div>

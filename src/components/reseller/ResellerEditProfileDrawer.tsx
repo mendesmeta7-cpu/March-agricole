@@ -217,12 +217,12 @@ export default function ResellerEditProfileDrawer({
             </span>
             <div className="flex items-center justify-between text-xs text-gray-700">
               <span className="font-medium text-gray-900">{userEmail}</span>
-              <span className="text-[10px] text-gray-400 bg-gray-200/60 px-2 py-0.5 rounded-md font-mono">
-                Liée à Supabase Auth
+              <span className="text-[10px] text-gray-500 bg-gray-200/60 px-2 py-0.5 rounded-md font-medium">
+                Non modifiable
               </span>
             </div>
             <p className="text-[11px] text-gray-500 pt-0.5">
-              L&apos;adresse email est gérée par votre compte d&apos;authentification et ne peut être modifiée ici.
+              Cette adresse e-mail sert d&apos;identifiant de connexion sécurisé pour votre compte.
             </p>
           </div>
         )}

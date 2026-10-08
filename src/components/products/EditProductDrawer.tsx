@@ -233,13 +233,13 @@ export default function EditProductDrawer({
         {/* Notes internes d'exploitation */}
         <FormField
           label="Notes d'exploitation (internes, confidentielles)"
-          description="Notes techniques réservées à votre entreprise (parcelles dédiées, matériel, stockage)."
+          description="Notes d'exploitation réservées à votre entreprise (parcelles dédiées, matériel, entreposage)."
         >
           <Textarea
             name="notes"
             rows={2}
             defaultValue={productItem.notes || ""}
-            placeholder="Notes techniques, consignes de stockage..."
+            placeholder="Notes d'exploitation, consignes d'entreposage..."
           />
         </FormField>
 

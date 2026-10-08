@@ -16,14 +16,13 @@ export default function AdminOrdersPage() {
 
       <PageHeader
         title="Supervision des Commandes & Stocks"
-        description="Audit des transactions de commande, intégrité des réservations atomiques et suivi des litiges."
-        badge={<Badge variant="neutral">Jalon Phase 10</Badge>}
+        description="Supervision des transactions de commande, intégrité des stocks réservés et suivi des livraisons."
+        badge={<Badge variant="neutral">Supervision</Badge>}
       />
 
       <EmptyState
-        title="Module Commandes en cours de jalonnement"
-        description="Ce module sera activé lors de la Phase 10 (Commandes et Réservation de Stock). Les administrateurs pourront y auditer les réservations transactionnelles et surveiller les cycles de statut des commandes."
-        phaseBadge="Phase 10 — À Venir"
+        title="Supervision des Commandes"
+        description="Les administrateurs peuvent consulter ici la liste consolidée des commandes et surveiller les cycles de statut entre exploitants et revendeurs."
         icon={<ShoppingBag className="w-8 h-8 text-emerald-700" />}
         action={
           <Link

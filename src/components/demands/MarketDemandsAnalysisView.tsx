@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
+import Select from "@/components/ui/Select";
 import { AggregatedDemandItem, DemandItem } from "@/lib/queries/demands";
 import { CatalogProduct } from "@/lib/queries/products";
 import { Province } from "@/lib/queries/geography";
@@ -416,42 +417,36 @@ export default function MarketDemandsAnalysisView({
         {showFilters && (
           <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-0 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Filtre par denrée */}
-            <div>
-              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
-                Denrée agricole
-              </label>
-              <select
-                value={selectedProductId}
-                onChange={(e) => setSelectedProductId(e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-earth-600/50 focus:border-earth-400 bg-white cursor-pointer"
-              >
-                <option value="all">Toutes les denrées</option>
-                {catalogProducts.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+              Denrée agricole
+            </label>
+            <Select
+              value={selectedProductId}
+              onChange={(e) => setSelectedProductId(e.target.value)}
+              searchable
+              options={useMemo(() => [
+                { value: "all", label: "Toutes les denrées" },
+                ...catalogProducts.map((p) => ({ value: p.id, label: p.name })),
+              ], [catalogProducts])}
+            />
+          </div>
 
-            {/* Filtre par province */}
-            <div>
-              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
-                Province de livraison
-              </label>
-              <select
-                value={selectedProvinceId}
-                onChange={(e) => setSelectedProvinceId(e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-earth-600/50 focus:border-earth-400 bg-white cursor-pointer"
-              >
-                <option value="all">Toutes les provinces</option>
-                {provinces.map((prov) => (
-                  <option key={prov.id} value={prov.id}>
-                    {prov.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Filtre par province */}
+          <div>
+            <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+              Province de livraison
+            </label>
+            <Select
+              value={selectedProvinceId}
+              onChange={(e) => setSelectedProvinceId(e.target.value)}
+              searchable
+              options={useMemo(() => [
+                { value: "all", label: "Toutes les provinces" },
+                ...provinces.map((prov) => ({ value: prov.id, label: prov.name })),
+              ], [provinces])}
+            />
+          </div>
           </div>
         )}
       </div>

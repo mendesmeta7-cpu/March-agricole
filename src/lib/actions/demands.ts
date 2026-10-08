@@ -120,7 +120,7 @@ export async function createGeneralDemandAction(
     .single();
 
   if (insertError) {
-    return { error: `Erreur lors de la publication de la demande : ${insertError.message}` };
+    return { error: "La publication de votre demande a échoué. Veuillez vérifier vos informations et réessayer." };
   }
 
   // Notification RPC vers les exploitants concernés
@@ -242,7 +242,7 @@ export async function createProductionDemandAction(
     .single();
 
   if (insertError) {
-    return { error: `Erreur lors de la formulation de la demande : ${insertError.message}` };
+    return { error: "L'enregistrement de votre demande a échoué. Veuillez réessayer." };
   }
 
   // Notification RPC vers la société exploitante
@@ -298,7 +298,7 @@ export async function refuseDemandAction(demandId: string): Promise<ActionRespon
     );
 
   if (error) {
-    return { error: `Erreur lors de l'enregistrement du refus : ${error.message}` };
+    return { error: "L'enregistrement du refus a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/company/demands");
@@ -400,7 +400,7 @@ export async function createDemandProposalAction(
     .single();
 
   if (respErr) {
-    return { error: `Erreur lors de l'enregistrement de la proposition : ${respErr.message}` };
+    return { error: "L'envoi de votre proposition a échoué. Veuillez réessayer." };
   }
 
   // 4. Création d'une notification interne pour le revendeur
@@ -501,7 +501,7 @@ export async function updateDemandAction(
     .eq("reseller_id", user.id);
 
   if (updateError) {
-    return { error: `Erreur de modification : ${updateError.message}` };
+    return { error: "La modification de la demande a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/reseller/demands");
@@ -533,7 +533,7 @@ export async function cancelDemandAction(demandId: string): Promise<ActionRespon
     .eq("reseller_id", user.id);
 
   if (error) {
-    return { error: `Erreur d'annulation : ${error.message}` };
+    return { error: "L'annulation de la demande a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/reseller/demands");

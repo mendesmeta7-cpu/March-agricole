@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useMemo } from "react";
 import {
   EligibleProductionOption,
   CompanyCampaignItem,
@@ -8,6 +8,7 @@ import {
 import { AggregatedDemandItem } from "@/lib/queries/demands";
 import { Province } from "@/lib/queries/geography";
 import { createCampaignAction, updateCampaignAction } from "@/lib/actions/campaigns";
+import Select from "@/components/ui/Select";
 import {
   X,
   Tractor,
@@ -76,6 +77,23 @@ export default function CampaignFormModal({
   const [availabilityPeriod, setAvailabilityPeriod] = useState("");
   const [destinations, setDestinations] = useState<FormDestination[]>([]);
   const [status, setStatus] = useState<"draft" | "active">("draft");
+
+  const productionOptions = useMemo(
+    () =>
+      eligibleProductions.map((prod) => ({
+        value: prod.id,
+        label: `${prod.title} — ${prod.product_name} (${prod.expected_quantity} ${prod.unit})`,
+      })),
+    [eligibleProductions]
+  );
+
+  const currencyOptions = useMemo(
+    () => [
+      { value: "USD", label: "USD" },
+      { value: "CDF", label: "CDF" },
+    ],
+    []
+  );
 
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -472,19 +490,16 @@ export default function CampaignFormModal({
                 Aucune production disponible. Vous devez d&apos;abord enregistrer une production dans votre exploitation avant de créer une campagne.
               </div>
             ) : (
-              <select
+              <Select
                 disabled={isEditing}
                 value={productionId}
                 onChange={(e) => setProductionId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-forest-500 focus:border-forest-500 outline-hidden font-medium disabled:bg-gray-100"
+                options={productionOptions}
+                searchable
+                leftIcon={<Tractor className="w-4 h-4 text-forest-700" />}
+                placeholder="Sélectionner une production..."
                 required
-              >
-                {eligibleProductions.map((prod) => (
-                  <option key={prod.id} value={prod.id}>
-                    {prod.title} — {prod.product_name} ({prod.expected_quantity} {prod.unit})
-                  </option>
-                ))}
-              </select>
+              />
             )}
 
             {selectedProduction && (
@@ -564,14 +579,14 @@ export default function CampaignFormModal({
                   required
                   className="flex-1 px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden"
                 />
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="w-24 px-2 py-2 rounded-xl border border-gray-300 bg-gray-50 text-gray-900 font-semibold"
-                >
-                  <option value="USD">USD</option>
-                  <option value="CDF">CDF</option>
-                </select>
+                <div className="w-28">
+                  <Select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    options={currencyOptions}
+                    selectSize="md"
+                  />
+                </div>
               </div>
               <span className="text-[11px] text-gray-500 block">
                 Prix par {currentUnit}

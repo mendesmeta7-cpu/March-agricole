@@ -5,6 +5,7 @@ import {
   ResellerLocationContext,
   CampaignEligibilityResult,
 } from "@/lib/services/campaignEligibility";
+import { isCampaignActive } from "@/lib/utils/campaignStatus";
 
 export interface FeedProduct {
   id: string;
@@ -151,7 +152,7 @@ export async function getPublicFeedProductions(
         start_date,
         end_date,
         status,
-        campaign_destinations (id, province_id, city_name),
+        campaign_destinations (id, province_id, city_name, order_deadline_date),
         campaign_delivery_zones (id, country_id, province_id),
         stock_reservations (id, quantity, status)
       )
@@ -217,7 +218,7 @@ export async function getPublicFeedProductions(
     };
 
     const rawCampaigns = Array.isArray(item.campaigns) ? item.campaigns : (item.campaigns ? [item.campaigns] : []);
-    const activeCampaign = rawCampaigns.find((c: any) => c.status === "active" && (!c.end_date || c.end_date >= todayStr)) || null;
+    const activeCampaign = rawCampaigns.find((c: any) => isCampaignActive(c)) || null;
 
     let availableQty = 0;
     let eligibility: CampaignEligibilityResult = {
@@ -362,7 +363,7 @@ export async function getPublicProductionDetail(
 
   const todayStr = new Date().toISOString().split("T")[0];
   const rawCampaigns = Array.isArray(rawItem.campaigns) ? rawItem.campaigns : (rawItem.campaigns ? [rawItem.campaigns] : []);
-  const activeCampaign = rawCampaigns.find((c: any) => c.status === "active" && (!c.end_date || c.end_date >= todayStr)) || null;
+  const activeCampaign = rawCampaigns.find((c: any) => isCampaignActive(c)) || null;
 
   const resellerContext: ResellerLocationContext | null =
     typeof resellerOrProvinceId === "object" && resellerOrProvinceId !== null

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useTransition, useEffect } from "react";
+import React, { useState, useRef, useTransition, useEffect, useMemo } from "react";
 import { ProductionItem, ProductionStatus } from "@/lib/queries/productions";
 import { CompanyProductItem } from "@/lib/queries/products";
 import { createProductionAction, updateProductionAction } from "@/lib/actions/productions";
@@ -81,6 +81,37 @@ export default function ProductionDrawer({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeCompanyProducts = companyProducts.filter((p) => p.is_active);
+
+  const monthOptions = useMemo(
+    () => [
+      { value: "", label: "— Non défini —" },
+      ...MONTHS_FR.map((m) => ({ value: String(m.value), label: m.label })),
+    ],
+    []
+  );
+
+  const productOptions = useMemo(
+    () =>
+      activeCompanyProducts.map((cp) => ({
+        value: cp.id,
+        label: cp.custom_name ? `${cp.custom_name} (${cp.product.name})` : cp.product.name,
+        badge: cp.product.category,
+      })),
+    [activeCompanyProducts]
+  );
+
+  const unitOptions = useMemo(() => UNITS, []);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: "draft", label: "Brouillon (interne uniquement)" },
+      { value: "planned", label: "Planifiée (programme de saison)" },
+      { value: "growing", label: "En culture (en champ)" },
+      { value: "harvested", label: "Récoltée" },
+      { value: "cancelled", label: "Annulée" },
+    ],
+    []
+  );
 
   // Synchronisation lors de l'ouverture ou du changement d'enregistrement
   useEffect(() => {
@@ -241,7 +272,7 @@ export default function ProductionDrawer({
         <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/90 text-amber-900 text-xs flex items-start gap-3">
           <Info className="w-4 h-4 shrink-0 text-amber-700 mt-0.5" />
           <div className="space-y-1">
-            <p className="font-bold">Principe agronomique V1 :</p>
+            <p className="font-bold">Information importante :</p>
             <p className="text-xs text-amber-900/90 leading-relaxed">
               La quantité déclarée ici représente une <strong>estimation de récolte</strong>. Elle ne constitue
               ni un stock physique immédiatement commercialisable, ni une campagne ouverte à la commande.
@@ -266,15 +297,11 @@ export default function ProductionDrawer({
                 name="companyProductId"
                 value={selectedCompanyProductId}
                 onChange={(e) => handleProductChange(e.target.value)}
+                options={productOptions}
+                searchable
                 disabled={isEditing}
                 required
-              >
-                {activeCompanyProducts.map((cp) => (
-                  <option key={cp.id} value={cp.id}>
-                    {cp.custom_name ? `${cp.custom_name} (${cp.product.name})` : cp.product.name} — [Catégorie : {cp.product.category}]
-                  </option>
-                ))}
-              </Select>
+              />
             </FormField>
           )}
         </div>
@@ -343,14 +370,9 @@ export default function ProductionDrawer({
               name="unit"
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
+              options={unitOptions}
               required
-            >
-              {UNITS.map((u) => (
-                <option key={u.value} value={u.value}>
-                  {u.label}
-                </option>
-              ))}
-            </Select>
+            />
           </FormField>
         </div>
 
@@ -381,32 +403,26 @@ export default function ProductionDrawer({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="block text-[11px] text-gray-600 font-medium">Mois de début</label>
-                <select
+                <Select
                   name="plantingStartMonth"
                   value={plantingStartMonth}
                   onChange={(e) => setPlantingStartMonth(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-forest-600 bg-white"
-                >
-                  <option value="">— Non défini —</option>
-                  {MONTHS_FR.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
+                  options={monthOptions}
+                  placeholder="— Non défini —"
+                  selectSize="sm"
+                />
               </div>
 
               <div className="space-y-1">
                 <label className="block text-[11px] text-gray-600 font-medium">Mois de fin</label>
-                <select
+                <Select
                   name="plantingEndMonth"
                   value={plantingEndMonth}
                   onChange={(e) => setPlantingEndMonth(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-forest-600 bg-white"
-                >
-                  <option value="">— Non défini —</option>
-                  {MONTHS_FR.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
+                  options={monthOptions}
+                  placeholder="— Non défini —"
+                  selectSize="sm"
+                />
               </div>
             </div>
 
@@ -428,32 +444,26 @@ export default function ProductionDrawer({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="block text-[11px] text-gray-600 font-medium">Mois de début</label>
-                <select
+                <Select
                   name="harvestStartMonth"
                   value={harvestStartMonth}
                   onChange={(e) => setHarvestStartMonth(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-forest-600 bg-white"
-                >
-                  <option value="">— Non défini —</option>
-                  {MONTHS_FR.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
+                  options={monthOptions}
+                  placeholder="— Non défini —"
+                  selectSize="sm"
+                />
               </div>
 
               <div className="space-y-1">
                 <label className="block text-[11px] text-gray-600 font-medium">Mois de fin</label>
-                <select
+                <Select
                   name="harvestEndMonth"
                   value={harvestEndMonth}
                   onChange={(e) => setHarvestEndMonth(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-forest-600 bg-white"
-                >
-                  <option value="">— Non défini —</option>
-                  {MONTHS_FR.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
+                  options={monthOptions}
+                  placeholder="— Non défini —"
+                  selectSize="sm"
+                />
               </div>
             </div>
 
@@ -481,14 +491,9 @@ export default function ProductionDrawer({
               name="status"
               value={status}
               onChange={(e) => setStatus(e.target.value as ProductionStatus)}
+              options={statusOptions}
               required
-            >
-              <option value="draft">Brouillon (interne uniquement)</option>
-              <option value="planned">Planifiée (programme de saison)</option>
-              <option value="growing">En culture (en champ)</option>
-              <option value="harvested">Récoltée</option>
-              <option value="cancelled">Annulée</option>
-            </Select>
+            />
           </FormField>
 
           <div className="flex items-center justify-between p-3.5 rounded-2xl border border-gray-200 bg-gray-50/70 self-end">
@@ -553,7 +558,7 @@ export default function ProductionDrawer({
                 {imagePreview ? "Changer la photographie" : "Sélectionner une photo"}
               </Button>
               <p className="text-[11px] text-gray-500">
-                JPG, PNG ou WebP. Max 5 Mo. Hébergée sur Supabase Storage (public-assets).
+                Format JPG, PNG ou WebP. Max 5 Mo.
               </p>
             </div>
           </div>

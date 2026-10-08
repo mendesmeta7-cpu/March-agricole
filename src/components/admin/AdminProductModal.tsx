@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { CatalogProduct } from "@/lib/queries/products";
 import {
   createAdminCatalogProductAction,
@@ -8,6 +8,7 @@ import {
   ActionResponse,
 } from "@/lib/actions/admin/products";
 import SubmitButton from "@/components/SubmitButton";
+import Select from "@/components/ui/Select";
 import { X, Image as ImageIcon, AlertCircle, CheckCircle2, Trash2 } from "lucide-react";
 
 interface AdminProductModalProps {
@@ -57,11 +58,22 @@ export default function AdminProductModal({
   const [removeImage, setRemoveImage] = useState(false);
   const [state, setState] = useState<ActionResponse | null>(null);
 
-  if (!isOpen) return null;
-
-  const allCategories = Array.from(
-    new Set([...DEFAULT_CATEGORIES, ...categories.filter(Boolean)])
+  const allCategories = useMemo(
+    () => Array.from(new Set([...DEFAULT_CATEGORIES, ...categories.filter(Boolean)])),
+    [categories]
   );
+
+  const categoryOptions = useMemo(
+    () => [
+      ...allCategories.map((cat) => ({ value: cat, label: cat, badge: cat })),
+      { value: "custom", label: "+ Autre catégorie personnalisée" },
+    ],
+    [allCategories]
+  );
+
+  const unitOptions = useMemo(() => DEFAULT_UNITS, []);
+
+  if (!isOpen) return null;
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -169,7 +181,7 @@ export default function AdminProductModal({
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Catégorie *
               </label>
-              <select
+              <Select
                 value={isCustomCategory ? "custom" : selectedCategory}
                 onChange={(e) => {
                   if (e.target.value === "custom") {
@@ -179,15 +191,9 @@ export default function AdminProductModal({
                     setSelectedCategory(e.target.value);
                   }
                 }}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none bg-white transition-all"
-              >
-                {allCategories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-                <option value="custom">+ Autre catégorie personnalisée</option>
-              </select>
+                options={categoryOptions}
+                searchable
+              />
             </div>
 
             {/* Unité de mesure par défaut */}
@@ -195,17 +201,11 @@ export default function AdminProductModal({
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Unité de mesure par défaut *
               </label>
-              <select
+              <Select
                 name="defaultUnit"
                 defaultValue={productToEdit?.default_unit || "tonne"}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none bg-white transition-all"
-              >
-                {DEFAULT_UNITS.map((u) => (
-                  <option key={u.value} value={u.value}>
-                    {u.label}
-                  </option>
-                ))}
-              </select>
+                options={unitOptions}
+              />
             </div>
           </div>
 

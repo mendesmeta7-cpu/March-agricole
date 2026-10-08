@@ -4,13 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   MapPin,
-  TrendingUp,
   ChevronRight,
-  Info,
-  Calendar,
   Package,
   ArrowRight,
-  Clock,
 } from "lucide-react";
 import Drawer from "@/components/ui/Drawer";
 import Badge from "@/components/ui/Badge";
@@ -32,106 +28,183 @@ export interface CompanyDemandGeoChartProps {
   provincesData: ProvinceDemandData[];
 }
 
+/**
+ * Palette de couleurs selon le rang (classement des demandes décroissant).
+ * La couleur est attachée au RANG, pas à la région.
+ */
+const RANK_PALETTE = [
+  {
+    bar: "bg-emerald-500",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    text: "text-emerald-800",
+    label: "1er",
+  },
+  {
+    bar: "bg-amber-400",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    text: "text-amber-800",
+    label: "2e",
+  },
+  {
+    bar: "bg-yellow-400",
+    bg: "bg-yellow-50",
+    border: "border-yellow-200",
+    text: "text-yellow-800",
+    label: "3e",
+  },
+  {
+    bar: "bg-rose-400",
+    bg: "bg-rose-50",
+    border: "border-rose-200",
+    text: "text-rose-800",
+    label: "4e",
+  },
+  {
+    bar: "bg-purple-400",
+    bg: "bg-purple-50",
+    border: "border-purple-200",
+    text: "text-purple-800",
+    label: "5e",
+  },
+  {
+    bar: "bg-sky-400",
+    bg: "bg-sky-50",
+    border: "border-sky-200",
+    text: "text-sky-800",
+    label: "6e",
+  },
+  {
+    bar: "bg-slate-400",
+    bg: "bg-slate-50",
+    border: "border-slate-200",
+    text: "text-slate-700",
+    label: "+",
+  },
+];
+
+function getRankStyle(index: number) {
+  return RANK_PALETTE[Math.min(index, RANK_PALETTE.length - 1)];
+}
+
 export default function CompanyDemandGeoChart({
   provincesData,
 }: CompanyDemandGeoChartProps) {
-  const [selectedProvince, setSelectedProvince] = useState<ProvinceDemandData | null>(null);
+  const [selectedProvince, setSelectedProvince] =
+    useState<ProvinceDemandData | null>(null);
 
   const hasData = provincesData.length > 0;
-  const totalQuantityAll = provincesData.reduce((acc, curr) => acc + curr.totalQuantity, 0);
+  const totalQuantityAll = provincesData.reduce(
+    (acc, curr) => acc + curr.totalQuantity,
+    0
+  );
 
   return (
     <>
-      <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-7 shadow-xs space-y-5">
+      <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-6 shadow-sm flex flex-col space-y-5">
         {/* En-tête */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-gray-100">
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-base sm:text-lg font-bold text-gray-950 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-forest-700" />
-                Répartition Géographique de la Demande
-              </h3>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-forest-100 text-forest-900 border border-forest-200">
-                Par Province
-              </span>
-            </div>
+            <h3 className="text-base font-bold text-gray-950 flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-forest-700 shrink-0" />
+              Demandes par région
+            </h3>
             <p className="text-xs text-gray-500 mt-1">
-              Volumes d&apos;achat exprimés par les revendeurs selon les bassins de consommation.
+              Volume d&apos;achat exprimé selon les bassins de consommation
             </p>
           </div>
-
-          <span className="text-xs font-semibold text-forest-800 bg-forest-50 px-3 py-1.5 rounded-xl border border-forest-100/80 self-start sm:self-auto">
-            {provincesData.length} province(s) active(s)
-          </span>
+          {hasData && (
+            <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg self-start sm:self-auto shrink-0">
+              {provincesData.length} région{provincesData.length > 1 ? "s" : ""}
+            </span>
+          )}
         </div>
 
-        {/* Liste ou État vide */}
+        {/* Liste ou état vide */}
         {!hasData ? (
           <EmptyState
             title="Aucune demande localisée"
-            description="Les besoins déclarés par les acheteurs et distributeurs apparaîtront ventilés par province dès leur enregistrement."
+            description="Les besoins déclarés par les acheteurs apparaîtront ici ventilés par région."
             icon={<MapPin className="w-6 h-6 text-forest-600" />}
-            className="py-10 bg-forest-50/20"
+            className="py-10"
           />
         ) : (
-          <div className="space-y-3.5">
-            {provincesData.map((item) => (
-              <div
-                key={item.provinceId}
-                onClick={() => setSelectedProvince(item)}
-                className="group p-4 rounded-2xl border border-gray-100 bg-gray-50/60 hover:bg-forest-50/40 hover:border-forest-200/80 transition-all cursor-pointer"
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    setSelectedProvince(item);
-                  }
-                }}
-              >
-                <div className="flex items-center justify-between gap-3 mb-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-bold text-sm text-gray-950 group-hover:text-forest-900 transition-colors truncate">
-                      {item.provinceName}
-                    </span>
-                    <Badge variant="forest" size="sm">
-                      {item.demandsCount} demande(s)
-                    </Badge>
+          <div className="space-y-3 flex-1">
+            {provincesData.map((item, index) => {
+              const rank = getRankStyle(index);
+              return (
+                <div
+                  key={item.provinceId}
+                  onClick={() => setSelectedProvince(item)}
+                  className="group cursor-pointer p-3.5 rounded-xl border border-gray-100 hover:border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-all duration-150"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ")
+                      setSelectedProvince(item);
+                  }}
+                >
+                  {/* Ligne supérieure */}
+                  <div className="flex items-center justify-between gap-3 mb-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {/* Indicateur de rang */}
+                      <span
+                        className={`text-[10px] font-black px-1.5 py-0.5 rounded ${rank.bg} ${rank.text} ${rank.border} border shrink-0`}
+                      >
+                        {rank.label}
+                      </span>
+                      <span className="font-bold text-sm text-gray-950 truncate group-hover:text-forest-900 transition-colors">
+                        {item.provinceName}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right">
+                        <span className="text-sm font-extrabold text-gray-950">
+                          {item.demandsCount}
+                        </span>
+                        <span className="text-xs text-gray-400 ml-1">
+                          demande{item.demandsCount > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-forest-600 group-hover:translate-x-0.5 transition-all" />
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-right shrink-0">
-                    <span className="text-sm font-extrabold text-gray-950">
+                  {/* Barre de progression colorée selon le rang */}
+                  <div className="w-full bg-gray-200/60 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className={`${rank.bar} h-full rounded-full transition-all duration-700 ease-out motion-safe:animate-none`}
+                      style={{
+                        width: `${Math.max(4, Math.min(100, item.percentage))}%`,
+                      }}
+                    />
+                  </div>
+
+                  {/* Volume et % */}
+                  <div className="flex items-center justify-between mt-1.5 text-[11px] text-gray-400">
+                    <span>
                       {item.totalQuantity} {item.unit}
                     </span>
-                    <span className="text-xs text-gray-400 font-medium">
-                      ({item.percentage}%)
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-forest-700 group-hover:translate-x-0.5 transition-all ml-1" />
+                    <span className="font-semibold">{item.percentage}% du total</span>
                   </div>
                 </div>
+              );
+            })}
 
-                {/* Jauge horizontale de proportion */}
-                <div className="w-full bg-gray-200/70 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-forest-600 h-full rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${Math.max(4, Math.min(100, item.percentage))}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-
-            <div className="flex items-center justify-between pt-2 text-xs text-gray-500">
-              <span className="italic">
-                Cliquez sur une province pour inspecter la liste détaillée des demandes.
-              </span>
+            {/* Total global */}
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs text-gray-500">
+              <span>Total marché exprimé</span>
               <span className="font-bold text-gray-900">
-                Total marché : {totalQuantityAll} {provincesData[0]?.unit || "tonnes"}
+                {totalQuantityAll} {provincesData[0]?.unit || "t"}
               </span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Tiroir d'approfondissement (Drawer R1) sur la province cliquée */}
+      {/* Tiroir de détail par province (Drawer R1) */}
       <Drawer
         isOpen={selectedProvince !== null}
         onClose={() => setSelectedProvince(null)}
@@ -143,14 +216,14 @@ export default function CompanyDemandGeoChart({
             <span>Demandes — {selectedProvince?.provinceName}</span>
           </div>
         }
-        description={`Consultez les ${selectedProvince?.demandsCount || 0} demande(s) réelles enregistrées pour cette province.`}
+        description={`${selectedProvince?.demandsCount || 0} demande(s) enregistrée(s) dans cette région.`}
       >
-        <div className="space-y-4 py-2">
+        <div className="space-y-3 py-2">
           {selectedProvince?.demands && selectedProvince.demands.length > 0 ? (
             selectedProvince.demands.map((demand) => (
               <div
                 key={demand.id}
-                className="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-2xs space-y-3"
+                className="p-4 rounded-xl bg-white border border-gray-200/80 shadow-sm space-y-3"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2.5">
@@ -162,11 +235,10 @@ export default function CompanyDemandGeoChart({
                         {demand.product?.name || "Produit"}
                       </h4>
                       <span className="text-[11px] text-gray-500">
-                        {demand.product?.category || "Catégorie"}
+                        {demand.product?.category || ""}
                       </span>
                     </div>
                   </div>
-
                   <Badge
                     variant={demand.status === "active" ? "forest" : "neutral"}
                     size="sm"
@@ -175,15 +247,15 @@ export default function CompanyDemandGeoChart({
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
+                <div className="grid grid-cols-2 gap-2 text-xs bg-gray-50 p-2.5 rounded-lg">
                   <div>
-                    <span className="text-gray-400 block text-[10px]">Volume requis</span>
+                    <span className="text-gray-400 block text-[10px] uppercase tracking-wider mb-0.5">Volume</span>
                     <span className="font-extrabold text-gray-900">
                       {demand.quantity} {demand.unit}
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-400 block text-[10px]">Date d&apos;émission</span>
+                    <span className="text-gray-400 block text-[10px] uppercase tracking-wider mb-0.5">Date</span>
                     <span className="font-semibold text-gray-700">
                       {new Intl.DateTimeFormat("fr-FR", {
                         day: "numeric",
@@ -195,7 +267,7 @@ export default function CompanyDemandGeoChart({
                 </div>
 
                 {demand.notes && (
-                  <p className="text-xs text-gray-600 italic bg-amber-50/50 p-2 rounded-lg border border-amber-100">
+                  <p className="text-xs text-gray-600 italic bg-amber-50 p-2 rounded-lg border border-amber-100">
                     &laquo; {demand.notes} &raquo;
                   </p>
                 )}
@@ -206,8 +278,8 @@ export default function CompanyDemandGeoChart({
                     onClick={() => setSelectedProvince(null)}
                   >
                     <Button variant="outline" size="sm" className="text-xs">
-                      <span>Examiner & Proposer</span>
-                      <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                      Répondre
+                      <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                     </Button>
                   </Link>
                 </div>
@@ -215,7 +287,7 @@ export default function CompanyDemandGeoChart({
             ))
           ) : (
             <p className="text-xs text-gray-500 text-center py-8">
-              Aucun détail supplémentaire pour cette province.
+              Aucun détail disponible pour cette région.
             </p>
           )}
         </div>

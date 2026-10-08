@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { CatalogProduct } from "@/lib/queries/products";
 import { toggleAdminCatalogProductStatusAction } from "@/lib/actions/admin/products";
 import AdminProductModal from "@/components/admin/AdminProductModal";
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
+import Select from "@/components/ui/Select";
 import {
   Package,
   Plus,
@@ -42,9 +43,21 @@ export default function AdminProductsView({ initialProducts }: AdminProductsView
   }
 
   // Catégories distinctes
-  const categories = Array.from(
-    new Set(products.map((p) => p.category).filter(Boolean))
-  ).sort();
+  const categories = useMemo(
+    () =>
+      Array.from(
+        new Set(products.map((p) => p.category).filter(Boolean))
+      ).sort(),
+    [products]
+  );
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: "all", label: "Toutes les catégories" },
+      ...categories.map((cat) => ({ value: cat, label: cat, badge: cat })),
+    ],
+    [categories]
+  );
 
   // Filtrage combiné
   const filteredProducts = products.filter((p) => {
@@ -162,20 +175,14 @@ export default function AdminProductsView({ initialProducts }: AdminProductsView
           </div>
 
           {/* Filtre par catégorie */}
-          <div className="relative w-full md:w-56">
-            <Tag className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <select
+          <div className="w-full md:w-64">
+            <Select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none bg-white transition-all appearance-none cursor-pointer"
-            >
-              <option value="all">Toutes les catégories</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+              options={categoryOptions}
+              leftIcon={<Tag className="w-4 h-4 text-gray-400" />}
+              searchable
+            />
           </div>
 
           {/* Filtre par statut */}

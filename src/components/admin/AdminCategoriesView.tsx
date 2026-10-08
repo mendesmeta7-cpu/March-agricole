@@ -134,7 +134,7 @@ export default function AdminCategoriesView({ categories }: AdminCategoriesViewP
               {/* Barre d'actions inférieure */}
               <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
                 <span className="text-[10px] text-gray-400 truncate font-mono">
-                  {cat.cloudinary_public_id ? "Cloudinary ✓" : "Sans image"}
+                  {cat.cloudinary_public_id ? "Image configurée ✓" : "Sans image"}
                 </span>
 
                 <div className="flex items-center gap-1">

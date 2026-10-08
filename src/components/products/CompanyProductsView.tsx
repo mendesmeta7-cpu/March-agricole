@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/Toast";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import Badge from "@/components/ui/Badge";
+import Select from "@/components/ui/Select";
 import {
   Package,
   Plus,
@@ -71,6 +72,14 @@ export default function CompanyProductsView({
     const cats = Array.from(new Set(items.map((i) => i.product.category))).filter(Boolean);
     return cats.sort();
   }, [items]);
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: "all", label: "Toutes les catégories" },
+      ...availableCategories.map((c) => ({ value: c, label: c, badge: c })),
+    ],
+    [availableCategories]
+  );
 
   // Filtrage combiné réactif
   const filteredItems = useMemo(() => {
@@ -320,18 +329,15 @@ export default function CompanyProductsView({
             {/* Filtre par catégorie agronomique */}
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
               {availableCategories.length > 0 && (
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-3 py-2 text-xs font-semibold rounded-xl border border-gray-200 bg-white text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-forest-600/30 min-h-[38px] shrink-0"
-                >
-                  <option value="all">Toutes les catégories</option>
-                  {availableCategories.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+                <div className="w-full sm:w-56 shrink-0">
+                  <Select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    options={categoryOptions}
+                    searchable
+                    selectSize="sm"
+                  />
+                </div>
               )}
 
               {/* Segmented Control pour le statut */}

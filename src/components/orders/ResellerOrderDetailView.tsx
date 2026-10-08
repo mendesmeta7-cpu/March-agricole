@@ -400,27 +400,25 @@ export default function ResellerOrderDetailView({
             </div>
           </div>
 
-          {/* Réservation atomique de stock */}
+          {/* Garantie de disponibilité de stock */}
           <div className="p-5 rounded-3xl bg-blue-50/30 border border-blue-200/80 text-xs sm:text-sm space-y-2">
             <div className="flex items-start gap-3">
               <ShieldCheck className="w-5 h-5 text-blue-700 shrink-0 mt-0.5" />
               <div className="space-y-1.5 flex-1">
                 <span className="font-bold text-blue-950 block">
-                  Garantie de Réservation Transactionnelle de Stock
+                  Garantie de Disponibilité du Stock
                 </span>
                 <p className="text-blue-900 text-xs leading-relaxed">
-                  Cette commande a fait l&apos;objet d&apos;un verrouillage atomique côté serveur dans{" "}
-                  <code>stock_reservations</code>. Le volume de {order.order_items[0]?.quantity || 0}{" "}
-                  {order.campaign.unit} est formellement retiré du disponible public de la ferme et
+                  Le volume de {order.order_items[0]?.quantity || 0}{" "}
+                  {order.campaign.unit} est fermement réservé auprès de la ferme et
                   vous est exclusivement attribué.
                 </p>
                 <div className="pt-2 flex items-center gap-4 text-xs font-semibold text-blue-800">
                   <span>
-                    Statut réservation :{" "}
-                    <strong>{order.stock_reservation?.status || "active"}</strong>
+                    Réservation : <strong>Confirmée</strong>
                   </span>
                   <span>
-                    Volume réservé :{" "}
+                    Volume garanti :{" "}
                     <strong>
                       {order.stock_reservation?.quantity || order.order_items[0]?.quantity || 0}{" "}
                       {order.campaign.unit}

@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-10-07 — S6 Campagnes de Vente Société terminé (refonte UX/UI complète + correction bug expiration automatique Volet B : `getEffectiveCampaignStatus`, `getCampaignDestinationsSummary`, `CompanyCampaignDetailDrawer`, `CompanyCampaignCard` refonte, `CompanyCampaignsView` refonte héro, onglets statut effectif, TypeScript 0 erreur, Build ✓)*
+*Dernière mise à jour : 2026-10-08 — Refonte UX/UI complète Dashboard Société terminée (page.tsx requêtes parallèles, CompanyDashboardHeader salutation intelligente sans logo central, CompanyOverviewMetrics 4 KPIs hiérarchisés sans jargon technique, CompanyDemandGeoChart nuancier par rang, CompanyPendingActions cartouche & état vide soigné, CompanyRecentActivity harmonisé, loading.tsx squelette complet, 0 mock data, TypeScript 0 erreur, Build ✓ 38/38 routes)*
 
 
 ---
@@ -48,16 +48,101 @@
 | **R7** | **Mon Profil (Revendeur)** | 🟢 **TERMINÉ** | Refonte interface profil façon application professionnelle moderne (Facebook/Twitter style avec cover banner et avatar chevauchant), Cloudinary 100% préservé (upload direct avec face crop, suppression avec confirmation), tiroir d'édition générale (`ResellerEditProfileDrawer`), tiroir d'édition de localisation (`ResellerEditLocationDrawer`) avec règle régionale et confirmation contractuelle, boutons d'actions contextuels, compteurs réels d'activité, déconnexion avec `ConfirmDialog`, 0 donnée fictive, TypeScript 0 erreur, build 38/38 routes certifié. |
 | **REV-FINAL** | **Ajustement Navigation Revendeur & Nettoyage** | 🟢 **TERMINÉ** | Suppression des doublons de déconnexion et de nom dans le header Revendeur, conformité stricte 6 entrées, build certifié. |
 | **S1** | **Navigation & Shell Espace Société** | 🟢 **TERMINÉ** | Shell Société dédié (`CompanyDashboardLayout`, `CompanySidebar`, `CompanyHeader`, `CompanyBottomNav`), 8 sections officielles, tiroir mobile R1 Drawer + Bottom Sheet "Plus", déconnexion ConfirmDialog, 0 donnée fictive, TypeScript 0 erreur, build ✓ 41/41 routes. |
-| **S2** | **Dashboard Société** | 🟢 **TERMINÉ** | 6 composants (`CompanyDashboardHeader`, `CompanyOverviewMetrics`, `CompanyDemandTrendChart`, `CompanyDemandGeoChart`, `CompanyPendingActions`, `CompanyRecentActivity`), données 100% réelles Supabase, graphiques SVG natifs, 0 donnée fictive, TypeScript 0 erreur, build ✓. |
+| **S2** | **Dashboard Société (Refonte UX/UI)** | 🟢 **TERMINÉ** | Refonte complète : requêtes parallèles Promise.all, CompanyDashboardHeader accueil intelligent, CompanyOverviewMetrics KPI hiérarchisés sans texte technique, CompanyDemandGeoChart couleurs dynamiques par rang, CompanyPendingActions cartouche d'alerte & état vide soigné, CompanyRecentActivity avec OrderStatusBadge, loading.tsx squelette complet sur-mesure, 0 donnée fictive, TypeScript 0 erreur, Build ✓ 38/38 routes. |
 | **S3** | **Catalogue Produits Société** | 🟢 **TERMINÉ** | `CompanyProductCard`, `AddProductDrawer`, `EditProductDrawer`, `CompanyProductsView` (métriques réelles, recherche, filtres, segmented control), `CompanyProductsSkeleton`, jointures productions (décompte + volume cumulé), 0 donnée fictive, TypeScript 0 erreur, build ✓ 41/41 routes. |
 | **RADIZA** | **Intégration Branding Radiza** | 🟢 **TERMINÉ** | Composant centralisé `BrandLogo` (horizontal + compact), SVG intégrés dans `public/brand/`, 11 fichiers frontend mis à jour (sidebars, headers, login, register, landing, metadata, profil public), titres méta mis à jour, aria-labels accessibles, TypeScript 0 erreur, build ✓ 41/41 routes. |
 | **S4** | **Productions & Récoltes Société** | 🟢 **TERMINÉ** | Refonte complète UI/UX (`CompanyProductionsView`, `ProductionCard`, `ProductionDrawer`, `ProductionDetailView`, `ProductionStatusBadge`, `CompanyProductionsSkeleton`), 4 métriques réelles, filtres & segmented control, suppression et archivage protégés (`ConfirmDialog`), R1 Drawer, saisons cycliques 1-12 préservées, stockage Supabase Storage `public-assets/productions/` 100% conservé (0 migration Cloudinary), 0 mock data, TypeScript 0 erreur, build ✓ (38/38 routes). |
 | **S5** | **Demande du Marché Société** | 🟢 **TERMINÉ** | Refonte complète UI/UX `MarketDemandsAnalysisView` : en-tête héro dégradé, 4 cartes métriques réelles (demandes actives, volume total, provinces en demande, denrées ciblées), cartouche pédagogique métier, onglets (Demandes générales / Analyse territoriale), barre de filtres dépliable avec badge compteur, cartes de demandes avec indicateur de compatibilité productions (`eligible X production(s)`), `ConfirmDialog` R1 pour écartement, `useToast.success/error` R1, tableau agrégé enrichi avec totaux et pied de tableau, squelette de chargement amélioré (`loading.tsx`), 0 mock data, TypeScript 0 erreur, build ✓. |
 | **S6** | **Campagnes de Vente Société** | 🟢 **TERMINÉ** | **Volet A — Refonte UI/UX** : héro immersif dégradé `forest-900 → earth-900`, 4 métriques réelles basées sur `effectiveStatus`, onglets de statut avec compteurs dynamiques, `CompanyCampaignDetailDrawer` (Drawer R1 xl avec stock, barre de progression, destinations par état, actions ConfirmDialog), `CompanyCampaignCard` refonte (bande colorée, barre réservation, pills destinations active/expirée, alerte auto-expiration). **Volet B — Correction bug expiration** : `getEffectiveCampaignStatus()` calcul dynamique (toutes destinations expirées → `completed`), `getCampaignDestinationsSummary()` résumé destinations par état, cohérence totale Société/Revendeur, 0 modification DB, commandes historiques intactes. TypeScript 0 erreur, build ✓. |
+| **S7** | **Commandes Reçues Société** | 🟢 **TERMINÉ** | Refonte complète UI/UX (`CompanyOrdersView`, `CompanyOrderCard`, `CompanyOrderDetailDrawer`, `CompanyOrderDetailView`), héro immersif dégradé `forest-900 → earth-900`, 4 métriques réelles (Total, En attente, En cours, Livrées), onglets de statuts défilables avec compteurs dynamiques, stepper visuel 5 étapes (Passée → Confirmée → Préparation → Prête → Livrée), intégration scanning/lookup rapide (`CompanyOrderLookupWidget`), confirmation livraison RPC atomique (`confirm_order_delivery`), modal QR Code, annulation sécurisée avec libération de stock (`ConfirmDialog`), conservation intégrale des snapshots historiques, 0 donnée fictive, TypeScript 0 erreur, build ✓ (38/38 routes). |
+| **CORRECTIF-S7** | **Correctif Ciblé QR Code & N° Commande** | 🟢 **TERMINÉ** | Retrait de l'affichage du QR code côté Société, discrétisation du n° de commande (`Réf. CMD-...`) sans bouton copier, validation serveur anti-fuite multi-tenant inviolable dans `lookupOrderForDeliveryAction` (messages neutres stricts par rôle), bouton caméra mobile fixed/thumb-friendly pendant le scroll sans doublon, 0 donnée fictive, TypeScript 0 erreur, Build ✓ 38/38 routes. |
+| **S8** | **Notifications Espace Société** | 🟢 **TERMINÉ** | Refonte complète UI/UX du centre de notifications (`CompanyNotificationsView`, `loading.tsx`), en-tête héro immersif dégradé `forest-900 → earth-900`, 4 métriques réelles (Total, Non lues, Demandes Marché, Commandes Reçues), onglets de filtres réactifs (Toutes, Non lues, Demandes, Commandes, Campagnes), groupement chronologique (Aujourd'hui, Hier, Cette semaine, Plus anciennes), action rapide "Tout marquer comme lu", marquage unitaire par clic, sanitisation stricte des redirections anti-fuite (`getCompanyTargetUrl`), 0 mock data, TypeScript 0 erreur, Build ✓ 38/38 routes. |
+| **S9** | **Profil Entreprise Société** | 🟢 **TERMINÉ** | Refonte complète UI/UX façon Facebook & YouTube Studio (`CompanyProfileView`, `CompanyEditProfileDrawer`, `loading.tsx`), cover banner dégradée avec badges, avatar chevauchant avec bouton appareil photo, onglets structurés (Identité & Fiche, Coordonnées & Siège, Activité en direct, Gouvernance & Sécurité), métriques réelles (Productions, Campagnes, Commandes), Drawer d'édition R1, ConfirmDialog déconnexion sécurisée, 0 donnée fictive, TypeScript 0 erreur, Build ✓ 38/38 routes. |
+| **UX-CLEANUP** | **Audit & Nettoyage Global des Termes Techniques UI** | 🟢 **TERMINÉ** | Élimination de tout jargon technique (Supabase, Cloudinary, API, RLS, atomique, base de données, etc.) dans l'ensemble des Server Actions, modales, fiches produits et vues d'administration. Vocabulaire 100% métier et agricole, TypeScript 0 erreur, Build ✓ 38/38 routes. |
+| **ÉTAPE 4** | **Correctif Définitif du Statut des Campagnes Société / Revendeur** | 🟢 **TERMINÉ** | Source unique de vérité `campaignStatus.ts` partagée (`getEffectiveCampaignStatus`, `isCampaignActive`), règle « une destination expirée ≠ campagne terminée » & « toutes destinations expirées = terminée », actualisation requêtes Société (`dashboard/company/page.tsx`, `campaigns.ts`), harmonisation feed (`feed.ts`), blocage d'activation régressive (`campaigns.ts` actions), migration 25 (`check_and_close_expired_campaigns`), suite de 12 tests validée à 100%, TypeScript 0 erreur, Build ✓ 38/38 routes. |
 
 ---
 
-## 2. BILAN DE LA PHASE S5 (DEMANDE DU MARCHÉ SOCIÉTÉ)
+## 2. BILAN DE LA PHASE S9 (PROFIL ENTREPRISE SOCIÉTÉ)
+
+* **Date de validation finale** : 2026-10-07
+* **Statut du projet** : 🟢 **STABLE — PROFIL ENTREPRISE MODERNISÉ (STYLE FACEBOOK / YOUTUBE STUDIO), SÉCURISÉ, TYPESCRIPT 0 ERREUR, BUILD ✓ (38/38 ROUTES)**
+* **Rappel crucial de périmètre** :
+  - ⚠️ **Les autres pages métier de l'espace Société (Dashboard S2, Catalogue S3, Productions S4, Demande S5, Campagnes S6, Commandes S7, Notifications S8) restent STRICTEMENT intactes dans leur contenu.**
+  - Aucune modification de logique métier, de schéma DB, de RLS ni des droits d'accès.
+  - **Règle fondamentale respectée** : Zéro donnée fictive (0 Mock Data). 100% des informations et des compteurs proviennent de Supabase réel.
+  - **Stockage logo préservé** : Stockage Supabase Storage `public-assets/logos` préservé (0 migration sauvage Cloudinary).
+  - **Composants R1 mobilisés** : `Drawer` (size="lg"), `ConfirmDialog`, `FormField`, `Input`, `Textarea`, `Button`, `Badge`, `Card`, `Alert`, `useToast`.
+  - **Accessibilité & Confort** : Typographies contrastées et généreuses adaptées aux gérants de 50 ans, cibles tactiles min 44px, validation immédiate et explicite.
+
+---
+
+## 2b. BILAN DE LA PHASE S8 (NOTIFICATIONS SOCIÉTÉ)
+
+* **Date de validation finale** : 2026-10-07
+* **Statut du projet** : 🟢 **STABLE — CENTRE DE NOTIFICATIONS SOCIÉTÉ MODERNISÉ, SÉCURISÉ, TYPESCRIPT 0 ERREUR, BUILD ✓ (38/38 ROUTES)**
+* **Rappel crucial de périmètre** :
+  - ⚠️ **Les autres pages métier de l'espace Société (Dashboard S2, Catalogue S3, Productions S4, Demande S5, Campagnes S6, Commandes S7, Profil S9) restent STRICTEMENT intactes dans leur contenu.**
+  - Aucune modification de logique métier, de schéma DB, de RLS ni des droits d'accès.
+  - **Règle fondamentale respectée** : Zéro donnée fictive (0 Mock Data). 100% des métriques et des alertes proviennent de Supabase réel.
+  - **Sécurité des redirections** : Protection absolue interdisant toute redirection inter-espaces vers des vues revendeur privées.
+  - **États vides soignés** : Restitution élégante quand aucune notification n'est présente ("Vous êtes à jour").
+  - **Ne pas commencer S9** (Profil entreprise).
+  - ⚠️ **Les autres pages métier de l'espace Société (Dashboard S2, Catalogue S3, Productions S4, Demande S5, Campagnes S6, Notifications S8, Profil S9) restent STRICTEMENT intactes dans leur contenu.**
+  - Aucune modification de logique métier, de schéma DB, de RLS ni des droits d'accès.
+  - **Règle fondamentale respectée** : Zéro donnée fictive (0 Mock Data). 100% des métriques et des statuts proviennent de Supabase réel.
+  - **Distinction absolue** : Commande ≠ Demande ≠ Campagne ≠ Livraison ≠ Confirmation de livraison.
+  - **Garantie historique** : Préservation intégrale des commandes historiques même en cas de campagne terminée ou de production désactivée (snapshots DB immuables).
+
+* **Réalisations clés** :
+  1. **En-tête Héro Immersif Radiza (`CompanyOrdersView.tsx`)** :
+     - Bannière dégradée `forest-900 → forest-800 → earth-900` avec anneaux décoratifs en arrière-plan.
+     - Section pill badge : `Espace Société — Commandes Reçues`.
+     - Compteurs clés en lecture rapide : Total, En attente, Livrées.
+  2. **4 Cartes Métriques Réelles (0 Mock Data)** :
+     - Total Commandes, À Valider (`pending`), En Cours (`confirmed + preparing + ready`), Livrées (`delivered`).
+     - Données calculées directement sur les enregistrements réels sans aucun placeholder statique.
+  3. **Intégration du Widget Scanning & Récupération Rapide (`CompanyOrderLookupWidget`)** :
+     - Scan QR Code par caméra (`html5-qrcode`) et saisie directe de numéro de commande.
+     - Appel RPC sécurisé `lookup_order_for_delivery` et confirmation atomique `confirm_order_delivery`.
+  4. **Onglets de Statuts Défilables avec Compteurs Réels** :
+     - Onglets dynamiques : Toutes, En attente, Confirmées, En préparation, Prêtes, Livrées, Annulées.
+  5. **Barre de Recherche et Filtres Dépliable** :
+     - Recherche instantanée multi-critères : N° commande, acheteur revendeur, culture/produit, offre commerciale, ville de destination.
+     - Filtre par campagne unique si plusieurs offres existent.
+     - Bascule mode Grille de Cartes vs Tableau Dense pour grand écran.
+     - Drawer de filtres mobile avec bouton de réinitialisation.
+  6. **Composant Carte de Commande Moderne (`CompanyOrderCard.tsx`)** :
+     - Bande supérieure colorée selon statut (`pending` ambre, `confirmed` bleu, `preparing` indigo, `ready` émeraude, `delivered` forêt, `cancelled` rose).
+     - N° de commande copiable en 1 clic avec feedback visuel.
+     - Cartouche acheteur revendeur avec logo boutique et territoire.
+     - Vignette produit avec repli icône, quantité en gras (`Layers`), prix unitaire et montant total mis en valeur.
+     - Pastille logistique destination / dépôt / date d'arrivée.
+     - Bouton "Détail", bouton QR Code, bouton de transition rapide contextuelle ("Confirmer", "Préparer", "Marquer prête").
+  7. **Tiroir de Consultation Détaillée R1 (`CompanyOrderDetailDrawer.tsx`)** :
+     - Drawer R1 `size="xl"` avec stepper visuel de progression 5 étapes (Passée → Confirmée → Préparation → Prête → Livrée).
+     - Bannière de confirmation de livraison si statut livrée (quantité remise, date, notes).
+     - Détail des lignes contractuelles fermes et montant global.
+     - Cartouche d'explication de la réservation atomique de stock (protection anti-surréservation).
+     - Fiche acheteur revendeur et point de dépôt logistique.
+     - Bouton QR Code de retrait.
+     - Actions contextuelles avec notification Toast (`useToast` R1) et modal de changement de statut.
+  8. **Dialogue de Confirmation d'Annulation (`ConfirmDialog`)** :
+     - Avertissement clair informant que l'annulation restituera immédiatement la réservation de stock à l'offre commerciale via `cancel_order_and_release_reservation`.
+  9. **Refonte de la Page Détail Dédiée (`CompanyOrderDetailView.tsx`)** :
+     - Alignement 100% cohérent sur le Design System Radiza avec le même stepper et les mêmes garde-fous.
+  10. **Composant Badge Statut Amélioré (`OrderStatusBadge.tsx`)** :
+      - Support du mode `compact` pour affichage optimisé sur mobile et cartes denses.
+  11. **Squelette de Chargement Enrichi (`loading.tsx`)** :
+      - Fil d'Ariane, bannière héro, 4 cartes métriques, lookup widget, onglets, barre de filtres et cartes pulsantes.
+
+* **Validation Technique** :
+  - TypeScript : 0 erreur (`npx tsc --noEmit` code 0).
+  - Next.js Build : ✓ (38/38 routes générées avec succès, code 0).
+
+---
+
+## 3. BILAN DE LA PHASE S5 (DEMANDE DU MARCHÉ SOCIÉTÉ)
 
 * **Date de validation finale** : 2026-10-06
 * **Statut du projet** : 🟢 **STABLE — INTERFACE DEMANDE DU MARCHÉ MODERNISÉE, TYPESCRIPT 0 ERREUR, BUILD ✓**

@@ -174,17 +174,17 @@ export default function ResellerProfileView({
       if (res.success && res.avatarUrl) {
         setAvatarUrl(res.avatarUrl);
         toast.success("Photo de profil mise à jour", {
-          description: "Votre avatar a été optimisé et hébergé sur Cloudinary.",
+          description: "Votre photo a été enregistrée avec succès.",
         });
         router.refresh();
       } else {
-        toast.error("Erreur d'upload", {
+        toast.error("Téléchargement impossible", {
           description: res.error || "Impossible de mettre à jour la photo.",
         });
       }
     } catch (err: any) {
-      toast.error("Erreur de connexion", {
-        description: err.message || "Une erreur est survenue.",
+      toast.error("Problème de connexion", {
+        description: err.message || "Une erreur est survenue. Veuillez réessayer.",
       });
     } finally {
       setIsUploadingAvatar(false);
@@ -247,30 +247,14 @@ export default function ResellerProfileView({
         <span className="text-gray-900 font-semibold">Mon Profil</span>
       </div>
 
-      {/* 2. Couverture / Cover Banner façon Facebook/Twitter */}
-      <div className="relative rounded-3xl bg-gradient-to-r from-forest-950 via-forest-900 to-earth-950 h-36 sm:h-52 overflow-hidden shadow-sm border border-forest-900/60">
-        {/* Motifs géométriques & organiques KokonutUI subtils */}
-        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#16a34a_1px,transparent_1px)] [background-size:16px_16px]" />
-        <div className="absolute -top-12 -right-12 w-64 h-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-12 -left-12 w-64 h-64 rounded-full bg-earth-500/15 blur-3xl pointer-events-none" />
-
-        {/* Badge supérieur droit sur la couverture */}
-        <div className="absolute top-3.5 right-3.5 sm:top-5 sm:right-5">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-[11px] font-semibold text-emerald-300 border border-emerald-500/30 shadow-xs">
-            <Sparkles className="w-3 h-3 text-emerald-400" />
-            <span className="hidden sm:inline">Espace Certifié</span> Acheteur B2B
-          </span>
-        </div>
-      </div>
-
-      {/* 3. Carte d'en-tête du profil avec Avatar chevauchant */}
-      <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-7 shadow-xs -mt-10 sm:-mt-14 relative z-10 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5">
-          {/* Avatar chevauchant + Identité principale */}
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-5">
+      {/* 2. Carte d'en-tête du profil Revendeur */}
+      <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-7 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          {/* Avatar + Identité principale */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5">
             {/* Conteneur Avatar */}
-            <div className="relative group shrink-0 -mt-14 sm:-mt-18">
-              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-forest-100 text-forest-800 border-4 border-white shadow-xl flex items-center justify-center font-bold text-2xl sm:text-3xl overflow-hidden">
+            <div className="relative group shrink-0">
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-forest-100 text-forest-800 border-2 border-forest-200/80 shadow-md flex items-center justify-center font-bold text-2xl sm:text-3xl overflow-hidden">
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
@@ -302,7 +286,7 @@ export default function ResellerProfileView({
               <label
                 htmlFor="profile-avatar-upload"
                 className="absolute bottom-0 right-0 p-2 sm:p-2.5 rounded-full bg-forest-800 hover:bg-forest-900 text-white shadow-md border-2 border-white cursor-pointer transition-all hover:scale-105 active:scale-95"
-                title="Changer la photo de profil (Cloudinary)"
+                title="Changer la photo de profil"
                 aria-label="Changer la photo de profil"
               >
                 <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -743,7 +727,7 @@ export default function ResellerProfileView({
         onClose={() => setIsDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDeleteAvatar}
         title="Supprimer la photo de profil ?"
-        description="Votre avatar sera définitivement retiré de Cloudinary et de votre profil. Des initiales générées seront affichées par défaut."
+        description="Votre photo de profil sera définitivement retirée de votre compte. Des initiales générées seront affichées par défaut."
         confirmText="Supprimer"
         cancelText="Annuler"
         variant="destructive"

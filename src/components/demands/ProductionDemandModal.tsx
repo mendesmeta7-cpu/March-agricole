@@ -1,8 +1,7 @@
-"use client";
-
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef, useTransition, useMemo } from "react";
 import { Province } from "@/lib/queries/geography";
 import { createProductionDemandAction } from "@/lib/actions/demands";
+import Select from "@/components/ui/Select";
 import {
   X,
   TrendingUp,
@@ -53,6 +52,13 @@ export default function ProductionDemandModal({
   const [city, setCity] = useState("");
   const [targetPeriodStart, setTargetPeriodStart] = useState("");
   const [notes, setNotes] = useState("");
+
+  const provinceOptions = useMemo(() => {
+    return provinces.map((p) => ({
+      value: p.id,
+      label: p.name,
+    }));
+  }, [provinces]);
 
   if (!isOpen) return null;
 
@@ -207,22 +213,16 @@ export default function ProductionDemandModal({
               <label className="block text-xs font-semibold text-gray-800">
                 Province de destination <span className="text-rose-500">*</span>
               </label>
-              <div className="relative">
-                <select
-                  name="province_id"
-                  required
-                  value={provinceId}
-                  onChange={(e) => setProvinceId(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 bg-white transition-all"
-                >
-                  {provinces.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-                <MapPin className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-              </div>
+              <Select
+                name="province_id"
+                required
+                value={provinceId}
+                onChange={(e) => setProvinceId(e.target.value)}
+                options={provinceOptions}
+                searchable={provinces.length > 5}
+                searchPlaceholder="Rechercher une province..."
+                leftIcon={<MapPin className="w-4 h-4 text-gray-400" />}
+              />
             </div>
 
             <div className="space-y-1.5">

@@ -1,6 +1,5 @@
-"use client";
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { Select } from "@/components/ui/Select";
 import { ResellerCampaignItem } from "@/lib/queries/campaigns";
 import { createOrderAction } from "@/lib/actions/orders";
 import { isResellerEligibleForCampaign } from "@/lib/services/campaignEligibility";
@@ -348,19 +347,17 @@ export default function OrderFormModal({
                       Aucun dépôt spécifique répertorié. L&apos;enlèvement s&apos;effectuera au dépôt central de la destination.
                     </div>
                   ) : (
-                    <select
+                  <Select
                       value={selectedDepotId}
                       onChange={(e) => handleDepotChange(e.target.value)}
                       required
                       disabled={!isTerritoriallyEligible}
-                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-300 bg-white text-gray-900 font-semibold focus:ring-2 focus:ring-forest-500 outline-hidden disabled:bg-gray-100"
-                    >
-                      {currentDestination.depots.map((dep) => (
-                        <option key={dep.id} value={dep.id}>
-                          {dep.name} — {dep.commune} ({dep.address})
-                        </option>
-                      ))}
-                    </select>
+                      options={currentDestination.depots.map((dep) => ({
+                        value: dep.id,
+                        label: dep.name,
+                        description: `${dep.commune} — ${dep.address}`,
+                      }))}
+                    />
                   )}
                 </div>
 
@@ -453,11 +450,11 @@ export default function OrderFormModal({
             </div>
           </div>
 
-          {/* Note de garantie transactionnelle */}
+          {/* Note de garantie de stock */}
           <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100 flex items-start gap-2 text-blue-900 text-[11px] leading-relaxed">
             <ShieldCheck className="w-4 h-4 text-blue-700 flex-shrink-0 mt-0.5" />
             <span>
-              <strong>Réservation transactionnelle atomique</strong> : La validation de cette commande bloque immédiatement les {numQty} {campaign.unit} dans les stocks de la ferme, garantissant l&apos;absence de sur-réservation.
+              <strong>Stock réservé et garanti</strong> : La validation de cette commande bloque immédiatement les {numQty} {campaign.unit} dans les stocks du producteur, garantissant votre réservation exclusive.
             </span>
           </div>
 

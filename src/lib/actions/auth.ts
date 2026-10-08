@@ -110,7 +110,16 @@ export async function registerCompanyAction(
   });
 
   if (authError) {
-    return { error: authError.message.includes("already registered") ? "Cet email est déjà utilisé." : authError.message };
+    if (authError.message.includes("already registered") || authError.message.includes("already been registered")) {
+      return { error: "Cet email est déjà utilisé par un autre compte Radiza." };
+    }
+    if (authError.message.includes("Password") || authError.message.includes("password")) {
+      return { error: "Le mot de passe doit comporter au moins 6 caractères." };
+    }
+    if (authError.message.includes("Invalid email") || authError.message.includes("invalid email")) {
+      return { error: "L'adresse email saisie n'est pas valide." };
+    }
+    return { error: "La création du compte a échoué. Veuillez vérifier vos informations et réessayer." };
   }
 
   if (!authData.user) {
@@ -208,7 +217,16 @@ export async function registerResellerAction(
   });
 
   if (authError) {
-    return { error: authError.message.includes("already registered") ? "Cet email est déjà utilisé." : authError.message };
+    if (authError.message.includes("already registered") || authError.message.includes("already been registered")) {
+      return { error: "Cet email est déjà utilisé par un autre compte Radiza." };
+    }
+    if (authError.message.includes("Password") || authError.message.includes("password")) {
+      return { error: "Le mot de passe doit comporter au moins 6 caractères." };
+    }
+    if (authError.message.includes("Invalid email") || authError.message.includes("invalid email")) {
+      return { error: "L'adresse email saisie n'est pas valide." };
+    }
+    return { error: "La création du compte a échoué. Veuillez vérifier vos informations et réessayer." };
   }
 
   if (!authData.user) {

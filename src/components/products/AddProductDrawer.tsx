@@ -455,12 +455,12 @@ export default function AddProductDrawer({
             {/* Notes d'exploitation internes */}
             <FormField
               label="Notes d'exploitation (internes)"
-              description="Notes techniques privées pour votre équipe (parcelles, consignes de stockage)."
+              description="Notes d'exploitation privées pour votre équipe (parcelles, consignes d'entreposage)."
             >
               <Textarea
                 name="notes"
                 rows={2}
-                placeholder="Notes techniques, parcelles dédiées, consignes de stockage..."
+                placeholder="Notes d'exploitation, parcelles dédiées, consignes d'entreposage..."
               />
             </FormField>
 

@@ -104,7 +104,7 @@ export async function createAdminFeedBannerAction(
 
   if (insertError) {
     await deleteImageFromCloudinary(cloudinaryPublicId);
-    return { error: `Erreur base de données : ${insertError.message}` };
+    return { error: "L'enregistrement de la bannière a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/admin/banners");

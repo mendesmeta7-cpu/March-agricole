@@ -65,7 +65,7 @@ export default function RegisterCompanyPage() {
           <div className="mb-6 p-4 rounded-xl bg-forest-50/60 border border-forest-200/60 text-xs text-forest-900 flex items-start gap-3 leading-relaxed">
             <ShieldAlert className="w-4 h-4 text-forest-700 flex-shrink-0 mt-0.5" />
             <div>
-              <strong>Règle d&apos;or V1 :</strong> L&apos;inscription crée exclusivement votre compte utilisateur et le profil d&apos;entreprise.
+              <strong>Information importante :</strong> L&apos;inscription crée exclusivement votre compte utilisateur et le profil de votre exploitation.
               La configuration des produits et des récoltes s&apos;effectue ultérieurement depuis votre tableau de bord.
             </div>
           </div>
@@ -198,7 +198,7 @@ export default function RegisterCompanyPage() {
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-forest-50 file:text-forest-700 hover:file:bg-forest-100 transition-all cursor-pointer"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Format JPG, PNG ou WebP. Max 5 Mo. Hébergé sur Supabase Storage.
+                  Format JPG, PNG ou WebP. Max 5 Mo.
                 </p>
               </div>
             </div>

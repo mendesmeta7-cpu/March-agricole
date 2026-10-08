@@ -9,17 +9,12 @@ export default function ResellerProfileSkeleton() {
         <Skeleton className="h-4 w-44 rounded-md" />
       </div>
 
-      {/* 2. Couverture / Cover banner skeleton */}
-      <div className="relative rounded-3xl bg-gray-200/90 h-36 sm:h-52 overflow-hidden shadow-xs">
-        <div className="absolute inset-0 bg-gradient-to-r from-gray-300/40 to-gray-200/20" />
-      </div>
-
-      {/* 3. Header Card avec Avatar chevauchant skeleton */}
-      <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-7 shadow-xs -mt-10 sm:-mt-14 relative z-10 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5">
+      {/* 2. Header Card skeleton */}
+      <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-7 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           {/* Avatar + Identité */}
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gray-300 border-4 border-white shadow-md shrink-0 -mt-14 sm:-mt-18" />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gray-300 border-2 border-forest-200/80 shadow-md shrink-0" />
             <div className="space-y-2 pt-1 sm:pt-0">
               <div className="flex items-center gap-2">
                 <Skeleton className="h-6 sm:h-7 w-56 sm:w-72 rounded-lg" />

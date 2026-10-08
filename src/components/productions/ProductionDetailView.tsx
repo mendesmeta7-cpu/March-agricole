@@ -254,7 +254,7 @@ export default function ProductionDetailView({
           <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-950 text-xs sm:text-sm flex items-start gap-3">
             <Info className="w-5 h-5 shrink-0 text-amber-700 mt-0.5" />
             <div className="space-y-1">
-              <p className="font-bold">Règle de séparation des concepts métier (V1) :</p>
+              <p className="font-bold">Information sur la production :</p>
               <p className="text-xs text-amber-900/90 leading-relaxed">
                 Cette fiche enregistre exclusivement une <strong>production planifiée ou en cours</strong>.
                 Elle ne constitue ni un stock physique disponible, ni une récolte certifiée, ni une campagne
@@ -384,7 +384,7 @@ export default function ProductionDetailView({
               <p className="text-[11px] text-amber-800 bg-amber-50/70 p-2.5 rounded-xl border border-amber-200 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 shrink-0" />
                 <span>
-                  Règle V1 : Les campagnes de vente ne peuvent être ouvertes que lorsque la production est passée au statut <strong>« Récoltée »</strong>.
+                  Règle de commercialisation : Les offres commerciales ne peuvent être ouvertes que lorsque la production est passée au statut <strong>« Récoltée »</strong>.
                 </span>
               </p>
             )}
@@ -463,7 +463,7 @@ export default function ProductionDetailView({
 
                 <p className="text-[11px] text-gray-500 italic bg-gray-50/60 p-2.5 rounded-xl border border-gray-200/60 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-earth-600 shrink-0" />
-                  <span>Conseil V1 : Lors de la publication d&apos;une campagne, sélectionnez en priorité les provinces présentant la plus forte concentration de demande.</span>
+                  <span>Conseil : Lors de la publication d&apos;une campagne, sélectionnez en priorité les provinces présentant la plus forte concentration de demande.</span>
                 </p>
               </div>
             )}

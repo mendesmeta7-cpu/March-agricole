@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
+import Select from "@/components/ui/Select";
 import { DemandItem } from "@/lib/queries/demands";
 import { CatalogProduct } from "@/lib/queries/products";
 import { Province, Country } from "@/lib/queries/geography";
@@ -303,7 +304,7 @@ export default function ResellerDemandsView({
           <p className="leading-relaxed">
             <strong>Cycle de vie transparent :</strong> 1. Vous publiez un besoin général ou ciblez une production.
             2. Les producteurs qualifiés vous soumettent des propositions chiffrées (quantité, prix ferme).
-            3. Vous choisissez la proposition idéale pour commander avec réservation atomique de stock.
+            3. Vous choisissez la proposition id\u00e9ale pour passer une commande ferme avec garantie de stock.
           </p>
         </div>
       </div>
@@ -351,42 +352,39 @@ export default function ResellerDemandsView({
             {/* Filtres Desktop */}
             <div className="hidden lg:flex items-center gap-2 flex-wrap">
               {/* Type */}
-              <select
+              <Select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-earth-600 bg-white font-medium text-gray-700 cursor-pointer"
-              >
-                <option value="all">Tous les types</option>
-                <option value="general">Demandes générales</option>
-                <option value="production">Demandes sur production</option>
-              </select>
+                options={[
+                  { value: "all", label: "Tous les types" },
+                  { value: "general", label: "Demandes générales" },
+                  { value: "production", label: "Demandes sur production" },
+                ]}
+              />
 
               {/* Statut */}
-              <select
+              <Select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-earth-600 bg-white font-medium text-gray-700 cursor-pointer"
-              >
-                <option value="all">Tous les statuts</option>
-                <option value="active">Active</option>
-                <option value="converted">Convertie en commande</option>
-                <option value="cancelled">Annulée</option>
-                <option value="expired">Expirée</option>
-              </select>
+                options={[
+                  { value: "all", label: "Tous les statuts" },
+                  { value: "active", label: "Active" },
+                  { value: "converted", label: "Convertie en commande" },
+                  { value: "cancelled", label: "Annulée" },
+                  { value: "expired", label: "Expirée" },
+                ]}
+              />
 
               {/* Denrée */}
-              <select
+              <Select
                 value={productFilter}
                 onChange={(e) => setProductFilter(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-earth-600 bg-white font-medium text-gray-700 cursor-pointer max-w-[180px]"
-              >
-                <option value="all">Toutes les denrées</option>
-                {catalogProducts.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                searchable
+                options={useMemo(() => [
+                  { value: "all", label: "Toutes les denrées" },
+                  ...catalogProducts.map((p) => ({ value: p.id, label: p.name })),
+                ], [catalogProducts])}
+              />
 
               {/* Toggle offres reçues */}
               <button
@@ -450,48 +448,45 @@ export default function ResellerDemandsView({
           {/* Type */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-gray-800">Type de besoin</label>
-            <select
+            <Select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-200 bg-white"
-            >
-              <option value="all">Tous les types</option>
-              <option value="general">Demandes générales</option>
-              <option value="production">Demandes sur production</option>
-            </select>
+              options={[
+                { value: "all", label: "Tous les types" },
+                { value: "general", label: "Demandes générales" },
+                { value: "production", label: "Demandes sur production" },
+              ]}
+            />
           </div>
 
           {/* Statut */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-gray-800">Statut du cycle de vie</label>
-            <select
+            <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-200 bg-white"
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="active">Active</option>
-              <option value="converted">Convertie en commande</option>
-              <option value="cancelled">Annulée</option>
-              <option value="expired">Expirée</option>
-            </select>
+              options={[
+                { value: "all", label: "Tous les statuts" },
+                { value: "active", label: "Active" },
+                { value: "converted", label: "Convertie en commande" },
+                { value: "cancelled", label: "Annulée" },
+                { value: "expired", label: "Expirée" },
+              ]}
+            />
           </div>
 
           {/* Denrée */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-gray-800">Denrée agricole</label>
-            <select
+            <Select
               value={productFilter}
               onChange={(e) => setProductFilter(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-200 bg-white"
-            >
-              <option value="all">Toutes les denrées</option>
-              {catalogProducts.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              searchable
+              options={useMemo(() => [
+                { value: "all", label: "Toutes les denrées" },
+                ...catalogProducts.map((p) => ({ value: p.id, label: p.name })),
+              ], [catalogProducts])}
+            />
           </div>
 
           {/* Checkbox offres */}

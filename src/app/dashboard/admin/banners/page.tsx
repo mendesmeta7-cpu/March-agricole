@@ -33,7 +33,7 @@ export default async function AdminBannersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Gestion des Bannières du Flux"
-        description="Créez et organisez les visuels du carrousel dynamique d'accueil avec vos visuels Cloudinary."
+        description="Créez et organisez les visuels du carrousel dynamique d'accueil avec vos images haute définition."
         badge={<Badge variant="forest">Contenu du Flux</Badge>}
       />
 

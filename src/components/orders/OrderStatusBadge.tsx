@@ -11,43 +11,51 @@ import {
 interface OrderStatusBadgeProps {
   status: OrderStatus;
   size?: "sm" | "md";
+  compact?: boolean;
 }
 
 export default function OrderStatusBadge({
   status,
   size = "md",
+  compact = false,
 }: OrderStatusBadgeProps) {
   const configMap: Record<
     OrderStatus,
-    { label: string; icon: React.ReactNode; className: string }
+    { label: string; shortLabel: string; icon: React.ReactNode; className: string }
   > = {
     pending: {
       label: "En attente de confirmation",
+      shortLabel: "En attente",
       icon: <Clock className="w-3.5 h-3.5" />,
       className: "bg-amber-50 text-amber-800 border-amber-200/80",
     },
     confirmed: {
       label: "Confirmée par l'exploitation",
+      shortLabel: "Confirmée",
       icon: <CheckCircle2 className="w-3.5 h-3.5" />,
       className: "bg-blue-50 text-blue-800 border-blue-200/80",
     },
     preparing: {
       label: "En cours de préparation",
+      shortLabel: "En préparation",
       icon: <Package className="w-3.5 h-3.5" />,
       className: "bg-indigo-50 text-indigo-800 border-indigo-200/80",
     },
     ready: {
       label: "Prête pour retrait / expédition",
+      shortLabel: "Prête",
       icon: <Truck className="w-3.5 h-3.5" />,
       className: "bg-emerald-50 text-emerald-800 border-emerald-200/80",
     },
     delivered: {
       label: "Livrée / Réceptionnée",
+      shortLabel: "Livrée",
       icon: <CheckCheck className="w-3.5 h-3.5" />,
       className: "bg-forest-50 text-forest-900 border-forest-200/80",
     },
     cancelled: {
       label: "Annulée",
+      shortLabel: "Annulée",
       icon: <XCircle className="w-3.5 h-3.5" />,
       className: "bg-rose-50 text-rose-800 border-rose-200/80",
     },
@@ -61,7 +69,7 @@ export default function OrderStatusBadge({
       className={`inline-flex items-center gap-1.5 font-semibold rounded-lg border ${padding} ${current.className}`}
     >
       {current.icon}
-      {current.label}
+      <span>{compact ? current.shortLabel : current.label}</span>
     </span>
   );
 }

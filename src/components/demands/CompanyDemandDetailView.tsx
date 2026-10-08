@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef, useTransition, useMemo } from "react";
 import { DemandItem, DemandResponseItem } from "@/lib/queries/demands";
 import { createDemandProposalAction } from "@/lib/actions/demands";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
+import Select from "@/components/ui/Select";
 import {
   ArrowLeft,
   Send,
@@ -74,6 +75,24 @@ export default function CompanyDemandDetailView({
   const [unitPrice, setUnitPrice] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [message, setMessage] = useState("");
+
+  const productionOptions = useMemo(
+    () =>
+      matchingProductions.map((p) => ({
+        value: p.id,
+        label: `${p.title} (${p.expected_quantity} ${p.unit})`,
+        badge: p.status === "harvested" ? "Récoltée" : p.status === "growing" ? "En culture" : p.status,
+      })),
+    [matchingProductions]
+  );
+
+  const currencyOptions = useMemo(
+    () => [
+      { value: "USD", label: "USD" },
+      { value: "CDF", label: "CDF" },
+    ],
+    []
+  );
 
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return "Non précisée";
@@ -375,18 +394,14 @@ export default function CompanyDemandDetailView({
                     <label className="font-bold text-gray-700 block">
                       Production de votre exploitation <span className="text-rose-500">*</span>
                     </label>
-                    <select
+                    <Select
                       value={selectedProductionId}
                       onChange={(e) => setSelectedProductionId(e.target.value)}
                       required
-                      className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-900 font-medium focus:ring-2 focus:ring-forest-600"
-                    >
-                      {matchingProductions.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.title} ({p.expected_quantity} {p.unit} - {p.status})
-                        </option>
-                      ))}
-                    </select>
+                      searchable
+                      leftIcon={<Sprout className="w-4 h-4 text-forest-600" />}
+                      options={productionOptions}
+                    />
                   </div>
 
                   {/* Quantité & Unité */}
@@ -437,14 +452,12 @@ export default function CompanyDemandDetailView({
 
                     <div className="space-y-1.5">
                       <label className="font-bold text-gray-700 block">Devise</label>
-                      <select
+                      <Select
                         value={currency}
                         onChange={(e) => setCurrency(e.target.value)}
-                        className="w-full px-2 py-2 rounded-xl border border-gray-200 bg-white font-bold text-gray-800"
-                      >
-                        <option value="USD">USD</option>
-                        <option value="CDF">CDF</option>
-                      </select>
+                        options={currencyOptions}
+                        selectSize="md"
+                      />
                     </div>
                   </div>
 

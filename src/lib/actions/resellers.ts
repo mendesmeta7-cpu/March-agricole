@@ -70,7 +70,7 @@ export async function updateResellerLocationAction(
 
   if (error) {
     console.error("Erreur mise à jour localisation revendeur:", error);
-    return { success: false, error: `Erreur lors de la mise à jour: ${error.message}` };
+    return { success: false, error: "La mise à jour de votre localisation a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/reseller/profile");

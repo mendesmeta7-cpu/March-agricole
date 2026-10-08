@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getUserNotifications } from "@/lib/queries/notifications";
-import NotificationsView from "@/components/notifications/NotificationsView";
+import CompanyNotificationsView from "@/components/notifications/CompanyNotificationsView";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function CompanyNotificationsPage() {
   const supabase = createClient();
@@ -14,9 +17,10 @@ export default async function CompanyNotificationsPage() {
   const result = await getUserNotifications(user.id);
 
   return (
-    <NotificationsView
+    <CompanyNotificationsView
       initialNotifications={result.notifications}
-      userRole="company"
+      unreadCount={result.unreadCount}
+      totalCount={result.totalCount}
     />
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchCountries, fetchProvinces, fetchCities, Country, Province, City } from "@/lib/queries/geography";
+import { Select } from "@/components/ui/Select";
 
 interface GeographySelectorProps {
   required?: boolean;
@@ -86,19 +87,18 @@ export default function GeographySelector({
         {loadingCountries ? (
           <div className="h-11 w-full animate-pulse bg-gray-100 rounded-xl border border-gray-200" />
         ) : (
-          <select
+          <Select
             name="countryId"
             value={selectedCountryId}
             onChange={(e) => setSelectedCountryId(e.target.value)}
             required={required}
-            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none min-h-[44px] text-sm"
-          >
-            {countries.map((country) => (
-              <option key={country.id} value={country.id}>
-                {country.name} ({country.code})
-              </option>
-            ))}
-          </select>
+            options={countries.map((country) => ({
+              value: country.id,
+              label: `${country.name} (${country.code})`,
+            }))}
+            searchable={countries.length > 5}
+            searchPlaceholder="Rechercher un pays..."
+          />
         )}
       </div>
 
@@ -110,24 +110,20 @@ export default function GeographySelector({
         {loadingProvinces ? (
           <div className="h-11 w-full animate-pulse bg-gray-100 rounded-xl border border-gray-200" />
         ) : (
-          <select
+          <Select
             name="provinceId"
             value={selectedProvinceId}
             onChange={(e) => setSelectedProvinceId(e.target.value)}
             required={required}
             disabled={provinces.length === 0}
-            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none disabled:bg-gray-50 disabled:text-gray-400 min-h-[44px] text-sm"
-          >
-            {provinces.length === 0 ? (
-              <option value="">Aucune province disponible</option>
-            ) : (
-              provinces.map((prov) => (
-                <option key={prov.id} value={prov.id}>
-                  {prov.name} ({prov.code})
-                </option>
-              ))
-            )}
-          </select>
+            placeholder={provinces.length === 0 ? "Aucune province disponible" : "Sélectionner..."}
+            options={provinces.map((prov) => ({
+              value: prov.id,
+              label: `${prov.name} (${prov.code})`,
+            }))}
+            searchable={provinces.length > 5}
+            searchPlaceholder="Rechercher une province..."
+          />
         )}
       </div>
 
@@ -138,19 +134,19 @@ export default function GeographySelector({
             Ville / Territoire
           </label>
           {cities.length > 0 ? (
-            <select
+            <Select
               name="city"
               value={selectedCity}
               onChange={(e) => setSelectedCity(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none min-h-[44px] text-sm"
-            >
-              <option value="">Sélectionnez une ville...</option>
-              {cities.map((city) => (
-                <option key={city.id} value={city.name}>
-                  {city.name}
-                </option>
-              ))}
-            </select>
+              placeholder="Sélectionnez une ville..."
+              options={[
+                { value: "", label: "Sélectionnez une ville..." },
+                ...cities.map((city) => ({
+                  value: city.name,
+                  label: city.name,
+                })),
+              ]}
+            />
           ) : (
             <input
               type="text"

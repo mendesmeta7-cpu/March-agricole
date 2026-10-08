@@ -1,16 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import {
   Tractor,
   TrendingUp,
   Megaphone,
   ShoppingBag,
-  Info,
   Clock,
   CheckCircle2,
-  Box,
+  Sprout,
+  Package,
 } from "lucide-react";
-import Tooltip from "@/components/ui/Tooltip";
 
 export interface CompanyOverviewMetricsProps {
   productionsStats: {
@@ -18,6 +18,7 @@ export interface CompanyOverviewMetricsProps {
     growing: number;
     harvested: number;
     planned: number;
+    draft: number;
   };
   demandsStats: {
     totalActive: number;
@@ -27,6 +28,7 @@ export interface CompanyOverviewMetricsProps {
   };
   campaignsStats: {
     activeCount: number;
+    totalCount: number;
     totalMarketable: number;
     totalReserved: number;
     totalAvailable: number;
@@ -34,11 +36,94 @@ export interface CompanyOverviewMetricsProps {
   };
   ordersStats: {
     total: number;
-    toProcess: number; // pending, confirmed, preparing, ready
+    toProcess: number;
     delivered: number;
     totalRevenue: number;
     currency: string;
   };
+}
+
+interface KpiCardProps {
+  title: string;
+  value: number | string;
+  valueLabel?: string;
+  icon: React.ReactNode;
+  iconBg: string;
+  accentColor: string;
+  href: string;
+  details: { label: string; value: string | number; highlight?: boolean }[];
+  footer?: string;
+}
+
+function KpiCard({
+  title,
+  value,
+  valueLabel,
+  icon,
+  iconBg,
+  accentColor,
+  href,
+  details,
+  footer,
+}: KpiCardProps) {
+  return (
+    <Link href={href} className="group block">
+      <div
+        className={`relative bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-6 shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200 overflow-hidden h-full flex flex-col justify-between`}
+      >
+        {/* Accent coloré en haut */}
+        <div className={`absolute top-0 left-0 right-0 h-0.5 ${accentColor} rounded-t-2xl`} />
+
+        <div>
+          {/* En-tête carte */}
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider leading-tight pt-0.5">
+              {title}
+            </span>
+            <div
+              className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-200`}
+            >
+              {icon}
+            </div>
+          </div>
+
+          {/* Valeur principale */}
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-3xl sm:text-4xl font-black text-gray-950 tracking-tight">
+              {value}
+            </span>
+            {valueLabel && (
+              <span className="text-sm text-gray-400 font-medium">
+                {valueLabel}
+              </span>
+            )}
+          </div>
+
+          {/* Détails secondaires */}
+          {details.length > 0 && (
+            <div className="space-y-2 pt-3 border-t border-gray-100">
+              {details.map((d, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <span className="text-gray-500">{d.label}</span>
+                  <span
+                    className={`font-bold ${d.highlight ? "text-amber-600" : "text-gray-900"}`}
+                  >
+                    {d.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {footer && (
+          <p className="mt-4 text-[11px] text-gray-400 border-t border-gray-50 pt-3">
+            {footer}
+          </p>
+        )}
+      </div>
+    </Link>
+  );
 }
 
 export default function CompanyOverviewMetrics({
@@ -47,7 +132,6 @@ export default function CompanyOverviewMetrics({
   campaignsStats,
   ordersStats,
 }: CompanyOverviewMetricsProps) {
-  // Formatage des montants monétaires réels
   const formattedRevenue = new Intl.NumberFormat("fr-FR", {
     style: "currency",
     currency: ordersStats.currency || "USD",
@@ -56,209 +140,117 @@ export default function CompanyOverviewMetrics({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base sm:text-lg font-bold text-gray-950 tracking-tight">
-            Vue d&apos;ensemble de l&apos;Activité
-          </h2>
-          <Tooltip content="Indicateurs calculés exclusivement depuis vos enregistrements réels Supabase. Aucune donnée simulée.">
-            <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-pointer" />
-          </Tooltip>
-        </div>
-        <span className="text-xs text-gray-500 font-medium">
-          Source de vérité : transactions réelles Supabase
+      <div className="flex items-center justify-between">
+        <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
+          Vue d&apos;ensemble
+        </h2>
+        <span className="text-xs text-gray-400 font-medium">
+          Mis à jour en temps réel
         </span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* 1. Productions Agricoles */}
-        <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between hover:border-forest-200 transition-colors">
-          <div>
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Productions Déclarées
-              </span>
-              <div className="w-10 h-10 rounded-2xl bg-forest-100 text-forest-800 flex items-center justify-center shrink-0">
-                <Tractor className="w-5 h-5 stroke-[2.2]" />
-              </div>
-            </div>
+        {/* 1. Productions */}
+        <KpiCard
+          title="Productions"
+          value={productionsStats.total}
+          valueLabel="cycle(s)"
+          icon={<Tractor className="w-5 h-5 stroke-[2]" />}
+          iconBg="bg-forest-100 text-forest-800"
+          accentColor="bg-forest-500"
+          href="/dashboard/company/productions"
+          details={[
+            {
+              label: "En culture",
+              value: productionsStats.growing,
+              highlight: false,
+            },
+            {
+              label: "Récoltées",
+              value: productionsStats.harvested,
+              highlight: false,
+            },
+          ]}
+          footer="Volume déclaré — hors réservations"
+        />
 
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-gray-950 tracking-tight">
-                {productionsStats.total}
-              </span>
-              <span className="text-xs text-gray-500 font-semibold">
-                cycle(s)
-              </span>
-            </div>
+        {/* 2. Demandes du marché */}
+        <KpiCard
+          title="Demandes reçues"
+          value={demandsStats.totalActive}
+          valueLabel="active(s)"
+          icon={<TrendingUp className="w-5 h-5 stroke-[2]" />}
+          iconBg="bg-blue-100 text-blue-800"
+          accentColor="bg-blue-500"
+          href="/dashboard/company/demands"
+          details={[
+            {
+              label: "Sans proposition",
+              value: demandsStats.needingResponse,
+              highlight: demandsStats.needingResponse > 0,
+            },
+            {
+              label: "Volume exprimé",
+              value:
+                demandsStats.totalDemandedQuantity > 0
+                  ? `${demandsStats.totalDemandedQuantity} ${demandsStats.unit}`
+                  : "0 t",
+              highlight: false,
+            },
+          ]}
+          footer="Intentions d'achat des revendeurs"
+        />
 
-            <div className="mt-4 pt-3.5 border-t border-gray-100 space-y-1.5 text-xs">
-              <div className="flex items-center justify-between text-gray-600">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  En culture active
-                </span>
-                <span className="font-bold text-gray-900">
-                  {productionsStats.growing}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-gray-600">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  Récoltées disponibles
-                </span>
-                <span className="font-bold text-gray-900">
-                  {productionsStats.harvested}
-                </span>
-              </div>
-            </div>
-          </div>
+        {/* 3. Campagnes */}
+        <KpiCard
+          title="Campagnes actives"
+          value={campaignsStats.activeCount}
+          valueLabel="en cours"
+          icon={<Megaphone className="w-5 h-5 stroke-[2]" />}
+          iconBg="bg-amber-100 text-amber-800"
+          accentColor="bg-amber-500"
+          href="/dashboard/company/campaigns"
+          details={[
+            {
+              label: "Réservé par acheteurs",
+              value: `${campaignsStats.totalReserved} ${campaignsStats.unit}`,
+              highlight: campaignsStats.totalReserved > 0,
+            },
+            {
+              label: "Encore disponible",
+              value:
+                campaignsStats.totalAvailable > 0
+                  ? `${campaignsStats.totalAvailable} ${campaignsStats.unit}`
+                  : "Complet",
+              highlight: false,
+            },
+          ]}
+          footer={`${campaignsStats.totalCount} campagne(s) au total`}
+        />
 
-          <p className="mt-4 text-[11px] text-gray-400 italic">
-            Distinction : volume déclaré ≠ stock vendu
-          </p>
-        </div>
-
-        {/* 2. Demandes du Marché */}
-        <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between hover:border-forest-200 transition-colors">
-          <div>
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Demandes du Marché
-              </span>
-              <div className="w-10 h-10 rounded-2xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-5 h-5 stroke-[2.2]" />
-              </div>
-            </div>
-
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-gray-950 tracking-tight">
-                {demandsStats.totalActive}
-              </span>
-              <span className="text-xs text-gray-500 font-semibold">
-                active(s)
-              </span>
-            </div>
-
-            <div className="mt-4 pt-3.5 border-t border-gray-100 space-y-1.5 text-xs">
-              <div className="flex items-center justify-between text-gray-600">
-                <span className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-amber-500" />
-                  Sans proposition ferme
-                </span>
-                <span className={`font-bold ${demandsStats.needingResponse > 0 ? "text-amber-600" : "text-gray-900"}`}>
-                  {demandsStats.needingResponse}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-gray-600">
-                <span className="flex items-center gap-1.5">
-                  <Box className="w-3.5 h-3.5 text-gray-400" />
-                  Volume exprimé total
-                </span>
-                <span className="font-bold text-gray-900">
-                  {demandsStats.totalDemandedQuantity > 0
-                    ? `${demandsStats.totalDemandedQuantity} ${demandsStats.unit}`
-                    : "0 tonne"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <p className="mt-4 text-[11px] text-gray-400 italic">
-            Intention d&apos;achat ≠ vente réalisée
-          </p>
-        </div>
-
-        {/* 3. Campagnes de Vente */}
-        <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between hover:border-forest-200 transition-colors">
-          <div>
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Campagnes Actives
-              </span>
-              <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                <Megaphone className="w-5 h-5 stroke-[2.2]" />
-              </div>
-            </div>
-
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-gray-950 tracking-tight">
-                {campaignsStats.activeCount}
-              </span>
-              <span className="text-xs text-gray-500 font-semibold">
-                en cours
-              </span>
-            </div>
-
-            <div className="mt-4 pt-3.5 border-t border-gray-100 space-y-1.5 text-xs">
-              <div className="flex items-center justify-between text-gray-600">
-                <span>Stock réservé revendeurs</span>
-                <span className="font-bold text-amber-600">
-                  {campaignsStats.totalReserved} {campaignsStats.unit}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-gray-600">
-                <span>Stock restant disponible</span>
-                <span className="font-bold text-forest-700">
-                  {campaignsStats.totalAvailable} {campaignsStats.unit}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <p className="mt-4 text-[11px] text-gray-400 italic">
-            Réservations atomiques anti-surréservation
-          </p>
-        </div>
-
-        {/* 4. Commandes Reçues */}
-        <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between hover:border-forest-200 transition-colors">
-          <div>
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Commandes Reçues
-              </span>
-              <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-800 flex items-center justify-center shrink-0">
-                <ShoppingBag className="w-5 h-5 stroke-[2.2]" />
-              </div>
-            </div>
-
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-gray-950 tracking-tight">
-                {ordersStats.total}
-              </span>
-              <span className="text-xs text-gray-500 font-semibold">
-                au total
-              </span>
-            </div>
-
-            <div className="mt-4 pt-3.5 border-t border-gray-100 space-y-1.5 text-xs">
-              <div className="flex items-center justify-between text-gray-600">
-                <span className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-purple-500" />
-                  À traiter / En cours
-                </span>
-                <span className="font-bold text-gray-900">
-                  {ordersStats.toProcess}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-gray-600">
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  Livrées & confirmées
-                </span>
-                <span className="font-bold text-emerald-700">
-                  {ordersStats.delivered}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-2 border-t border-gray-100/60 flex items-center justify-between text-xs">
-            <span className="text-gray-500 font-medium">Engagements réels :</span>
-            <span className="font-extrabold text-gray-950">{formattedRevenue}</span>
-          </div>
-        </div>
+        {/* 4. Commandes */}
+        <KpiCard
+          title="Commandes reçues"
+          value={ordersStats.total}
+          valueLabel="au total"
+          icon={<ShoppingBag className="w-5 h-5 stroke-[2]" />}
+          iconBg="bg-purple-100 text-purple-800"
+          accentColor="bg-purple-500"
+          href="/dashboard/company/orders"
+          details={[
+            {
+              label: "À traiter",
+              value: ordersStats.toProcess,
+              highlight: ordersStats.toProcess > 0,
+            },
+            {
+              label: "Livrées",
+              value: ordersStats.delivered,
+              highlight: false,
+            },
+          ]}
+          footer={`Engagement total : ${formattedRevenue}`}
+        />
       </div>
     </div>
   );

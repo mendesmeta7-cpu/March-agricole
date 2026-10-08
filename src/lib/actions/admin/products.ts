@@ -78,7 +78,7 @@ export async function createAdminCatalogProductAction(
       });
 
     if (uploadError) {
-      return { error: `Erreur d'upload : ${uploadError.message}` };
+      return { error: "Le téléchargement de l'image a échoué. Vérifiez le format (JPG, PNG, WebP) et la taille du fichier." };
     }
 
     const { data: publicUrlData } = supabase.storage
@@ -102,7 +102,7 @@ export async function createAdminCatalogProductAction(
     if (insertErr.code === "23505") {
       return { error: `Un produit portant le nom "${name}" existe déjà dans le catalogue global.` };
     }
-    return { error: insertErr.message };
+    return { error: "L'ajout du produit au catalogue a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/admin/products");
@@ -180,7 +180,7 @@ export async function updateAdminCatalogProductAction(
       });
 
     if (uploadError) {
-      return { error: `Erreur d'upload : ${uploadError.message}` };
+      return { error: "Le téléchargement de l'image a échoué. Vérifiez le format (JPG, PNG, WebP) et la taille du fichier." };
     }
 
     const { data: publicUrlData } = supabase.storage
@@ -201,7 +201,7 @@ export async function updateAdminCatalogProductAction(
     if (updateErr.code === "23505") {
       return { error: `Un autre produit nommé "${name}" existe déjà dans le catalogue global.` };
     }
-    return { error: updateErr.message };
+    return { error: "La mise à jour du produit a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/admin/products");
@@ -240,7 +240,7 @@ export async function toggleAdminCatalogProductStatusAction(
     .eq("is_global", true);
 
   if (error) {
-    return { error: error.message };
+    return { error: "La modification du statut du produit a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/admin/products");

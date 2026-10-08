@@ -1,10 +1,9 @@
-"use client";
-
-import { useState, useRef, useTransition, useEffect } from "react";
+import { useState, useRef, useTransition, useEffect, useMemo } from "react";
 import { DemandItem } from "@/lib/queries/demands";
 import { CatalogProduct } from "@/lib/queries/products";
 import { Province, Country } from "@/lib/queries/geography";
 import { createDemandAction, updateDemandAction } from "@/lib/actions/demands";
+import { Select } from "@/components/ui/Select";
 import {
   X,
   TrendingUp,
@@ -93,6 +92,48 @@ export default function DemandFormModal({
     }
   }, [isOpen, editingDemand, catalogProducts, countries, provinces, defaultProvinceId, defaultCountryId]);
 
+  const productOptions = useMemo(() => {
+    return catalogProducts.map((p) => ({
+      value: p.id,
+      label: p.name,
+      badge: p.category,
+      description: p.description ?? undefined,
+    }));
+  }, [catalogProducts]);
+
+  const unitOptions = useMemo(() => [
+    { value: "tonne", label: "Tonne(s)" },
+    { value: "sac 50kg", label: "Sac(s) de 50 kg" },
+    { value: "sac 100kg", label: "Sac(s) de 100 kg" },
+    { value: "kg", label: "Kilogramme(s)" },
+    { value: "cageot", label: "Cageot(s)" },
+    { value: "carton", label: "Carton(s)" },
+  ], []);
+
+  const countryOptions = useMemo(() => {
+    return countries.map((c) => ({
+      value: c.id,
+      label: `${c.name} (${c.code})`,
+    }));
+  }, [countries]);
+
+  const provinceOptions = useMemo(() => {
+    return provinces.map((p) => ({
+      value: p.id,
+      label: p.name,
+    }));
+  }, [provinces]);
+
+  const companyOptions = useMemo(() => {
+    return [
+      { value: "", label: "Tous les producteurs (Ouvert au marché)" },
+      ...companies.map((c) => ({
+        value: c.id,
+        label: c.name,
+      })),
+    ];
+  }, [companies]);
+
   const handleProductChange = (newProductId: string) => {
     setProductId(newProductId);
     const prod = catalogProducts.find((p) => p.id === newProductId);
@@ -170,7 +211,7 @@ export default function DemandFormModal({
           <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-amber-900 text-xs flex items-start gap-2.5">
             <Info className="w-4 h-4 shrink-0 text-amber-700 mt-0.5" />
             <div className="leading-relaxed">
-              <strong className="font-semibold">Principe fondamental V1 :</strong> Une demande est une expression
+              <strong className="font-semibold">Information :</strong> Une demande est une expression
               de besoin territorial. Elle n&apos;engage aucun paiement, ne réserve aucun stock et ne constitue pas
               une commande ferme.
             </div>
@@ -186,20 +227,17 @@ export default function DemandFormModal({
                 Aucun produit disponible dans le catalogue national.
               </div>
             ) : (
-              <select
+              <Select
                 name="productId"
                 value={productId}
                 onChange={(e) => handleProductChange(e.target.value)}
+                options={productOptions}
+                searchable
+                searchPlaceholder="Rechercher une denrée (ail, maïs, ananas...)"
+                placeholder="Sélectionner une denrée..."
                 disabled={isEditing}
                 required
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600 focus:border-earth-600 bg-white transition-all disabled:bg-gray-100 disabled:text-gray-500"
-              >
-                {catalogProducts.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} — [Catégorie : {p.category}]
-                  </option>
-                ))}
-              </select>
+              />
             )}
           </div>
 
@@ -210,7 +248,7 @@ export default function DemandFormModal({
                 Quantité estimée <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
-                <Scale className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                <Scale className="w-4 h-4 text-gray-400 absolute left-3 top-3.5 pointer-events-none" />
                 <input
                   type="number"
                   step="any"
@@ -220,7 +258,7 @@ export default function DemandFormModal({
                   onChange={(e) => setQuantity(e.target.value)}
                   placeholder="Ex. 100"
                   required
-                  className="w-full pl-9 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600 focus:border-earth-600 transition-all"
+                  className="w-full pl-9 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600/20 focus:border-earth-600 outline-none transition-all"
                 />
               </div>
             </div>
@@ -229,25 +267,18 @@ export default function DemandFormModal({
               <label className="block text-xs font-semibold text-gray-800">
                 Unité de mesure <span className="text-rose-500">*</span>
               </label>
-              <select
+              <Select
                 name="unit"
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
+                options={unitOptions}
                 required
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600 focus:border-earth-600 bg-white transition-all"
-              >
-                <option value="tonne">Tonne(s)</option>
-                <option value="sac 50kg">Sac(s) de 50 kg</option>
-                <option value="sac 100kg">Sac(s) de 100 kg</option>
-                <option value="kg">Kilogramme(s)</option>
-                <option value="cageot">Cageot(s)</option>
-                <option value="carton">Carton(s)</option>
-              </select>
+              />
             </div>
           </div>
 
           {/* Territoire de livraison / approvisionnement */}
-          <div className="space-y-3 p-4 rounded-2xl bg-gray-50 border border-gray-200">
+          <div className="space-y-3 p-4 rounded-2xl bg-gray-50/80 border border-gray-200">
             <div className="flex items-center gap-2 text-xs font-bold text-gray-900">
               <MapPin className="w-4 h-4 text-earth-700" />
               Territoire de livraison souhaité
@@ -258,38 +289,30 @@ export default function DemandFormModal({
                 <label className="block text-[11px] font-semibold text-gray-700">
                   Pays <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <Select
                   name="countryId"
                   value={countryId}
                   onChange={(e) => setCountryId(e.target.value)}
+                  options={countryOptions}
+                  selectSize="sm"
                   required
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600 bg-white"
-                >
-                  {countries.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.code})
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div className="space-y-1">
                 <label className="block text-[11px] font-semibold text-gray-700">
                   Province / Région <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <Select
                   name="provinceId"
                   value={provinceId}
                   onChange={(e) => setProvinceId(e.target.value)}
+                  options={provinceOptions}
+                  searchable={provinceOptions.length > 5}
+                  searchPlaceholder="Rechercher..."
+                  selectSize="sm"
                   required
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600 bg-white"
-                >
-                  {provinces.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div className="space-y-1">
@@ -302,7 +325,7 @@ export default function DemandFormModal({
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="Ex. Lubumbashi"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600 bg-white"
+                  className="w-full px-3 py-1.5 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600/20 focus:border-earth-600 outline-none bg-white transition-all min-h-[34px]"
                 />
               </div>
             </div>
@@ -315,13 +338,13 @@ export default function DemandFormModal({
                 Période souhaitée à partir du
               </label>
               <div className="relative">
-                <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-3.5 pointer-events-none" />
                 <input
                   type="date"
                   name="targetPeriodStart"
                   value={targetPeriodStart}
                   onChange={(e) => setTargetPeriodStart(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600 transition-all"
+                  className="w-full pl-9 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600/20 focus:border-earth-600 outline-none transition-all"
                 />
               </div>
             </div>
@@ -331,14 +354,14 @@ export default function DemandFormModal({
                 Date limite souhaitée
               </label>
               <div className="relative">
-                <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-3.5 pointer-events-none" />
                 <input
                   type="date"
                   name="targetPeriodEnd"
                   value={targetPeriodEnd}
                   min={targetPeriodStart || undefined}
                   onChange={(e) => setTargetPeriodEnd(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600 transition-all"
+                  className="w-full pl-9 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600/20 focus:border-earth-600 outline-none transition-all"
                 />
               </div>
             </div>
@@ -350,22 +373,15 @@ export default function DemandFormModal({
               <label className="block text-xs font-semibold text-gray-800">
                 Producteur spécifique ciblé (optionnel)
               </label>
-              <div className="relative">
-                <Building2 className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                <select
-                  name="targetCompanyId"
-                  value={targetCompanyId}
-                  onChange={(e) => setTargetCompanyId(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600 bg-white transition-all"
-                >
-                  <option value="">Tous les producteurs (Ouvert au marché)</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                name="targetCompanyId"
+                value={targetCompanyId}
+                onChange={(e) => setTargetCompanyId(e.target.value)}
+                options={companyOptions}
+                searchable={companies.length > 5}
+                searchPlaceholder="Rechercher producteur..."
+                leftIcon={<Building2 className="w-4 h-4 text-gray-400" />}
+              />
               <p className="text-[11px] text-gray-500">
                 Laissez &quot;Tous les producteurs&quot; pour que votre besoin soit visible par l&apos;ensemble des entreprises agricoles de la région.
               </p>

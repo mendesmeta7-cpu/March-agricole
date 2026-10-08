@@ -98,7 +98,7 @@ export async function createAdminFeedCategoryAction(
     if (insertError.code === "23505") {
       return { error: "Une catégorie portant ce nom existe déjà." };
     }
-    return { error: `Erreur base de données : ${insertError.message}` };
+    return { error: "La création de la catégorie a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/admin/categories");

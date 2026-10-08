@@ -139,8 +139,21 @@
   - `draft` (Brouillon) : Offre en cours de préparation, invisible pour les revendeurs ;
   - `active` (Active / Ouverte) : Campagne publiée, visible dans le catalogue des offres et ouverte à la commande pour les revendeurs éligibles ;
   - `paused` (Suspendue) : Prise de commande temporairement interrompue par l'entreprise ;
-  - `completed` (Terminée) : Stock entièrement réservé ou date de clôture atteinte ;
+  - `completed` (Terminée) : Stock entièrement réservé, date de fin globale atteinte, ou toutes les destinations expirées ;
   - `cancelled` (Annulée) : Campagne retirée par l'entreprise (les commandes déjà confirmées doivent être traitées ou résolues).
+
+### 8.4 Statut Réel, Multi-Destinations et Source Unique de Vérité (Étape 4)
+* **BR-CMP-06 (Source Unique de Vérité du Statut Réel des Campagnes)** :
+  - **Gestion Multi-Destinations** : Une campagne commerciale peut desservir plusieurs destinations (`campaign_destinations`), chacune possédant sa propre date limite de commande (`order_deadline_date`).
+  - **Règle Fondamentale 1 (« Une destination expirée ≠ campagne terminée »)** : Lorsqu'une ou plusieurs destinations expirent mais qu'au moins une destination reste active (`order_deadline_date >= date_du_jour` ou `NULL`), la campagne globale reste **« ACTIVE »** (« Campagne en cours »). Les revendeurs situés sur les destinations encore actives peuvent continuer à commander, tandis que les destinations expirées refusent de nouvelles commandes tout en préservant leurs commandes passées.
+  - **Règle Fondamentale 2 (« Toutes les destinations expirées = campagne terminée »)** : Dès que TOUTES les destinations configurées sur une campagne ont leur date limite dépassée (`order_deadline_date < date_du_jour`), la campagne globale bascule automatiquement au statut **« TERMINÉE »** (`completed`).
+  - **Cas Particulier d'une Destination Unique** : Si une campagne ne possède qu'une seule destination et que sa date limite expire, la campagne globale passe immédiatement à `completed`.
+  - **Fin par Date Globale** : Si la date de fin générale (`end_date`) de la campagne est dépassée (< aujourd'hui), la campagne est immédiatement considérée comme `completed`, indépendamment des destinations.
+  - **Harmonisation Stricte Société / Revendeur** : Le calcul du statut s'appuie sur la source unique de vérité (`src/lib/utils/campaignStatus.ts` : `getEffectiveCampaignStatus()` et `isCampaignActive()`). Les deux espaces partagent la même réalité métier :
+    - Côté Société : les campagnes terminées sont exclues de « Campagnes en cours » et basculent dans « Campagnes terminées », avec actualisation réactive des compteurs du Dashboard d'accueil (`/dashboard/company`) et de la vue Campagnes (`/dashboard/company/campaigns`).
+    - Côté Revendeur : la campagne est exclue des offres actives du feed et du catalogue.
+  - **Clôture Persistée & Fonction SQL** : La fonction PostgreSQL `public.check_and_close_expired_campaigns()` met à jour `status = 'completed'` en base dès que `end_date < CURRENT_DATE` ou que toutes les destinations ont `order_deadline_date < CURRENT_DATE`.
+  - **Intégrité et Traçabilité Historique** : L'expiration d'une destination ou la clôture d'une campagne n'altère, n'annule et ne supprime AUCUNE commande existante, réservation, confirmation de livraison ou production associée. L'historique demeure intégralement consultable.
 
 ---
 
@@ -168,12 +181,18 @@
   - `delivered` (Livrée / réceptionnée par le revendeur) ;
   - `cancelled` (Annulée selon les conditions autorisées).
 
-### 9.3 QR Code, Recherche Rapide et Confirmation de Livraison (Phase 16)
+### 9.3 QR Code, Recherche Rapide et Confirmation de Livraison (Phase 16 & Correctif Ciblé)
 * **BR-ORD-06 (Génération de Jeton Opaque)** : À la création de toute commande, un jeton aléatoire unique (`qr_code_token`) est automatiquement généré via trigger Postgres. Il est strictement distinct de l'identifiant technique UUID pour éviter toute prévisibilité.
-* **BR-ORD-07 (Présentation du QR Code Revendeur)** : Le revendeur peut afficher à tout moment son QR code et son numéro de commande lisible depuis son interface pour présentation à l'exploitation agricole lors du retrait physique.
-* **BR-ORD-08 (Isolation Multi-Sociétés & Anti-Fuite)** : La recherche d'une commande via scan ou saisie manuelle (`lookup_order_for_delivery`) vérifie obligatoirement que l'utilisateur appartient à l'entreprise vendeuse. La tentative de consultation d'une commande d'une autre société renvoie un résultat vide neutre sans dévoiler aucune métadonnée.
+* **BR-ORD-07 (Séparation des Rôles et Présentation du QR Code)** : 
+  - **Côté Revendeur** : Le revendeur dispose du numéro de commande et du QR code associé dans son interface (`QRCodeModal`) afin de les présenter à la société agricole ou au gestionnaire de dépôt lors du retrait physique des marchandises.
+  - **Côté Société** : L'interface "Commandes reçues" n'affiche **jamais** le QR code destiné au revendeur comme un élément à présenter. Le numéro de commande y figure uniquement comme une référence interne discrète (`Réf. CMD-...`) sans bouton de copie destiné à l'acheteur. La société visualise les informations utiles au traitement logistique (revendeur, produit, quantité, destination, dépôt, dates, statuts).
+* **BR-ORD-08 (Validation Serveur Multi-Tenant & Anti-Fuite Inviolable)** :
+  - La recherche d'une commande via scan ou saisie manuelle (`lookupOrderForDeliveryAction` / `lookup_order_for_delivery`) vérifie obligatoirement le rôle et l'identité de l'utilisateur authentifié.
+  - **Pour une Société** : vérification stricte que `order.company_id === société_connectée.id`. Si la commande appartient à une autre société ou est introuvable, le serveur renvoie exclusivement : `"Ce QR code ou numéro de commande n'est pas valide pour votre société."` Aucune donnée (nom du revendeur, produit, volume, montant, statut, etc.) n'est divulguée.
+  - **Pour un Revendeur** : vérification stricte que `order.reseller_id === revendeur_connecté.id`. Si la commande appartient à un autre revendeur ou est introuvable, le serveur renvoie : `"Ce QR code ou numéro de commande n'est pas valide pour votre compte."`
 * **BR-ORD-09 (Procédure Transactionnelle de Confirmation)** : La confirmation de livraison s'exécute via la procédure RPC `confirm_order_delivery` avec verrouillage pessimiste `FOR UPDATE`. Elle fige `orders.status = 'delivered'`, `delivered_at`, `delivered_quantity`, `delivered_by`, `delivery_notes`, confirme la réservation de stock (`stock_reservations.status = 'confirmed'`), trace l'événement dans `audit_logs` (`ORDER_DELIVERED`) et notifie le revendeur (`COMMANDE_LIVREE`).
 * **BR-ORD-10 (Règle Anti-Double Livraison)** : Toute commande déjà en statut `delivered` ne peut faire l'objet d'une seconde confirmation. La procédure RPC lève une exception bloquante explicite.
+* **BR-ORD-11 (Ergonomie Mobile du Bouton Scanner Caméra)** : Un bouton scanner caméra unique est mis à disposition dans le widget de recherche. Sur appareil mobile, il se positionne de manière fixe (`fixed`) au-dessus de la barre de navigation avec prise en compte des safe areas, restant accessible en permanence sous le pouce pendant le défilement de la liste des commandes, sans duplication.
 
 ---
 

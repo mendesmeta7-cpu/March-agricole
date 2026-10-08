@@ -108,7 +108,7 @@ export default async function AdminDashboardPage() {
                 <ShieldCheck className="w-5 h-5 text-forest-700" />
                 Indicateurs de Flux Métier en Temps Réel
               </span>
-              <span className="text-xs font-normal text-gray-500">Données PostgreSQL authentiques</span>
+              <span className="text-xs font-normal text-gray-500">Données système en temps réel</span>
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -144,7 +144,7 @@ export default async function AdminDashboardPage() {
               <div className="mt-6 pt-4 border-t border-gray-100">
                 <EmptyState
                   title="Plateforme prête pour les premiers enregistrements réels"
-                  description="La base de données est actuellement intègre et prête à accueillir les comptes d'entreprises agricoles et de revendeurs via les formulaires d'onboarding officiels."
+                  description="La plateforme est actuellement prête à accueillir les comptes d'entreprises agricoles et de revendeurs via les formulaires d'inscription officiels."
                   icon={<CheckCircle2 className="w-8 h-8 text-forest-700" />}
                 />
               </div>
@@ -192,28 +192,28 @@ export default async function AdminDashboardPage() {
           <Card padding="md">
             <h2 className="text-base font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100 flex items-center gap-2">
               <Lock className="w-5 h-5 text-slate-700" />
-              Sécurité & Architecture V1
+              Sécurité & Gouvernance
             </h2>
 
             <div className="space-y-4 text-sm">
               <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-                <span className="text-xs text-emerald-900 font-medium">Row Level Security (RLS)</span>
-                <span className="text-xs font-bold text-emerald-700">17/17 Tables (100%)</span>
+                <span className="text-xs text-emerald-900 font-medium">Cloisonnement des données</span>
+                <span className="text-xs font-bold text-emerald-700">Sécurité multilocataire</span>
               </div>
 
               <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50 border border-blue-100">
                 <span className="text-xs text-blue-900 font-medium">Protection Anti-Escalade</span>
-                <span className="text-xs font-bold text-blue-700">Triggers Actifs</span>
+                <span className="text-xs font-bold text-blue-700">Contrôles Actifs</span>
               </div>
 
               <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-100">
                 <span className="text-xs text-amber-900 font-medium">Auto-Owner Entreprise</span>
-                <span className="text-xs font-bold text-amber-700">Conforme BR-COMP-05</span>
+                <span className="text-xs font-bold text-amber-700">Conforme aux règles</span>
               </div>
 
               <div className="flex items-center justify-between p-3 rounded-xl bg-purple-50 border border-purple-100">
-                <span className="text-xs text-purple-900 font-medium">Réservation de Stock</span>
-                <span className="text-xs font-bold text-purple-700">RPC FOR UPDATE</span>
+                <span className="text-xs text-purple-900 font-medium">Garantie de Stock</span>
+                <span className="text-xs font-bold text-purple-700">Anti-surréservation</span>
               </div>
             </div>
           </Card>

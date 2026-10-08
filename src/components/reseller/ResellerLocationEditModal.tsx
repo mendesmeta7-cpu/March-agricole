@@ -1,8 +1,7 @@
-"use client";
-
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { Province } from "@/lib/queries/geography";
 import { updateResellerLocationAction } from "@/lib/actions/resellers";
+import { Select } from "@/components/ui/Select";
 import {
   MapPin,
   X,
@@ -125,19 +124,17 @@ export default function ResellerLocationEditModal({
             <label className="block text-xs font-bold text-gray-900">
               Province de Rattachement Principale *
             </label>
-            <select
+            <Select
               value={provinceId}
               onChange={(e) => setProvinceId(e.target.value)}
               required
-              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 font-semibold focus:ring-2 focus:ring-earth-500 outline-hidden"
-            >
-              <option value="">Sélectionnez votre province</option>
-              {provinces.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.code})
-                </option>
-              ))}
-            </select>
+              placeholder="Sélectionnez votre province"
+              options={[
+                ...provinces.map((p) => ({ value: p.id, label: `${p.name} (${p.code})` })),
+              ]}
+              searchable={provinces.length > 5}
+              searchPlaceholder="Rechercher une province..."
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

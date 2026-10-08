@@ -307,6 +307,7 @@ export async function createCampaignAction(
   }
 
   // 10. Rafraîchissement du cache Next.js
+  revalidatePath("/dashboard/company");
   revalidatePath("/dashboard/company/campaigns");
   revalidatePath("/dashboard/reseller/campaigns");
 
@@ -591,6 +592,7 @@ export async function updateCampaignAction(
     }
   }
 
+  revalidatePath("/dashboard/company");
   revalidatePath("/dashboard/company/campaigns");
   revalidatePath("/dashboard/reseller/campaigns");
 
@@ -620,7 +622,7 @@ export async function updateCampaignStatusAction(
     return { success: false, error: "Exploitation introuvable." };
   }
 
-  // Si tentative d'ouverture (active), vérifier que des territoires sont bien configurés
+  // Si tentative d'ouverture (active), vérifier territoires et dates de validité
   if (newStatus === "active") {
     const { count } = await supabase
       .from("campaign_delivery_zones")
@@ -633,6 +635,42 @@ export async function updateCampaignStatusAction(
         error: "Impossible d'ouvrir une campagne commerciale sans aucune province de livraison définie.",
       };
     }
+
+    const { data: campData } = await supabase
+      .from("campaigns")
+      .select(`
+        id,
+        end_date,
+        campaign_destinations (
+          id,
+          order_deadline_date
+        )
+      `)
+      .eq("id", campaignId)
+      .eq("company_id", companyId)
+      .single();
+
+    if (campData) {
+      const todayStr = new Date().toISOString().split("T")[0];
+      if (campData.end_date && campData.end_date < todayStr) {
+        return {
+          success: false,
+          error: "Impossible d'ouvrir une campagne commerciale dont la date de fin est déjà passée.",
+        };
+      }
+
+      if (campData.campaign_destinations && campData.campaign_destinations.length > 0) {
+        const hasActiveDest = campData.campaign_destinations.some(
+          (d: any) => !d.order_deadline_date || d.order_deadline_date >= todayStr
+        );
+        if (!hasActiveDest) {
+          return {
+            success: false,
+            error: "Impossible d'ouvrir une campagne dont toutes les destinations sont déjà expirées.",
+          };
+        }
+      }
+    }
   }
 
   const { error } = await supabase
@@ -642,7 +680,7 @@ export async function updateCampaignStatusAction(
     .eq("company_id", companyId);
 
   if (error) {
-    return { success: false, error: `Erreur lors du changement de statut: ${error.message}` };
+    return { success: false, error: "La modification du statut de la campagne a échoué. Veuillez réessayer." };
   }
 
   // Si passage à 'active', notifier les revendeurs
@@ -656,6 +694,7 @@ export async function updateCampaignStatusAction(
     }
   }
 
+  revalidatePath("/dashboard/company");
   revalidatePath("/dashboard/company/campaigns");
   revalidatePath("/dashboard/reseller/campaigns");
 
@@ -705,7 +744,7 @@ export async function updateDestinationArrivalDateAction(
 
     if (error) {
       console.error("Erreur RPC update_destination_arrival_date:", error);
-      return { success: false, error: error.message || "Erreur lors de la modification de la date." };
+      return { success: false, error: "La modification de la date d'arrivée a échoué. Veuillez réessayer." };
     }
 
     revalidatePath("/dashboard/company/campaigns");
@@ -722,7 +761,7 @@ export async function updateDestinationArrivalDateAction(
     };
   } catch (err: any) {
     console.error("Exception updateDestinationArrivalDateAction:", err);
-    return { success: false, error: err.message || "Une erreur inattendue est survenue." };
+    return { success: false, error: "Une erreur inattendue est survenue. Veuillez réessayer." };
   }
 }
 
@@ -766,7 +805,7 @@ export async function updateDestinationOrderDeadlineAction(
 
     if (error) {
       console.error("Erreur RPC update_destination_order_deadline:", error);
-      return { success: false, error: error.message || "Erreur lors de la mise à jour de la date limite." };
+      return { success: false, error: "La mise à jour de la date limite a échoué. Veuillez réessayer." };
     }
 
     revalidatePath("/dashboard/company/campaigns");
@@ -781,6 +820,6 @@ export async function updateDestinationOrderDeadlineAction(
     };
   } catch (err: any) {
     console.error("Exception updateDestinationOrderDeadlineAction:", err);
-    return { success: false, error: err.message || "Une erreur inattendue est survenue." };
+    return { success: false, error: "Une erreur inattendue est survenue. Veuillez réessayer." };
   }
 }
