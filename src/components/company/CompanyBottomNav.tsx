@@ -24,6 +24,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export interface CompanyBottomNavProps {
   unreadNotificationsCount?: number;
+  pendingOrdersCount?: number;
   entityName?: string;
   userName?: string;
   userEmail?: string;
@@ -32,6 +33,7 @@ export interface CompanyBottomNavProps {
 
 export default function CompanyBottomNav({
   unreadNotificationsCount = 0,
+  pendingOrdersCount = 0,
   entityName,
   userName,
   userEmail,
@@ -74,6 +76,7 @@ export default function CompanyBottomNav({
       label: "Commandes",
       href: "/dashboard/company/orders",
       icon: ShoppingBag,
+      badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined,
       isActive:
         pathname === "/dashboard/company/orders" ||
         pathname.startsWith("/dashboard/company/orders/"),
@@ -171,6 +174,12 @@ export default function CompanyBottomNav({
                         : "stroke-[1.8] text-gray-500"
                     }`}
                   />
+                  {/* Badge commandes en attente sur l'onglet */}
+                  {typeof tab.badge === "number" && tab.badge > 0 && (
+                    <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-amber-500 text-white text-[9px] font-extrabold flex items-center justify-center shadow-2xs">
+                      {tab.badge > 9 ? "9+" : tab.badge}
+                    </span>
+                  )}
                   {tab.isActive && (
                     <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-forest-600 rounded-full" />
                   )}

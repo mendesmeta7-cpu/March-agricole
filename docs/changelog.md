@@ -3,6 +3,243 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [PROMPT-6-DASHBOARD-ALERT-CARD] - 2026-10-09
+### Carte d'Informations Dynamiques dans la Bannière Verte du Dashboard Société
+
+#### 1. Contexte & Objectif
+- Ajout d'une carte d'alerte et d'information dynamique à l'intérieur de la bannière verte du tableau de bord Société (`CompanyDashboardHeader.tsx`), sans altérer le reste du dashboard existant.
+- Les messages affichés sont calculés strictement à partir des données réelles de l'exploitation (zéro donnée fictive / No Mock Data).
+
+#### 2. Hiérarchie de Priorité et Règles Métier
+1. **Priorité 1 — Nouvelles commandes reçues (`pending`)** :
+   - Détection des commandes au statut `status = 'pending'`.
+   - Message adapté singulier/pluriel : `"1 commande attend votre confirmation"` / `"N commandes attendent votre confirmation"`.
+   - Lien direct vers `/dashboard/company/orders`.
+2. **Priorité 2a — Fin imminente d'une campagne commerciale active ($\le 7$ jours)** :
+   - Détection des campagnes au statut effectif `active` dont `end_date` approche ($0 \le \text{jours} \le 7$).
+   - Prise en charge stricte des dates : aujourd'hui (`0 j`), demain (`1 j`), dans N jours.
+   - **Règle anti-régression** : une campagne expirée ($< 0$ j) ou terminée ne génère **JAMAIS** d'alerte de fin imminente.
+   - Lien direct vers `/dashboard/company/campaigns`.
+3. **Priorité 2b — Échéance de commande d'une destination de campagne ($\le 5$ jours)** :
+   - Détection de la destination la plus urgente dont `order_deadline_date` arrive à échéance ($0 \le \text{jours} \le 5$).
+   - Message : `"Clôture des commandes pour \"[Nom ville]\" [échéance]"`.
+   - Lien direct vers `/dashboard/company/campaigns`.
+4. **Priorité 3 — Campagnes actives en cours (information générale)** :
+   - En l'absence d'urgence de date, annonce du nombre de campagnes actives en cours sur le marché.
+5. **Priorité 4 — Message neutre (aucun événement en attente)** :
+   - Si aucune des alertes ci-dessus ne s'applique, affichage du message bienveillant : `"Tout est à jour. Votre exploitation est opérationnelle sur Radiza."`.
+
+#### 3. Composants et Fichiers Modifiés
+| Fichier | Modification |
+| :--- | :--- |
+| `src/components/company/dashboard/DashboardAlertCard.tsx` | Nouveau composant client. Transition douce par opacité CSS, rotation automatique toutes les 4s, désactivation sous `prefers-reduced-motion`, puces de navigation manuelles, support `aria-live="polite"` et `role="status"`. |
+| `src/components/company/dashboard/CompanyDashboardHeader.tsx` | Intégration de `DashboardAlertCard` dans le bloc d'informations de la bannière verte avec passage de la prop `alerts`. |
+| `src/app/dashboard/company/page.tsx` | Enrichissement de la requête Supabase `campaigns` (`title`, `city_name`), calcul serveur déterministe de `dashboardAlerts` avec comparaison de dates en UTC jour entier (anti-décalage horaire), injection dans le header. |
+| `scripts/test-prompt6-dashboard-alert-card.mjs` | Suite de tests automatisée validant les 10 scénarios de priorité, de pluriels, de limites de dates et d'exclusion des campagnes expirées. |
+
+#### 4. Validation Technique & Homologation
+- **Tests unitaires** : 10/10 assertions passées avec succès (`node scripts/test-prompt6-dashboard-alert-card.mjs` — code 0).
+- **Non-régression financière & campagnes** : 23/23 tests passés sur `test-financial-exhaustiveness-prompt4-2.mjs` ; 12/12 scénarios passés sur `test-campaign-status-rules.mjs`.
+- **TypeScript** : 0 erreur (`npx tsc --noEmit` — code 0).
+- **Next.js Production Build** : 38/38 routes compilées avec succès (`npm run build` — code 0).
+
+---
+
+## [PROMPT-5-BADGE-COMMANDES-NAVIGATION] - 2026-10-09
+### Badge numérique « Commandes À Traiter » dans la navigation Société
+
+#### 1. Contexte & Objectif
+- Ajout d'un indicateur visuel discret dans la navigation de l'espace Société pour signaler les commandes au statut `pending` (nouvelles commandes reçues jamais traitées) qui nécessitent une intervention.
+- **Règle métier validée** : seules les commandes `status = 'pending'` incrémentent le badge. Les commandes `confirmed`, `preparing`, `ready`, `delivered`, `cancelled` n'entrent pas dans le compteur.
+
+#### 2. Fichiers Modifiés
+
+| Fichier | Modification |
+| :--- | :--- |
+| `src/lib/queries/orders.ts` | Ajout de `getCompanyPendingOrdersCount(companyId)` — requête `{ count: 'exact', head: true }` (HEAD uniquement, 0 chargement d'objets) |
+| `src/app/dashboard/company/layout.tsx` | Injection de `pendingOrdersCount` via `Promise.all` + passage de la prop au `CompanyDashboardLayout` |
+| `src/components/company/CompanyDashboardLayout.tsx` | Nouvelle prop `pendingOrdersCount`, propagée aux 2 instances de `CompanySidebar` et à `CompanyBottomNav` |
+| `src/components/company/CompanySidebar.tsx` | Nouvelle prop `pendingOrdersCount`, badge `amber-500` sur l'item "Commandes reçues" (desktop) |
+| `src/components/company/CompanyBottomNav.tsx` | Nouvelle prop `pendingOrdersCount`, badge `amber-500` sur l'onglet "Commandes" (barre mobile, primary tab) |
+
+#### 3. Décisions Techniques
+- **Couleur badge** : `amber-500` (distinct du badge Notifications en `forest-700`) — amber = action requise, forest = information.
+- **Seuil d'affichage** : `> 9` → `"9+"`, sinon le chiffre exact.
+- **Performance** : requête HEAD `{ count: 'exact', head: true }` — aucun objet chargé, coût réseau minimal.
+- **Architecture** : injection depuis le layout serveur RSC dans le `Promise.all` existant — aucune création de contexte client, aucun appel API supplémentaire côté client.
+
+#### 4. Validation Technique
+- **TypeScript** : 0 erreur (`npx tsc --noEmit` — code 0).
+- **Next.js Production Build** : 38/38 routes compilées avec succès (`npm run build` — code 0).
+
+---
+
+## [PROMPT-4.2-FINANCIAL-EXHAUSTIVENESS-PAGINATION] - 2026-10-09
+
+### Garantie de l'Exhaustivité des Statistiques Financières — Pagination PostgREST et Blindage Erreurs
+
+#### 1. Contexte & Problématique
+- **Plafond PostgREST** : Bien que `getCompanyOrdersForFinancials` ait retiré tout `.limit()` arbitraire au Prompt 4.1, le moteur serveur PostgREST sous Supabase applique un plafond natif `max_rows` (par défaut 1 000 enregistrements) sur toute requête brute.
+- **Risque Métier** : Pour toute société enregistrant plus de 1 000 commandes, l'historique était silencieusement tronqué, faussant la valeur globale des commandes et excluant des livraisons récentes portant sur des commandes anciennes.
+
+#### 2. Corrections Appliquées
+- **Pagination Serveur Robuste (`src/lib/queries/orders.ts`)** :
+  - `getCompanyOrdersForFinancials` pagine désormais par tranches de 1 000 enregistrements via `.range(from, to)` jusqu'à épuisement complet de la table (avec garde-fou de sécurité à 50 000 commandes).
+  - Double tri déterministe `.order("created_at", { ascending: false }).order("id", { ascending: false })` pour empêcher tout saut ou doublon entre les pages.
+  - Typage de retour enrichi `CompanyFinancialOrdersResult` fournissant `{ orders, error, totalFetched }`.
+- **Traitement Strict des Erreurs (Anti-Faux-Zéro)** :
+  - En cas d'anomalie réseau ou base de données lors de la pagination, la fonction n'interprète pas une erreur comme un tableau vide partiel (qui aurait généré de faux zéros "0 CDF / 0 USD"). Elle retourne l'erreur explicite.
+- **Composant UI (`src/components/company/dashboard/CompanyFinancialMetrics.tsx`)** :
+  - Intégration de la prop `error?: string | null`.
+  - En cas d'erreur de synchronisation, affichage d'un cartouche d'alerte bienveillant informant l'exploitant que les calculs sont suspendus pour préserver la rigueur de ses comptes.
+- **Intégration Dashboard (`src/app/dashboard/company/page.tsx`)** :
+  - Passage de `financialOrdersResult.orders` et `financialOrdersResult.error` au composant.
+
+#### 3. Validation Technique & Homologation
+- **Suite de validation ciblée (`scripts/test-financial-exhaustiveness-prompt4-2.mjs`)** : 23/23 tests passés avec succès.
+  - Vérification sur un dataset de 2 500 commandes réparties sur 3 pages PostgREST.
+  - Validation de la récupération des commandes anciennes livrées aujourd'hui.
+  - Validation des filtres temporels et de la séparation étanche CDF / USD.
+  - Validation du blocage des faux zéros en cas d'erreur.
+  - Validation de l'isolation multi-tenant par `company_id`.
+- **Non-régression Prompt 4 (`scripts/test-financial-metrics-prompt4.mjs`)** : 33/33 tests passés.
+- **Non-régression Prompt 3 (`scripts/test-delivery-audit.mjs`)** : 29/29 tests passés.
+- **TypeScript** : 0 erreur (`npx tsc --noEmit` — code 0).
+- **Next.js Production Build** : 38/38 routes compilées avec succès (`npm run build` — code 0).
+
+---
+
+## [PROMPT-4.1-FINANCIAL-TOTALS-EXHAUSTIVENESS-AUDIT] - 2026-10-09
+### Vérification Finale des Totaux Financiers — Exhaustivité et Cohérence des Définitions
+
+#### 1. Contexte & Objectif
+- Audit ciblé de l'exhaustivité des données alimentant les métriques financières du dashboard société.
+- Vérification de la cohérence entre les libellés affichés et les calculs réels.
+
+#### 2. Constats de l'Audit
+
+**A — Définitions et cohérence libellé/calcul : CONFORME**
+- **Valeur des commandes** : `calculateCompanyFinancialMetrics` filtre sur `order.status !== 'cancelled' && created_at dans la période`. Le libellé "Engagements Enregistrés / Valeur des Commandes" est cohérent. La note de pied de carte précise explicitement "exclut les commandes annulées". ✅
+- **Ventes livrées** : Filtre strict `status === 'delivered' && delivered_at dans la période`. Seule la RPC `confirm_order_delivery` peut positionner ce statut. ✅
+- **Paiements encaissés** : Absent intentionnellement — V1 sans passerelle en ligne. Mention protectrice dans l'UI. ✅
+
+**B — Troncature silencieuse PostgREST : FAILLE IDENTIFIÉE ET CORRIGÉE**
+- `getCompanyOrders` (utilisé pour le listing `/dashboard/company/orders`) : aucun `.limit()` explicite → Supabase/PostgREST applique le plafond `max_rows` par défaut (généralement 1 000 lignes). `CompanyFinancialMetrics` était alimenté par ce tableau tronqué, rendant les totaux financiers potentiellement inexacts pour les sociétés avec plus de 1 000 commandes.
+- **Correction** : Création de `getCompanyOrdersForFinancials(companyId)` dans `src/lib/queries/orders.ts` — requête ultra-légère (5 colonnes seulement : `status, total_amount, currency, created_at, delivered_at`), sans `.limit()`, filtrée par RLS sur `company_id`. Les totaux financiers sont désormais calculés sur l'historique exhaustif.
+
+#### 3. Corrections Appliquées
+- `src/lib/queries/orders.ts` : Ajout de l'interface `OrderFinancialRecord` et de la fonction `getCompanyOrdersForFinancials`.
+- `src/components/company/dashboard/CompanyFinancialMetrics.tsx` : Typage mis à jour de `OrderDetail` → `OrderFinancialRecord` (type léger).
+- `src/app/dashboard/company/page.tsx` : `getCompanyOrdersForFinancials` ajouté dans `Promise.all` parallèle, résultat `financialOrders` injecté dans `<CompanyFinancialMetrics>`. La variable `recentOrders` (issue de `getCompanyOrders`) reste inchangée pour tous les autres usages du dashboard.
+
+#### 4. Validation Technique
+- TypeScript : 0 erreur (`npx tsc --noEmit` — code 0). ✅
+- Next.js Build : 38/38 routes compilées avec succès (`npm run build` — code 0). ✅
+
+---
+
+## [PROMPT-4-COMPANY-DASHBOARD-FINANCIAL-METRICS] - 2026-10-09
+### Statistiques Financières Fiables du Dashboard Société (Radiza V1)
+
+#### 1. Contexte & Objectif
+- Fournir à chaque entreprise agricole des totaux financiers fiables et transparents directement sur son tableau de bord (`/dashboard/company`), fondés exclusivement sur ses commandes réelles Supabase.
+- Respecter scrupuleusement la séparation des trois notions financières :
+  1. **Valeur des commandes** : somme des montants contractuels enregistrés pour les commandes passées pendant la période sélectionnée (selon `created_at`).
+  2. **Ventes réalisées (livraisons confirmées)** : somme des montants contractuels enregistrés pour les commandes dont la livraison a été officiellement confirmée (selon `delivered_at` et `status === 'delivered'`).
+  3. **Paiements encaissés** : aucun paiement en ligne n'existant en V1, aucun indicateur de paiement encaissé n'est simulé.
+
+#### 2. Réalisations & Composants
+- **Composant Dédié (`src/components/company/dashboard/CompanyFinancialMetrics.tsx`)** :
+  - **Carte 1 — Valeur des commandes** : total en `CDF`, total en `USD`, et décompte des commandes sur la période.
+  - **Carte 2 — Ventes livrées** : total en `CDF`, total en `USD`, et décompte des commandes livrées sur la période (exclut formellement les commandes en attente, confirmées, en préparation, prêtes et annulées).
+  - **Filtres temporels réactifs** : *Aujourd'hui*, *Cette semaine*, *Ce mois* (sélectionné par défaut), *Historique complet*, et *Période personnalisée* (avec champs Date début et Date fin).
+  - **Séparation étanche CDF / USD** : affichage côte à côte des deux devises officielles de la RDC sans aucune conversion arbitraire.
+  - **Zéro donnée fictive (0 Mock Data)** : formatage élégant d'un montant à zéro (0 CDF, 0 USD) si aucune transaction n'existe sur la période sélectionnée.
+- **Moteur Métier Certifié (`src/lib/utils/realizedSales.ts`)** :
+  - Extension avec `calculateCompanyFinancialMetrics`, `getDateBounds` et typage `FinancialPeriodMetrics`.
+  - Gestion rigoureuse des bornes de dates : minuit `00:00:00.000` à `23:59:59.999`.
+- **Intégration Dashboard & Squelette de Chargement** :
+  - Intégration dans `src/app/dashboard/company/page.tsx` avec passage de `recentOrders`.
+  - Ajout du squelette dédié dans `src/app/dashboard/company/loading.tsx` pour éliminer tout layout shift.
+- **Suite de Validation Automatisée (`scripts/test-financial-metrics-prompt4.mjs`)** :
+  - Suite de 33 assertions couvrant l'intégralité des 11 exigences du Prompt 4 validée à 100%.
+
+#### 3. Validation Technique
+- Tests automatisés : 33/33 tests passés (`node scripts/test-financial-metrics-prompt4.mjs` — code 0).
+- Non-régression Prompt 3 : 29/29 tests passés (`node scripts/test-delivery-audit.mjs` — code 0).
+- TypeScript : 0 erreur (`npx tsc --noEmit` — code 0).
+- Next.js Build : 38/38 routes compilées avec succès (`npm run build` — code 0).
+
+## [PROMPT-3-DELIVERY-AND-REALIZED-SALES-AUDIT] - 2026-10-09
+### Audit Ciblé de la Livraison et des Ventes Réalisées (Radiza V1)
+
+#### 1. Contexte & Audit Préalable
+- **Objectif** : Vérifier que le mécanisme financier fonctionne réellement jusqu'à la confirmation de livraison d'une commande, et que cette confirmation constitue la seule source de vérité pour comptabiliser une vente réalisée.
+- **Failles et Contournements Identifiés** :
+  1. **Contournement du statut 'delivered'** : Dans `CompanyOrdersView.tsx` et `CompanyOrderDetailView.tsx`, la liste `statusOptions` de la modale de mise à jour manuelle incluait l'option `{ value: "delivered", label: "Livrée / Réceptionnée" }`.
+  2. **Absence de garde-fou dans Server Action** : L'action `updateOrderStatusAction` autorisait le passage direct vers `delivered` via un simple `UPDATE orders SET status = 'delivered'`, sans passer par la RPC `confirm_order_delivery`. Ce contournement omettait l'enregistrement de `delivered_at`, de `delivered_quantity`, de `delivered_by`, la confirmation de la réservation de stock (`stock_reservations.status = 'confirmed'`), l'entrée dans `audit_logs` (`ORDER_DELIVERED`) et la notification `COMMANDE_LIVREE` au revendeur.
+  3. **Absence de formalisation d'un calcul de ventes réalisées** : Aucune fonction pure ne garantissait que seules les commandes livrées (`status === 'delivered'`) soient retenues, avec exclusion stricte des commandes en attente, confirmées, en préparation, prêtes ou annulées, et ventilation hermétique par devise (`CDF` et `USD`).
+
+#### 2. Corrections et Blindages Appliqués
+- **Blindage Serveur (`src/lib/actions/orders.ts`)** :
+  - `updateOrderStatusAction` bloque formellement toute tentative de basculer vers `delivered`, avec message explicite invitant à utiliser la confirmation de livraison officielle (scan QR Code ou numéro de commande).
+- **Nettoyage UI (`CompanyOrdersView.tsx` & `CompanyOrderDetailView.tsx`)** :
+  - Retrait définitif de l'option `delivered` du sélecteur de statut manuel. La transition vers « Livrée » s'effectue exclusivement par la modale officielle `DeliveryConfirmationModal` (adossée à `confirmOrderDeliveryAction` et la RPC PostgreSQL `confirm_order_delivery`).
+- **Source Unique de Vérité (`src/lib/utils/realizedSales.ts`)** :
+  - Création du module de calcul des ventes réalisées `calculateRealizedSales` et du prédicat `isRealizedSale`.
+  - Règle 1 : Seules les commandes livrées (`status === 'delivered'`) constituent des ventes réalisées.
+  - Règle 2 : Commandes non livrées (`pending`, `confirmed`, `preparing`, `ready`, `cancelled`) strictement exclues.
+  - Règle 3 : Cloisonnement absolu `CDF` / `USD` sans conversion arbitraire.
+  - Règle 4 : Quantités et montants contractuels rigoureusement conservés.
+- **Suite de Validation Automatisée (`scripts/test-delivery-audit.mjs`)** :
+  - Validation complète des 10 scénarios du Prompt 3 avec 29 tests passés avec succès (0 échec).
+
+#### 3. Fichiers Modifiés & Créés
+- `src/lib/utils/realizedSales.ts` : Nouveau module de calcul certifié des ventes réalisées.
+- `src/lib/actions/orders.ts` : Blocage strict anti-contournement vers `delivered` dans `updateOrderStatusAction`.
+- `src/components/orders/CompanyOrdersView.tsx` : Suppression de `delivered` dans `statusOptions`.
+- `src/components/orders/CompanyOrderDetailView.tsx` : Suppression de `delivered` dans `statusOptions`.
+- `scripts/test-delivery-audit.mjs` : Suite d'homologation automatisée 29/29 tests validés.
+- `docs/changelog.md`, `docs/business-rules.md`, `docs/development-status.md` : Documentation Memory Bank.
+
+#### 4. Validation Technique
+- Tests automatisés : 29/29 tests passés (`node scripts/test-delivery-audit.mjs` — code 0).
+- TypeScript : 0 erreur (`npx tsc --noEmit` — code 0).
+- Next.js Build : 38/38 routes compilées avec succès (`npm run build` — code 0).
+
+## [PROMPT-2-FINANCIAL-MECHANISM-NORMALIZATION] - 2026-10-09
+### Normalisation et Fiabilisation du Mécanisme Financier (Prix, Unités, Devises, Montants)
+
+#### 1. Contexte & Problèmes Corrigés
+- **Audit ciblé préalable** :
+  1. `CompanyDemandProposalModal.tsx` et `CompanyDemandDetailView.tsx` affichaient l'unité de la demande (`demand.unit`) dans le prix unitaire alors que la société peut proposer une production avec sa propre unité de vente (`unitOfSale = selectedProduction?.unit || demand.unit`).
+  2. `CompanyDemandDetailView.tsx` manquait de prévisualisation en temps réel du montant total calculé ($\text{Quantité} \times \text{Prix unitaire}$) et d'affichage clair de l'unité de vente dans le libellé du prix.
+  3. `DemandResponsesModal.tsx` affichait "USD" en dur sur l'écran de confirmation de commande, même lorsque la proposition et la commande étaient formulées en `CDF`.
+  4. `createDemandProposalAction` dans `src/lib/actions/demands.ts` manquait de validation stricte côté serveur : prix négatif ou nul toléré, absence de contrôle de validité sur `isFinite` et devises limitées à CDF/USD.
+  5. `createOrderAction` et `createOrderFromDemandResponseAction` dans `src/lib/actions/orders.ts` ont été renforcées avec des bornes numériques strictes ($> 0$ et $< 10^{12}$) et renvoient fidèlement la devise contractuelle `currency`.
+
+#### 2. Décisions & Règles Métier Appliquées
+- **Formule contractuelle universelle** : $\text{Montant total} = \text{Quantité} \times \text{Prix unitaire}$ par unité de vente.
+  - Exemples : 20 tonnes $\times$ 1 000 000 CDF/tonne = 20 000 000 CDF ; 100 caisses $\times$ 25 000 CDF/caisse = 2 500 000 CDF.
+- **Précision monétaire** : Arrondi à 2 décimales conforme au type SQL `NUMERIC(14,2)` avec `Math.round(q * p * 100) / 100` et formatage français `toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })`.
+- **Cloisonnement étanche CDF / USD** : Devises strictement distinctes, jamais additionnées ensemble sans ventilation, aucun taux de change arbitraire.
+- **Intégrité historique** : 0 commande recalculée, 0 donnée fictive insérée en production.
+
+#### 3. Fichiers Modifiés
+- `src/components/demands/CompanyDemandProposalModal.tsx` : Affichage de l'unité de vente réelle dans la quantité et le prix unitaire (`Prix unitaire (CDF/tonne)`), calcul en direct détaillé avec état vide informatif.
+- `src/components/demands/CompanyDemandDetailView.tsx` : Affichage de l'unité de vente de la production adossée, prévisualisation du montant total en temps réel, récapitulatif avec total.
+- `src/components/demands/DemandResponsesModal.tsx` : Affichage dynamique de la devise réelle (`selectedResponse.currency`), affichage de l'unité de vente sur le prix et correction de l'écran de succès.
+- `src/lib/actions/demands.ts` : Validation stricte côté serveur (`proposedQuantity > 0`, `unitPrice > 0`, `currency IN ('CDF', 'USD')`, bornes finies).
+- `src/lib/actions/orders.ts` : Validation numérique renforcée, inclusion de `currency` dans les données renvoyées par `createOrderFromDemandResponseAction`.
+- `src/components/orders/OrderFormModal.tsx` : Précision du libellé du montant total et de l'unité de vente.
+- `scripts/test-financial-calculations.mjs` : Suite de tests automatisée couvrant les 11 cas d'exigences (exécutée avec succès, code 0).
+- `docs/business-rules.md`, `docs/data-model.md`, `PROJECT_CONTEXT.md` : Documentation des règles financières, de la table `demand_responses` et de la procédure `create_order_from_demand_response`.
+
+#### 4. Validation Technique
+- `npx tsc --noEmit` : 0 erreur (code 0).
+- `npm run build` : 38/38 routes générées avec succès (code 0).
+- Tests automatisés : 11/11 tests passés avec succès.
+
 ## [ETAPE-4-CAMPAIGN-STATUS-FIX] - 2026-10-08
 ### Étape 4 — Correctif Définitif du Statut des Campagnes Commerciales (Société / Revendeur)
 

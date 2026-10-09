@@ -112,6 +112,25 @@ La plateforme repose sur 5 piliers conceptuels strictement distincts dans les mo
   - Si $\text{Quantité Restante} < \text{Quantité Commandée}$, la commande est systématiquement rejetée côté serveur ;
   - Doit être traitée de manière atomique (isolation transactionnelle PostgreSQL) pour prévenir la double réservation simultanée (race conditions).
 
+### 6. Proposition Commerciale (`DemandResponse`) et Mécanisme Financier (Prompt 2)
+* **Définition** : Offre personnalisée ferme soumise par une société agricole en réponse directe à une demande exprimée par un revendeur.
+* **Propriétés & Règles Financières** :
+  - Adossée obligatoirement à une production réelle de l'exploitation productrice ;
+  - Fixe une quantité proposée et un prix unitaire par unité réelle de vente (`CDF/tonne`, `CDF/caisse`, `USD/tonne`, `USD/kg`) ;
+  - Calcul contractuel : $\text{Montant total} = \text{Quantité} \times \text{Prix unitaire}$ ;
+  - Devises autorisées : `CDF` et `USD` strictement séparées (aucun mélange ni taux de change arbitraire) ;
+  - Conversion en commande : l'acceptation par le revendeur crée une commande ferme avec réservation atomique de stock sur la production en conservant intégralement les valeurs contractuelles (quantité, unité, prix, devise).
+
+### 7. Statistiques Financières du Dashboard Société (Prompt 4)
+* **Trois notions strictement distinctes** :
+  - **Valeur des commandes** : engagements fermes passés sur la période sélectionnée selon leur date de création (`created_at`). Exclut les commandes annulées.
+  - **Ventes livrées** : commandes officiellement réceptionnées et confirmées (`status = 'delivered'`) sur la période selon leur date de livraison (`delivered_at`).
+  - **Paiements encaissés** : aucun paiement en ligne n'existant en V1, aucun indicateur d'encaissement n'est simulé.
+* **Séparation étanche CDF / USD** : affichage parallèle des totaux en Franc Congolais et Dollar US sans conversion.
+* **Filtres temporels réactifs** : Aujourd'hui, Cette semaine, Ce mois, Historique complet, Période personnalisée.
+* **Zéro donnée fictive** : affichage transparent de 0 CDF / 0 USD si aucune transaction n'existe sur la période.
+* **Garantie d'exhaustivité technique (Prompt 4.2)** : pagination serveur successive par blocs de 1 000 enregistrements (`.range(from, to)`) avec double tri déterministe pour contourner le plafond `max_rows` de PostgREST et garantir un calcul mathématique exact même pour des dizaines de milliers de commandes. En cas d'erreur de communication, affichage explicite d'une alerte bloquant les faux zéros.
+
 ---
 
 ## 5. LOGIQUE TERRITORIALE ET GÉOGRAPHIQUE V1

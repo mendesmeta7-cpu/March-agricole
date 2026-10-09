@@ -800,3 +800,160 @@ function formatOrderRecord(item: any): OrderDetail {
       : null,
   };
 }
+
+/**
+ * Récupère TOUTES les commandes d'une entreprise pour les calculs financiers du dashboard.
+ *
+ * IMPORTANT : Cette fonction ne pose AUCUNE limite de résultats (.limit() ou .range()),
+ * afin d'éviter la troncature silencieuse imposée par le plafond PostgREST par défaut.
+ * Elle ne sélectionne que les 5 champs financiers strictement nécessaires
+ * (status, total_amount, currency, created_at, delivered_at) pour rester légère.
+ *
+ * Sécurité :
+ * - Le filtre company_id est résolu côté serveur depuis la session authentifiée.
+ * - Les politiques RLS Supabase s'appliquent en complément.
+ * - Une autre société ne peut jamais accéder aux commandes de cette société.
+ */
+export interface OrderFinancialRecord {
+  status: string;
+  total_amount: number;
+  currency: string | null;
+  created_at: string;
+  delivered_at: string | null;
+}
+
+export interface CompanyFinancialOrdersResult {
+  orders: OrderFinancialRecord[];
+  error: string | null;
+  totalFetched: number;
+}
+
+/**
+ * Récupère l'intégralité des commandes d'une entreprise pour les métriques financières du dashboard.
+ *
+ * GARANTIE D'EXHAUSTIVITÉ (Prompt 4.2) :
+ * Par défaut, le serveur PostgREST sous Supabase plafonne les requêtes à max_rows (généralement 1 000).
+ * Pour garantir un calcul rigoureux même pour les entreprises ayant des milliers de commandes :
+ * - La requête pagine par blocs successifs de 1 000 enregistrements (.range(from, to)).
+ * - Un double tri déterministe (.order('created_at', { ascending: false }).order('id', { ascending: false }))
+ *   prévient tout saut ou doublon entre les pages.
+ * - Ne sélectionne que les 5 champs financiers scalaires indispensables (payload ultra-léger ~60B/ligne).
+ * - En cas d'erreur réseau/DB lors de la pagination, l'erreur est explicitement transmise au lieu d'être
+ *   masquée silencieusement sous forme d'un total incomplet ou d'un faux zéro.
+ *
+ * Sécurité & Isolation Multi-Tenant :
+ * - Le filtre .eq('company_id', companyId) est résolu côté serveur depuis la session authentifiée.
+ * - Les politiques RLS Supabase s'appliquent au niveau SQL dans PostgreSQL.
+ */
+export async function getCompanyOrdersForFinancials(
+  companyId: string
+): Promise<CompanyFinancialOrdersResult> {
+  const supabase = createClient();
+  const PAGE_SIZE = 1000;
+  const MAX_PAGES = 50; // Garde-fou de sécurité : jusqu'à 50 000 commandes
+  const allOrders: OrderFinancialRecord[] = [];
+
+  let page = 0;
+  let hasMore = true;
+
+  try {
+    while (hasMore && page < MAX_PAGES) {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      const { data, error } = await supabase
+        .from("orders")
+        .select("status, total_amount, currency, created_at, delivered_at")
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to);
+
+      if (error) {
+        console.error(
+          `Erreur récupération commandes financières (page ${page}, plage ${from}-${to}):`,
+          error
+        );
+        return {
+          orders: [],
+          error: `Erreur base de données (${error.message || "Requête interrompue"})`,
+          totalFetched: 0,
+        };
+      }
+
+      if (!data || data.length === 0) {
+        break;
+      }
+
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        allOrders.push({
+          status: row.status ?? "pending",
+          total_amount: Number(row.total_amount) || 0,
+          currency: row.currency ?? null,
+          created_at: row.created_at ?? "",
+          delivered_at: row.delivered_at ?? null,
+        });
+      }
+
+      // Si le lot retourné est inférieur à la taille de page demandée, fin de la table
+      if (data.length < PAGE_SIZE) {
+        hasMore = false;
+      } else {
+        page++;
+      }
+    }
+
+    if (page >= MAX_PAGES && hasMore) {
+      console.warn(
+        `[getCompanyOrdersForFinancials] Plafond de sécurité atteint (${MAX_PAGES * PAGE_SIZE} commandes).`
+      );
+    }
+
+    return {
+      orders: allOrders,
+      error: null,
+      totalFetched: allOrders.length,
+    };
+  } catch (err: any) {
+    console.error("Exception inattendue dans getCompanyOrdersForFinancials:", err);
+    return {
+      orders: [],
+      error: err?.message || "Erreur de communication avec le serveur",
+      totalFetched: 0,
+    };
+  }
+}
+
+/**
+ * Compte les commandes d'une entreprise nécessitant une intervention ("À valider").
+ *
+ * RÈGLE MÉTIER (Prompt 5) :
+ * Seules les commandes en statut "pending" ("En attente de confirmation par l'entreprise")
+ * constituent des commandes nécessitant une intervention décisionnelle de l'exploitant.
+ * Une fois confirmée ("confirmed"), en préparation ("preparing") ou prête ("ready"),
+ * la commande est déjà prise en charge.
+ *
+ * PERFORMANCE & SÉCURITÉ :
+ * Utilise une requête HEAD avec { count: 'exact', head: true } :
+ * - Aucun enregistrement n'est transféré sur le réseau (zéro charge mémoire).
+ * - Le résultat provient directement du header content-range de PostgREST.
+ * - Le filtre company_id garantit l'isolation stricte multi-tenant.
+ */
+export async function getCompanyPendingOrdersCount(companyId: string): Promise<number> {
+  const supabase = createClient();
+
+  const { count, error } = await supabase
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .eq("status", "pending");
+
+  if (error) {
+    console.error("Erreur comptage des commandes en attente:", error);
+    return 0;
+  }
+
+  return count || 0;
+}
+

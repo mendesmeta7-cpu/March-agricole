@@ -45,6 +45,43 @@ export default function CompanyDashboardLoading() {
         ))}
       </div>
 
+      {/* ── 2b. Section Statistiques Financières (Prompt 4) ────────── */}
+      <div className="space-y-4">
+        <div className="bg-white rounded-3xl border border-gray-200/80 p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-64 rounded-xl" />
+            <Skeleton className="h-4 w-44 rounded-lg" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-20 rounded-xl" />
+            <Skeleton className="h-8 w-24 rounded-xl" />
+            <Skeleton className="h-8 w-20 rounded-xl" />
+            <Skeleton className="h-8 w-28 rounded-xl" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-white rounded-3xl border border-gray-200/80 p-6 shadow-xs space-y-4"
+            >
+              <div className="flex items-start justify-between">
+                <div className="space-y-1.5">
+                  <Skeleton className="h-3.5 w-32 rounded" />
+                  <Skeleton className="h-5 w-44 rounded-lg" />
+                </div>
+                <Skeleton className="w-10 h-10 rounded-2xl" />
+              </div>
+              <Skeleton className="h-8 w-28 rounded-xl" />
+              <div className="space-y-2 pt-2">
+                <Skeleton className="h-10 w-full rounded-2xl" />
+                <Skeleton className="h-10 w-full rounded-2xl" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ── 3. Actions Requérant Attention ──────────────────────────── */}
       <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-7 shadow-xs space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-gray-100">

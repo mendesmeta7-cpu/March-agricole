@@ -336,11 +336,28 @@ export async function createDemandProposalAction(
   }
 
   const proposedQuantity = Number(rawQuantity);
-  if (isNaN(proposedQuantity) || proposedQuantity <= 0) {
-    return { error: "La quantité proposée doit être supérieure à zéro." };
+  if (isNaN(proposedQuantity) || !isFinite(proposedQuantity) || proposedQuantity <= 0) {
+    return { error: "La quantité proposée doit être un nombre fini et strictement supérieur à zéro." };
   }
 
-  const unitPrice = rawPrice ? Number(rawPrice) : 0;
+  if (proposedQuantity > 999999999) {
+    return { error: "La quantité proposée dépasse la limite maximale autorisée." };
+  }
+
+  const unitPrice = Number(rawPrice);
+  if (isNaN(unitPrice) || !isFinite(unitPrice) || unitPrice <= 0) {
+    return { error: "Le prix unitaire doit être un nombre fini et strictement supérieur à zéro." };
+  }
+
+  if (unitPrice > 999999999) {
+    return { error: "Le prix unitaire dépasse la limite maximale autorisée." };
+  }
+
+  const rawCurrency = ((formData.get("currency") as string) || "CDF").toUpperCase().trim();
+  if (rawCurrency !== "CDF" && rawCurrency !== "USD") {
+    return { error: "Devise invalide. Seules les devises CDF et USD sont acceptées." };
+  }
+  const currency = rawCurrency;
 
   // 1. Vérification que la production appartient bien à l'entreprise
   const { data: production, error: prodErr } = await supabase
@@ -376,8 +393,6 @@ export async function createDemandProposalAction(
     .eq("id", companyId)
     .single();
 
-  const currency = ((formData.get("currency") as string) || "USD").toUpperCase();
-
   // 3. Enregistrement de la proposition
   const { data: responseData, error: respErr } = await supabase
     .from("demand_responses")
@@ -412,7 +427,7 @@ export async function createDemandProposalAction(
     user_id: demand.reseller_id,
     type: "DEMANDE_REPONSE",
     title: `Nouvelle proposition de ${company?.name || "un producteur"}`,
-    message: `${company?.name || "Une société"} a répondu à votre demande pour ${proposedQuantity} ${production.unit} de ${productName}.`,
+    message: `${company?.name || "Une société"} a répondu à votre demande pour ${proposedQuantity.toLocaleString("fr-FR")} ${production.unit} de ${productName} à ${unitPrice.toLocaleString("fr-FR")} ${currency}/${production.unit}.`,
     related_entity_type: "demand_response",
     related_entity_id: responseData.id,
     action_url: "/dashboard/reseller/demands",

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import CompanyDashboardLayout from "@/components/company/CompanyDashboardLayout";
 import { getUnreadNotificationCount } from "@/lib/queries/notifications";
+import { getCompanyPendingOrdersCount } from "@/lib/queries/orders";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -48,7 +49,7 @@ export default async function CompanyLayout({
     companyId = comp?.id;
   }
 
-  const [companyRes, unreadCount] = await Promise.all([
+  const [companyRes, unreadCount, pendingOrdersCount] = await Promise.all([
     companyId
       ? supabase
           .from("companies")
@@ -57,6 +58,7 @@ export default async function CompanyLayout({
           .maybeSingle()
       : Promise.resolve({ data: null }),
     getUnreadNotificationCount(user.id),
+    companyId ? getCompanyPendingOrdersCount(companyId) : Promise.resolve(0),
   ]);
 
   const company = companyRes.data;
@@ -72,6 +74,7 @@ export default async function CompanyLayout({
       locationInfo={locationInfo}
       logoUrl={company?.logo_url}
       unreadNotificationsCount={unreadCount}
+      pendingOrdersCount={pendingOrdersCount}
     >
       {children}
     </CompanyDashboardLayout>

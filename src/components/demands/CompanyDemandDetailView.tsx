@@ -86,13 +86,12 @@ export default function CompanyDemandDetailView({
     [matchingProductions]
   );
 
-  const currencyOptions = useMemo(
-    () => [
-      { value: "USD", label: "USD" },
-      { value: "CDF", label: "CDF" },
-    ],
-    []
-  );
+  const selectedProd = matchingProductions.find((p) => p.id === selectedProductionId);
+  const unitOfSale = selectedProd?.unit || demand.unit;
+  const numProposedQty = Number(proposedQuantity);
+  const numUnitPrice = Number(unitPrice);
+  const isValidCalc = !isNaN(numProposedQty) && numProposedQty > 0 && !isNaN(numUnitPrice) && numUnitPrice > 0;
+  const calculatedTotal = isValidCalc ? Math.round(numProposedQty * numUnitPrice * 100) / 100 : 0;
 
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return "Non précisée";
@@ -331,14 +330,21 @@ export default function CompanyDemandDetailView({
                 <div className="flex justify-between items-center py-1 border-b border-emerald-100/60">
                   <span className="text-gray-600">Quantité proposée</span>
                   <span className="font-bold text-emerald-950">
-                    {currentProposal.proposed_quantity} {currentProposal.unit}
+                    {currentProposal.proposed_quantity.toLocaleString("fr-FR")} {currentProposal.unit}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1 border-b border-emerald-100/60">
                   <span className="text-gray-600">Prix unitaire</span>
+                  <span className="font-bold text-emerald-950 text-sm">
+                    {currentProposal.unit_price.toLocaleString("fr-FR")} {currentProposal.currency}/{currentProposal.unit}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-1.5 border-b border-emerald-100/60 bg-emerald-100/50 px-2 rounded-lg">
+                  <span className="text-emerald-900 font-semibold text-xs">Montant total</span>
                   <span className="font-extrabold text-emerald-950 text-sm">
-                    {currentProposal.unit_price} {currentProposal.currency} / {currentProposal.unit}
+                    {(currentProposal.proposed_quantity * currentProposal.unit_price).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currentProposal.currency}
                   </span>
                 </div>
 
@@ -408,12 +414,12 @@ export default function CompanyDemandDetailView({
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1.5">
                       <label className="font-bold text-gray-700 block">
-                        Volume proposé <span className="text-rose-500">*</span>
+                        Volume proposé ({unitOfSale}) <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="number"
                         step="any"
-                        min="0.01"
+                        min="0.001"
                         required
                         value={proposedQuantity}
                         onChange={(e) => setProposedQuantity(e.target.value)}
@@ -422,12 +428,12 @@ export default function CompanyDemandDetailView({
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="font-bold text-gray-700 block">Unité</label>
+                      <label className="font-bold text-gray-700 block">Unité de vente</label>
                       <input
                         type="text"
                         disabled
-                        value={demand.unit}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 font-medium"
+                        value={unitOfSale}
+                        className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 font-bold"
                       />
                     </div>
                   </div>
@@ -436,14 +442,14 @@ export default function CompanyDemandDetailView({
                   <div className="grid grid-cols-3 gap-2">
                     <div className="col-span-2 space-y-1.5">
                       <label className="font-bold text-gray-700 block">
-                        Prix unitaire <span className="text-rose-500">*</span>
+                        Prix unitaire ({currency}/{unitOfSale}) <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="number"
                         step="any"
                         min="0.01"
                         required
-                        placeholder="Ex: 450"
+                        placeholder="Ex: 1000000"
                         value={unitPrice}
                         onChange={(e) => setUnitPrice(e.target.value)}
                         className="w-full px-3 py-2 rounded-xl border border-gray-200 font-bold text-gray-900 focus:ring-2 focus:ring-forest-600"
@@ -455,11 +461,33 @@ export default function CompanyDemandDetailView({
                       <Select
                         value={currency}
                         onChange={(e) => setCurrency(e.target.value)}
-                        options={currencyOptions}
+                        options={[
+                          { value: "CDF", label: "CDF" },
+                          { value: "USD", label: "USD" },
+                        ]}
                         selectSize="md"
                       />
                     </div>
                   </div>
+
+                  {/* Calcul en direct du montant total */}
+                  {isValidCalc ? (
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-emerald-900 font-semibold">Montant total estimé :</span>
+                        <span className="text-sm font-extrabold text-emerald-800">
+                          {calculatedTotal.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-emerald-700">
+                        {numProposedQty.toLocaleString("fr-FR")} {unitOfSale} × {numUnitPrice.toLocaleString("fr-FR")} {currency}/{unitOfSale}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-200 text-gray-500 text-center text-[11px]">
+                      Saisissez une quantité et un prix pour calculer le montant total.
+                    </div>
+                  )}
 
                   {/* Message d'accompagnement */}
                   <div className="space-y-1.5">

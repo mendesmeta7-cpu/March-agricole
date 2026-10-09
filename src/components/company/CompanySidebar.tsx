@@ -29,6 +29,7 @@ export interface CompanySidebarProps {
   locationInfo?: string;
   logoUrl?: string | null;
   unreadNotificationsCount?: number;
+  pendingOrdersCount?: number;
   onClose?: () => void;
 }
 
@@ -47,6 +48,7 @@ export default function CompanySidebar({
   locationInfo,
   logoUrl,
   unreadNotificationsCount = 0,
+  pendingOrdersCount = 0,
   onClose,
 }: CompanySidebarProps) {
   const pathname = usePathname();
@@ -90,6 +92,7 @@ export default function CompanySidebar({
       label: "Commandes reçues",
       href: "/dashboard/company/orders",
       icon: ShoppingBag,
+      badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined,
     },
     {
       id: "notifications",

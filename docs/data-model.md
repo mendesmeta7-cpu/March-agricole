@@ -207,6 +207,22 @@ erDiagram
 * *Index* : `idx_demands_reseller_id`, `idx_demands_product_id`, `idx_demands_province_id`, `idx_demands_status`, `idx_demands_target_company`
 * *Trigger* : `trg_demands_updated_at`
 
+#### `demand_responses` (Propositions Commerciales des Sociétés)
+* `id` : `UUID PRIMARY KEY DEFAULT gen_random_uuid()`
+* `demand_id` : `UUID NOT NULL REFERENCES demands(id) ON DELETE CASCADE`
+* `company_id` : `UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE`
+* `production_id` : `UUID REFERENCES productions(id) ON DELETE SET NULL`
+* `proposed_quantity` : `NUMERIC(12,2) NOT NULL CHECK (proposed_quantity > 0)`
+* `unit` : `VARCHAR(30) NOT NULL` (Unité réelle de vente adossée à la production)
+* `unit_price` : `NUMERIC(12,2) NOT NULL CHECK (unit_price > 0)`
+* `currency` : `VARCHAR(3) NOT NULL DEFAULT 'CDF' CHECK (currency IN ('CDF', 'USD'))`
+* `message` : `TEXT`
+* `status` : `VARCHAR(30) NOT NULL DEFAULT 'proposed' CHECK (status IN ('proposed', 'accepted', 'ordered', 'refused', 'cancelled'))`
+* `created_at`, `updated_at` : `TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+* *Contrainte* : `UNIQUE (demand_id, company_id)`
+* *Index* : `idx_demand_responses_demand_id`, `idx_demand_responses_company_id`, `idx_demand_responses_status`
+* *Trigger* : `trg_demand_responses_updated_at`
+
 #### `v_market_demands_aggregated` (Vue SQL Décloisonnée)
 Vue d'analyse macro calculée dynamiquement sur les demandes actives (`status = 'active'`) agrégées par `product_id`, `country_id`, `province_id`, `unit`. Accessible à toutes les entreprises.
 
@@ -339,4 +355,17 @@ Procédure `SECURITY DEFINER` de clôture automatique des campagnes commerciales
    - OU si la campagne possède des destinations (`campaign_destinations`) et que **TOUTES** ses destinations ont une date limite passée (`order_deadline_date IS NOT NULL AND order_deadline_date < CURRENT_DATE`) ;
 3. Préserve intactes toutes les commandes, réservations, livraisons et productions existantes ;
 4. Retourne le nombre de campagnes passées à `completed`.
+
+### 3.5 `create_order_from_demand_response(...)` (Prompt 2 — Normalisation Financière)
+Procédure transactionnelle `SECURITY DEFINER` créant une commande ferme depuis une proposition acceptée :
+1. Valide l'identité du revendeur demandeur (`auth.uid() = p_reseller_id`) ;
+2. Verrouille la proposition commerciale `demand_responses` (`FOR UPDATE`) ;
+3. Vérifie l'état de la proposition (`status IN ('proposed', 'accepted')`) ;
+4. Verrouille la production adossée (`productions`) et valide le stock physique ;
+5. Calcule le montant total contractuel : `(p_quantity * v_response.unit_price)::NUMERIC(14,2)` ;
+6. Insère la commande `orders` avec sa référence d'origine (`origin_type = 'demand_response'`) et sa devise contractuelle ;
+7. Insère la ligne `order_items` avec l'unité réelle de vente `v_response.unit` et le prix unitaire ;
+8. Enregistre la réservation de stock adossée à la production dans `stock_reservations` ;
+9. Retourne `order_id`, `order_number`, `total_amount` et `reserved_quantity`.
+
 

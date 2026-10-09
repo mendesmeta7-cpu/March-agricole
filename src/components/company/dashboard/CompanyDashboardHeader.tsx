@@ -2,12 +2,16 @@
 
 import Link from "next/link";
 import { MapPin, Plus, Megaphone, CheckCircle2, Clock } from "lucide-react";
+import DashboardAlertCard from "@/components/company/dashboard/DashboardAlertCard";
+import type { DashboardAlert } from "@/components/company/dashboard/DashboardAlertCard";
 
 export interface CompanyDashboardHeaderProps {
   companyName: string;
   userName?: string;
   verificationStatus: "verified" | "pending_verification" | "unverified";
   locationInfo?: string;
+  /** Alertes opérationnelles calculées côté serveur (Prompt 6) */
+  alerts?: DashboardAlert[];
 }
 
 function getGreeting(): string {
@@ -22,6 +26,7 @@ export default function CompanyDashboardHeader({
   userName,
   verificationStatus,
   locationInfo,
+  alerts = [],
 }: CompanyDashboardHeaderProps) {
   const greeting = getGreeting();
 
@@ -102,9 +107,8 @@ export default function CompanyDashboardHeader({
             )}
           </div>
 
-          <p className="text-xs sm:text-sm text-forest-100/80 leading-relaxed pt-0.5">
-            Voici un aperçu en direct de l&apos;activité commerciale et opérationnelle de votre exploitation sur Radiza.
-          </p>
+          {/* Carte d'alertes dynamiques (Prompt 6) */}
+          <DashboardAlertCard alerts={alerts} />
         </div>
 
         {/* Actions rapides contextuelles (avec contraste garanti et visibilité absolue) */}

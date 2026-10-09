@@ -14,6 +14,7 @@ export interface CompanyDashboardLayoutProps {
   locationInfo?: string;
   logoUrl?: string | null;
   unreadNotificationsCount?: number;
+  pendingOrdersCount?: number;
 }
 
 export default function CompanyDashboardLayout({
@@ -24,6 +25,7 @@ export default function CompanyDashboardLayout({
   locationInfo,
   logoUrl,
   unreadNotificationsCount = 0,
+  pendingOrdersCount = 0,
 }: CompanyDashboardLayoutProps) {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
@@ -38,6 +40,7 @@ export default function CompanyDashboardLayout({
           locationInfo={locationInfo}
           logoUrl={logoUrl}
           unreadNotificationsCount={unreadNotificationsCount}
+          pendingOrdersCount={pendingOrdersCount}
         />
       </aside>
 
@@ -58,6 +61,7 @@ export default function CompanyDashboardLayout({
           locationInfo={locationInfo}
           logoUrl={logoUrl}
           unreadNotificationsCount={unreadNotificationsCount}
+          pendingOrdersCount={pendingOrdersCount}
           onClose={() => setMobileDrawerOpen(false)}
         />
       </Drawer>
@@ -83,6 +87,7 @@ export default function CompanyDashboardLayout({
       {/* 4. Navigation mobile inférieure fluide avec tiroir 'Plus' */}
       <CompanyBottomNav
         unreadNotificationsCount={unreadNotificationsCount}
+        pendingOrdersCount={pendingOrdersCount}
         entityName={entityName}
         userName={userName}
         userEmail={userEmail}

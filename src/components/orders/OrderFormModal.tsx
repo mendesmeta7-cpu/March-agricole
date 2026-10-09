@@ -288,15 +288,15 @@ export default function OrderFormModal({
           <div className="p-4 rounded-2xl bg-forest-50/70 border border-forest-200/80 flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-forest-900 block">
-                Montant total estimé (Snapshot)
+                Montant total de la commande
               </span>
               <span className="text-[11px] text-forest-700">
-                {numQty} {campaign.unit} × {campaign.unit_price.toLocaleString("fr-FR")} {campaign.currency}
+                {numQty.toLocaleString("fr-FR")} {campaign.unit} × {campaign.unit_price.toLocaleString("fr-FR")} {campaign.currency}/{campaign.unit}
               </span>
             </div>
             <div className="text-right">
               <span className="text-lg font-extrabold text-forest-950">
-                {totalAmount.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} {campaign.currency}
+                {totalAmount.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {campaign.currency}
               </span>
             </div>
           </div>

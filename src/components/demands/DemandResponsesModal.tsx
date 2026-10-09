@@ -42,7 +42,11 @@ export default function DemandResponsesModal({
   const [isOrdering, setIsOrdering] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successOrder, setSuccessOrder] = useState<{ orderNumber: string; totalAmount: number } | null>(null);
+  const [successOrder, setSuccessOrder] = useState<{
+    orderNumber: string;
+    totalAmount: number;
+    currency: string;
+  } | null>(null);
 
   // Form states for ordering
   const [deliveryProvinceId, setDeliveryProvinceId] = useState(
@@ -90,6 +94,7 @@ export default function DemandResponsesModal({
         setSuccessOrder({
           orderNumber: res.data.orderNumber,
           totalAmount: res.data.totalAmount,
+          currency: res.data.currency || selectedResponse.currency,
         });
         onOrderSuccess?.(res.data.orderNumber);
       }
@@ -133,8 +138,8 @@ export default function DemandResponsesModal({
                 <p className="text-xs text-gray-600">
                   N° de commande : <strong className="font-mono text-emerald-800">{successOrder.orderNumber}</strong>
                 </p>
-                <p className="text-xs text-gray-500">
-                  Montant total : {successOrder.totalAmount.toLocaleString("fr-FR")} USD
+                <p className="text-xs font-semibold text-gray-700">
+                  Montant total : {successOrder.totalAmount.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {successOrder.currency}
                 </p>
               </div>
               <p className="text-xs text-gray-500 bg-gray-50 p-3 rounded-xl border border-gray-200/60 max-w-md mx-auto">
@@ -273,7 +278,7 @@ export default function DemandResponsesModal({
                   ) : (
                     <>
                       <ShoppingBag className="w-3.5 h-3.5" />
-                      Confirmer et Commander ({((selectedResponse.proposed_quantity || 0) * (selectedResponse.unit_price || 0)).toLocaleString("fr-FR")} {selectedResponse.currency})
+                      Confirmer et Commander ({((selectedResponse.proposed_quantity || 0) * (selectedResponse.unit_price || 0)).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {selectedResponse.currency})
                     </>
                   )}
                 </button>
@@ -338,16 +343,16 @@ export default function DemandResponsesModal({
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-2.5 rounded-xl bg-gray-50 text-xs">
                       <div>
                         <span className="text-[10px] text-gray-500 block">Quantité</span>
-                        <span className="font-bold text-gray-900">{resp.proposed_quantity.toLocaleString("fr-FR")} {demand.unit}</span>
+                        <span className="font-bold text-gray-900">{resp.proposed_quantity.toLocaleString("fr-FR")} {resp.unit || demand.unit}</span>
                       </div>
                       <div>
                         <span className="text-[10px] text-gray-500 block">Prix unitaire</span>
-                        <span className="font-bold text-gray-900">{resp.unit_price} {resp.currency}</span>
+                        <span className="font-bold text-gray-900">{resp.unit_price.toLocaleString("fr-FR")} {resp.currency}/{resp.unit || demand.unit}</span>
                       </div>
                       <div className="col-span-2 sm:col-span-1">
                         <span className="text-[10px] text-gray-500 block">Montant total</span>
                         <span className="font-extrabold text-earth-800">
-                          {((resp.proposed_quantity || 0) * (resp.unit_price || 0)).toLocaleString("fr-FR")} {resp.currency}
+                          {((resp.proposed_quantity || 0) * (resp.unit_price || 0)).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {resp.currency}
                         </span>
                       </div>
                     </div>

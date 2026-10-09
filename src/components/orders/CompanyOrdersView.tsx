@@ -117,7 +117,6 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
       { value: "confirmed", label: "Confirmée par l'exploitation" },
       { value: "preparing", label: "En cours de préparation" },
       { value: "ready", label: "Prête pour retrait / expédition" },
-      { value: "delivered", label: "Livrée / Réceptionnée" },
       { value: "cancelled", label: "Annulée (Libère le stock réservé)" },
     ],
     []

@@ -69,8 +69,11 @@ export async function createOrderAction(
   }
 
   const quantity = Number(input.quantity);
-  if (isNaN(quantity) || quantity <= 0) {
-    return { success: false, error: "La quantité commandée doit être strictement supérieure à zéro." };
+  if (isNaN(quantity) || !isFinite(quantity) || quantity <= 0) {
+    return { success: false, error: "La quantité commandée doit être un nombre fini strictement supérieur à zéro." };
+  }
+  if (quantity > 999999999) {
+    return { success: false, error: "La quantité commandée dépasse la limite maximale autorisée." };
   }
 
   // 3. Appel de la procédure stockée transactionnelle PostgreSQL
@@ -218,7 +221,18 @@ export async function updateOrderStatusAction(
     return cancelOrderAction(orderId, "Annulation par l'exploitation agricole");
   }
 
-  // 3. Mise à jour directe du statut (protégée par RLS)
+  // 3. Règle d'intégrité Prompt 3 : le statut 'delivered' ne peut JAMAIS être forcé manuellement
+  // La livraison physique exige obligatoirement confirmOrderDeliveryAction (RPC confirm_order_delivery)
+  // pour garantir l'horodatage, la quantité livrée, les audits, la notification et la confirmation de réservation de stock.
+  if (newStatus === "delivered") {
+    return {
+      success: false,
+      error:
+        "La livraison d'une commande ne peut pas être validée manuellement. Veuillez utiliser la confirmation de livraison officielle (scan QR Code ou saisie du numéro).",
+    };
+  }
+
+  // 4. Mise à jour directe du statut (protégée par RLS)
   const { error: updateErr } = await supabase
     .from("orders")
     .update({
@@ -266,7 +280,7 @@ export interface CreateOrderFromDemandResponseInput {
  */
 export async function createOrderFromDemandResponseAction(
   input: CreateOrderFromDemandResponseInput
-): Promise<ActionResult<{ orderId: string; orderNumber: string; totalAmount: number }>> {
+): Promise<ActionResult<{ orderId: string; orderNumber: string; totalAmount: number; currency: string }>> {
   const supabase = createClient();
   const {
     data: { user },
@@ -299,15 +313,29 @@ export async function createOrderFromDemandResponseAction(
     return { success: false, error: "Veuillez spécifier la province de livraison." };
   }
 
-  // 3. Récupération de la quantité proposée si non spécifiée
+  // 3. Récupération de la proposition et validation
   let orderQty = input.quantity;
-  if (!orderQty || orderQty <= 0) {
-    const { data: respData } = await supabase
-      .from("demand_responses")
-      .select("proposed_quantity")
-      .eq("id", input.response_id)
-      .single();
+  let responseCurrency = "CDF";
+  const { data: respData } = await supabase
+    .from("demand_responses")
+    .select("proposed_quantity, currency")
+    .eq("id", input.response_id)
+    .single();
+
+  if (respData?.currency) {
+    responseCurrency = respData.currency;
+  }
+  if (orderQty !== undefined && orderQty !== null) {
+    orderQty = Number(orderQty);
+    if (isNaN(orderQty) || !isFinite(orderQty) || orderQty <= 0) {
+      return { success: false, error: "La quantité commandée doit être un nombre fini strictement supérieur à zéro." };
+    }
+  } else {
     orderQty = Number(respData?.proposed_quantity || 1);
+  }
+
+  if (orderQty > 999999999) {
+    return { success: false, error: "La quantité commandée dépasse la limite maximale autorisée." };
   }
 
   try {
@@ -352,6 +380,7 @@ export async function createOrderFromDemandResponseAction(
         orderId: createdOrder.order_id,
         orderNumber: createdOrder.order_number,
         totalAmount: Number(createdOrder.total_amount),
+        currency: responseCurrency,
       },
     };
   } catch (err: any) {

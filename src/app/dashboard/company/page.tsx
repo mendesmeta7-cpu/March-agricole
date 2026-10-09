@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { getCompanyOrders } from "@/lib/queries/orders";
+import { getCompanyOrders, getCompanyOrdersForFinancials } from "@/lib/queries/orders";
 import { getCompanyGeneralDemands } from "@/lib/queries/demands";
 import type { DemandItem } from "@/lib/queries/demands";
 import { getEffectiveCampaignStatus } from "@/lib/utils/campaignStatus";
+import type { DashboardAlert } from "@/components/company/dashboard/DashboardAlertCard";
 import CompanyDashboardHeader from "@/components/company/dashboard/CompanyDashboardHeader";
 import CompanyOverviewMetrics from "@/components/company/dashboard/CompanyOverviewMetrics";
 import CompanyDemandTrendChart from "@/components/company/dashboard/CompanyDemandTrendChart";
@@ -13,6 +14,7 @@ import type { ProvinceDemandData } from "@/components/company/dashboard/CompanyD
 import CompanyPendingActions from "@/components/company/dashboard/CompanyPendingActions";
 import type { PendingActionItem } from "@/components/company/dashboard/CompanyPendingActions";
 import CompanyRecentActivity from "@/components/company/dashboard/CompanyRecentActivity";
+import CompanyFinancialMetrics from "@/components/company/dashboard/CompanyFinancialMetrics";
 
 export default async function CompanyDashboardPage() {
   const supabase = createClient();
@@ -59,6 +61,7 @@ export default async function CompanyDashboardPage() {
     geoResult,
     activeDemands,
     recentOrders,
+    financialOrdersResult,
   ] = await Promise.all([
     supabase
       .from("productions")
@@ -69,6 +72,7 @@ export default async function CompanyDashboardPage() {
       .from("campaigns")
       .select(`
         id,
+        title,
         status,
         marketable_quantity,
         reserved_quantity,
@@ -77,6 +81,7 @@ export default async function CompanyDashboardPage() {
         end_date,
         campaign_destinations (
           id,
+          city_name,
           order_deadline_date
         )
       `)
@@ -101,6 +106,9 @@ export default async function CompanyDashboardPage() {
 
     getCompanyGeneralDemands(companyId),
     getCompanyOrders(companyId),
+    // Requête dédiée aux métriques financières : léger, sans limite de résultats,
+    // garantit l'exhaustivité de l'historique pour les calculs CDF/USD.
+    getCompanyOrdersForFinancials(companyId),
   ]);
 
   // ─── Productions ─────────────────────────────────────────────────────────────
@@ -168,6 +176,119 @@ export default async function CompanyDashboardPage() {
     totalRevenue: Math.round(totalRevenue),
     currency: recentOrders[0]?.currency || "USD",
   };
+
+  // ─── Alertes dynamiques du dashboard (Prompt 6) ─────────────────────────────
+  /**
+   * Utilitaire de calcul de jours restants.
+   * Compare deux dates en UTC jour entier pour éviter les erreurs de timezone.
+   * Résultat positif = dans le futur. 0 = aujourd'hui. Négatif = passé.
+   */
+  function daysUntil(dateStr: string): number {
+    const todayMs = new Date(
+      new Date().toISOString().split("T")[0] + "T00:00:00Z"
+    ).getTime();
+    const targetMs = new Date(dateStr + "T00:00:00Z").getTime();
+    return Math.round((targetMs - todayMs) / (1000 * 60 * 60 * 24));
+  }
+
+  function dayLabel(days: number): string {
+    if (days === 0) return "aujourd'hui";
+    if (days === 1) return "demain";
+    return `dans ${days} jour${days > 1 ? "s" : ""}`;
+  }
+
+  const dashboardAlerts: DashboardAlert[] = [];
+
+  // Priorité 1 — Commandes en attente de confirmation
+  const pendingOrdersCount = recentOrders.filter((o) => o.status === "pending").length;
+  if (pendingOrdersCount > 0) {
+    dashboardAlerts.push({
+      id: "pending-orders",
+      type: "pending_orders",
+      message:
+        pendingOrdersCount === 1
+          ? "1 commande attend votre confirmation"
+          : `${pendingOrdersCount} commandes attendent votre confirmation`,
+      href: "/dashboard/company/orders",
+    });
+  }
+
+  // Priorité 2a — Campagne active dont la date de fin globale approche (<= 7 j)
+  // Seules les campagnes effectivement actives sont candidates (une campagne expirée
+  // ne peut jamais générer une alerte "se termine bientôt").
+  const campaignsEndingSoon = activeCampaigns
+    .filter((c: any) => {
+      if (!c.end_date) return false;
+      const d = daysUntil(c.end_date);
+      return d >= 0 && d <= 7; // >= 0 : la date est aujourd'hui ou dans le futur
+    })
+    .sort((a: any, b: any) => {
+      // La plus urgente en premier
+      return daysUntil(a.end_date) - daysUntil(b.end_date);
+    });
+
+  if (campaignsEndingSoon.length > 0) {
+    const c = campaignsEndingSoon[0] as any;
+    const days = daysUntil(c.end_date);
+    dashboardAlerts.push({
+      id: `campaign-ending-${c.id}`,
+      type: "campaign_ending",
+      message: `Campagne "${c.title || "Sans titre"}" se termine ${dayLabel(days)}`,
+      href: "/dashboard/company/campaigns",
+    });
+  }
+
+  // Priorité 2b — Destination dont le délai de commande arrive bientôt (<= 5 j)
+  // Uniquement si aucune alerte de fin de campagne n'a été générée.
+  if (!dashboardAlerts.some((a) => a.type === "campaign_ending")) {
+    let destAlert: DashboardAlert | null = null;
+    let minDays = Infinity;
+
+    for (const campaign of activeCampaigns as any[]) {
+      for (const dest of campaign.campaign_destinations || []) {
+        if (!dest.order_deadline_date) continue;
+        const d = daysUntil(dest.order_deadline_date);
+        if (d >= 0 && d <= 5 && d < minDays) {
+          minDays = d;
+          destAlert = {
+            id: `dest-deadline-${campaign.id}-${dest.id}`,
+            type: "destination_deadline",
+            message: `Clôture des commandes pour "${dest.city_name || "une destination"}" ${dayLabel(d)}`,
+            href: "/dashboard/company/campaigns",
+          };
+        }
+      }
+    }
+
+    if (destAlert) dashboardAlerts.push(destAlert);
+  }
+
+  // Priorité 3 — Campagnes actives en cours (informatif, sans urgence de date)
+  // N'apparaît que si aucune alerte de date (campaign_ending / destination_deadline) n'est présente.
+  const hasDateAlert = dashboardAlerts.some(
+    (a) => a.type === "campaign_ending" || a.type === "destination_deadline"
+  );
+  if (!hasDateAlert && activeCampaigns.length > 0) {
+    dashboardAlerts.push({
+      id: "active-campaigns",
+      type: "active_campaigns",
+      message:
+        activeCampaigns.length === 1
+          ? "1 campagne commerciale active sur le marché"
+          : `${activeCampaigns.length} campagnes commerciales actives sur le marché`,
+      href: "/dashboard/company/campaigns",
+    });
+  }
+
+  // Priorité 4 — Message neutre si aucune alerte n'a été générée
+  if (dashboardAlerts.length === 0) {
+    dashboardAlerts.push({
+      id: "welcome",
+      type: "welcome",
+      message:
+        "Tout est à jour. Votre exploitation est opérationnelle sur Radiza.",
+    });
+  }
 
   // ─── Tendance demandes (graphique) ───────────────────────────────────────────
   const demandsTrendRaw = trendResult.data || [];
@@ -306,6 +427,7 @@ export default async function CompanyDashboardPage() {
           (company.verification_status as "verified" | "pending_verification" | "unverified") || "unverified"
         }
         locationInfo={locationInfo || undefined}
+        alerts={dashboardAlerts}
       />
 
       {/* 4 cartes KPI */}
@@ -314,6 +436,13 @@ export default async function CompanyDashboardPage() {
         demandsStats={demandsStats}
         campaignsStats={campaignsStats}
         ordersStats={ordersStats}
+      />
+
+      {/* Statistiques Financières & Commandes (Prompt 4 & 4.2 - Pagination exhaustive & Séparation CDF/USD) */}
+      {/* Alimenté par getCompanyOrdersForFinancials : pagination par blocs de 1 000, sans troncature silencieuse */}
+      <CompanyFinancialMetrics
+        orders={financialOrdersResult.orders}
+        error={financialOrdersResult.error}
       />
 
       {/* Alertes métier urgentes */}

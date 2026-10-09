@@ -193,6 +193,27 @@
 * **BR-ORD-09 (Procédure Transactionnelle de Confirmation)** : La confirmation de livraison s'exécute via la procédure RPC `confirm_order_delivery` avec verrouillage pessimiste `FOR UPDATE`. Elle fige `orders.status = 'delivered'`, `delivered_at`, `delivered_quantity`, `delivered_by`, `delivery_notes`, confirme la réservation de stock (`stock_reservations.status = 'confirmed'`), trace l'événement dans `audit_logs` (`ORDER_DELIVERED`) et notifie le revendeur (`COMMANDE_LIVREE`).
 * **BR-ORD-10 (Règle Anti-Double Livraison)** : Toute commande déjà en statut `delivered` ne peut faire l'objet d'une seconde confirmation. La procédure RPC lève une exception bloquante explicite.
 * **BR-ORD-11 (Ergonomie Mobile du Bouton Scanner Caméra)** : Un bouton scanner caméra unique est mis à disposition dans le widget de recherche. Sur appareil mobile, il se positionne de manière fixe (`fixed`) au-dessus de la barre de navigation avec prise en compte des safe areas, restant accessible en permanence sous le pouce pendant le défilement de la liste des commandes, sans duplication.
+* **BR-ORD-12 (Confirmation de Livraison = Seule Source de Vérité pour les Ventes Réalisées — Prompt 3)** :
+  - Une commande n'est réputée constituer une « vente réalisée » QUE si et seulement si son statut est `delivered`, scellé par l'exécution de la procédure transactionnelle `confirm_order_delivery`.
+  - Toutes les commandes non livrées (`pending`, `confirmed`, `preparing`, `ready`, `cancelled`) représentent des engagements en cours ou annulés et sont STRICTEMENT EXCLUES de la comptabilisation des ventes réalisées.
+  - Source unique de calcul applicative : `src/lib/utils/realizedSales.ts` (`calculateRealizedSales`, `isRealizedSale`).
+  - Cloisonnement étanche des devises : les ventes réalisées en `CDF` et en `USD` sont strictement séparées et ne font l'objet d'aucune fusion ni conversion arbitraire.
+* **BR-ORD-13 (Interdiction Absolue de Contournement vers 'delivered' — Prompt 3)** :
+  - Il est formellement interdit de forcer le statut `delivered` via une mise à jour manuelle ordinaire de statut.
+  - L'action serveur `updateOrderStatusAction` rejette toute tentative de basculer vers `delivered`.
+  - Les interfaces graphiques (`CompanyOrdersView`, `CompanyOrderDetailView`) ne proposent pas `delivered` dans les sélecteurs manuels. La livraison requiert exclusivement le passage par `DeliveryConfirmationModal` (scan QR Code ou saisie du numéro de commande).
+* **BR-ORD-14 (Statistiques Financières Fiables du Dashboard Société — Prompt 4)** :
+  - **Distinction des trois notions financières** :
+    1. *Valeur des commandes* : somme des montants contractuels enregistrés pour les commandes passées pendant la période sélectionnée selon leur date de création (`created_at`). Exclut les commandes annulées (`cancelled`).
+    2. *Ventes livrées* : somme des montants contractuels enregistrés pour les commandes dont la livraison a été confirmée via `confirm_order_delivery` pendant la période sélectionnée selon leur date réelle de livraison (`delivered_at`). Exclut formellement les commandes en attente, confirmées, en cours, prêtes ou annulées.
+    3. *Paiements encaissés* : aucun paiement en ligne revendeur n'existant en V1, aucun indicateur de paiement encaissé n'est simulé ni affiché comme disponible.
+  - **Séparation stricte CDF / USD** : tous les calculs et affichages présentent séparément les totaux en `CDF` et en `USD`. Zéro conversion arbitraire et zéro addition inter-devises.
+  - **Filtres temporels normés** :
+    - *Aujourd'hui* : du jour à `00:00:00.000` au jour à `23:59:59.999`.
+    - *Cette semaine* : du lundi à `00:00:00.000` au dimanche à `23:59:59.999`.
+    - *Ce mois* : du 1er jour du mois à `00:00:00.000` au dernier jour du mois à `23:59:59.999`.
+    - *Personnalisé* : date début à `00:00:00.000` et date fin à `23:59:59.999`.
+  - **Zéro donnée fictive** : une période sans commande affiche 0 CDF, 0 USD et 0 commande au format soigné sans aucune donnée de démonstration.
 
 ---
 
@@ -242,3 +263,64 @@
 | **Politique d'annulation par le revendeur** | Le revendeur peut-il annuler unilatéralement une commande tant qu'elle est en statut `pending` sans accord préalable de l'entreprise ? *(Recommandé : Oui pour `pending`, Non à partir de `confirmed`).* | *À préciser / validation nécessaire* |
 | **Seuil minimum de commande** | Faut-il autoriser une quantité minimale de commande (`minimum_order_quantity`) par campagne dès la V1 ? *(Recommandé : optionnel en V1, valeur par défaut = 1 unité).* | *À préciser / validation nécessaire* |
 | **Date d'expiration automatique des demandes** | Quelle est la durée de validité par défaut d'une demande de revendeur si aucune date limite n'est précisée ? *(Recommandé : 30 jours par défaut).* | *À préciser / validation nécessaire* |
+
+---
+
+## 13. MÉCANISME FINANCIER, PRIX, DEVISES ET MONTANTS (Prompt 2 — Normalisation et Fiabilisation)
+
+### 13.1 Formule de Calcul Universelle et Précision Monétaire
+* **BR-FIN-01 (Formule Contractuelle)** : Le calcul du montant total des marchandises repose sur la multiplication directe :
+  $$\text{Montant Total} = \text{Quantité Vendue} \times \text{Prix Unitaire}$$
+  - Exemples validés :
+    - 20 tonnes $\times$ 1 000 000 CDF/tonne = 20 000 000 CDF.
+    - 100 caisses $\times$ 25 000 CDF/caisse = 2 500 000 CDF.
+* **BR-FIN-02 (Précision Décimale et Arrondis)** : Le montant est calculé et arrondi avec une précision de 2 décimales conforme au type SQL `NUMERIC(14,2)` :
+  $$\text{Total} = \text{Math.round}(\text{Quantité} \times \text{Prix Unitaire} \times 100) / 100$$
+  L'affichage utilise impérativement le format numérique français (`fr-FR`) avec deux chiffres après la virgule (`minimumFractionDigits: 2`).
+
+### 13.2 Cohérence Stricte entre Quantité, Prix et Unité de Vente
+* **BR-FIN-03 (Unité Réelle de Vente)** : Le champ de prix unitaire indique sans ambiguïté l'unité à laquelle il s'applique :
+  - `Prix unitaire (CDF/tonne)` pour une quantité en tonnes ;
+  - `Prix unitaire (CDF/caisse)` pour une quantité en caisses ;
+  - `Prix unitaire (USD/kg)` pour une quantité en kilogrammes.
+* **BR-FIN-04 (Interdiction des Conversions Arbitraires)** : Le système ne convertit jamais silencieusement les tonnes en kilogrammes, les caisses en unités ou les sacs en kilogrammes. L'unité de vente contractuelle est celle de la production ou de la proposition adossée (`unitOfSale = selectedProduction?.unit || demand.unit`).
+
+### 13.3 Devises Autorisées et Séparation Étanche (CDF / USD)
+* **BR-FIN-05 (Devises Autorisées)** : Les seules devises admises en V1 sont `CDF` (Franc Congolais) et `USD` (Dollar Américain).
+* **BR-FIN-06 (Cloisonnement Strict)** : Le prix unitaire, le sous-total de ligne et le montant total partagent obligatoirement la même devise contractuelle.
+* **BR-FIN-07 (Interdiction d'Addition Directe et de Conversion Auto)** : Les montants en CDF et en USD ne doivent **jamais** être additionnés directement. Aucun taux de change arbitraire ou conversion automatique n'est appliqué. Les totaux doivent systématiquement être présentés ventilés par devise.
+
+### 13.4 Validation et Intégrité Serveur
+* **BR-FIN-08 (Validations Strictes des Entrées)** : Côté client et serveur (`createDemandProposalAction`, `createOrderAction`, `createOrderFromDemandResponseAction`) :
+  - Quantité : nombre fini strictement positif ($> 0$), plafonné à $999\,999\,999$ ;
+  - Prix unitaire : nombre fini strictement positif ($> 0$), plafonné à $999\,999\,999$ ;
+  - Devise : strictement `'CDF'` ou `'USD'`.
+  Toute valeur négative, nulle, infinie, non numérique ou hors plage est immédiatement rejetée avec un message explicite.
+* **BR-FIN-09 (Immuabilité des Commandes Historiques)** : Les commandes historiques existantes constituent des engagements fermes scellés par snapshots. Aucun recalcul en masse ni réécriture rétroactive n'est autorisé.
+
+---
+
+## 14. STATISTIQUES FINANCIÈRES ET EXHAUSTIVITÉ TECHNIQUE (Prompts 4, 4.1 & 4.2)
+
+### 14.1 Distinction des Définitions Métier
+* **BR-FIN-10 (Engagements Enregistrés vs Ventes Livrées)** :
+  - **Valeur des commandes** : Somme des montants des commandes dont la date de création (`created_at`) s'inscrit dans la période sélectionnée, avec **exclusion stricte des commandes annulées** (`status !== 'cancelled'`).
+  - **Ventes livrées** : Somme des montants des commandes officiellement réceptionnées (`status === 'delivered'`) selon leur date de livraison validée (`delivered_at`) dans la période sélectionnée.
+  - **Paiements encaissés** : Aucun champ de paiement encaissé n'est simulé en V1 en l'absence de passerelle en ligne. Une mention protectrice est affichée dans l'UI.
+
+### 14.2 Garantie Technique d'Exhaustivité (Élimination du Plafond PostgREST)
+* **BR-FIN-11 (Pagination Serveur par Blocs de 1 000)** :
+  - La fonction `getCompanyOrdersForFinancials` pagine obligatoirement par blocs successifs de 1 000 lignes (`.range(from, to)`) afin d'outrepasser le plafond natif serveur `max_rows` de PostgREST.
+  - Le tri est rendu 100% déterministe via `.order('created_at', { ascending: false }).order('id', { ascending: false })` pour interdire tout saut ou doublon entre pages.
+  - Ne charge que les 5 champs financiers scalaires nécessaires (`status`, `total_amount`, `currency`, `created_at`, `delivered_at`) pour minimiser le coût mémoire et réseau.
+
+### 14.3 Traitement des Erreurs et Anti-Faux-Zéros
+* **BR-FIN-12 (Interdiction des Faux Zéros Silencieux)** :
+  - En cas d'erreur réseau, timeout ou incident de pagination, le système ne doit **jamais** renvoyer un tableau vide ou un résultat partiel interprété silencieusement comme « 0 CDF / 0 USD ».
+  - L'erreur doit être explicitement transmise au composant UI (`CompanyFinancialMetrics`), qui affiche un message d'alerte informant l'utilisateur que les calculs sont momentanément indisponibles afin de préserver la rigueur de ses comptes.
+
+### 14.4 Isolation Multilocataire
+* **BR-FIN-13 (Isolation Multi-Tenant Inviolable)** :
+  - L'identifiant de société (`companyId`) alimentant les métriques financières provient exclusivement de la session vérifiée du serveur (`companies.created_by = user.id`).
+  - Les règles PostgreSQL RLS empêchent toute fuite de données inter-entreprises.
+
