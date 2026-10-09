@@ -159,22 +159,35 @@ export default function CompanySidebar({
           )}
         </div>
 
-        {/* 2. Cartouche d'identité entreprise agricole (sans avatar redondant) */}
-        <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/50">
-          <div className="min-w-0">
-            <h2 className="text-xs font-bold text-gray-900 truncate">
-              {entityName || userName || "Mon Entreprise"}
-            </h2>
-            <div className="flex flex-wrap items-center gap-1.5 mt-1">
-              <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-forest-100 text-forest-800 border-forest-200">
-                Producteur Agricole
-              </span>
-              {locationInfo && (
-                <span className="text-[11px] text-gray-500 flex items-center gap-1 truncate max-w-[150px]">
-                  <MapPin className="w-3 h-3 text-forest-600 shrink-0" />
-                  <span className="truncate">{locationInfo}</span>
-                </span>
+        {/* 2. Cartouche d'identité entreprise agricole (avatar restauré sur PC, masqué sur mobile où il est en en-tête) */}
+        <div className="px-5 py-3.5 lg:py-4 border-b border-gray-100 bg-gray-50/50">
+          <div className="flex items-center gap-3">
+            <div className="hidden lg:flex w-10 h-10 rounded-xl bg-white border border-gray-200 items-center justify-center flex-shrink-0 shadow-2xs overflow-hidden">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt={entityName || userName || "Entreprise"}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Building2 className="w-5 h-5 text-forest-700" />
               )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xs font-bold text-gray-900 truncate">
+                {entityName || userName || "Mon Entreprise"}
+              </h2>
+              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-forest-100 text-forest-800 border-forest-200">
+                  Producteur Agricole
+                </span>
+                {locationInfo && (
+                  <span className="text-[11px] text-gray-500 flex items-center gap-1 truncate max-w-[150px]">
+                    <MapPin className="w-3 h-3 text-forest-600 shrink-0" />
+                    <span className="truncate">{locationInfo}</span>
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -225,14 +238,27 @@ export default function CompanySidebar({
           })}
         </nav>
 
-        {/* 4. Pied de sidebar : Profil & Déconnexion sécurisée (sans avatar redondant) */}
+        {/* 4. Pied de sidebar : Profil & Déconnexion sécurisée (avatar restauré sur PC, chevron sur mobile) */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50 space-y-2.5">
           <Link
             href="/dashboard/company/profile"
             onClick={onClose}
-            className="flex items-center justify-between p-2 rounded-xl hover:bg-white transition-colors group"
+            className="flex items-center justify-between lg:justify-start gap-3 p-2 lg:p-1.5 rounded-xl hover:bg-white transition-colors group"
             aria-label="Voir le profil de l'entreprise"
           >
+            <div className="hidden lg:flex w-8 h-8 rounded-full bg-forest-100 text-forest-800 border border-forest-200/80 items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt={entityName || userName || "Profil"}
+                  className="w-full h-full object-cover"
+                />
+              ) : userName ? (
+                userName.charAt(0).toUpperCase()
+              ) : (
+                <User className="w-4 h-4 text-forest-700" />
+              )}
+            </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-gray-900 truncate group-hover:text-forest-700">
                 {userName || entityName || "Mon Compte"}
@@ -241,7 +267,7 @@ export default function CompanySidebar({
                 <p className="text-[10px] text-gray-500 truncate">{userEmail}</p>
               )}
             </div>
-            <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-forest-700 transition-colors shrink-0" />
+            <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-forest-700 transition-colors shrink-0 lg:hidden" />
           </Link>
 
           <button

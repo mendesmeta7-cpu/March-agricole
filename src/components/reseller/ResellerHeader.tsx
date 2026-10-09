@@ -86,10 +86,10 @@ export default function ResellerHeader({
             )}
           </Link>
 
-          {/* Avatar / lien vers Mon Profil */}
+          {/* Avatar / lien vers Mon Profil (visible uniquement sur mobile, masqué sur PC) */}
           <Link
             href="/dashboard/reseller/profile"
-            className="flex items-center gap-2 p-1 sm:p-1.5 rounded-full hover:bg-gray-100 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-600"
+            className="lg:hidden flex items-center gap-2 p-1 sm:p-1.5 rounded-full hover:bg-gray-100 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-600"
             aria-label="Accéder à mon profil"
           >
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-forest-100 text-forest-800 border border-forest-200/80 flex items-center justify-center font-bold text-xs sm:text-sm shadow-2xs group-hover:border-forest-300 overflow-hidden shrink-0">

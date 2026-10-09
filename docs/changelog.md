@@ -3,26 +3,23 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
-## [CLEANUP-SIDEBAR-AVATARS] - 2026-10-09
-### Suppression des Avatars Redondants dans les Sidebars Société et Revendeur
+## [RESPONSIVE-AVATAR-DISPLAY-PC-MOBILE] - 2026-10-09
+### Différenciation Responsive de l'Avatar : En Barre Latérale sur PC, en En-tête sur Mobile
 
-#### 1. Contexte & Objectif
-- L'avatar utilisateur / logo de l'entreprise était dupliqué à trois endroits sur le même écran : dans le cartouche d'identité haut de la sidebar, dans le pied de page profil de la sidebar, et en haut à droite de l'en-tête principal.
-- Demande utilisateur : suppression des deux avatars redondants dans la barre latérale pour ne conserver que l'avatar unique et officiel dans l'en-tête (header).
+#### 1. Contexte & Règle Métier Responsive
+- **Sur PC (desktop, `>= lg`)** : La barre latérale permanente contient l'identité complète (logo entreprise/revendeur dans le cartouche haut et avatar utilisateur dans le pied avec déconnexion). L'avatar en en-tête était redondant et a été supprimé sur grand écran.
+- **Sur Mobile (`< lg`)** : La barre latérale étant masquée dans un tiroir, l'avatar reste affiché dans l'en-tête (`CompanyHeader` et `ResellerHeader`) pour un accès immédiat au profil, tandis que le tiroir mobile reste épuré sans avatars superflus.
 
 #### 2. Modifications Appliquées
-- **Sidebar Société (`src/components/company/CompanySidebar.tsx`)** :
-  - Cartouche d'identité : retrait de la boîte avatar d'entreprise, présentation épurée de la dénomination, du badge « Producteur Agricole » et de la localisation.
-  - Pied de sidebar : retrait de l'avatar circulaire, conservation du nom, de l'email et navigation vers le profil avec flèche `ChevronRight`.
-- **Sidebar Revendeur (`src/components/reseller/ResellerSidebar.tsx`)** :
-  - Cartouche d'identité : retrait de la boîte avatar revendeur, présentation soignée de la raison sociale, du badge « Revendeur / Distributeur » et de la localisation.
-  - Pied de sidebar : retrait de l'avatar circulaire, conservation du nom, de l'email et navigation vers le profil avec `ChevronRight`.
 - **En-têtes (`CompanyHeader.tsx` & `ResellerHeader.tsx`)** :
-  - L'avatar cliquable en haut à droite avec `logoUrl` / `avatarUrl` reste l'unique point d'ancrage visuel du profil sur le tableau de bord.
+  - Ajout de `lg:hidden` sur le lien de profil avec avatar : masqué sur PC, conservé sur mobile.
+- **Sidebars (`CompanySidebar.tsx` & `ResellerSidebar.tsx`)** :
+  - Cartouche d'identité : restauration de l'avatar/logo (`hidden lg:flex`) pour l'affichage PC comme à l'origine, tout en restant masqué sur mobile.
+  - Pied de page : restauration de l'avatar utilisateur circulaire (`hidden lg:flex`) sur PC, avec flèche `ChevronRight` conservée sur mobile (`lg:hidden`).
 
 #### 3. Validation Technique
 - TypeScript : 0 erreur (`npx tsc --noEmit` — code 0).
-- Next.js Production Build : 38/38 routes compilées avec succès (`npm run build` — code 0).
+- Suite de tests unitaire : 100% passés.
 
 ---
 
