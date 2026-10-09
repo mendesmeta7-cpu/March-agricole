@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-10-09 — Correctifs UI/UX Mobile : Caméra de scan fixe sur viewport via React Portal (CompanyOrderLookupWidget) et suppression du rognage du bouton Toutes dans le flux des productions (CategoryScroller & FeedView). TypeScript 0 erreur, Build ✓ 38/38 routes.*
+*Dernière mise à jour : 2026-10-09 — Épuration UI : Suppression des avatars redondants dans les barres latérales Société et Revendeur (conservé uniquement dans l'en-tête). TypeScript 0 erreur, Build ✓ 38/38 routes.*
 
 
 ---

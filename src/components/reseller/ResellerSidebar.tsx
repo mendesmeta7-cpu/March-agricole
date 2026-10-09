@@ -15,6 +15,7 @@ import {
   LogOut,
   X,
   Loader2,
+  ChevronRight,
 } from "lucide-react";
 import { logoutAction } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/client";
@@ -139,29 +140,18 @@ export default function ResellerSidebar({
         )}
       </div>
 
-      {/* 2. Cartouche d'identité revendeur */}
-      <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 shadow-2xs overflow-hidden">
-            {logoUrl ? (
-              <img
-                src={logoUrl}
-                alt={businessName || userName || "Profil"}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <Store className="w-5 h-5 text-earth-700" />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-xs font-bold text-gray-900 truncate">
-              {businessName || userName || "Revendeur Agréé"}
-            </h2>
-            <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md border mt-0.5 bg-earth-100 text-earth-800 border-earth-200">
+      {/* 2. Cartouche d'identité revendeur (sans avatar redondant) */}
+      <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/50">
+        <div className="min-w-0">
+          <h2 className="text-xs font-bold text-gray-900 truncate">
+            {businessName || userName || "Revendeur Agréé"}
+          </h2>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+            <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-earth-100 text-earth-800 border-earth-200">
               Revendeur / Distributeur
             </span>
             {locationInfo && (
-              <span className="text-[11px] text-gray-500 flex items-center gap-1 mt-1 truncate">
+              <span className="text-[11px] text-gray-500 flex items-center gap-1 truncate max-w-[150px]">
                 <MapPin className="w-3 h-3 text-forest-600 shrink-0" />
                 <span className="truncate">{locationInfo}</span>
               </span>
@@ -218,27 +208,14 @@ export default function ResellerSidebar({
         })}
       </nav>
 
-      {/* 4. Pied de sidebar : Profil & Déconnexion sécurisée */}
+      {/* 4. Pied de sidebar : Profil & Déconnexion sécurisée (sans avatar redondant) */}
       <div className="p-4 border-t border-gray-100 bg-gray-50/50 space-y-3">
         <Link
           href="/dashboard/reseller/profile"
           onClick={onClose}
-          className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-white transition-colors group"
+          className="flex items-center justify-between p-2 rounded-xl hover:bg-white transition-colors group"
           aria-label="Voir mon profil revendeur"
         >
-          <div className="w-8 h-8 rounded-full bg-forest-100 text-forest-800 border border-forest-200/80 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
-            {logoUrl ? (
-              <img
-                src={logoUrl}
-                alt={userName || "Profil"}
-                className="w-full h-full object-cover"
-              />
-            ) : userName ? (
-              userName.charAt(0).toUpperCase()
-            ) : (
-              <User className="w-4 h-4" />
-            )}
-          </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-gray-900 truncate group-hover:text-forest-700">
               {userName || businessName || "Mon Compte"}
@@ -247,6 +224,7 @@ export default function ResellerSidebar({
               <p className="text-[10px] text-gray-500 truncate">{userEmail}</p>
             )}
           </div>
+          <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-forest-700 transition-colors shrink-0" />
         </Link>
 
         <button
