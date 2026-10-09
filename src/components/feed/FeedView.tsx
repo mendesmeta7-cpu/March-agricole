@@ -125,7 +125,7 @@ export default function FeedView({
 
       {/* 3. Carrousel horizontal de catégories avec icônes illustrées */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs font-bold text-gray-500 uppercase tracking-wider px-1">
+        <div className="flex items-center justify-between text-xs font-bold text-gray-500 uppercase tracking-wider px-2.5 sm:px-3">
           <span>Catégories</span>
           {category !== "all" && (
             <button

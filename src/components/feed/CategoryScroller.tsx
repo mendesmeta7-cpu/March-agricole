@@ -54,12 +54,12 @@ export default function CategoryScroller({
 
   return (
     <div className="w-full">
-      <div className="flex items-center gap-3 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth px-0.5">
+      <div className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto pb-3 pt-2 no-scrollbar scroll-smooth px-2.5 sm:px-3">
         {/* Option : Toutes les catégories */}
         <button
           type="button"
           onClick={() => onSelectCategory("all")}
-          className={`flex flex-col items-center gap-1.5 flex-shrink-0 group cursor-pointer transition-transform duration-180 active:scale-95 select-none ${
+          className={`flex flex-col items-center gap-1.5 flex-shrink-0 group cursor-pointer transition-transform duration-180 active:scale-95 select-none p-1 ${
             selectedCategory === "all" ? "scale-102" : "opacity-85 hover:opacity-100"
           }`}
           aria-pressed={selectedCategory === "all"}
@@ -108,7 +108,7 @@ export default function CategoryScroller({
               key={name}
               type="button"
               onClick={() => onSelectCategory(name)}
-              className={`flex flex-col items-center gap-1.5 flex-shrink-0 group cursor-pointer transition-transform duration-180 active:scale-95 select-none ${
+              className={`flex flex-col items-center gap-1.5 flex-shrink-0 group cursor-pointer transition-transform duration-180 active:scale-95 select-none p-1 ${
                 isSelected ? "scale-102" : "opacity-85 hover:opacity-100"
               }`}
               aria-pressed={isSelected}

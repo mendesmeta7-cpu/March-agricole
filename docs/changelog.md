@@ -3,6 +3,30 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [FIX-MOBILE-SCANNER-AND-FEED-CATEGORIES] - 2026-10-09
+### Correctifs UI/UX Mobile : Caméra Scanner Fixe & Bouton Toutes les Catégories
+
+#### 1. Caméra de scan fixe sur mobile (`CompanyOrderLookupWidget.tsx`)
+- **Problème identifié** : Sur iOS Safari et certains navigateurs mobiles, `position: fixed` était piégé à l'intérieur du conteneur `relative overflow-hidden rounded-3xl` de la carte verte de recherche rapide, faisant chevaucher le bouton scanner sur le champ de saisie et la bordure de la carte au lieu de flotter sur le viewport.
+- **Solution appliquée** : Rendu du bouton mobile flottant via `createPortal(..., document.body)`. Le bouton est ainsi rattaché directement à `document.body` :
+  - Flottaison garantie 100% stable au viewport sur iOS et Android (`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-50`).
+  - Aucun conflit ni chevauchement avec la carte verte.
+  - La carte verte reste propre avec uniquement le champ de recherche sur mobile, et le bouton scanner sur desktop (`hidden sm:flex`).
+
+#### 2. Débordement et rognage du bouton « Toutes » (`CategoryScroller.tsx` & `FeedView.tsx`)
+- **Problème identifié** : Le bouton « Toutes » (avec `ring-2 ring-forest-700 ring-offset-2` et `scale-102`) était tronqué sur son bord gauche par l'`overflow-x-auto` du conteneur qui n'avait que `px-0.5` de padding.
+- **Solution appliquée** :
+  - Ajout d'un padding de protection `px-2.5 sm:px-3 pt-2 pb-3` sur le conteneur défilable.
+  - Ajout de `p-1` sur les boutons de catégories pour englober entièrement les anneaux de sélection et ombres.
+  - Alignement exact `px-2.5 sm:px-3` sur le libellé « Catégories » dans `FeedView.tsx`.
+  - Le bouton « Toutes » est désormais affiché en entier, avec ses arrondis et anneaux complets, sans aucun découpage.
+
+#### 3. Validation Technique
+- TypeScript : 0 erreur (`npx tsc --noEmit` — code 0).
+- Next.js Production Build : 38/38 routes compilées avec succès (`npm run build` — code 0).
+
+---
+
 ## [PROMPT-6-DASHBOARD-ALERT-CARD] - 2026-10-09
 ### Carte d'Informations Dynamiques dans la Bannière Verte du Dashboard Société
 

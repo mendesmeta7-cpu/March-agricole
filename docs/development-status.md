@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-10-09 — PROMPT 6 terminé : Carte d'alertes dynamiques dans la bannière verte du dashboard Société (DashboardAlertCard, rotation 4s, prefers-reduced-motion, 4 niveaux de priorité, 0 donnée fictive, TypeScript 0 erreur, Build ✓ 38/38 routes)*
+*Dernière mise à jour : 2026-10-09 — Correctifs UI/UX Mobile : Caméra de scan fixe sur viewport via React Portal (CompanyOrderLookupWidget) et suppression du rognage du bouton Toutes dans le flux des productions (CategoryScroller & FeedView). TypeScript 0 erreur, Build ✓ 38/38 routes.*
 
 
 ---
@@ -66,6 +66,7 @@
 | **PROMPT 4.2** | **Garantie de l'Exhaustivité des Statistiques Financières** | 🟢 **TERMINÉ** | Pagination serveur par blocs de 1 000 lignes (`.range()`), élimination du plafond PostgREST `max_rows`, double tri déterministe, gestion explicite des erreurs et alerte UI, suite de 23 tests validée, build 38/38 certifié. |
 | **PROMPT 5** | **Badge Commandes À Traiter — Navigation Société** | 🟢 **TERMINÉ** | `getCompanyPendingOrdersCount` (requête HEAD optimisée, 0 surcharge), injection via `layout.tsx` serveur (Promise.all), badge amber-500 `pending` sur `CompanySidebar` (desktop) + onglet Commandes `CompanyBottomNav` (mobile), règle métier validée (status=pending uniquement), TypeScript 0 erreur, build 38/38 certifié. |
 | **PROMPT 6** | **Carte de Messages Dynamiques — Dashboard Société** | 🟢 **TERMINÉ** | Composant `DashboardAlertCard` intégré dans la bannière verte de `CompanyDashboardHeader`, rotation accessible 4s (`prefers-reduced-motion` respecté), 4 niveaux de priorité (commandes pending > fin de campagne <=7j > deadline destination <=5j > campagnes actives > message neutre), dates comparées en UTC jour entier, 0 donnée fictive, 10 tests unitaires validés, TypeScript 0 erreur, build 38/38 routes certifié. |
+| **CORRECTIF-MOBILE** | **Correctifs UI/UX Mobile Caméra & Catégories** | 🟢 **TERMINÉ** | Caméra de scan fixe sur viewport via React Portal (`CompanyOrderLookupWidget`) éliminant le piégeage WebKit dans la carte verte. Suppression du rognage du bouton « Toutes » dans le carrousel de catégories (`CategoryScroller` & `FeedView`) avec padding de respiration anti-clipping. TypeScript 0 erreur, Build 38/38 routes. |
 
 ---
 
