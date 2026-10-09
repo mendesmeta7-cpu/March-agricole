@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-10-09 — Épuration UI : Suppression des avatars redondants dans les barres latérales Société et Revendeur (conservé uniquement dans l'en-tête). TypeScript 0 erreur, Build ✓ 38/38 routes.*
+*Dernière mise à jour : 2026-10-09 — Affichage Avatar Responsive : barre latérale permanente sur PC, conservé en en-tête sur mobile. TypeScript 0 erreur, Build ✓ 38/38 routes.*
 
 
 ---
@@ -67,6 +67,7 @@
 | **PROMPT 5** | **Badge Commandes À Traiter — Navigation Société** | 🟢 **TERMINÉ** | `getCompanyPendingOrdersCount` (requête HEAD optimisée, 0 surcharge), injection via `layout.tsx` serveur (Promise.all), badge amber-500 `pending` sur `CompanySidebar` (desktop) + onglet Commandes `CompanyBottomNav` (mobile), règle métier validée (status=pending uniquement), TypeScript 0 erreur, build 38/38 certifié. |
 | **PROMPT 6** | **Carte de Messages Dynamiques — Dashboard Société** | 🟢 **TERMINÉ** | Composant `DashboardAlertCard` intégré dans la bannière verte de `CompanyDashboardHeader`, rotation accessible 4s (`prefers-reduced-motion` respecté), 4 niveaux de priorité (commandes pending > fin de campagne <=7j > deadline destination <=5j > campagnes actives > message neutre), dates comparées en UTC jour entier, 0 donnée fictive, 10 tests unitaires validés, TypeScript 0 erreur, build 38/38 routes certifié. |
 | **CORRECTIF-MOBILE** | **Correctifs UI/UX Mobile Caméra & Catégories** | 🟢 **TERMINÉ** | Caméra de scan fixe sur viewport via React Portal (`CompanyOrderLookupWidget`) éliminant le piégeage WebKit dans la carte verte. Suppression du rognage du bouton « Toutes » dans le carrousel de catégories (`CategoryScroller` & `FeedView`) avec padding de respiration anti-clipping. TypeScript 0 erreur, Build 38/38 routes. |
+| **RESPONSIVE-AVATAR** | **Affichage Avatar Responsive PC / Mobile** | 🟢 **TERMINÉ** | Différenciation responsive : sur PC ($\ge$ `lg`), avatar masqué dans l'en-tête (`lg:hidden`) et conservé dans la barre latérale permanente (cartouche logo + pied utilisateur). Sur mobile ($<$ `lg`), avatar conservé dans l'en-tête pour accès immédiat, tiroir mobile épuré sans doublon. TypeScript 0 erreur, build certifié. |
 
 ---
 
