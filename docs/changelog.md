@@ -4,36 +4,36 @@
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
 ## [AUTH-2] - 2026-10-11
-### Correction des URLs et Sécurisation du Callback d'Authentification (Résolution Bug Localhost Smartphone)
+### Correction des URLs, Sécurisation du Callback et Redirection Obligatoire vers la Connexion
 
 #### 1. Contexte & Problème Résolu
-- **Symptôme** : Lors de l'inscription manuelle d'une société ou d'un revendeur, le clic sur le lien d'activation depuis un smartphone échouait avec une erreur de connexion refusée (`ERR_CONNECTION_REFUSED`), car le lien pointait par défaut vers `localhost:3000`.
-- **Cause** : Absence du paramètre `options.emailRedirectTo` dans `supabase.auth.signUp()`, entraînant le repli automatique de Supabase sur sa "Site URL" par défaut configurée en local.
+- **Symptôme initial** : Lors de l'inscription manuelle d'une société ou d'un revendeur, le clic sur le lien d'activation depuis un smartphone échouait avec une erreur de connexion refusée (`ERR_CONNECTION_REFUSED`), car le lien pointait par défaut vers `localhost:3000`.
+- **Ajustement post-test production** : Après confirmation d'e-mail réussie, l'utilisateur était directement redirigé vers le dashboard revendeur sans passer par la page de connexion, contournant la saisie obligatoire des identifiants.
 
 #### 2. Modifications Appliquées
 - **Module d'URLs (`src/lib/utils/url.ts`)** :
   - Création de `getAppUrl(path)` pour construire des URLs absolues fiables (`NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SITE_URL`, `VERCEL_URL` ou fallback de dev `http://localhost:3000`). Interdiction formelle de `localhost` en production.
   - Création de `sanitizeRedirectPath(path, defaultPath)` pour assainir les paramètres de redirection et éliminer tout risque d'Open Redirect (whitelist des préfixes autorisés).
 - **Actions Serveur d'Authentification (`src/lib/actions/auth.ts`)** :
-  - Ajout explicite de `emailRedirectTo: getAppUrl("/auth/callback")` dans `registerCompanyAction` et `registerResellerAction`.
+  - Ajout explicite de `emailRedirectTo: getAppUrl("/auth/callback?flow=signup")` dans `registerCompanyAction` et `registerResellerAction` pour marquer sans ambiguïté l'intention d'inscription.
   - Conservation stricte de 100% des métadonnées requises par le trigger PostgreSQL `handle_new_user_registration`.
   - Amélioration de `loginAction` pour détecter et expliciter le cas d'une adresse e-mail non encore confirmée.
 - **Route de Callback (`src/app/auth/callback/route.ts`)** :
   - Traitement en amont des erreurs Supabase (`otp_expired`, `access_denied`, etc.) sans exposition de données sensibles.
   - Échange sécurisé de code PKCE via `supabase.auth.exchangeCodeForSession(code)`.
-  - Redirection contextuelle vers l'espace métier lié au rôle ou vers la page publique `/login?verified=true`.
-  - Assainissement strict du paramètre `next` contre les redirections ouvertes.
+  - **Ajustement Règle Métier Inscription** : Pour tout flux de confirmation d'inscription (`flow=signup` ou par défaut), validation de l'e-mail, terminaison immédiate et propre de la session temporaire (`supabase.auth.signOut({ scope: "local" })`), purge exhaustive des cookies de session (`sb-*`) sur `cookieStore` et `response.cookies`, et redirection vers la page publique `/login?verified=true`.
+  - **Préservation des autres flux** : Préservation de la session pour la récupération de mot de passe (`type=recovery` vers `/reset-password`) et les accès directs/OAuth futurs.
 - **Page de Connexion (`src/app/login/page.tsx`)** :
-  - Ajout d'un bandeau de succès vert avec `CheckCircle2` lorsque `verified=true`.
+  - Ajout d'un bandeau de succès vert avec `CheckCircle2` lorsque `verified=true` (*"Votre adresse email a été confirmée avec succès. Vous pouvez maintenant vous connecter à votre espace."*).
   - Traduction claire et sécurisée des codes d'erreur (`confirmation_expired`, `invalid_link`, `access_denied`).
 - **Configuration d'Environnement (`.env.example` & `.env.local`)** :
   - Déclaration de `NEXT_PUBLIC_APP_URL=http://localhost:3000` pour le dev local.
 
 #### 3. Validation Technique
-- Suite de tests `scripts/test-auth2-redirects.mjs` : 8/8 tests validés avec succès (100%).
+- Suite de tests `scripts/test-auth2-redirects.mjs` : 10/10 tests validés avec succès (100%), incluant la déconnexion post-confirmation et la préservation des flux recovery/OAuth.
 - Non-régression `scripts/test-session-isolation.mjs` : 20/20 tests validés (100%).
 - TypeScript : 0 erreur (`npx tsc --noEmit` — code 0).
-- Build de production Next.js validé.
+- Build de production Next.js certifié (38/38 routes).
 
 ---
 

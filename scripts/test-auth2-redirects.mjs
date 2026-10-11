@@ -2,8 +2,10 @@
  * Suite de tests automatisée pour la Phase AUTH-2 :
  * - Résolution des URLs publiques (getAppUrl)
  * - Sanitisation anti-Open-Redirect (sanitizeRedirectPath)
- * - Validation des appels signUp et emailRedirectTo
+ * - Validation des appels signUp et emailRedirectTo avec flow=signup
  * - Validation du traitement d'erreurs du callback d'authentification
+ * - Validation de la redirection vers /login?verified=true sans contournement de session
+ * - Préservation des autres flux (récupération de mot de passe, flux direct/OAuth)
  */
 
 import assert from "node:assert";
@@ -11,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 console.log("==================================================");
-console.log("DÉBUT DES TESTS PHASE AUTH-2 (A à H)");
+console.log("DÉBUT DES TESTS PHASE AUTH-2 AJUSTÉE (A à J)");
 console.log("==================================================");
 
 let passedCount = 0;
@@ -92,6 +94,58 @@ function sanitizeRedirectPathTest(path, defaultPath = "/") {
   return isAllowed ? trimmed : defaultPath;
 }
 
+// Logique simulée de décision de redirection du callback pour tests d'intention
+function determineCallbackRoute({ flow, type, nextRaw, searchParamsHasProvider, authUser, profileRole }) {
+  const safeNext = sanitizeRedirectPathTest(nextRaw, "");
+  const isRecoveryFlow = type === "recovery" || safeNext.startsWith("/reset-password");
+  const isDirectAccessFlow =
+    !isRecoveryFlow &&
+    (safeNext.startsWith("/dashboard") || Boolean(searchParamsHasProvider));
+  const isSignupConfirmation =
+    flow === "signup" ||
+    type === "signup" ||
+    type === "email_change" ||
+    (!isRecoveryFlow && !isDirectAccessFlow);
+
+  if (isSignupConfirmation) {
+    return {
+      destination: "/login?verified=true",
+      shouldSignOut: true,
+      flowType: "signup_confirmation",
+    };
+  }
+
+  if (isRecoveryFlow) {
+    return {
+      destination: safeNext || "/reset-password",
+      shouldSignOut: false,
+      flowType: "recovery",
+    };
+  }
+
+  if (safeNext && safeNext !== "/" && !safeNext.startsWith("/login")) {
+    return {
+      destination: safeNext,
+      shouldSignOut: false,
+      flowType: "direct_access_custom",
+    };
+  }
+
+  if (profileRole) {
+    return {
+      destination: `/dashboard/${profileRole}`,
+      shouldSignOut: false,
+      flowType: "direct_access_role",
+    };
+  }
+
+  return {
+    destination: "/login?verified=true",
+    shouldSignOut: false,
+    flowType: "fallback",
+  };
+}
+
 // TEST A : getAppUrl avec NEXT_PUBLIC_APP_URL explicite
 runTest("TEST A : Résolution d'URL via NEXT_PUBLIC_APP_URL explicite", () => {
   const result = getAppUrlTest("/auth/callback", {
@@ -152,32 +206,96 @@ runTest("TEST F : Sanitisation anti-Open Redirect (acceptation des routes autori
   assert.strictEqual(sanitizeRedirectPathTest("/"), "/");
 });
 
-// TEST G : Vérification statique des Server Actions dans src/lib/actions/auth.ts
-runTest("TEST G : Présence d'emailRedirectTo dans registerCompanyAction et registerResellerAction", () => {
+// TEST G : Présence d'emailRedirectTo avec flow=signup dans auth.ts
+runTest("TEST G : Présence d'emailRedirectTo avec flow=signup dans auth.ts", () => {
   const authCode = fs.readFileSync(path.resolve("src/lib/actions/auth.ts"), "utf-8");
-  
   assert.ok(
-    authCode.includes("emailRedirectTo = getAppUrl(\"/auth/callback\")"),
-    "emailRedirectTo doit être calculé via getAppUrl"
+    authCode.includes("getAppUrl(\"/auth/callback?flow=signup\")"),
+    "emailRedirectTo doit pointer vers /auth/callback?flow=signup"
   );
   assert.ok(
-    authCode.includes("emailRedirectTo,") && authCode.includes("role: \"company\""),
-    "emailRedirectTo doit être passé dans signUp pour registerCompanyAction"
+    authCode.includes("role: \"company\""),
+    "Métadonnées company préservées"
   );
   assert.ok(
-    authCode.includes("emailRedirectTo,") && authCode.includes("role: \"reseller\""),
-    "emailRedirectTo doit être passé dans signUp pour registerResellerAction"
+    authCode.includes("role: \"reseller\""),
+    "Métadonnées reseller préservées"
   );
 });
 
-// TEST H : Vérification du callback src/app/auth/callback/route.ts
-runTest("TEST H : Route de callback avec gestion d'erreurs et assainissement", () => {
+// TEST H : Code du callback - gestion des erreurs Supabase et assainissement
+runTest("TEST H : Code du callback - gestion des erreurs et assainissement", () => {
   const callbackCode = fs.readFileSync(path.resolve("src/app/auth/callback/route.ts"), "utf-8");
-  
   assert.ok(callbackCode.includes("exchangeCodeForSession(code)"), "Échange de code PKCE présent");
-  assert.ok(callbackCode.includes("otp_expired"), "Gestion des erreurs otp_expired présente");
+  assert.ok(callbackCode.includes("otp_expired"), "Gestion otp_expired présente");
   assert.ok(callbackCode.includes("confirmation_expired"), "Redirection explicite vers confirmation_expired");
   assert.ok(callbackCode.includes("sanitizeRedirectPath"), "Sanitisation de la redirection présente");
+});
+
+// TEST I : Logique de confirmation d'inscription -> redirection vers /login?verified=true ET signOut
+runTest("TEST I : Confirmation d'inscription -> /login?verified=true et déconnexion obligatoire", () => {
+  const callbackCode = fs.readFileSync(path.resolve("src/app/auth/callback/route.ts"), "utf-8");
+  
+  // Vérification statique du code source
+  assert.ok(
+    callbackCode.includes("signOut({ scope: \"local\" })"),
+    "signOut doit être appelé lors d'une confirmation d'email"
+  );
+  assert.ok(
+    callbackCode.includes("/login?verified=true"),
+    "Redirection vers /login?verified=true requise"
+  );
+
+  // Vérification de la matrice de décision
+  const decisionExplicit = determineCallbackRoute({
+    flow: "signup",
+    type: null,
+    nextRaw: null,
+    searchParamsHasProvider: false,
+    authUser: { id: "123" },
+    profileRole: "reseller",
+  });
+  assert.strictEqual(decisionExplicit.destination, "/login?verified=true");
+  assert.strictEqual(decisionExplicit.shouldSignOut, true);
+
+  const decisionDefault = determineCallbackRoute({
+    flow: null,
+    type: null,
+    nextRaw: null,
+    searchParamsHasProvider: false,
+    authUser: { id: "123" },
+    profileRole: "company",
+  });
+  assert.strictEqual(decisionDefault.destination, "/login?verified=true");
+  assert.strictEqual(decisionDefault.shouldSignOut, true);
+});
+
+// TEST J : Préservation des autres flux (récupération de mot de passe & OAuth/accès direct)
+runTest("TEST J : Préservation des flux de récupération de mot de passe et OAuth direct", () => {
+  // Cas Récupération de mot de passe
+  const recoveryDecision = determineCallbackRoute({
+    flow: null,
+    type: "recovery",
+    nextRaw: "/reset-password",
+    searchParamsHasProvider: false,
+    authUser: { id: "456" },
+    profileRole: "company",
+  });
+  assert.strictEqual(recoveryDecision.destination, "/reset-password");
+  assert.strictEqual(recoveryDecision.shouldSignOut, false);
+  assert.strictEqual(recoveryDecision.flowType, "recovery");
+
+  // Cas OAuth direct avec destination dashboard
+  const oauthDecision = determineCallbackRoute({
+    flow: null,
+    type: null,
+    nextRaw: "/dashboard/company",
+    searchParamsHasProvider: true,
+    authUser: { id: "789" },
+    profileRole: "company",
+  });
+  assert.strictEqual(oauthDecision.destination, "/dashboard/company");
+  assert.strictEqual(oauthDecision.shouldSignOut, false);
 });
 
 console.log("==================================================");

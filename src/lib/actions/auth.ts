@@ -102,7 +102,7 @@ export async function registerCompanyAction(
   const supabase = createClient();
 
   // 1. Inscription Supabase Auth avec métadonnées sécurisées et URL de callback explicite
-  const emailRedirectTo = getAppUrl("/auth/callback");
+  const emailRedirectTo = getAppUrl("/auth/callback?flow=signup");
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
@@ -212,7 +212,7 @@ export async function registerResellerAction(
   const supabase = createClient();
 
   // Inscription Supabase Auth avec métadonnées sécurisées et URL de callback explicite
-  const emailRedirectTo = getAppUrl("/auth/callback");
+  const emailRedirectTo = getAppUrl("/auth/callback?flow=signup");
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
