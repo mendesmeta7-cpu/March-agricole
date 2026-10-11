@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-10-09 — Affichage Avatar Responsive : barre latérale permanente sur PC, conservé en en-tête sur mobile. TypeScript 0 erreur, Build ✓ 38/38 routes.*
+*Dernière mise à jour : 2026-10-11 — Phase AUTH-3 : Implémentation terminée, build ✓ 40/40 routes, TypeScript 0 erreur — Validation en production EN ATTENTE.*
 
 
 ---
@@ -68,11 +68,36 @@
 | **PROMPT 6** | **Carte de Messages Dynamiques — Dashboard Société** | 🟢 **TERMINÉ** | Composant `DashboardAlertCard` intégré dans la bannière verte de `CompanyDashboardHeader`, rotation accessible 4s (`prefers-reduced-motion` respecté), 4 niveaux de priorité (commandes pending > fin de campagne <=7j > deadline destination <=5j > campagnes actives > message neutre), dates comparées en UTC jour entier, 0 donnée fictive, 10 tests unitaires validés, TypeScript 0 erreur, build 38/38 routes certifié. |
 | **CORRECTIF-MOBILE** | **Correctifs UI/UX Mobile Caméra & Catégories** | 🟢 **TERMINÉ** | Caméra de scan fixe sur viewport via React Portal (`CompanyOrderLookupWidget`) éliminant le piégeage WebKit dans la carte verte. Suppression du rognage du bouton « Toutes » dans le carrousel de catégories (`CategoryScroller` & `FeedView`) avec padding de respiration anti-clipping. TypeScript 0 erreur, Build 38/38 routes. |
 | **RESPONSIVE-AVATAR** | **Affichage Avatar Responsive PC / Mobile** | 🟢 **TERMINÉ** | Différenciation responsive : sur PC ($\ge$ `lg`), avatar masqué dans l'en-tête (`lg:hidden`) et conservé dans la barre latérale permanente (cartouche logo + pied utilisateur). Sur mobile ($<$ `lg`), avatar conservé dans l'en-tête pour accès immédiat, tiroir mobile épuré sans doublon. TypeScript 0 erreur, build certifié. |
-| **AUTH-2** | **Correction URLs, Callback & Redirection Connexion** | 🟢 **TERMINÉ** | Stratégie URL publique absolue (`getAppUrl`), paramètre `emailRedirectTo` avec `flow=signup`, échange PKCE et validation email, terminaison propre de la session temporaire (`signOut` + purge cookies), redirection vers `/login?verified=true` avec affichage du bandeau vert, préservation des flux recovery/OAuth, suite de 10 tests validée à 100%, TypeScript 0 erreur, Build ✓. |
+| **AUTH-2** | **Correction URLs, Callback & Redirection Connexion** | 🟢 **VALIDÉ EN PRODUCTION (3/3 contrôles vérifiés — Réserve lien expiré)** | Stratégie URL publique absolue (`getAppUrl`), paramètre `emailRedirectTo` avec `flow=signup`, échange PKCE et validation email, terminaison propre de la session temporaire (`signOut` + purge cookies), redirection vers `/login?verified=true` avec affichage du bandeau vert, préservation des flux recovery/OAuth, suite de 10 tests validée à 100%, TypeScript 0 erreur, Build ✓ 38/38 routes.<br>**VALIDÉ EN PRODUCTION** : Déploiement Ready, lien d'activation fonctionnel sans erreur localhost, redirection vers `/login?verified=true`, bandeau de succès vert affiché, connexion manuelle opérationnelle, protection directe des dashboards (`/dashboard/reseller` et `/dashboard/company` -> `/login` en navigation privée sans session active), redirection compte société vers `/dashboard/company`, gestion du lien altéré (erreur explicite, retour `/login`, 0 session, dashboard bloqué).<br>**RÉSERVE DOCUMENTAIRE** : Scénario du lien réellement expiré (token expiré dans le temps) non testé séparément. |
+| **AUTH-3** | **Mot de Passe Oublié & Réinitialisation** | 🟡 **IMPLÉMENTÉ — VALIDATION EN PRODUCTION EN ATTENTE** | Lien « Mot de passe oublié ? » sur `/login`, page `/forgot-password` (demande anti-énumération), callback recovery sécurisé (`type=recovery` obligatoire), page `/reset-password` (vérif. session serveur + `updateUser` + signOut + purge cookies), bandeau `password_updated` sur `/login`, gestion `recovery_expired`. TypeScript 0 erreur, Build ✓ 40/40 routes. |
 
 ---
 
-## 2. BILAN DE LA PHASE S9 (PROFIL ENTREPRISE SOCIÉTÉ)
+## 2. BILAN DE LA PHASE AUTH-2 (URLS, CALLBACK & REDIRECTION CONNEXION)
+
+* **Date de validation finale en production** : 2026-10-11
+* **Statut de la phase** : 🟢 **VALIDÉ EN PRODUCTION (PARCOURS PRINCIPAL ET 3 CONTRÔLES VÉRIFIÉS — AVEC RÉSERVE DOCUMENTAIRE)**
+* **Livrables et résultats validés en production réelle** :
+  - [x] Déploiement Vercel Ready avec variable `NEXT_PUBLIC_APP_URL`.
+  - [x] Résolution de l'anomalie smartphone : le lien de confirmation pointe vers l'URL publique et ne génère plus d'erreur `localhost`.
+  - [x] Redirection post-confirmation vers `/login?verified=true`.
+  - [x] Affichage du message de succès vert (*"Votre adresse email a été confirmée avec succès. Vous pouvez maintenant vous connecter à votre espace."*).
+  - [x] Saisie manuelle des identifiants et accès effectif à l'espace utilisateur après authentification explicite.
+  - [x] **Protection directe des dashboards avant connexion (Contrôle 1/3 — VALIDÉ — test manuel en production)** : Testé en navigation privée, sans session active. Les tentatives d'accès direct à `/dashboard/reseller` et `/dashboard/company` redirigent systématiquement et obligatoirement vers la page de connexion (`/login`). Absence formelle de session résiduelle.
+  - [x] **Redirection correcte d'un compte société après connexion (Contrôle 2/3 — VALIDÉ — test manuel en production)** : Testé avec un compte Société existant, confirmé et valide, via connexion manuelle avec les identifiants du compte. Redirection effective vers `/dashboard/company`.
+  - [x] **Gestion d'un lien de confirmation altéré (Contrôle 3/3 — VALIDÉ — test manuel en production)** : Testé dans une nouvelle fenêtre privée, sans session active initiale. Clic sur un lien altéré : affichage d'une erreur claire indiquant que le lien est invalide ou expiré, retour propre vers `/login` sans aucune création de session authentifiée. Vérification consécutive : tentative d'accès direct à `/dashboard/reseller` sans identifiants bloquée et redirigée vers `/login`.
+  - [x] Suite de 10 tests automatisés validée à 100% (`test-auth2-redirects.mjs`).
+  - [x] Suite de 20 tests d'isolation de session validée à 100% (`test-session-isolation.mjs`).
+  - [x] TypeScript : 0 erreur (`npx tsc --noEmit`).
+  - [x] Build de production Next.js certifié (38/38 routes).
+* **Réserve documentaire & distinction explicite (Périmètre non testé séparément)** :
+  - ⚠️ **Lien réellement expiré (token expiré dans le temps)** : Ce cas spécifique n'a pas été testé isolément en production (seul le lien altéré a été testé). Il ne doit pas être déclaré comme formellement validé de façon indépendante, bien que la logique de rejet et de verrouillage de session soit éprouvée par le scénario du lien altéré.
+* **Consignes de transition** :
+  - ⚠️ Ne pas commencer la phase AUTH-3 (Mot de passe oublié) sans instruction expresse de l'utilisateur.
+
+---
+
+## 2b. BILAN DE LA PHASE S9 (PROFIL ENTREPRISE SOCIÉTÉ)
 
 * **Date de validation finale** : 2026-10-07
 * **Statut du projet** : 🟢 **STABLE — PROFIL ENTREPRISE MODERNISÉ (STYLE FACEBOOK / YOUTUBE STUDIO), SÉCURISÉ, TYPESCRIPT 0 ERREUR, BUILD ✓ (38/38 ROUTES)**

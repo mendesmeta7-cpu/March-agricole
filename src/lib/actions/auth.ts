@@ -288,3 +288,126 @@ export async function logoutAction() {
 
   redirect("/login");
 }
+
+/**
+ * AUTH-3 — Demande de réinitialisation du mot de passe.
+ *
+ * Répond toujours avec un message générique pour éviter
+ * toute énumération d'adresses e-mail (anti-account harvesting).
+ * L'URL de redirection inclut explicitement flow=recovery pour
+ * que /auth/callback identifie correctement le flux côté serveur.
+ */
+export async function requestPasswordResetAction(
+  prevState: AuthActionResult | null,
+  formData: FormData
+): Promise<AuthActionResult> {
+  const email = formData.get("email")?.toString().trim();
+
+  if (!email) {
+    return { error: "Veuillez saisir votre adresse e-mail." };
+  }
+
+  // Validation syntaxique légère côté serveur
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return { error: "L'adresse e-mail saisie n'est pas valide." };
+  }
+
+  const supabase = createClient();
+
+  // URL de callback explicitement marquée pour le flux recovery
+  const emailRedirectTo = getAppUrl("/auth/callback?flow=recovery&type=recovery&next=/reset-password");
+
+  await supabase.auth.resetPasswordForEmail(email, { redirectTo: emailRedirectTo });
+  // Quel que soit le résultat (compte existant ou non), on renvoie
+  // toujours le même message pour ne pas révéler si l'adresse existe.
+
+  return {
+    success: true,
+    emailSent: true,
+  };
+}
+
+/**
+ * AUTH-3 — Mise à jour du mot de passe depuis /reset-password.
+ *
+ * Exige une session active valide créée par le flux recovery.
+ * Une fois le mot de passe changé, on déconnecte la session temporaire
+ * et on redirige vers /login?password_updated=true.
+ */
+export async function resetPasswordAction(
+  prevState: AuthActionResult | null,
+  formData: FormData
+): Promise<AuthActionResult> {
+  const password = formData.get("password")?.toString();
+  const confirmPassword = formData.get("confirmPassword")?.toString();
+
+  if (!password) {
+    return { error: "Veuillez saisir un nouveau mot de passe." };
+  }
+
+  if (password.length < 6) {
+    return { error: "Le mot de passe doit contenir au moins 6 caractères." };
+  }
+
+  if (password !== confirmPassword) {
+    return { error: "Les deux mots de passe ne correspondent pas." };
+  }
+
+  const supabase = createClient();
+
+  // Vérification de la session côté serveur : l'utilisateur doit être
+  // authentifié via le jeton PKCE du flux recovery.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      error:
+        "Votre session de récupération est invalide ou a expiré. Veuillez recommencer depuis la page de connexion.",
+    };
+  }
+
+  // Mise à jour du mot de passe
+  const { error: updateError } = await supabase.auth.updateUser({ password });
+
+  if (updateError) {
+    if (
+      updateError.message.toLowerCase().includes("same") ||
+      updateError.message.toLowerCase().includes("identical") ||
+      updateError.message.toLowerCase().includes("différent")
+    ) {
+      return { error: "Le nouveau mot de passe doit être différent de l'ancien." };
+    }
+    return { error: "La mise à jour du mot de passe a échoué. Veuillez réessayer." };
+  }
+
+  // Déconnexion de la session temporaire de récupération
+  try {
+    await supabase.auth.signOut({ scope: "local" });
+  } catch (_) {
+    // Non-bloquant
+  }
+
+  // Purge des cookies de session
+  try {
+    const cookieStore = cookies();
+    cookieStore.getAll().forEach((cookie) => {
+      if (
+        cookie.name.startsWith("sb-") ||
+        cookie.name.includes("auth-token") ||
+        cookie.name.includes("supabase")
+      ) {
+        cookieStore.delete(cookie.name);
+        cookieStore.set(cookie.name, "", { maxAge: 0, path: "/" });
+      }
+    });
+  } catch (_) {
+    // Non-bloquant
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/login?password_updated=true");
+}
+

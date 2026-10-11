@@ -3,7 +3,61 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [AUTH-3] - 2026-10-11
+### Mot de Passe Oublié & Réinitialisation du Mot de Passe
+
+#### 1. Contexte & Objectif
+Implémentation du parcours complet de récupération de mot de passe, distinct et isolé du flux d'inscription AUTH-2.
+Le flux doit préserver strictement le comportement validé en production par AUTH-2, distinguer `signup` et `recovery` dans `/auth/callback`, et imposer une reconnexion manuelle après changement de mot de passe.
+
+#### 2. Modifications Appliquées
+
+- **Module d'URLs (`src/lib/utils/url.ts`)** :
+  - Ajout de `/reset-password` et `/forgot-password` à la liste blanche `ALLOWED_REDIRECT_PREFIXES`.
+
+- **Route de Callback (`src/app/auth/callback/route.ts`)** :
+  - Détection sécurisée et exclusive du flux recovery : `isRecoveryFlow = type === "recovery" || flow === "recovery"`.
+  - Le seul paramètre `next=/reset-password` ne constitue jamais une preuve suffisante du flux recovery (contre-mesure anti-hijack).
+  - Ajout du code d'erreur `recovery_expired` mappé vers `/login?error=recovery_expired`.
+  - Flux `isRecoveryFlow=true` : préservation de la session PKCE, redirection vers `/reset-password`.
+  - Flux signup/défaut : comportement AUTH-2 inchangé (signOut + purge cookies + `/login?verified=true`).
+
+- **Server Actions (`src/lib/actions/auth.ts`)** :
+  - `requestPasswordResetAction(prevState, formData)` : appel `supabase.auth.resetPasswordForEmail` avec `redirectTo` pointant vers `/auth/callback?flow=recovery&type=recovery&next=/reset-password`. Réponse générique identique que le compte existe ou non (anti-énumération d'e-mails).
+  - `resetPasswordAction(prevState, formData)` : vérification serveur de la session (`getUser()`), validation longueur ≥6 caractères, double saisie identique, `updateUser({ password })`, déconnexion de la session temporaire (`signOut scope:local`) + purge cookies, redirection vers `/login?password_updated=true`.
+
+- **Page `/forgot-password` (`src/app/forgot-password/page.tsx`)** — *Nouvelle* :
+  - Formulaire public d'entrée d'adresse e-mail avec validation syntaxique.
+  - Après soumission : écran de confirmation générique ("Vérifiez votre boîte mail") sans révéler l'existence du compte.
+  - Lien retour vers `/login`.
+
+- **Page `/reset-password` (`src/app/reset-password/page.tsx`)** — *Nouvelle* :
+  - Formulaire de saisie du nouveau mot de passe (champ + confirmation) avec affichage/masquage.
+  - Bandeau sécurité informatif (amber).
+  - Erreur explicite si la session recovery est absente ou expirée.
+  - Lien retour vers `/login`.
+
+- **Page de Connexion (`src/app/login/page.tsx`)** :
+  - Ajout du lien "Mot de passe oublié ?" sous le champ mot de passe (→ `/forgot-password`).
+  - Bandeau de succès vert pour `?password_updated=true` : *"Votre mot de passe a été mis à jour avec succès..."*.
+  - Gestion de `?error=recovery_expired` dans `getUrlErrorMessage`.
+
+#### 3. Validation Technique
+- TypeScript : **0 erreur** (`npx tsc --noEmit` — code 0).
+- Build de production Next.js certifié : **40/40 routes** (dont `/forgot-password` ○ et `/reset-password` ○).
+
+#### 4. Checklist de Validation en Production (À VÉRIFIER)
+- [ ] **1/5** — Demande de récupération (adresse existante) → email reçu avec lien valide.
+- [ ] **2/5** — Clic sur le lien → redirection vers `/reset-password` (et non vers `/login` ou dashboard).
+- [ ] **3/5** — Saisie nouveau mot de passe → confirmation → redirection vers `/login?password_updated=true` + bandeau vert.
+- [ ] **4/5** — Reconnexion avec le nouveau mot de passe → accès à l'espace utilisateur.
+- [ ] **5/5** — Lien invalide ou expiré → message d'erreur clair sur `/login?error=recovery_expired`.
+- [ ] **6/5 (sécurité)** — Accès direct à `/reset-password` sans session recovery → message d'erreur (pas de changement possible).
+
+---
+
 ## [AUTH-2] - 2026-10-11
+
 ### Correction des URLs, Sécurisation du Callback et Redirection Obligatoire vers la Connexion
 
 #### 1. Contexte & Problème Résolu
@@ -34,6 +88,23 @@ Toutes les modifications notables apportées à ce projet sont consignées dans 
 - Non-régression `scripts/test-session-isolation.mjs` : 20/20 tests validés (100%).
 - TypeScript : 0 erreur (`npx tsc --noEmit` — code 0).
 - Build de production Next.js certifié (38/38 routes).
+
+#### 4. Statut de Validation en Production (2026-10-11)
+- **Statut global** : 🟢 **Validé en production — Parcours principal & 3 contrôles vérifiés (avec réserve documentaire sur lien expiré)**.
+- **Validé en production** :
+  - Déploiement Vercel : Ready.
+  - Lien de confirmation d'e-mail fonctionnel sur smartphone (élimination du problème localhost).
+  - Redirection post-confirmation vers `/login?verified=true`.
+  - Affichage effectif du message de succès vert (*"Votre adresse email a été confirmée avec succès. Vous pouvez maintenant vous connecter à votre espace."*).
+  - Saisie manuelle des identifiants et accès effectif à l'espace utilisateur.
+  - **Protection directe des dashboards avant connexion (Contrôle 1/3)** : **VALIDÉ — test manuel en production**. En navigation privée, sans session active, tentative d'accès direct à `/dashboard/reseller` et `/dashboard/company` : redirection systématique vers la page de connexion (`/login`).
+  - **Redirection correcte d'un compte société après connexion (Contrôle 2/3)** : **VALIDÉ — test manuel en production**. Connexion manuelle avec un compte Société existant, confirmé et valide : redirection effective vers `/dashboard/company`.
+  - **Gestion d'un lien de confirmation altéré (Contrôle 3/3)** : **VALIDÉ — test manuel en production**. Testé dans une nouvelle fenêtre de navigation privée, sans session active initiale :
+    - Clic sur un lien de confirmation altéré : erreur claire indiquant que le lien est invalide ou expiré.
+    - Après traitement : retour vers la page de connexion (`/login`), sans création de session authentifiée.
+    - Tentative d'accès direct consécutive à `/dashboard/reseller` sans saisir d'identifiants : bloquée et redirigée vers `/login`.
+- **Réserve et distinction explicite (non testé séparément)** :
+  - **Scénario du lien réellement expiré (token expiré dans le temps)** : *Non testé séparément en production*. Il n'est pas déclaré validé isolément, bien que le mécanisme de blocage, de retour à `/login` sans session et d'affichage d'erreur soit prouvé via le scénario du lien altéré.
 
 ---
 

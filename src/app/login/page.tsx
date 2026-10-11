@@ -20,6 +20,8 @@ function getUrlErrorMessage(errorKey: string | null): string {
       return "L'accès a été refusé lors de la vérification de votre compte.";
     case "profile_missing":
       return "Profil introuvable pour ce compte. Veuillez contacter l'administrateur.";
+    case "recovery_expired":
+      return "Le lien de réinitialisation du mot de passe a expiré ou est invalide. Veuillez faire une nouvelle demande.";
     default:
       return "Une erreur est survenue lors de l'authentification.";
   }
@@ -30,14 +32,24 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const urlError = searchParams.get("error");
   const urlVerified = searchParams.get("verified") === "true";
+  const urlPasswordUpdated = searchParams.get("password_updated") === "true";
 
   return (
     <div className="bg-white py-6 px-5 sm:py-8 sm:px-10 shadow-sm border border-gray-200 rounded-2xl">
-      {urlVerified && !state?.error && !urlError && (
+      {urlVerified && !state?.error && !urlError && !urlPasswordUpdated && (
         <div className="mb-5 rounded-xl bg-forest-50 p-3.5 border border-forest-200 flex items-start gap-2.5 text-forest-900 text-xs sm:text-sm">
           <CheckCircle2 className="w-4 h-4 text-forest-700 flex-shrink-0 mt-0.5" />
           <div>
             Votre adresse email a été confirmée avec succès. Vous pouvez maintenant vous connecter à votre espace.
+          </div>
+        </div>
+      )}
+
+      {urlPasswordUpdated && !state?.error && !urlError && (
+        <div className="mb-5 rounded-xl bg-forest-50 p-3.5 border border-forest-200 flex items-start gap-2.5 text-forest-900 text-xs sm:text-sm">
+          <CheckCircle2 className="w-4 h-4 text-forest-700 flex-shrink-0 mt-0.5" />
+          <div>
+            Votre mot de passe a été mis à jour avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.
           </div>
         </div>
       )}
@@ -84,6 +96,15 @@ function LoginForm() {
               className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none text-sm"
             />
           </div>
+        </div>
+
+        <div className="flex justify-end -mt-1 mb-1">
+          <Link
+            href="/forgot-password"
+            className="text-xs text-forest-700 hover:text-forest-800 hover:underline transition-colors"
+          >
+            Mot de passe oublié ?
+          </Link>
         </div>
 
         <SubmitButton

@@ -31,22 +31,31 @@ export async function GET(request: Request) {
   const error = searchParams.get("error");
   const errorCode = searchParams.get("error_code");
   const errorDescription = searchParams.get("error_description");
+  const flow = searchParams.get("flow");
+  const type = searchParams.get("type");
+
+  // Détection explicite et sécurisée du flux de récupération (AUTH-3) :
+  // Exige obligatoirement une preuve d'intention (type="recovery" ou flow="recovery").
+  // Le seul paramètre next=/reset-password ne constitue JAMAIS une preuve suffisante.
+  const isRecoveryFlow = type === "recovery" || flow === "recovery";
 
   if (error || errorCode || errorDescription) {
     console.warn("[Auth Callback] Erreur Supabase reçue:", {
       error,
       errorCode,
+      flow,
+      type,
     });
 
-    let redirectErrorCode = "invalid_link";
+    let redirectErrorCode = isRecoveryFlow ? "recovery_expired" : "invalid_link";
     if (
       errorCode === "otp_expired" ||
       errorDescription?.toLowerCase().includes("expired") ||
       error === "otp_expired"
     ) {
-      redirectErrorCode = "confirmation_expired";
+      redirectErrorCode = isRecoveryFlow ? "recovery_expired" : "confirmation_expired";
     } else if (error === "access_denied") {
-      redirectErrorCode = "access_denied";
+      redirectErrorCode = isRecoveryFlow ? "recovery_expired" : "access_denied";
     }
 
     return NextResponse.redirect(
@@ -56,15 +65,8 @@ export async function GET(request: Request) {
 
   // 3. Extraction du code d'échange PKCE et analyse de l'intention
   const code = searchParams.get("code");
-  const flow = searchParams.get("flow");
-  const type = searchParams.get("type");
   const nextRaw = searchParams.get("next");
   const safeNext = sanitizeRedirectPath(nextRaw, "");
-
-  // Identification précise des flux d'authentification :
-  // - Flux de récupération de mot de passe (AUTH-3 futur)
-  const isRecoveryFlow =
-    type === "recovery" || safeNext.startsWith("/reset-password");
 
   // - Flux d'accès direct ou OAuth (destination explicite vers un dashboard ou présence d'un provider OAuth)
   const isDirectAccessFlow =
@@ -88,8 +90,9 @@ export async function GET(request: Request) {
 
     if (exchangeError) {
       console.warn("[Auth Callback] Échec échange code PKCE:", exchangeError.message);
+      const redirectError = isRecoveryFlow ? "recovery_expired" : "confirmation_expired";
       return NextResponse.redirect(
-        new URL("/login?error=confirmation_expired", baseUrl)
+        new URL(`/login?error=${redirectError}`, baseUrl)
       );
     }
 
@@ -127,10 +130,11 @@ export async function GET(request: Request) {
         return response;
       }
 
-      // CAS 2 : Récupération de mot de passe (AUTH-3 futur)
+      // CAS 2 : Récupération de mot de passe (AUTH-3)
       // La session temporaire doit être conservée pour autoriser la saisie du nouveau mot de passe
       if (isRecoveryFlow) {
-        const recoveryTarget = safeNext || "/reset-password";
+        const recoveryTarget =
+          safeNext.startsWith("/reset-password") ? safeNext : "/reset-password";
         return NextResponse.redirect(new URL(recoveryTarget, baseUrl));
       }
 
