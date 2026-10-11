@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { getAppUrl } from "@/lib/utils/url";
 
 export interface AuthActionResult {
   success?: boolean;
@@ -30,6 +31,16 @@ export async function loginAction(
   });
 
   if (error) {
+    if (
+      error.message.includes("Email not confirmed") ||
+      error.message.includes("email_not_confirmed") ||
+      error.message.toLowerCase().includes("not confirmed")
+    ) {
+      return {
+        error:
+          "Votre adresse email n'a pas encore été confirmée. Veuillez vérifier votre boîte de réception ou vos spams pour activer votre compte.",
+      };
+    }
     return { error: "Email ou mot de passe incorrect." };
   }
 
@@ -90,11 +101,14 @@ export async function registerCompanyAction(
 
   const supabase = createClient();
 
-  // 1. Inscription Supabase Auth avec métadonnées sécurisées
+  // 1. Inscription Supabase Auth avec métadonnées sécurisées et URL de callback explicite
+  const emailRedirectTo = getAppUrl("/auth/callback");
+
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
     options: {
+      emailRedirectTo,
       data: {
         role: "company",
         full_name: fullName,
@@ -197,11 +211,14 @@ export async function registerResellerAction(
 
   const supabase = createClient();
 
-  // Inscription Supabase Auth avec métadonnées sécurisées
+  // Inscription Supabase Auth avec métadonnées sécurisées et URL de callback explicite
+  const emailRedirectTo = getAppUrl("/auth/callback");
+
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
     options: {
+      emailRedirectTo,
       data: {
         role: "reseller",
         full_name: fullName,

@@ -6,25 +6,46 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { loginAction } from "@/lib/actions/auth";
 import SubmitButton from "@/components/SubmitButton";
-import { AlertCircle, Lock, Mail } from "lucide-react";
+import { AlertCircle, CheckCircle2, Lock, Mail } from "lucide-react";
 import BrandLogo from "@/components/ui/BrandLogo";
+
+function getUrlErrorMessage(errorKey: string | null): string {
+  switch (errorKey) {
+    case "confirmation_expired":
+      return "Le lien de confirmation a expiré ou a déjà été utilisé. Si vous pouvez vous connecter, votre compte est déjà actif.";
+    case "invalid_link":
+    case "Invalid_or_expired_link":
+      return "Le lien de confirmation est invalide ou incomplet.";
+    case "access_denied":
+      return "L'accès a été refusé lors de la vérification de votre compte.";
+    case "profile_missing":
+      return "Profil introuvable pour ce compte. Veuillez contacter l'administrateur.";
+    default:
+      return "Une erreur est survenue lors de l'authentification.";
+  }
+}
 
 function LoginForm() {
   const [state, formAction] = useFormState(loginAction, null);
   const searchParams = useSearchParams();
   const urlError = searchParams.get("error");
+  const urlVerified = searchParams.get("verified") === "true";
 
   return (
     <div className="bg-white py-6 px-5 sm:py-8 sm:px-10 shadow-sm border border-gray-200 rounded-2xl">
+      {urlVerified && !state?.error && !urlError && (
+        <div className="mb-5 rounded-xl bg-forest-50 p-3.5 border border-forest-200 flex items-start gap-2.5 text-forest-900 text-xs sm:text-sm">
+          <CheckCircle2 className="w-4 h-4 text-forest-700 flex-shrink-0 mt-0.5" />
+          <div>
+            Votre adresse email a été confirmée avec succès. Vous pouvez maintenant vous connecter à votre espace.
+          </div>
+        </div>
+      )}
+
       {(state?.error || urlError) && (
         <div className="mb-5 rounded-xl bg-red-50 p-3.5 border border-red-200 flex items-start gap-2.5 text-red-800 text-xs sm:text-sm">
           <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-          <div>
-            {state?.error ||
-              (urlError === "profile_missing"
-                ? "Profil introuvable pour ce compte. Veuillez contacter l'administrateur."
-                : "Une erreur est survenue lors de l'authentification.")}
-          </div>
+          <div>{state?.error || getUrlErrorMessage(urlError)}</div>
         </div>
       )}
 

@@ -158,9 +158,9 @@ Lors de son inscription, le revendeur doit obligatoirement renseigner :
 
 ### 6.1 Parcours Entreprise Agricole
 ```text
-1. Inscription & création du compte (email/password via Supabase Auth)
+1. Inscription & création du compte (email/password via Supabase Auth avec emailRedirectTo sécurisé vers /auth/callback)
    ↓
-2. Création du profil d'entreprise (dénomination, description, localisation, logo)
+2. Confirmation d'e-mail (échange de code PKCE vers l'URL publique de l'application) & création du profil
    ↓
 3. Connexion & accès au Dashboard Entreprise (/dashboard/company)
    ↓
