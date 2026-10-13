@@ -38,6 +38,8 @@ export default function OnboardingForm({
   const [selectedRole, setSelectedRole] = useState<"company" | "reseller">(
     initialPreferredRole || "company"
   );
+  // showRoleSelector : false si le rôle est déjà connu (bandeau compact), true sinon (cartes de sélection)
+  const [showRoleSelector, setShowRoleSelector] = useState<boolean>(!initialPreferredRole);
   const [state, formAction] = useFormState(completeOnboardingAction, null);
 
   return (
@@ -75,33 +77,69 @@ export default function OnboardingForm({
         {/* Champ masqué pour le rôle choisi */}
         <input type="hidden" name="role" value={selectedRole} />
 
-        {/* ── ÉTAPE 1 : Choix du type de compte ──────────────────────────── */}
+        {/* ── ÉTAPE 1 : Choix / Confirmation du type de compte ────────────── */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-forest-600 text-white text-xs font-bold">
-              1
-            </span>
-            <h2 className="text-base sm:text-lg font-bold text-gray-900">
-              {initialPreferredRole
-                ? "Confirmez votre type d\u0027activité"
-                : "Choisissez votre type d\u0027activité sur Radiza"}
-            </h2>
-          </div>
-
-          {initialPreferredRole && (
-            <div className="flex items-center gap-2 text-xs text-forest-800 bg-forest-50/70 border border-forest-200/60 rounded-lg px-3 py-2">
-              <Check className="w-3.5 h-3.5 text-forest-600 shrink-0" />
-              <span>
-                Votre choix initial a été conservé. Vous pouvez le modifier ci-dessous si nécessaire.
-              </span>
+          {!showRoleSelector ? (
+            /* ── Mode compact : rôle déjà connu ── */
+            <div className="flex items-center justify-between bg-white rounded-2xl border border-gray-200/90 p-4 sm:p-5 shadow-xs">
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    selectedRole === "company"
+                      ? "bg-forest-600 text-white"
+                      : "bg-earth-700 text-white"
+                  }`}
+                >
+                  {selectedRole === "company" ? (
+                    <Building2 className="w-5 h-5" />
+                  ) : (
+                    <Store className="w-5 h-5" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-500 font-medium">Type de compte</p>
+                  <p className="text-sm font-bold text-gray-900 truncate">
+                    {selectedRole === "company"
+                      ? "Société / Producteur Agricole"
+                      : "Revendeur Professionnel"}
+                  </p>
+                </div>
+                <span
+                  className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                    selectedRole === "company"
+                      ? "bg-forest-100 text-forest-800"
+                      : "bg-earth-100 text-earth-900"
+                  }`}
+                >
+                  <Check className="w-3 h-3" />
+                  Sélectionné
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRoleSelector(true)}
+                className="text-xs text-gray-400 hover:text-gray-600 underline transition-colors shrink-0 ml-4"
+              >
+                Modifier
+              </button>
             </div>
-          )}
+          ) : (
+            /* ── Mode sélection : rôle non connu ou modification demandée ── */
+            <>
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-forest-600 text-white text-xs font-bold">
+                  1
+                </span>
+                <h2 className="text-base sm:text-lg font-bold text-gray-900">
+                  Choisissez votre type d&apos;activité sur Radiza
+                </h2>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {/* Option 1 : Société Agricole / Producteur */}
             <button
               type="button"
-              onClick={() => setSelectedRole("company")}
+              onClick={() => { setSelectedRole("company"); }}
               className={`relative p-5 sm:p-6 rounded-2xl text-left transition-all border-2 flex flex-col justify-between ${
                 selectedRole === "company"
                   ? "bg-forest-50/50 border-forest-600 shadow-md ring-2 ring-forest-600/20"
@@ -211,8 +249,11 @@ export default function OnboardingForm({
                 </ul>
               </div>
             </button>
-          </div>
+              </div>
+            </>
+          )}
         </div>
+
 
         {/* ── ÉTAPE 2 : Informations Spécifiques & Localisation ──────────── */}
         <div className="space-y-6 bg-white rounded-2xl border border-gray-200/90 p-6 sm:p-8 shadow-xs">
