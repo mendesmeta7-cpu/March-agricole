@@ -3,6 +3,30 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [AUTH-4.34] - 2026-10-13
+### Préparation et Création du Commit Local AUTH-4.32 (AUTH-4.34)
+
+- **Action** : Commit local créé sur la branche `main`.
+- **Hash complet** : `86127849f71003d1b390e356b741d5f74e08ddb6`
+- **Message** : `fix(auth): simplifier l'inscription et préserver le choix d'onboarding`
+- **Fichiers inclus** (7) :
+  - `docs/changelog.md` (+66 lignes)
+  - `docs/development-status.md` (2 lignes modifiées)
+  - `src/app/onboarding/page.tsx` (+4 lignes)
+  - `src/app/register/company/page.tsx` (175 lignes retravaillées)
+  - `src/app/register/reseller/page.tsx` (166 lignes retravaillées)
+  - `src/components/onboarding/OnboardingForm.tsx` (+19 lignes)
+  - `src/lib/actions/auth.ts` (108 lignes nettes)
+- **Statistiques** : 217 insertions, 323 suppressions (simplification nette du code).
+- **Contrôles pré-commit** :
+  - 0 fichier étranger ou `.env` ✅
+  - `SUPABASE_SERVICE_ROLE_KEY` présent uniquement en **suppression** dans le diff ✅
+  - `.env.local` ignoré par `.gitignore` (règle `.env*.local`) ✅
+  - 7 fichiers stagés explicitement (pas de `git add -A`) ✅
+- **État post-commit** : `working tree clean` — branche `main` en avance de **1 commit** sur `origin/main`.
+- **Aucun push, aucun déploiement Vercel, aucune modification Supabase de production.**
+- **5 scénarios manuels (M1–M5)** à valider après déploiement en production.
+
 ## [AUTH-4.33] - 2026-10-13
 ### Audit de Validation Fonctionnelle Post-AUTH-4.32 (AUTH-4.33)
 

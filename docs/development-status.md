@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-10-13 — Phase AUTH-4 : SOUS-ÉTAPE AUTH-4.33 TERMINÉE (Audit de validation post-AUTH-4.32 : 28/28 tests réussis, 10/10 non-régression AUTH-2, 20/20 isolation sessions, 0 secret exposé, RBAC intact, build 41/41 certifié — PRÊT POUR COMMIT. 5 scénarios manuels en production restant à valider après déploiement).*
+*Dernière mise à jour : 2026-10-13 — Phase AUTH-4 : SOUS-ÉTAPE AUTH-4.34 TERMINÉE (Commit local `86127849` créé — "fix(auth): simplifier l'inscription et préserver le choix d'onboarding" — 7 fichiers, 217 insertions, 323 suppressions — Branche `main` en avance de 1 commit sur `origin/main` — EN ATTENTE DE PUSH GITHUB ET DÉPLOIEMENT VERCEL par l'utilisateur. 5 scénarios manuels à valider en production).*
 
 
 ---
