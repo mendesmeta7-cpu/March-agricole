@@ -414,4 +414,210 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 | **FUT-09** | **Notifications WhatsApp Cloud API** | Reporté post-pilote ; V1 intègre le centre interne et emails. |
 | **FUT-10** | **Application Mobile Flutter** | L'application web responsive Next.js couvre les cas d'usage mobiles initiaux. |
 
+---
+
+## 20. DÉCISIONS DU PARCOURS D'AUTHENTIFICATION & ONBOARDING (PHASES AUTH)
+
+### ADR-030 : Séquencement Officiel de la Feuille de Route d'Authentification Post AUTH-3
+* **Date** : 2026-10-11 | **Statut** : Validé (Cadrage documentaire)
+* **Contexte** : Suite à la clôture et validation en production des phases AUTH-2 (confirmation d'e-mail) et AUTH-3 (mot de passe oublié et réinitialisation), la feuille de route d'authentification devait être formellement structurée pour intégrer l'organisation de l'inscription et l'accueil ultérieur des fournisseurs sociaux (Google et Apple).
+* **Décision** :
+  1. **Ordonnancement strict des phases** :
+     $$\text{AUTH-4 (Refonte Inscription \& Onboarding Découplé)} \longrightarrow \text{AUTH-5 (Connexion Google)} \longrightarrow \text{AUTH-6 (Connexion Apple)}$$
+  2. **Statut de Google et Apple** : Google (AUTH-5) et Apple (AUTH-6) demeurent des **phases ultérieures distinctes** et ne doivent faire l'objet d'aucune implémentation avant la clôture complète d'AUTH-4.
+  3. **Découpage interne d'AUTH-4 en 4 sous-étapes opérationnelles** :
+     - **AUTH-4.1** : Schéma SQL, migration des comptes existants et mécanisme sécurisé de complétion (RPC `SECURITY DEFINER`).
+     - **AUTH-4.2** : Middleware SSR et protection hermétique des accès dashboards.
+     - **AUTH-4.3** : Interfaces UI/UX (`/onboarding` et refonte épurée de `/register`).
+     - **AUTH-4.4** : Recette intégrale, tests de non-régression et validation manuelle en production.
+  4. **Interdiction de démarrage prématuré** : La sous-étape **AUTH-4.1 n'est pas encore autorisée à démarrer** et requiert une autorisation explicite de l'utilisateur.
+* **Justification** : Dépendance structurelle absolue : les connexions sociales Google et Apple ne fournissent aucune métadonnée métier agricole ni de localisation provinciale. L'onboarding est le socle préalable indispensable à toute authentification moderne.
+
+### ADR-031 : Modèle d'Inscription et d'Onboarding Découplé (Option B) et Garde-fous Techniques
+* **Date** : 2026-10-11 | **Statut** : Validé (Cadrage documentaire — Aucune implémentation)
+* **Contexte** : Les formulaires d'inscription initiaux (`/register/company` et `/register/reseller`) sont monolithiques et tentent d'enregistrer l'intégralité des identités et du territoire au moment du `signUp()`. Ce modèle est incompatible avec les retours OAuth et augmente les frictions d'inscription.
+* **Décision** :
+  1. **Parcours cible retenu (Option B)** :
+     - Étape 1 : Création du compte avec identifiants minimaux (e-mail + mot de passe + nom complet).
+     - Étape 2 : Confirmation de l'adresse e-mail selon le protocole AUTH-2 validé (déconnexion temporaire $\rightarrow$ `/login?verified=true`).
+     - Étape 3 : Connexion explicite par identifiants sur `/login`.
+     - Étape 4 : Détection de profil incomplet et redirection obligatoire vers `/onboarding` (accès aux dashboards bloqué par le middleware).
+     - Étape 5 : Sur `/onboarding` : choix du type de compte (Entreprise agricole vs Revendeur) et saisie des données métier obligatoires (pays, province, ville, raison sociale, etc.).
+     - Étape 6 : Validation serveur, création atomique de l'entité (`companies` ou `resellers`) et redirection vers le dashboard métier respectif.
+     - Étape 7 : Les connexions futures d'un compte complété accèdent directement au dashboard sans repasser par `/onboarding`.
+  2. **Réserves techniques et garde-fous stricts** :
+     - ⚠️ **Stratégie de rôle provisoire** : Le simple ajout d'un indicateur `is_onboarded` n'est pas suffisant tant que la stratégie de rôle initial (gestion du `CHECK` sur `profiles.role` et trigger `handle_new_user_registration`) n'est pas techniquement formalisée. Aucune attribution silencieuse par défaut du rôle `reseller` ne doit être utilisée pour masquer un profil non complété.
+     - ⚠️ **Maintien inviolable du trigger anti-escalade** : Le trigger `prevent_profile_role_escalation` ne doit en aucun cas être affaibli ou désactivé.
+     - ⚠️ **Vérification d'identité dans la RPC privilégiée** : Toute future fonction RPC de complétion (`SECURITY DEFINER`) devra impérativement vérifier l'identité de l'appelant (`auth.uid()`), refuser formellement l'attribution du rôle `admin`, et valider l'intégrité des clés étrangères territoriales (`country_id`, `province_id`).
+     - ⚠️ **Préservation intégrale des comptes existants et Admin** : Les comptes existants déjà opérationnels et le compte Admin (`admin@marcheagricole.cd`) doivent être préservés sans aucune régression ni interruption de service.
+     - ⚠️ **Règle d'or 1 respectée** : L'inscription et l'onboarding ne doivent **jamais** permettre la création d'une production agricole, d'un produit d'exploitation ou d'une campagne.
+     - ⚠️ **Non-régression absolue** : Préservation intégrale des garanties de validation d'AUTH-2 (confirmation e-mail et protection des dashboards) et d'AUTH-3 (mot de passe oublié et réinitialisation).
+
+### ADR-032 : Spécification Technique de la Migration SQL 26, Privilèges de Colonnes et Validation Structurelle de l'Onboarding (AUTH-4.1)
+* **Date** : 2026-10-11 | **Statut** : Validé et Implémenté Localement (Scripts SQL corrigés et durcis — Non exécuté en production)
+* **Contexte** : Dans le cadre de la sous-étape AUTH-4.1, la mise en place du rôle transitoire `unassigned` et du statut `onboarding_status` nécessitait d'empêcher formellement tout contournement par requête directe client, de neutraliser le trigger d'inscription automatique au signup et de garantir l'étanchéité absolue de la RPC privilégiée suite à l'audit de sécurité final.
+* **Décision & Corrections de Sécurité Appliquées** :
+  1. **Privilèges de Colonnes Strictes (`REVOKE UPDATE global` + `GRANT UPDATE sélectif`)** :
+     - Révocation formelle du privilège `UPDATE` sur l'ensemble de la table `profiles` pour `authenticated`, `anon` et `PUBLIC`.
+     - Réattribution chirurgicale du privilège `UPDATE` à `authenticated` uniquement sur les colonnes applicatives autorisées : `full_name`, `phone`, `avatar_url`, `avatar_cloudinary_public_id`, `updated_at`.
+     - Garantie physique PostgreSQL : aucune requête directe client PostgREST ne peut modifier `role` ou `onboarding_status` sans lever une erreur `42501` (permission denied).
+  2. **Contrôle d'Intégrité Bi-dimensionnel dans le Trigger Anti-Escalade** :
+     - Le trigger `prevent_profile_role_escalation` surveille simultanément toute variation de `role` OU de `onboarding_status` : `(NEW.role IS DISTINCT FROM OLD.role) OR (NEW.onboarding_status IS DISTINCT FROM OLD.onboarding_status)`.
+     - Bloque toute tentative de modifier isolément `onboarding_status` sans respecter la transition légitime d'onboarding.
+     - Valide la transition unique et légitime : `OLD.role = 'unassigned' AND OLD.onboarding_status = 'pending' AND NEW.role IN ('company', 'reseller') AND NEW.onboarding_status = 'completed'` en vérifiant la présence effective et matérielle de l'entité liée en base (`companies` avec `created_by = NEW.id` ou `resellers` avec `id = NEW.id`).
+     - Interdiction absolue et inconditionnelle de toute transition vers le rôle `admin`.
+  3. **RPC `complete_user_onboarding` (`SECURITY DEFINER`) et Anti-Écrasement** :
+     - Fige `search_path = public, pg_temp` pour prévenir toute injection de schéma.
+     - Privilège d'exécution restreint à `authenticated` (`REVOKE FROM PUBLIC`).
+     - Verrouillage pessimiste immédiat (`SELECT ... FOR UPDATE`) sur le profil appelant pour éliminer les doubles clics et attaques concurrentes.
+     - Rejet formel si `p_role = 'admin'` ou si le profil est déjà complété (`onboarding_status = 'completed'`).
+     - Validation relationnelle stricte : vérification que `p_province_id` appartient formellement à `p_country_id`.
+     - Protection anti-écrasement sans `ON CONFLICT DO UPDATE` aveugle : vérification préalable de non-existence d'entité en conflit et levée d'exception explicite si une entité existe déjà.
+     - Génération déterministe du slug d'entreprise et insertion atomique.
+  4. **Neutralisation du Trigger d'Inscription `handle_new_user_registration`** :
+     - Suppression de toute création automatique dans `companies` ou `resellers` lors du `signUp()`.
+     - Ignorance explicite de toute valeur de rôle ou de données métier transmise dans `raw_user_meta_data`.
+     - Initialisation systématique de tout nouvel utilisateur avec `role = 'unassigned'` et `onboarding_status = 'pending'`.
+  5. **Garantie Rétrocompatible et Règle d'Or 1** :
+     - 100% des comptes existants (Société, Revendeur, Admin) sont préservés avec `onboarding_status = 'completed'`.
+     - Zéro création de production agricole lors de l'onboarding.
+* **Fichiers livrés** :
+  - [`supabase/migrations/20261011000026_auth_onboarding_and_provisional_role.sql`](file:///d:/Marché%20agricole/supabase/migrations/20261011000026_auth_onboarding_and_provisional_role.sql)
+  - [`supabase/tests/phase_auth4_1_onboarding_db_test.sql`](file:///d:/Marché%20agricole/supabase/tests/phase_auth4_1_onboarding_db_test.sql) (9 scénarios de test d'homologation)
+
+### ADR-033 : Validation Locale, Homologation et Traitement des Erreurs de l'Interface d'Onboarding et de la Server Action (AUTH-4.3 & AUTH-4.4)
+* **Date** : 2026-10-12 | **Statut** : Validé et Recetté Localement (Suite de 28 tests validée à 100%, TypeScript 0 erreur, Build ✓ 41/41 routes — Non exécuté en production)
+* **Contexte** : Dans le cadre d'AUTH-4.3 et de la recette AUTH-4.4, l'implémentation de la page `/onboarding` et de sa Server Action `completeOnboardingAction` devait garantir la cohérence contractuelle parfaite avec la RPC `complete_user_onboarding`, l'absence de régression sur les parcours existants (AUTH-2, AUTH-3, dashboards), et l'étanchéité absolue face aux erreurs et doubles soumissions.
+* **Décisions & Garanties Validées** :
+  1. **Contrat d'Appel Strict & Alignement 1:1 des Paramètres** :
+     - Les 11 paramètres attendus par la RPC PostgreSQL (`p_role`, `p_country_id`, `p_province_id`, `p_city`, `p_company_name`, `p_company_description`, `p_company_address`, `p_company_phone`, `p_business_name`, `p_reseller_type`, `p_delivery_address`) sont extraits, validés et transmis fidèlement par `completeOnboardingAction`.
+     - Les champs non pertinents pour un rôle donné sont formellement transmis à `null` pour prévenir toute pollution croisée.
+  2. **Défense en Profondeur sur l'Attribution des Rôles** :
+     - Barrière 1 (Client) : Cartes interactives restreintes exclusivement à `company` et `reseller`.
+     - Barrière 2 (Server Action) : Rejet immédiat de toute valeur de rôle différente de `'company'` ou `'reseller'` (rejet explicite de `'admin'`).
+     - Barrière 3 (RPC `complete_user_onboarding`) : Exception levée si `p_role = 'admin'` ou `p_role NOT IN ('company', 'reseller')`.
+     - Barrière 4 (Trigger `prevent_profile_role_escalation`) : Blocage inconditionnel si `NEW.role` n'est pas dans `('company', 'reseller')`.
+  3. **Protection Anti-Double Soumission & Idempotence** :
+     - Au niveau client, le composant `SubmitButton` (`useFormStatus`) désactive physiquement le bouton et affiche un indicateur de chargement dès le premier clic.
+     - Au niveau base de données, la RPC effectue un verrou pessimiste `SELECT ... FOR UPDATE` sur le profil et rejette toute soumission répétée (`onboarding_status = 'completed'`).
+     - Au niveau Server Action, la détection d'un profil déjà complété déclenche une redirection gracieuse vers le tableau de bord sans écran d'erreur bloquant.
+  4. **Isolation et Non-Régression** :
+     - Redirection hermétique des comptes `unassigned/pending` vers `/onboarding` depuis toute route `/dashboard/*`.
+     - Préservation intégrale des comptes existants (`company`, `reseller`, `admin`), confirmée par les suites de tests de session (`test-session-isolation.mjs` : 20/20 validés).
+     - Maintien des flux AUTH-2 (e-mail confirmation $\rightarrow$ `/login?verified=true`) et AUTH-3 (recovery $\rightarrow$ `/reset-password` $\rightarrow$ `/login?password_updated=true`), confirmés par `test-auth2-redirects.mjs` (10/10 validés).
+  5. **Condition Préalable Impérative d'Homologation en Production** :
+     - ⚠️ La migration SQL 26 doit être appliquée en base Supabase **AVANT** le déploiement du code Next.js contenant la relecture de `onboarding_status`. Dans le cas contraire, l'absence de la colonne `onboarding_status` provoquerait le rejet des profils vers `/login?error=profile_missing`.
+* **Fichiers livrés** :
+  - [`src/lib/actions/auth.ts`](file:///d:/Marché%20agricole/src/lib/actions/auth.ts) (`completeOnboardingAction`)
+  - [`src/components/onboarding/OnboardingForm.tsx`](file:///d:/Marché%20agricole/src/components/onboarding/OnboardingForm.tsx)
+  - [`src/app/onboarding/page.tsx`](file:///d:/Marché%20agricole/src/app/onboarding/page.tsx)
+  - [`scripts/test-auth4-onboarding-matrix.mjs`](file:///d:/Marché%20agricole/scripts/test-auth4-onboarding-matrix.mjs) (28 tests unitaires/intégration)
+
+### ADR-034 : Protocole d'Exécution Sécurisée et Fiche Opérationnelle de la Migration 26 (AUTH-4.13)
+* **Date** : 2026-10-12 | **Statut** : Validé (En attente d'autorisation humaine d'application)
+* **Contexte** : Avant toute modification sur la base de production `gonerlgkdnbdewjbebvq`, un audit d'outillage approfondi a démontré une incompatibilité formelle de l'outil MCP `apply_migration` avec les scripts enveloppés dans `BEGIN; ... COMMIT;` (conflit de transactions imbriquées sous PostgreSQL). Il a été requis d'établir une procédure d'application rigoureuse, vérifiable, sans ambiguïté et zéro risque pour les 10 comptes existants.
+* **Décisions & Garanties Validées** :
+  1. **Mode d'Exécution Unique Retenu** :
+     - Utilisation exclusive du **SQL Editor du Dashboard Supabase** pour l'application directe de `20261011000026_auth_onboarding_and_provisional_role.sql`.
+     - L'éditeur web transmettant directement le flux au moteur PostgreSQL, l'atomicité transactionnelle native `BEGIN ... COMMIT` est respectée.
+  2. **Contrôles Post-Migration et Zéro Perte de Données** :
+     - 6 requêtes en lecture seule strictes sont définies avec critères d'arrêt stricts pour vérifier les colonnes, contraintes, RPC, triggers, privilèges colonnes et la parité 1:1 exacte avec la table de sauvegarde `public._backup_profiles_pre_auth4`.
+  3. **Innocuité de la Suite de 9 Tests SQL** :
+     - La suite `supabase/tests/phase_auth4_1_onboarding_db_test.sql` est certifiée sans effet de bord : tests 1 à 8 sur catalogues système, test 9 appelant la RPC hors session et rejeté immédiatement dès la vérification `auth.uid() IS NULL` sans aucune écriture persistée.
+  4. **Ordonnancement Strict et Séparation des Autorisations** :
+     - Découpage étanche en 9 étapes : précontrôles $\rightarrow$ autorisation migration $\rightarrow$ exécution SQL Editor $\rightarrow$ contrôles post-migration $\rightarrow$ tests SQL $\rightarrow$ rapport de validation $\rightarrow$ autorisation distincte CLI repair $\rightarrow$ autorisation déploiement Vercel $\rightarrow$ recette fonctionnelle.
+     - Aucune synchronisation anticipée ni déploiement automatique.
+* **Fichiers associés** :
+  - [`supabase/migrations/20261011000026_auth_onboarding_and_provisional_role.sql`](file:///d:/Marché%20agricole/supabase/migrations/20261011000026_auth_onboarding_and_provisional_role.sql)
+  - [`supabase/tests/phase_auth4_1_onboarding_db_test.sql`](file:///d:/Marché%20agricole/supabase/tests/phase_auth4_1_onboarding_db_test.sql)
+
+### ADR-035 : Levée des Réserves Techniques, Privilèges Colonnes et Cohérence Chirurgicale des Profils (AUTH-4.14)
+* **Date** : 2026-10-12 | **Statut** : Validé (En attente d'autorisation humaine d'application)
+* **Contexte** : Avant le passage en production, un réexamen approfondi a été mené pour éliminer toute affirmation abusive (« atomicité garantie »), clarifier la matrice des privilèges PostgreSQL sur `public.profiles`, verrouiller le contrôle de non-régression des 10 profils historiques et expliciter les impacts de la fenêtre de transition sur les utilisateurs.
+* **Décisions & Garanties Validées** :
+  1. **Réserve Explicite sur l'Atomicité du SQL Editor** :
+     - Confirmation : PostgreSQL garantit l'atomicité transactionnelle au niveau moteur si le bloc `BEGIN ... COMMIT` lui parvient intact.
+     - Réserve : Supabase Studio (interface web) n'offre pas de SLA contractuel sur le transport HTTP de scripts multi-instructions volumineux. L'affirmation d'atomicité inconditionnelle est remplacée par une réserve documentée recommandant l'absence de coupure réseau lors du clic « Run ».
+  2. **Matrice Précise des Privilèges de Colonnes** :
+     - La révocation `REVOKE UPDATE ON public.profiles` fait passer `has_table_privilege` à `FALSE` pour `authenticated`.
+     - L'accès n'est rouvert qu'au niveau colonne via `GRANT UPDATE (...)` sur `full_name`, `phone`, `avatar_url`, `avatar_cloudinary_public_id`, `updated_at`.
+     - Les colonnes structurelles (`id`, `role`, `onboarding_status`, `created_at`) restent strictement interdites aux utilisateurs directs.
+  3. **Contrôle Chirurgical de Parité des Profils Historiques** :
+     - Le contrôle post-migration C6 est renforcé pour effectuer une vérification croisée entre `_backup_profiles_pre_auth4` et `profiles`, garantissant 0 perte d'identifiant, 0 altération de rôle, 100% de passage à `completed` et 0 doublon.
+  4. **Gestion Déterministe de la Fenêtre de Transition** :
+     - Les profils historiques conservent leur accès au dashboard sans régression (leurs rôles sont préservés et les Server Actions de profil respectent la liste des colonnes autorisées).
+     - Tout nouvel utilisateur inscrit durant la fenêtre reçoit le rôle provisoire `unassigned` et doit patienter jusqu'au déploiement Vercel (où le middleware le dirigera vers `/onboarding`). Aucune modification manuelle de rôle n'est permise.
+
+### ADR-036 : Validation des Critères Bloquants et Durcissement Strict du Test 9 (AUTH-4.15)
+* **Date** : 2026-10-12 | **Statut** : Validé (En attente d'autorisation humaine d'application)
+* **Contexte** : Dans le cadre de l'audit final avant autorisation humaine de migration, validation absolue des requêtes de non-régression, vérification formelle de l'innocuité des tests SQL et durcissement de la chaîne de rejet d'authentification du Test 9.
+* **Décisions & Garanties Validées** :
+  1. **Enrichissement du Contrôle 6** : Ajout de la métrique `new_unassigned_accounts` pour différencier immédiatement tout nouveau compte créé pendant la fenêtre de transition des 10 profils historiques sauvegardés.
+  2. **Durcissement Matériel du Test 9** : Remplacement du matching partiel par l'égalité stricte du message d'erreur (`SQLERRM = 'Non authentifié : session utilisateur requise pour finaliser l''onboarding.'`). Confirmation mathématique qu'aucune exception d'échec ne peut être absorbée par le test.
+  3. **Isolation et Règle d'Innocuité** : Aucune écriture résiduelle n'est générée par la suite de tests SQL.
+* **Fichiers associés** :
+  - [`supabase/tests/phase_auth4_1_onboarding_db_test.sql`](file:///d:/Marché%20agricole/supabase/tests/phase_auth4_1_onboarding_db_test.sql) (durcissement appliqué localement)
+
+### ADR-037 : Clôture de l'Audit, Validation du Précontrôle Transactionnel et Délimitation des Risques (AUTH-4.16)
+* **Date** : 2026-10-12 | **Statut** : Validé (En attente d'autorisation humaine d'application)
+* **Contexte** : Avant de clôturer l'audit préalable à l'autorisation humaine de migration, analyse approfondie du mécanisme de précontrôle transactionnel face au pooler de Supabase Studio, confirmation de l'inviolabilité du fichier de tests et cadrage exhaustif des responsabilités et garanties système.
+* **Décisions & Garanties Validées** :
+  1. **Analyse du Précontrôle Transactionnel & Mode Pooler** :
+     - Les tables temporaires (`TEMP TABLE`) étant isolées à la session PostgreSQL active, toute vérification dans une requête SQL Editor ultérieure présente un risque d'ambiguïté si le pooler (Supavisor) alloue un backend différent.
+     - Recommandation d'un précontrôle mono-requête autonome par bloc PL/pgSQL ou vérification immédiate du code d'erreur `22012` renvoyé lors de la tentative.
+  2. **Sanctuarisation des Profils Provisoires** :
+     - Règle d'or : tout utilisateur s'inscrivant entre l'application de la migration et le déploiement Vercel conserve obligatoirement son statut `unassigned/pending`. Aucune altération manuelle n'est tolérée.
+  3. **Cartographie des 4 Niveaux de Responsabilité Technique** :
+     - (a) Moteur PostgreSQL : atomicité native DDL prouvée ; (b) Supabase Studio : absence de SLA sur les coupures HTTP proxy ; (c) Fenêtre Vercel : redirection temporaire 404 sur `/dashboard/unassigned` nécessitant une fenêtre minimale ; (d) Sauvegarde `_backup_profiles_pre_auth4` : couverture limitée à la table `profiles` locale.
+
+### ADR-038 : Contrôle Final Pré-Migration et Alignement Strict du Test 9 (AUTH-4.17)
+* **Date** : 2026-10-12 | **Statut** : Validé (En attente d'autorisation humaine d'application)
+* **Contexte** : Contrôle technique ultime avant autorisation humaine d'application de la migration 26 sur Supabase Production.
+* **Décisions & Garanties Validées** :
+  1. **Validation DDL Intégrale de la Migration 26** :
+     - 300 lignes inspectées, compatibilité transactionnelle PostgreSQL complète, contraintes, RPC `SECURITY DEFINER` avec `SET search_path = public, pg_temp`, triggers d'inscription et anti-escalade opérationnels.
+  2. **Correction et Alignement 1:1 du Test 9** :
+     - Détection d'une discordance textuelle entre la ligne 168 de la migration (`'Non authentifié : une session active est requise.'`) et l'assertion du test 9.
+     - Correction locale appliquée dans `phase_auth4_1_onboarding_db_test.sql` pour assurer la stricte égalité 1:1 et éliminer tout risque de faux échec lors de la recette.
+  3. **Séquencement Opératoire Strict** :
+     - Ordonnancement étanche en 9 étapes maintenant une barrière stricte entre la migration, les tests, le repair CLI éventuel et le déploiement Vercel.
+* **Fichiers associés** :
+  - [`supabase/migrations/20261011000026_auth_onboarding_and_provisional_role.sql`](file:///d:/Marché%20agricole/supabase/migrations/20261011000026_auth_onboarding_and_provisional_role.sql)
+  - [`supabase/tests/phase_auth4_1_onboarding_db_test.sql`](file:///d:/Marché%20agricole/supabase/tests/phase_auth4_1_onboarding_db_test.sql) (SHA256: `01e84cc5becfea92f1c476ed596a27f4a568021b6efc61f2f4149b4a66ff56e3`)
+
+### ADR-039 : Validation Opérationnelle Finale et Protocole en 10 Étapes (AUTH-4.18)
+* **Date** : 2026-10-12 | **Statut** : Validé (En attente d'autorisation humaine d'application)
+* **Contexte** : Validation matérielle ultime sur disque des fichiers de migration et de test avant soumission pour décision humaine d'application.
+* **Décisions & Garanties Validées** :
+  1. **Certification des Empreintes sur Disque** :
+     - Migration 26 : 299 lignes, 12 818 octets, SHA256: `f4a47871c64c088c578439e68f5ff5482129bff6c9091e6e87026ccc405adf8f`.
+     - Tests SQL : 201 lignes, 10 030 octets, SHA256: `01e84cc5becfea92f1c476ed596a27f4a568021b6efc61f2f4149b4a66ff56e3`.
+     - Correspondance stricte 1:1 du message d'erreur d'authentification entre la RPC et le Test 9 (`'Non authentifié : une session active est requise.'`).
+  2. **Protocole Opérationnel en 10 Étapes** :
+     - Établissement d'une séquence rigoureuse pour l'intervention : préconditions $\rightarrow$ fenêtre d'atténuation $\rightarrow$ application SQL Editor $\rightarrow$ arrêt strict sur anomalie $\rightarrow$ 6 contrôles lecture seule $\rightarrow$ 9 tests SQL $\rightarrow$ rapport complet $\rightarrow$ autorisation distincte migration repair $\rightarrow$ autorisation distincte Vercel $\rightarrow$ recette post-déploiement.
+  3. **Principe de Préservation Inconditionnelle** :
+     - En cas d'erreur ou d'incident, interdiction absolue de suppression de compte utilisateur, de modification manuelle de rôle ou de rollback improvisé.
+
+### ADR-040 : Incompatibilité Démontrée du MCP apply_migration et Verrouillage SQL Editor (AUTH-4.20)
+* **Date** : 2026-10-13 | **Statut** : Validé (Verdict C — MCP Incompatible)
+* **Contexte** : Audit technique approfondi de l'outil `apply_migration` du MCP Supabase pour déterminer s'il peut appliquer la migration 26 sans intervention manuelle dans le SQL Editor.
+* **Preuves et Décisions Validées** :
+  1. **Conflit d'Encapsulation Transactionnelle (`BEGIN;` / `COMMIT;`)** :
+     - L'outil MCP relaie la requête à l'API Management Supabase (`POST /v1/projects/{ref}/database/migrations`), qui encapsule déjà le script dans une transaction backend.
+     - Les instructions explicites `BEGIN;` (L. 7) et `COMMIT;` (L. 299) provoquent un avertissement à l'ouverture et une clôture prématurée de la transaction PostgreSQL. Cela brise l'atomicité gérée par l'API, rend impossible le rollback automatique et expose le driver à des erreurs de protocole transactionnel.
+  2. **Désalignement Matériel de Version dans `schema_migrations`** :
+     - Constat en base : la table `supabase_migrations.schema_migrations` stocke un timestamp dynamique généré à la volée par l'API (ex. `20260929212306` pour la migration 24) au lieu du préfixe numérique du fichier local (`20261011000026`).
+     - L'appel via MCP briserait l'alignement avec les outils de CLI standard (`supabase migration list`, `supabase migration repair`).
+  3. **Verdict Officiel** :
+     - **C — MCP INCOMPATIBLE**.
+     - Maintien exclusif de l'exécution manuelle dans le SQL Editor Dashboard pour garantir l'atomicité native du bloc transactionnel complet (300 lignes de `BEGIN;` à `COMMIT;`).
+
+### ADR-041 : Audit Final et Certification Pré-Déploiement GitHub / Vercel (AUTH-4.29)
+* **Date** : 2026-10-13 | **Statut** : Validé (Prêt pour publication par l'utilisateur)
+* **Contexte** : Audit complet du périmètre Git, validation de l'absence de fuite de secrets, certification de la chaîne de compilation et non-régression avant push GitHub et déploiement Vercel.
+* **Preuves et Décisions Validées** :
+  1. **Étanchéité Git & Absence de Secrets** : Aucun fichier .env* avec secrets n'est inclus dans le suivi Git. .env.local est strictement ignoré via .gitignore. 0 secret en dur détecté dans les modifications.
+  2. **Certification Compilation & Typage** : npx tsc --noEmit validé avec 0 erreur (code 0). npm run build certifié avec 41/41 routes compilées sans erreur (code 0), incluant la route SSR dynamique /onboarding (8.05 kB).
+  3. **Couverture de Tests** : 28/28 tests de la matrice d'onboarding réussis (100%), 10/10 tests de non-régression AUTH-2 réussis (100%), 20/20 tests d'isolation de session réussis (100%).
+  4. **Périmètre Délimité & Immuable** : Seuls les fichiers spécifiques à AUTH-4 sont inclus. Aucun push Git ni modification Supabase n'est exécuté sans action directe de l'utilisateur.
 

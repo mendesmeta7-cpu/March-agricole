@@ -22,6 +22,8 @@ function getUrlErrorMessage(errorKey: string | null): string {
       return "Profil introuvable pour ce compte. Veuillez contacter l'administrateur.";
     case "recovery_expired":
       return "Le lien de réinitialisation du mot de passe a expiré ou est invalide. Veuillez faire une nouvelle demande.";
+    case "role_unknown":
+      return "Votre compte présente une configuration inattendue. Veuillez contacter le support Radiza.";
     default:
       return "Une erreur est survenue lors de l'authentification.";
   }

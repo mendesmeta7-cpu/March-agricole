@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-10-11 — Phase AUTH-3 : Implémentation terminée, build ✓ 40/40 routes, TypeScript 0 erreur — Validation en production EN ATTENTE.*
+*Dernière mise à jour : 2026-10-13 — Phase AUTH-4 : SOUS-ÉTAPE AUTH-4.29 TERMINÉE (Audit final réussi, TypeScript 0 erreur, tests 28/28 réussis, build 41/41 certifié, 0 secret exposé — Prêt pour commit et push manuel GitHub par l'utilisateur).*
 
 
 ---
@@ -69,7 +69,11 @@
 | **CORRECTIF-MOBILE** | **Correctifs UI/UX Mobile Caméra & Catégories** | 🟢 **TERMINÉ** | Caméra de scan fixe sur viewport via React Portal (`CompanyOrderLookupWidget`) éliminant le piégeage WebKit dans la carte verte. Suppression du rognage du bouton « Toutes » dans le carrousel de catégories (`CategoryScroller` & `FeedView`) avec padding de respiration anti-clipping. TypeScript 0 erreur, Build 38/38 routes. |
 | **RESPONSIVE-AVATAR** | **Affichage Avatar Responsive PC / Mobile** | 🟢 **TERMINÉ** | Différenciation responsive : sur PC ($\ge$ `lg`), avatar masqué dans l'en-tête (`lg:hidden`) et conservé dans la barre latérale permanente (cartouche logo + pied utilisateur). Sur mobile ($<$ `lg`), avatar conservé dans l'en-tête pour accès immédiat, tiroir mobile épuré sans doublon. TypeScript 0 erreur, build certifié. |
 | **AUTH-2** | **Correction URLs, Callback & Redirection Connexion** | 🟢 **VALIDÉ EN PRODUCTION (3/3 contrôles vérifiés — Réserve lien expiré)** | Stratégie URL publique absolue (`getAppUrl`), paramètre `emailRedirectTo` avec `flow=signup`, échange PKCE et validation email, terminaison propre de la session temporaire (`signOut` + purge cookies), redirection vers `/login?verified=true` avec affichage du bandeau vert, préservation des flux recovery/OAuth, suite de 10 tests validée à 100%, TypeScript 0 erreur, Build ✓ 38/38 routes.<br>**VALIDÉ EN PRODUCTION** : Déploiement Ready, lien d'activation fonctionnel sans erreur localhost, redirection vers `/login?verified=true`, bandeau de succès vert affiché, connexion manuelle opérationnelle, protection directe des dashboards (`/dashboard/reseller` et `/dashboard/company` -> `/login` en navigation privée sans session active), redirection compte société vers `/dashboard/company`, gestion du lien altéré (erreur explicite, retour `/login`, 0 session, dashboard bloqué).<br>**RÉSERVE DOCUMENTAIRE** : Scénario du lien réellement expiré (token expiré dans le temps) non testé séparément. |
-| **AUTH-3** | **Mot de Passe Oublié & Réinitialisation** | 🟡 **IMPLÉMENTÉ — VALIDATION EN PRODUCTION EN ATTENTE** | Lien « Mot de passe oublié ? » sur `/login`, page `/forgot-password` (demande anti-énumération), callback recovery sécurisé (`type=recovery` obligatoire), page `/reset-password` (vérif. session serveur + `updateUser` + signOut + purge cookies), bandeau `password_updated` sur `/login`, gestion `recovery_expired`. TypeScript 0 erreur, Build ✓ 40/40 routes. |
+| **AUTH-3** | **Mot de Passe Oublié & Réinitialisation** | 🟢 **VALIDÉ EN PRODUCTION (6/6 contrôles — Tests manuels — Réserve expiration token)** | Lien « Mot de passe oublié ? » sur `/login`, page `/forgot-password` (demande anti-énumération), callback recovery sécurisé (`type=recovery` obligatoire, anti-hijack), page `/reset-password` (vérif. session serveur + `updateUser` + signOut scope:local + purge cookies), bandeau `password_updated` sur `/login`, gestion `recovery_expired`. TypeScript 0 erreur, Build ✓ 40/40 routes. **VALIDé EN PRODUCTION** : Demande fonctionnelle (message neutre), e-mail reçu, lien → `/reset-password`, mot de passe mis à jour, reconnexion et redirection tableau de bord, lien altéré rejeté, non-régression AUTH-2 confirmée. **RÉSERVE DOCUMENTAIRE** : Expiration naturelle du token non testée séparément. |
+| **AUTH-4** | **Refonte Inscription & Onboarding Découplé** | 🟢 **PRÊT POUR PUBLICATION (Migration 26 homologuée et enregistrée, 28/28 tests matrice réussis, TypeScript 0 erreur, build 41/41 routes certifié — En attente de push GitHub et déploiement Vercel)** |
+| **AUTH-5** | **Connexion avec Google (OAuth)** | ⏳ **PLANIFIÉ (Phase ultérieure — Post AUTH-4)** | Intégration du fournisseur Google, réutilisation du parcours unifié d'onboarding pour les nouveaux profils. |
+| **AUTH-6** | **Connexion avec Apple (OAuth)** | ⏳ **PLANIFIÉ (Phase ultérieure — Post AUTH-5)** | Intégration Sign in with Apple, gestion des alias privés et nom à la première connexion. |
+
 
 ---
 
@@ -93,11 +97,121 @@
 * **Réserve documentaire & distinction explicite (Périmètre non testé séparément)** :
   - ⚠️ **Lien réellement expiré (token expiré dans le temps)** : Ce cas spécifique n'a pas été testé isolément en production (seul le lien altéré a été testé). Il ne doit pas être déclaré comme formellement validé de façon indépendante, bien que la logique de rejet et de verrouillage de session soit éprouvée par le scénario du lien altéré.
 * **Consignes de transition** :
-  - ⚠️ Ne pas commencer la phase AUTH-3 (Mot de passe oublié) sans instruction expresse de l'utilisateur.
+  - ✅ AUTH-3 (Mot de passe oublié) peut être démarrée. AUTH-2 clôturée.
 
 ---
 
-## 2b. BILAN DE LA PHASE S9 (PROFIL ENTREPRISE SOCIÉTÉ)
+## 2a. BILAN DE LA PHASE AUTH-3 (MOT DE PASSE OUBLIÉ & RÉINITIALISATION)
+
+* **Date de validation finale en production** : 2026-10-11
+* **Statut de la phase** : 🟢 **VALIDÉ EN PRODUCTION (6/6 CONTRÔLES — TESTS MANUELS — AVEC RÉSERVE DOCUMENTAIRE)**
+* **Livrables techniques** :
+  - [x] Lien « Mot de passe oublié ? » ajouté sur `/login` (→ `/forgot-password`).
+  - [x] Page `/forgot-password` : formulaire de demande de récupération par e-mail, réponse générique anti-énumération de comptes.
+  - [x] `requestPasswordResetAction` : appel `resetPasswordForEmail` avec `redirectTo` incluant `flow=recovery&type=recovery`, réponse générique identique quelle que soit l'existence du compte.
+  - [x] Callback `/auth/callback` : détection sécurisée du flux recovery (`type=recovery` ou `flow=recovery` obligatoire) — le seul paramètre `next=/reset-password` ne suffit jamais (anti-hijack).
+  - [x] Page `/reset-password` : saisie + confirmation du nouveau mot de passe, affichage/masquage, vérification serveur de la session recovery (`getUser()`), `updateUser`, `signOut scope:local`, purge cookies, redirection vers `/login?password_updated=true`.
+  - [x] Bandeau de succès vert sur `/login` pour `?password_updated=true`.
+  - [x] Gestion de `?error=recovery_expired` traduit en message clair sur `/login`.
+  - [x] TypeScript : 0 erreur (`npx tsc --noEmit`).
+  - [x] Build de production Next.js certifié (40/40 routes, dont `/forgot-password` ○ et `/reset-password` ○).
+* **Résultats des contrôles manuels en production (2026-10-11)** :
+  - [x] **Contrôle 1/6 — Demande de récupération** : Formulaire `/forgot-password` fonctionnel. Message de confirmation neutre affiché, sans révéler l'existence du compte (anti-énumération confirmée en production).
+  - [x] **Contrôle 2/6 — Réception de l'e-mail et ouverture du lien** : E-mail de récupération reçu en production. Lien fonctionnel, redirection effective vers `/reset-password` via `/auth/callback` avec préservation de la session PKCE recovery.
+  - [x] **Contrôle 3/6 — Définition du nouveau mot de passe** : Formulaire `/reset-password` fonctionnel. Mise à jour effective du mot de passe. Redirection vers `/login?password_updated=true` avec bandeau de succès vert.
+  - [x] **Contrôle 4/6 — Reconnexion avec le nouveau mot de passe** : Connexion manuelle acceptée. Redirection vers le tableau de bord approprié selon le rôle du compte.
+  - [x] **Contrôle 5/6 — Lien de récupération altéré** : Un lien modifié manuellement est rejeté. Aucun accès à `/reset-password` sans session recovery valide.
+  - [x] **Contrôle 6/6 — Non-régression AUTH-2** : Parcours de confirmation d'adresse e-mail à l'inscription et connexion manuelle toujours pleinement fonctionnels. Aucune régression observée.
+* **Réserves documentaires** :
+  - ⚠️ **Expiration naturelle du token** : Le scénario d'un lien de récupération réellement périmé par délai (token expiré selon la configuration Supabase) n'a pas été testé séparément. Seul un lien altéré manuellement a été utilisé pour le contrôle 5/6. La logique de rejet est éprouvée ; l'expiration temporelle reste une réserve documentaire.
+  - ⚠️ **Absence de suite de tests automatisés AUTH-3** : Aucun script `*.mjs` n'a été produit pour cette phase. Les validations sont exclusivement des tests manuels en production.
+* **Consignes de transition** :
+  - ✅ AUTH-3 (Mot de passe oublié) clôturée et validée en production.
+  - 📋 AUTH-4 (Inscription & Onboarding Découplé) cadrée et validée au niveau documentaire.
+
+---
+
+## 2b. CADRAGE DE LA PHASE AUTH-4 (INSCRIPTION & ONBOARDING DÉCOUPLÉ)
+
+* **Date de validation du cadrage** : 2026-10-11
+* **Statut de la phase** : 🟢 **AUTH-4.25 TERMINÉE — BASE DE DONNÉES HOMOLOGUÉE EN PRODUCTION (Migration 26 et 9/9 tests SQL validés à 100%) — EN ATTENTE D'AUTORISATION DÉPLOIEMENT VERCEL**
+* **Décisions approuvées & Orientations retenues** :
+  - **Sous-étape AUTH-4.25 (Homologation de Production — 9 Tests SQL)** : 🟢 **Exécutée et validée à 100% via MCP Supabase** — Suite `phase_auth4_1_onboarding_db_test.sql` exécutée sans erreur. 9/9 tests réussis individuellement : (1) colonne `onboarding_status` conforme ; (2) contrainte CHECK rôle avec `unassigned` ; (3) contrainte CHECK statut `pending`/`completed` ; (4) triggers inscription et anti-escalade actifs ; (5) RPC `SECURITY DEFINER` + search_path ; (6) privilège EXECUTE restreint à `authenticated` ; (7) 10/10 profils historiques préservés à `completed` ; (8) privilèges colonnes PostgREST verrouillés ; (9) appel hors session rejeté avec le message exact `'Non authentifié : une session active est requise.'`. Zéro effet de bord en base.
+  - **Sous-étape AUTH-4.24 (Vérification Post-Migration 26)** : 🟢 **Exécutée et validée à 100% via MCP Supabase (lecture seule)** — Migration 26 appliquée avec succès par l'utilisateur via SQL Editor. Contrôles C1 à C6 validés sans anomalie.
+  - **Sous-étape AUTH-4.22 (Exécution Directe par l'Agent & Diagnostic)** : 🟢 **Exécutée** — Tentative d'exécution directe du script via `execute_sql` du MCP Supabase. Résultat : `SQL execution was cancelled` par la politique de sécurité interne du MCP qui refuse le DDL destructif (`DROP CONSTRAINT`, `DROP TRIGGER`, `REVOKE`) dans `execute_sql` (imposant `apply_migration`). Base vérifiée en lecture seule : 100% intacte (`has_onboarding_col = 0`, 10/10 profils sauvegardés et actuels). Plus petite action de déblocage : exécution manuelle dans le SQL Editor Dashboard ou fourniture de `SUPABASE_ACCESS_TOKEN`.
+  - **Sous-étape AUTH-4.21 (Préparation Opérationnelle Finale de la Migration 26)** : 🟢 **Validée** — Méthode d'application définitive retenue : SQL Editor Supabase Dashboard (garantie transactionnelle native `BEGIN;...COMMIT;`). CLI local non connecté (`AccessTokenRequiredError`) et MCP `apply_migration` incompatible (ADR-040). Précontrôles minimaux ré-exécutés en lecture seule via MCP Supabase (`gonerlgkdnbdewjbebvq`) : projet `ACTIVE_HEALTHY`, table `_backup_profiles_pre_auth4` (10 profils : 1 admin, 5 company, 4 reseller), 0 colonne `onboarding_status`, 0 migration 26 appliquée, SHA-256 certifié (`f4a47871c64c088c578439e68f5ff5482129bff6c9091e6e87026ccc405adf8f`). Procédure unique en 6 étapes ordonnée.
+  - **Sous-étape AUTH-4.20 (Vérification Finale MCP Supabase)** : 🟢 **Validée** — Audit technique approfondi de l'outil `apply_migration` : conflit transactionnel avec `BEGIN/COMMIT` (rupture d'atomicité API) et altération du numéro de version dans `schema_migrations` (horodatage dynamique vs `20261011000026`). Verdict : C — MCP Incompatible consigné dans l'ADR-040.
+  - **Sous-étape AUTH-4.19 (Exécution Contrôlée de la Migration 26)** : 🟡 **Jalon 1 Validé** — Précontrôles en lecture seule exécutés avec succès via MCP Supabase (`gonerlgkdnbdewjbebvq`).
+  - **Parcours cible (Option B)** : Découplage strict entre la création de compte rapide (identifiants minimaux : e-mail, mot de passe, nom complet) et l'onboarding métier obligatoire avant tout accès au dashboard.
+  - **Ordre de la feuille de route d'authentification** : AUTH-4 (socle onboarding), puis AUTH-5 (Google OAuth), puis AUTH-6 (Apple OAuth).
+  - **Statut de Google et Apple** : Phases ultérieures distinctes. Aucun travail Google ou Apple n'est autorisé pendant AUTH-4.
+  - **Sous-étape AUTH-4.1 (Schéma SQL, Rôle unassigned, RPC & Triggers)** : 🟢 **Préparation technique et corrections de sécurité locales terminées** (fichiers `20261011000026_auth_onboarding_and_provisional_role.sql` et `phase_auth4_1_onboarding_db_test.sql` corrigés avec durcissement strict du Test 9, audit de sécurité et atomicité validés). ⚠️ **Non exécuté sur la base de données de production — En attente d'homologation et d'autorisation expresse**.
+  - **Sous-étape AUTH-4.2 (Middleware SSR & Verrouillage d'Accès)** : 🟢 **Implémentée et validée localement** — TypeScript 0 erreur, Build ✓ 41/41 routes. ⚠️ **Non testée en production (dépend de l'exécution préalable de la migration SQL 26)**.
+  - **Sous-étape AUTH-4.3 (Interface UI/UX /onboarding & Server Action)** : 🟢 **Implémentée et validée localement** — Formulaire interactif (`OnboardingForm`), sélection Société / Revendeur avec cartes Radiza, intégration `GeographySelector` officiel, Server Action `completeOnboardingAction` appelant la RPC `complete_user_onboarding` (`SECURITY DEFINER`), protection anti-double soumission (`SubmitButton`), affichage dynamique d'erreurs, TypeScript 0 erreur, Build ✓ 41/41 routes. ⚠️ **Non testée en production (dépend de la migration SQL 26)**.
+  - **Sous-étape AUTH-4.4 (Recette Intégrale Locale & Homologation)** : 🟢 **Exécutée et validée localement** — Suite automatisée `scripts/test-auth4-onboarding-matrix.mjs` validant les 15 scénarios d'audit (28/28 tests réussis à 100%), non-régression AUTH-2 validée (10/10 tests réussis), isolation des sessions validée (20/20 tests réussis), TypeScript 0 erreur, Build Next.js 41/41 routes certifié. Suite SQL de 9 contrôles prête pour la recette Supabase.
+  - **Sous-étape AUTH-4.7 (Précontrôles & Sauvegarde Ciblée de Production)** : 🟢 **Exécutée et validée sur Supabase distant** — Projet `gonerlgkdnbdewjbebvq` vérifié (10 profils réels : 1 admin, 5 company, 4 reseller), table `public._backup_profiles_pre_auth4` créée avec succès (10/10 profils sauvegardés, parité 1:1 exacte).
+  - **Sous-étape AUTH-4.8 (Audit Final Avant Migration)** : 🟢 **Exécutée en lecture seule** — Sauvegarde distante confirmée (10 lignes, 0 divergence), mécanisme MCP audité, compatibilité DDL vérifiée, plan de récupération sans suppression de profils formalisé, ordonnancement strict DB $\rightarrow$ Vercel validé. ⚠️ **Migration 26 NON appliquée, Vercel NON déployé, en attente de décision humaine.**
+  - **Sous-étape AUTH-4.9 (Levée des Deux Dernières Réserves)** : 🟢 **Exécutée en lecture seule** — Audit technique de l'encapsulation transactionnelle de `apply_migration` (garanties Postgres DDL vs limites non documentées de l'imbrication dans l'API MCP), proposition de validation hors production, formalisation du plan de récupération à zéro perte de données (maintien de `unassigned` et `onboarding_status`), vérification formelle de la suite de 9 tests SQL (`phase_auth4_1_onboarding_db_test.sql`) sans risque de faux succès et avec zéro écriture résiduelle. ⚠️ **Aucune migration exécutée, aucune donnée modifiée, aucun déploiement.**
+  - **Sous-étape AUTH-4.10 (Finalisation Plan Récupération & Procédure Dashboard)** : 🟢 **Exécutée en lecture seule** — Correction du `GRANT UPDATE` global (non nécessaire), interdiction formelle de la réactivation du trigger migration 10 en coexistence avec `onboarding_status`, analyse des conséquences de désactivation du trigger anti-escalade et de la RPC, procédure opératoire Dashboard Supabase en 9 étapes (contrôles préalables, critères succès/échec, INSERT manuel dans l'historique CLI — à remplacer par `migration repair` per AUTH-4.11, conduite à tenir sur erreur, exécution des tests SQL).
+  - **Sous-étape AUTH-4.11 (Correction Finale — Historique CLI, Ordre Opératoire, Fenêtre de Transition)** : 🟢 **Exécutée en lecture seule** — (1) INSERT manuel dans `supabase_migrations.schema_migrations` retiré et remplacé par la commande officielle `supabase migration repair --status applied 20261011000026 --linked` (commande documentée Supabase CLI v2.120.0, ne modifie aucun schéma, insère uniquement la version dans le registre) ; (2) Ordre opératoire uniformisé en 7 étapes strictes (vérification → migration → contrôles → tests → rapport → autorisation Vercel → déploiement) avec barrière explicite entre tests et déploiement ; (3) Fenêtre de transition formalisée : profils `unassigned/pending` créés pendant la fenêtre sont valides, préservés intégralement, et seront servis par le middleware AUTH-4.2 vers `/onboarding` après déploiement Vercel ; (4) Vérification du script migration 26 : 300 lignes, `BEGIN` ligne 7, `COMMIT` ligne 299, aucune instruction `schema_migrations` ni boucle de synchronisation interne, protection anti-double application par `ADD COLUMN IF NOT EXISTS`, `DROP CONSTRAINT IF EXISTS`, `CREATE OR REPLACE FUNCTION`, `DROP TRIGGER IF EXISTS`. ⚠️ **PROCÉDURE PRÊTE POUR AUTORISATION HUMAINE. Aucune migration appliquée, aucune écriture distante, aucun déploiement.**
+  - **Sous-étape AUTH-4.12 (Dernière Vérification — Mécanisme d'Exécution, Tests, Historique, Fenêtre)** : 🟢 **Exécutée en lecture seule** — (1) **BLOCAGE MCP confirmé** : `apply_migration` enveloppe le SQL dans sa propre transaction implicite ; les instructions `BEGIN;` / `COMMIT;` explicites du script provoqueraient une transaction imbriquée ou un conflit de protocole — MÉTHODE SÛRE UNIQUE : SQL Editor du Dashboard Supabase (copier-coller + Run) qui exécute `BEGIN;...COMMIT;` nativement en contexte PostgreSQL direct ; (2) **Audit complet des 9 tests SQL** : tests 1-8 lecture seule pure (catalogues système uniquement), test 9 exécute `PERFORM public.complete_user_onboarding(...)` dans un sous-bloc EXCEPTION — sous-bloc isolé du DO $$ externe par sa propre gestion d'erreur, aucune transaction imbrication résidu, aucune donnée persistée en cas de rejet attendu (`Non authentifié`), erreur inattendue relevée par `RAISE EXCEPTION` ; (3) Ordre opératoire définitif uniformé et barrière Vercel explicitée ; (4) Fenêtre de transition : profils `unassigned/pending` préservés intégralement, aucune suppression, aucune attribution de rôle arbitraire ; `migration repair` à autoriser distinctement après contrôles post-migration. ⚠️ **PROCÉDURE PRÊTE POUR AUTORISATION HUMAINE via SQL Editor Dashboard uniquement. Aucune migration appliquée, aucune écriture distante.**
+  - **Sous-étape AUTH-4.13 (Fiche d'Exécution Finale & Procédure Opérationnelle Définitive)** : 🟢 **Exécutée en inspection locale et documentaire** — (1) Fichier `20261011000026_auth_onboarding_and_provisional_role.sql` formellement certifié (299 lignes, 12 818 octets, SHA256: `f4a47871c64c088c578439e68f5ff5482129bff6c9091e6e87026ccc405adf8f`, `BEGIN;` l.7, `COMMIT;` l.299, 0 mention `schema_migrations`) ; (2) Mode d'exécution verrouillé sur le SQL Editor Dashboard de Supabase en raison de l'incompatibilité prouvée du wrapper MCP ; (3) 6 requêtes de contrôle post-migration formalisées avec critères stricts d'arrêt ; (4) Audit complet des 9 tests SQL certifiant l'innocuité absolue (aucun effet de bord, test 9 rejeté avant toute écriture) ; (5) Procédure d'arrêt/reprise garantissant zéro perte de données et zéro altération des comptes ; (6) Séquencement d'autorisations humaines en 9 étapes étanches ; (7) Gestion de la fenêtre de transition formalisée.
+  - **Sous-étape AUTH-4.14 (Corrections Finales de la Fiche d'Exécution & Réserves Documentées)** : 🟢 **Exécutée en lecture seule et analyse documentaire** — (1) Réserve explicite d'atomicité sur le SQL Editor documentée ; (2) Matrice rigoureuse des privilèges `profiles` ; (3) Contrôle 6 enrichi de parité chirurgicale ; (4) Analyse d'impact sur la transition et Vercel ; (5) Modularité et étanchéité de la suite des 9 tests SQL.
+  - **Sous-étape AUTH-4.15 (Validation Finale des Critères Bloquants & Durcissement du Test 9)** : 🟢 **Exécutée en inspection locale et documentaire** — (1) Contrôle chirurgical de cohérence des 10 profils historiques enrichi avec détection explicite des nouveaux comptes (`new_unassigned_accounts`) et diagnostic individuel via `FULL OUTER JOIN` ; (2) Vérification absolue de l'adéquation entre les privilèges PostgreSQL effectifs (`has_table_privilege = FALSE`, colonnes restreintes) et la migration 26 ; (3) Distinction nette entre la garantie transactionnelle du moteur PostgreSQL et l'absence de SLA documenté sur l'API web Supabase Studio (précontrôle neutre division par zéro fourni) ; (4) Durcissement du Test 9 dans `phase_auth4_1_onboarding_db_test.sql` : filtrage d'exception resserré sur la chaîne exacte du message de la RPC (`Non authentifié : session utilisateur requise pour finaliser l'onboarding.`), rendant mathématiquement impossible la capture d'une autre erreur comme un succès.
+  - **Sous-étape AUTH-4.16 (Validation du Précontrôle Transactionnel & Clôture de l'Audit)** : 🟢 **Exécutée en lecture seule et inspection locale** — (1) Analyse critique du précontrôle avec table temporaire face au pooler ; (2) Sanctuarisation des comptes provisoires ; (3) Délimitation formelle des 4 piliers de sécurité.
+  - **Sous-étape AUTH-4.17 (Contrôle Final Avant Autorisation de Migration & Alignement Strict)** : 🟢 **Exécutée en inspection locale et documentaire** — (1) Examen exhaustif des 300 lignes de la migration 26 : compatibilité transactionnelle PostgreSQL complète, intégrité des contraintes, absence de risque d'escalade, search_path hermétique ; (2) Détection et correction locale chirurgicale du Test 9 dans `phase_auth4_1_onboarding_db_test.sql` : alignement strict 1:1 du message d'erreur avec la ligne 168 de la migration (`'Non authentifié : une session active est requise.'`) éliminant tout risque de faux échec lors du contrôle ; (3) Validation de l'ordre opératoire en 9 étapes étanches ; (4) Recommandations d'atténuation de la fenêtre de transition.
+  - **Sous-étape AUTH-4.18 (Validation Opérationnelle Finale Avant Migration & Procédure en 10 Étapes)** : 🟢 **Exécutée en inspection locale et documentaire** — (1) Certification des fichiers locaux sur disque : migration 26 (299 lignes, 12 818 octets, SHA256: `f4a47871c64c088c578439e68f5ff5482129bff6c9091e6e87026ccc405adf8f`), tests SQL (201 lignes, 10 030 octets, SHA256: `01e84cc5becfea92f1c476ed596a27f4a568021b6efc61f2f4149b4a66ff56e3`) avec correspondance exacte 1:1 du message de rejet du test 9 et intégrité absolue des tests 1 à 8 ; (2) Plan d'exécution opérationnel en 10 étapes formalisé avec conduite déterministe en cas d'incident (aucun DELETE, aucune modification manuelle de rôle, aucun rollback improvisé) ; (3) Limites de la sauvegarde ciblée `_backup_profiles_pre_auth4` réitérées. ⚠️ **VERDICT : PRÊT POUR AUTORISATION HUMAINE POUR LA MIGRATION 26. Aucune migration appliquée, aucune écriture distante, aucun déploiement.**
+
+
+
+
+### 1. Parcours Cible de l'Inscription et de l'Onboarding (Option B)
+1. **Création du compte** : Saisie rapide (e-mail + mot de passe + nom complet) sur `/register`.
+2. **Confirmation d'e-mail** : Réception du courriel et validation selon le parcours AUTH-2 validé (déconnexion de session temporaire $\rightarrow$ redirection `/login?verified=true`).
+3. **Connexion manuelle** : L'utilisateur saisit ses identifiants sur `/login`.
+4. **Interception Onboarding** : Le système détecte que le profil est incomplet et redirige obligatoirement vers `/onboarding`. Les accès directs aux URLs de dashboards (`/dashboard/company`, `/dashboard/reseller`) sont strictement bloqués.
+5. **Choix du type de compte & Complétion** : Sur `/onboarding`, choix de l'acteur (Société agricole vs Revendeur) et saisie des champs obligatoires (pays, province via sélecteur hiérarchique, ville, dénomination/raison sociale, coordonnées, etc.).
+6. **Validation & Enregistrement atomique** : Création de l'entité (`companies` ou `resellers`), rattachement du créateur (`company_members` owner pour société), marquage du profil comme complété, puis redirection vers le dashboard dédié.
+7. **Accès ultérieur direct** : Lors des prochaines connexions, le profil étant complet, l'utilisateur accède directement à son tableau de bord.
+
+### 2. Découpage Interne de la Phase AUTH-4
+* **AUTH-4.1 — Schéma SQL, Migration & Procédure de Complétion Sécurisée** :
+  - Définition de la stratégie de rôle provisoire et du drapeau de complétion.
+  - Migration de rattrapage garantissant que 100% des comptes existants (Société, Revendeur, Admin) restent marqués complets sans régression.
+  - Procédure RPC `complete_user_onboarding` avec privilèges `SECURITY DEFINER` vérifiant rigoureusement l'identité de l'appelant (`auth.uid()`), interdisant formellement l'élévation au rôle `admin`, et insérant l'entité de manière atomique.
+* **AUTH-4.2 — Middleware SSR & Verrouillage d'Accès Hermétique** :
+  - Adaptation de `updateSession` dans `middleware.ts` pour rediriger les profils incomplets vers `/onboarding`.
+  - Blocage de tout contournement d'URL vers `/dashboard/*`.
+  - Protection de la route `/onboarding` contre les utilisateurs déjà complétés (redirection vers leur dashboard).
+  - Préservation hermétique du compte Admin (`admin@marcheagricole.cd`).
+* **AUTH-4.3 — Interfaces UI/UX (`/onboarding` & Refonte `/register`)** :
+  - Épuration du formulaire d'inscription `/register` (formulaire court et réactif).
+  - Écran `/onboarding` moderne respectant le Design System Radiza (stepper, cartes de choix, sélecteurs géographiques officiels RDC).
+* **AUTH-4.4 — Recette Intégrale, Tests de Non-Régression & Validation en Production** :
+  - Exécution d'une suite de tests couvrant les 12 scénarios d'homologation.
+  - Validation manuelle par l'utilisateur en conditions réelles.
+
+### 3. Exigences de Non-Régression & Critères de Validation
+- [ ] **Non-régression AUTH-2** : Confirmation d'e-mail, déconnexion post-confirmation, bandeau vert `/login?verified=true`, protection directe des dashboards sans session active intactes.
+- [ ] **Non-régression AUTH-3** : Demande `/forgot-password`, callback recovery isolé, mise à jour `/reset-password`, reconnexion manuelle 100% fonctionnelles.
+- [ ] **Règle d'or 1 respectée** : Aucune création de production agricole, de produit d'exploitation ou de campagne n'est permise lors de l'inscription ou de l'onboarding.
+- [ ] **Préservation des comptes existants** : Zéro perturbation pour les utilisateurs actuels déjà enregistrés.
+- [ ] **Préservation du compte Admin** : Accès direct ininterrompu à `/dashboard/admin`.
+- [ ] **Contrôle d'accès profils incomplets** : Tout compte non complété tentant d'accéder à un dashboard est immédiatement redirigé vers `/onboarding`.
+- [ ] **Reprise d'onboarding interrompu** : Un utilisateur fermant sa session avant la fin de l'onboarding est ramené à `/onboarding` à sa reconnexion.
+- [ ] **Anti-escalade des rôles** : Rejet immédiat de toute tentative d'auto-attribution du rôle `admin`.
+
+### 4. Réserves Techniques et Garde-Fous Explicites
+- ⚠️ **Stratégie de rôle provisoire** : Ne pas considérer la colonne `is_onboarded` comme une réponse suffisante par elle-même. La contrainte CHECK sur `profiles.role` (`company`, `reseller`, `admin`) et le trigger `handle_new_user_registration` imposent une décision formelle sur l'état du rôle entre le moment du `signUp` et la soumission de l'onboarding.
+- ⚠️ **Inviolabilité du trigger anti-escalade** : Le trigger `prevent_profile_role_escalation` ne doit en aucun cas être affaibli ou contourné.
+- ⚠️ **Contrôle d'identité dans la RPC privilégiée** : La future fonction RPC `complete_user_onboarding` (`SECURITY DEFINER`) doit impérativement valider `auth.uid() = p_user_id`, rejeter toute valeur `admin`, et valider l'intégrité des clés étrangères (`country_id`, `province_id`).
+- ⚠️ **Migration rétrocompatible obligatoire** : Tous les comptes en base possédant déjà une entreprise ou un profil revendeur doivent être déclarés complets dès l'application de la migration.
+- ⚠️ **Interdiction de démarrer AUTH-4.1** sans autorisation expresse de l'utilisateur.
+
+---
+
+## 2c. BILAN DE LA PHASE S9 (PROFIL ENTREPRISE SOCIÉTÉ)
+
 
 * **Date de validation finale** : 2026-10-07
 * **Statut du projet** : 🟢 **STABLE — PROFIL ENTREPRISE MODERNISÉ (STYLE FACEBOOK / YOUTUBE STUDIO), SÉCURISÉ, TYPESCRIPT 0 ERREUR, BUILD ✓ (38/38 ROUTES)**

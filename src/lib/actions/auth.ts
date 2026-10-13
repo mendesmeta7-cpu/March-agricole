@@ -48,10 +48,10 @@ export async function loginAction(
     return { error: "Session introuvable après connexion." };
   }
 
-  // Récupération stricte du profil et du rôle
+  // AUTH-4.2 — Récupération stricte du profil : role ET onboarding_status
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, onboarding_status")
     .eq("id", data.user.id)
     .single();
 
@@ -62,6 +62,12 @@ export async function loginAction(
   // Purge préventive du cache serveur Next.js pour reconstruire l'arbre pour ce rôle
   revalidatePath("/", "layout");
 
+  // AUTH-4.2 — Onboarding incomplet : rôle transitoire ou statut pending
+  //            → redirection vers /onboarding, jamais vers un dashboard métier
+  if (profile.role === "unassigned" || profile.onboarding_status !== "completed") {
+    redirect("/onboarding");
+  }
+
   if (profile.role === "company") {
     redirect("/dashboard/company");
   } else if (profile.role === "reseller") {
@@ -69,7 +75,8 @@ export async function loginAction(
   } else if (profile.role === "admin") {
     redirect("/dashboard/admin");
   } else {
-    return { error: "Rôle utilisateur non reconnu." };
+    // Rôle inconnu malgré un statut completed : erreur explicite, pas d'accès par défaut
+    return { error: "Compte incomplet ou non reconnu. Veuillez contacter le support." };
   }
 }
 
@@ -410,4 +417,107 @@ export async function resetPasswordAction(
   revalidatePath("/", "layout");
   redirect("/login?password_updated=true");
 }
+
+/**
+ * AUTH-4.3 — Finalisation de l'onboarding utilisateur via la RPC complete_user_onboarding.
+ *
+ * Permet à un utilisateur dont le profil est 'unassigned/pending' de choisir son rôle
+ * ('company' ou 'reseller'), de renseigner ses données métier et sa localisation,
+ * puis de basculer transactionnellement vers son espace tableau de bord.
+ */
+export async function completeOnboardingAction(
+  prevState: AuthActionResult | null,
+  formData: FormData
+): Promise<AuthActionResult> {
+  const role = formData.get("role")?.toString().trim();
+  const countryId = formData.get("countryId")?.toString().trim();
+  const provinceId = formData.get("provinceId")?.toString().trim();
+  const city = formData.get("city")?.toString().trim() || null;
+
+  // Contrôle commun obligatoire
+  if (!role || (role !== "company" && role !== "reseller")) {
+    return { error: "Veuillez sélectionner un type d'activité valide (Société agricole ou Revendeur professionnel)." };
+  }
+
+  if (!countryId || !provinceId) {
+    return { error: "Veuillez sélectionner votre pays et votre province d'opération." };
+  }
+
+  // Paramètres selon le rôle
+  let companyName: string | null = null;
+  let companyDescription: string | null = null;
+  let companyAddress: string | null = null;
+  let companyPhone: string | null = null;
+
+  let businessName: string | null = null;
+  let resellerType: string | null = null;
+  let deliveryAddress: string | null = null;
+
+  if (role === "company") {
+    companyName = formData.get("companyName")?.toString().trim() || null;
+    companyDescription = formData.get("companyDescription")?.toString().trim() || null;
+    companyAddress = formData.get("companyAddress")?.toString().trim() || null;
+    companyPhone = formData.get("companyPhone")?.toString().trim() || null;
+
+    if (!companyName) {
+      return { error: "La dénomination ou le nom commercial de votre entreprise est obligatoire." };
+    }
+  } else if (role === "reseller") {
+    businessName = formData.get("businessName")?.toString().trim() || null;
+    resellerType = formData.get("resellerType")?.toString().trim() || "wholesaler";
+    deliveryAddress = formData.get("deliveryAddress")?.toString().trim() || null;
+
+    if (!["wholesaler", "semi_wholesaler", "retailer", "processor"].includes(resellerType)) {
+      resellerType = "wholesaler";
+    }
+  }
+
+  const supabase = createClient();
+
+  // Vérification de la session active côté serveur
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { error: "Votre session a expiré ou est invalide. Veuillez vous reconnecter." };
+  }
+
+  // Appel de la procédure stockée RPC complete_user_onboarding (Migration 26)
+  const { data: rpcData, error: rpcError } = await supabase.rpc("complete_user_onboarding", {
+    p_role: role,
+    p_country_id: countryId,
+    p_province_id: provinceId,
+    p_city: city,
+    p_company_name: companyName,
+    p_company_description: companyDescription,
+    p_company_address: companyAddress,
+    p_company_phone: companyPhone,
+    p_business_name: businessName,
+    p_reseller_type: resellerType,
+    p_delivery_address: deliveryAddress,
+  });
+
+  if (rpcError) {
+    console.error("Erreur complete_user_onboarding RPC:", rpcError);
+    if (rpcError.message.includes("déjà été finalisé") || rpcError.message.includes("already finalized")) {
+      revalidatePath("/", "layout");
+      if (role === "company") redirect("/dashboard/company");
+      else redirect("/dashboard/reseller");
+    }
+    return { error: rpcError.message || "Une erreur est survenue lors de l'enregistrement de votre profil." };
+  }
+
+  // Invalidation totale du cache serveur Next.js pour reconstruire l'arbre pour ce rôle
+  revalidatePath("/", "layout");
+
+  // Redirection immédiate vers le dashboard dédié
+  if (role === "company") {
+    redirect("/dashboard/company");
+  } else {
+    redirect("/dashboard/reseller");
+  }
+}
+
 
