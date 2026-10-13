@@ -3,17 +3,8 @@
 import { useFormState } from "react-dom";
 import Link from "next/link";
 import { registerResellerAction } from "@/lib/actions/auth";
-import GeographySelector from "@/components/GeographySelector";
 import SubmitButton from "@/components/SubmitButton";
-import Select from "@/components/ui/Select";
 import { Store, AlertCircle, ArrowLeft, MapPin, MailCheck } from "lucide-react";
-
-const RESELLER_TYPES = [
-  { value: "wholesaler", label: "Grossiste" },
-  { value: "semi_wholesaler", label: "Demi-grossiste" },
-  { value: "retailer", label: "Détaillant" },
-  { value: "processor", label: "Transformateur agro-alimentaire" },
-];
 
 export default function RegisterResellerPage() {
   const [state, formAction] = useFormState(registerResellerAction, null);
@@ -73,7 +64,7 @@ export default function RegisterResellerPage() {
           <div className="mb-6 p-4 rounded-xl bg-earth-50/60 border border-earth-200/60 text-xs text-earth-900 flex items-start gap-3 leading-relaxed">
             <MapPin className="w-4 h-4 text-earth-700 flex-shrink-0 mt-0.5" />
             <div>
-              <strong>Territorialité pivot :</strong> Votre localisation (Pays et Province) détermine les campagnes agricoles auxquelles vous serez directement éligible pour passer commande ferme.
+              <strong>Étape 1 sur 2 :</strong> Créez votre accès acheteur. La sélection de votre territoire d&apos;opération (pays, province) et de votre profil s&apos;effectue lors de l&apos;activation de votre compte.
             </div>
           </div>
 
@@ -84,121 +75,62 @@ export default function RegisterResellerPage() {
             </div>
           )}
 
-          <form action={formAction} className="space-y-6">
-            {/* Section 1 : Responsable */}
-            <div className="space-y-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-earth-800">
-                1. Identité de l&apos;acheteur
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nom et prénom <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    required
-                    placeholder="Ex: Alain Kalombo"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Téléphone de contact
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    placeholder="Ex: +243 810 000 000"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Adresse email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    required
-                    placeholder="alain@distribution-vivres.cd"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mot de passe <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    required
-                    minLength={6}
-                    placeholder="Au moins 6 caractères"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
-                  />
-                </div>
-              </div>
+          <form action={formAction} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nom et prénom <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="fullName"
+                required
+                placeholder="Ex: Alain Kalombo"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
+              />
             </div>
 
-            {/* Section 2 : Activité commerciale et territoire */}
-            <div className="space-y-4 pt-4 border-t border-gray-100">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-earth-800">
-                2. Activité Commerciale et Territoire
-              </h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Téléphone de contact
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                placeholder="Ex: +243 810 000 000"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
+              />
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nom commercial / Enseigne
-                  </label>
-                  <input
-                    type="text"
-                    name="businessName"
-                    placeholder="Ex: Maison Vivres Frais Kin"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
-                  />
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Adresse email <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                name="email"
+                required
+                placeholder="alain@distribution-vivres.cd"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Typologie d&apos;acheteur <span className="text-red-500">*</span>
-                  </label>
-                  <Select
-                    name="resellerType"
-                    defaultValue="wholesaler"
-                    options={RESELLER_TYPES}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Localisation géographique réelle */}
-              <GeographySelector required={true} />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Adresse de livraison habituelle
-                </label>
-                <input
-                  type="text"
-                  name="deliveryAddress"
-                  placeholder="Ex: Hangar 4, Marché de gros de la Liberté"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Mot de passe <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                name="password"
+                required
+                minLength={6}
+                placeholder="Au moins 6 caractères"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
+              />
             </div>
 
             <SubmitButton
               className="w-full py-3 px-4 rounded-lg bg-earth-700 hover:bg-earth-800 text-white shadow-sm hover:shadow"
-              loadingText="Création du profil revendeur..."
+              loadingText="Création du compte en cours..."
             >
               Créer mon compte Revendeur
             </SubmitButton>

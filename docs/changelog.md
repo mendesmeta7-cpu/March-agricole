@@ -3,6 +3,72 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [AUTH-4.33] - 2026-10-13
+### Audit de Validation Fonctionnelle Post-AUTH-4.32 (AUTH-4.33)
+
+- **Mode** : Audit et tests uniquement — Aucun code modifié, aucun commit, aucun déploiement.
+- **Diff des 5 fichiers** : Vérifié (7 fichiers unstaged : 5 source + 2 Memory Bank). Aucun fichier étranger.
+- **Formulaires** : `/register/company` et `/register/reseller` : exactement 4 champs (`fullName`, `phone`, `email`, `password`). Aucun champ supplémentaire. ✅
+- **Circuit `preferred_role`** : Tracé de bout en bout — sauvegardé en `user_metadata` à l'inscription → relu dans `onboarding/page.tsx` via `getUser()` côté serveur → transmis à `OnboardingForm` comme indication UX uniquement → jamais utilisé comme preuve d'autorisation. ✅
+- **Entité RPC** : `completeOnboardingAction` appelle exclusivement `complete_user_onboarding` (Migration 26). Aucun INSERT direct. ✅
+- **`identities: []`** : Code présent et correct dans les deux actions. Affiche une erreur explicite au lieu du faux succès. Scénario non testable automatiquement (exige un compte réel en production).
+- **Email non confirmé** : Supabase émet un nouveau lien sans erreur — `emailSent: true` affiché. Acceptable. Scénario non testable automatiquement.
+- **Secrets** : `SUPABASE_SERVICE_ROLE_KEY` — 0 occurrence dans `src/`. Le bloc d'upload logo supprimé. ✅
+- **RBAC / Middleware** : Non modifié. Contrôles stricts `unassigned/pending → /onboarding` et cloisonnement `company/reseller/admin` intacts. ✅
+- **Tests automatisés** : 28/28 AUTH-4, 10/10 AUTH-2, 20/20 isolation sessions — 100% PASS. ✅
+- **Build** : 41/41 routes — code 0. ✅
+- **Scénarios manuels restants** (M1–M5) : Nécessitent un vrai compte en production — à valider après déploiement.
+- **Verdict** : ✅ **PRÊT POUR PRÉPARATION DU COMMIT AUTH-4.32**.
+
+## [AUTH-4.32] - 2026-10-13
+### Correction du Parcours d'Inscription et Gestion des E-mails Dupliqués (AUTH-4.32)
+
+#### Problèmes corrigés
+- **Double saisie d'informations** : L'utilisateur remplissait nom, entreprise, localisation, logo sur `/register/company` ou `/register/reseller`, puis retrouvait les mêmes champs sur `/onboarding` après confirmation de son e-mail.
+- **Perte du choix initial Société/Revendeur** : Le type choisi sur `/register` était perdu et redemandé sur `/onboarding`.
+- **Faux succès pour e-mail existant** : Sous Email Enumeration Protection, Supabase retournait `error: null` avec `identities: []` pour un compte confirmé existant. Le message "Vérifiez votre boîte mail" s'affichait à tort sans orienter vers `/login`.
+
+#### Fichiers modifiés (aucune modification base de données, aucun déploiement)
+1. **`src/lib/actions/auth.ts`** :
+   - `registerCompanyAction` et `registerResellerAction` simplifiés : ne demandent que `fullName`, `phone`, `email`, `password`.
+   - Sauvegarde de `preferred_role` (`"company"` ou `"reseller"`) dans `user_metadata` (indication UX uniquement, sans valeur d'autorisation).
+   - Détection compte existant : check `identities === []` → erreur explicite orientant vers `/login` ou `/forgot-password`.
+   - Suppression de l'upload de logo à l'inscription et de l'appel `service_role` dans `registerCompanyAction`.
+
+2. **`src/app/register/company/page.tsx`** :
+   - Formulaire court : Nom complet, Téléphone, Email, Mot de passe.
+   - Suppression de `GeographySelector`, `companyName`, `companyDescription`, `address`, `logo`.
+   - En-tête informatif : "Étape 1 sur 2 : Créez votre accès responsable...".
+
+3. **`src/app/register/reseller/page.tsx`** :
+   - Formulaire court : Nom complet, Téléphone, Email, Mot de passe.
+   - Suppression de `GeographySelector`, `Select`, `RESELLER_TYPES`, `businessName`, `resellerType`, `deliveryAddress`.
+   - Imports inutilisés nettoyés.
+
+4. **`src/app/onboarding/page.tsx`** :
+   - Lecture de `user.user_metadata?.preferred_role` (type `"company" | "reseller"`).
+   - Transmission de `initialPreferredRole` à `OnboardingForm`.
+
+5. **`src/components/onboarding/OnboardingForm.tsx`** :
+   - Prop `initialPreferredRole?: "company" | "reseller"` ajoutée à `OnboardingFormProps`.
+   - Initialisation : `useState(initialPreferredRole || "company")`.
+   - Titre adaptatif : "Confirmez votre type d'activité" si rôle pré-sélectionné, sinon "Choisissez votre type d'activité sur Radiza".
+   - Bandeau informatif discret affiché si `initialPreferredRole` est défini.
+
+#### Résultats des vérifications
+- **TypeScript** : ✅ 0 erreur (`npx tsc --noEmit`, code 0).
+- **Tests AUTH-4** : ✅ 28/28 réussis (`scripts/test-auth4-onboarding-matrix.mjs`).
+- **Build Next.js** : ✅ **41/41 routes — Code 0** (`/register/company` 3.52 kB, `/register/reseller` 3.51 kB, `/onboarding` 8.03 kB — tous corrects).
+
+#### Comportement Supabase documenté
+- `signUp()` sur e-mail confirmé existant → `error: null`, `data.user.identities: []` (signature officielle sous Email Enumeration Protection).
+- Sur e-mail non confirmé → Supabase met à jour les métadonnées et renvoie un nouveau lien sans erreur.
+
+#### Contraintes respectées
+- Aucune modification de la base Supabase de production.
+- Aucun git push, aucun déploiement Vercel.
+- Aucun commit sans feu vert explicite de l'utilisateur.
+
 ## [AUTH-4.29] - 2026-10-13
 ### Audit Final & Certification Pré-Publication GitHub (AUTH-4.29)
 

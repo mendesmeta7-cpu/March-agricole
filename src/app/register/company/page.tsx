@@ -3,7 +3,6 @@
 import { useFormState } from "react-dom";
 import Link from "next/link";
 import { registerCompanyAction } from "@/lib/actions/auth";
-import GeographySelector from "@/components/GeographySelector";
 import SubmitButton from "@/components/SubmitButton";
 import { Building2, AlertCircle, ArrowLeft, ShieldAlert, MailCheck } from "lucide-react";
 
@@ -65,8 +64,7 @@ export default function RegisterCompanyPage() {
           <div className="mb-6 p-4 rounded-xl bg-forest-50/60 border border-forest-200/60 text-xs text-forest-900 flex items-start gap-3 leading-relaxed">
             <ShieldAlert className="w-4 h-4 text-forest-700 flex-shrink-0 mt-0.5" />
             <div>
-              <strong>Information importante :</strong> L&apos;inscription crée exclusivement votre compte utilisateur et le profil de votre exploitation.
-              La configuration des produits et des récoltes s&apos;effectue ultérieurement depuis votre tableau de bord.
+              <strong>Étape 1 sur 2 :</strong> Créez votre accès responsable. La configuration détaillée de votre exploitation (dénomination, localisation et filières) s&apos;effectue lors de l&apos;activation de votre compte.
             </div>
           </div>
 
@@ -77,137 +75,64 @@ export default function RegisterCompanyPage() {
             </div>
           )}
 
-          <form action={formAction} className="space-y-6">
-            {/* Section 1 : Responsable */}
-            <div className="space-y-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-forest-800">
-                1. Responsable du compte
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nom complet <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    required
-                    placeholder="Ex: Jean Mukendi"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Téléphone professionnel
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    placeholder="Ex: +243 990 000 000"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Adresse email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    required
-                    placeholder="contact@ferme-agro.cd"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mot de passe <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    required
-                    minLength={6}
-                    placeholder="Au moins 6 caractères"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
-                  />
-                </div>
-              </div>
+          <form action={formAction} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nom complet du responsable <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="fullName"
+                required
+                placeholder="Ex: Jean Mukendi"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
+              />
             </div>
 
-            {/* Section 2 : Entité Agricole */}
-            <div className="space-y-4 pt-4 border-t border-gray-100">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-forest-800">
-                2. Profil de l&apos;Entreprise Agricole
-              </h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Numéro de téléphone
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                placeholder="Ex: +243 990 000 000"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Dénomination / Raison sociale <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="companyName"
-                  required
-                  placeholder="Ex: AgriCongo Ferme du Plateau"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Adresse email professionnelle <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                name="email"
+                required
+                placeholder="contact@ferme-agro.cd"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description de l&apos;activité
-                </label>
-                <textarea
-                  name="companyDescription"
-                  rows={3}
-                  placeholder="Présentez brièvement vos exploitations et filières cultivées..."
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Adresse physique / Siège
-                </label>
-                <input
-                  type="text"
-                  name="address"
-                  placeholder="Ex: Route nationale 1, Plateau de Bateke"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
-                />
-              </div>
-
-              {/* Localisation géographique réelle */}
-              <GeographySelector required={true} />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Logo de l&apos;entreprise (optionnel)
-                </label>
-                <input
-                  type="file"
-                  name="logo"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-forest-50 file:text-forest-700 hover:file:bg-forest-100 transition-all cursor-pointer"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Format JPG, PNG ou WebP. Max 5 Mo.
-                </p>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Mot de passe <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                name="password"
+                required
+                minLength={6}
+                placeholder="Au moins 6 caractères"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
+              />
             </div>
 
             <SubmitButton
               className="w-full py-3 px-4 rounded-lg bg-forest-700 hover:bg-forest-800 text-white shadow-sm hover:shadow"
-              loadingText="Création de l'entreprise en cours..."
+              loadingText="Création du compte en cours..."
             >
-              Créer mon compte Entreprise
+              Créer mon compte Société
             </SubmitButton>
           </form>
 

@@ -66,6 +66,10 @@ export default async function OnboardingPage() {
           userEmail={user.email}
           initialFullName={profile?.full_name}
           initialPhone={profile?.phone || undefined}
+          initialPreferredRole={
+            (user.user_metadata?.preferred_role as "company" | "reseller") ||
+            undefined
+          }
         />
       </main>
 

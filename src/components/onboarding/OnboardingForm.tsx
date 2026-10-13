@@ -26,14 +26,18 @@ interface OnboardingFormProps {
   userEmail?: string;
   initialFullName?: string;
   initialPhone?: string;
+  initialPreferredRole?: "company" | "reseller";
 }
 
 export default function OnboardingForm({
   userEmail,
   initialFullName = "",
   initialPhone = "",
+  initialPreferredRole,
 }: OnboardingFormProps) {
-  const [selectedRole, setSelectedRole] = useState<"company" | "reseller">("company");
+  const [selectedRole, setSelectedRole] = useState<"company" | "reseller">(
+    initialPreferredRole || "company"
+  );
   const [state, formAction] = useFormState(completeOnboardingAction, null);
 
   return (
@@ -78,9 +82,20 @@ export default function OnboardingForm({
               1
             </span>
             <h2 className="text-base sm:text-lg font-bold text-gray-900">
-              Choisissez votre type d&apos;activité sur Radiza
+              {initialPreferredRole
+                ? "Confirmez votre type d\u0027activité"
+                : "Choisissez votre type d\u0027activité sur Radiza"}
             </h2>
           </div>
+
+          {initialPreferredRole && (
+            <div className="flex items-center gap-2 text-xs text-forest-800 bg-forest-50/70 border border-forest-200/60 rounded-lg px-3 py-2">
+              <Check className="w-3.5 h-3.5 text-forest-600 shrink-0" />
+              <span>
+                Votre choix initial a été conservé. Vous pouvez le modifier ci-dessous si nécessaire.
+              </span>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {/* Option 1 : Société Agricole / Producteur */}
