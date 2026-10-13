@@ -81,12 +81,15 @@ erDiagram
 
 #### `profiles` (Extension de `auth.users`)
 * `id` : `UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE`
-* `role` : `VARCHAR(20) NOT NULL CHECK (role IN ('company', 'reseller', 'admin'))`
+* `role` : `VARCHAR(20) NOT NULL DEFAULT 'unassigned' CHECK (role IN ('unassigned', 'company', 'reseller', 'admin'))`
 * `full_name` : `VARCHAR(255) NOT NULL`
 * `phone` : `VARCHAR(50)`
 * `avatar_url` : `TEXT`
+* `avatar_cloudinary_public_id` : `TEXT`
+* `onboarding_status` : `VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (onboarding_status IN ('pending', 'completed'))`
+* `intended_role` : `VARCHAR(20) CHECK (intended_role IS NULL OR intended_role IN ('company', 'reseller'))` *(Verrouillage du type initial capturé au signUp via trigger SECURITY DEFINER, immuable pour le rôle authenticated — AUTH-4.38)*
 * `created_at`, `updated_at` : `TIMESTAMPTZ NOT NULL DEFAULT NOW()`
-* *Trigger* : `trg_profiles_updated_at`
+* *Triggers* : `trg_profiles_updated_at`, `trg_check_profile_creation_role`, `trg_prevent_profile_role_escalation`
 
 #### `companies` (Entreprises Agricoles)
 * `id` : `UUID PRIMARY KEY DEFAULT gen_random_uuid()`

@@ -4,6 +4,16 @@
 
 ---
 
+## 0. AUTHENTIFICATION, INSCRIPTION ET ONBOARDING DÉCOUPLÉ (`Auth & Onboarding`)
+
+### 0.1 Verrouillage du Choix Initial de Type de Compte (AUTH-4.38)
+* **BR-AUTH-01 (Immuabilité du Type Choisi)** : Le type de compte choisi par l'utilisateur lors de son inscription (`/register/company` $\rightarrow$ `company` ou `/register/reseller` $\rightarrow$ `reseller`) constitue le type attendu définitif. Il est capturé de manière inviolable par le trigger PostgreSQL `SECURITY DEFINER` `handle_new_user_registration()` dans la colonne `profiles.intended_role`.
+* **BR-AUTH-02 (Contrôle Serveur et Base Inviolable)** : L'écran `/onboarding` n'offre aucun moyen de basculer vers le type opposé lorsque `intended_role` est défini. La Server Action `completeOnboardingAction` et la fonction RPC `complete_user_onboarding` (`SECURITY DEFINER`) imposent la concordance absolue entre le rôle soumis et `profiles.intended_role`. Toute tentative de falsification (DevTools, PostgREST direct) est rejetée avec interruption immédiate de transaction.
+* **BR-AUTH-03 (Procédure pour Type Inconnu / NULL)** : Si un compte ne possède pas de `intended_role` (compte créé sans rôle initial ou flux OAuth libre), l'interface `/onboarding` active une sélection contrôlée entre Société et Revendeur. L'exécution de `complete_user_onboarding` enregistre alors de façon atomique `intended_role = p_role` en même temps que la finalisation de l'onboarding.
+* **BR-AUTH-04 (Séparation Stricte des Privilèges)** : Le rôle `authenticated` ne dispose d'aucun privilège UPDATE sur `profiles.intended_role`, `profiles.role` ou `profiles.onboarding_status`. Seules les procédures privilégiées `SECURITY DEFINER` et les administrateurs peuvent opérer ces transitions.
+
+---
+
 ## 1. ENTREPRISES AGRICOLES (`Company`)
 
 ### 1.1 Inscription et Découplage Fondamental (Règle d'Or 1)

@@ -22,10 +22,10 @@ export default async function OnboardingPage() {
     redirect("/login");
   }
 
-  // 2. Récupération du profil utilisateur
+  // 2. Récupération du profil utilisateur (source de vérité DB)
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, full_name, phone, onboarding_status")
+    .select("*")
     .eq("id", user.id)
     .single();
 
@@ -36,6 +36,15 @@ export default async function OnboardingPage() {
     if (profile.role === "admin") redirect("/dashboard/admin");
     redirect("/login");
   }
+
+  // AUTH-4.38 : Détermination du rôle initial verrouillé
+  // Priorité 1 : profiles.intended_role (DB, immuable)
+  // Priorité 2 : user_metadata.preferred_role (session inscription)
+  const rawProfile = profile as Record<string, unknown> | null;
+  const lockedRole =
+    (rawProfile?.intended_role as "company" | "reseller" | undefined) ||
+    (user.user_metadata?.preferred_role as "company" | "reseller" | undefined) ||
+    undefined;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-forest-50/70 via-white to-forest-50/40 py-8 px-4 sm:px-6 lg:px-8 flex flex-col justify-between">
@@ -66,10 +75,7 @@ export default async function OnboardingPage() {
           userEmail={user.email}
           initialFullName={profile?.full_name}
           initialPhone={profile?.phone || undefined}
-          initialPreferredRole={
-            (user.user_metadata?.preferred_role as "company" | "reseller") ||
-            undefined
-          }
+          initialPreferredRole={lockedRole}
         />
       </main>
 

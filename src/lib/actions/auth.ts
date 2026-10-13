@@ -436,6 +436,30 @@ export async function completeOnboardingAction(
     return { error: "Votre session a expiré ou est invalide. Veuillez vous reconnecter." };
   }
 
+  // AUTH-4.38 — Validation croisée côté serveur & Verrouillage du type de compte :
+  // Priorité 1 : profiles.intended_role (capturé en base par le trigger DB SECURITY DEFINER)
+  // Priorité 2 : user.user_metadata?.preferred_role (transmis lors du signUp)
+  const { data: userProfile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const rawUserProfile = userProfile as Record<string, unknown> | null;
+  const lockedRole =
+    (rawUserProfile?.intended_role as string | undefined) ||
+    (user.user_metadata?.preferred_role as string | undefined);
+
+  if (lockedRole && (lockedRole === "company" || lockedRole === "reseller") && lockedRole !== role) {
+    console.warn(
+      `AUTH-4.38 : Tentative de soumettre le rôle '${role}' alors que le type verrouillé est '${lockedRole}'. Utilisateur: ${user.id}`
+    );
+    return {
+      error:
+        "Votre type de compte ne correspond pas à votre inscription initiale. Si vous pensez qu'il s'agit d'une erreur, veuillez contacter le support Radiza.",
+    };
+  }
+
   // Appel de la procédure stockée RPC complete_user_onboarding (Migration 26)
   const { data: rpcData, error: rpcError } = await supabase.rpc("complete_user_onboarding", {
     p_role: role,

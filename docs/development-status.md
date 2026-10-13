@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-10-13 — Phase AUTH-4 : SOUS-ÉTAPE AUTH-4.36 EN COURS (Simplification UX de l'onboarding : bandeau compact si preferred_role défini, cartes masquées — TypeScript 0 erreur, tests 28/28 réussis, build en cours — Aucun commit, push ou déploiement).*
+*Dernière mise à jour : 2026-10-13 — Phase AUTH-4 : SOUS-ÉTAPE AUTH-4.38 TERMINÉE LOCALEMENT (Verrouillage complet du type de compte Radiza — Migration 27 préparée localement avec intended_role, trigger handle_new_user_registration et RPC complete_user_onboarding avec contrôle inviolable, priorisation de la vérité DB dans OnboardingPage et completeOnboardingAction, suite de 14 tests dédiée validée 14/14, 28/28 matrice AUTH-4, 10/10 AUTH-2, 20/20 sessions, TypeScript 0 erreur, Build 41/41 certifié — Prêt pour commit local, aucune écriture distante en production).*
 
 
 ---

@@ -115,13 +115,6 @@ export default function OnboardingForm({
                   Sélectionné
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowRoleSelector(true)}
-                className="text-xs text-gray-400 hover:text-gray-600 underline transition-colors shrink-0 ml-4"
-              >
-                Modifier
-              </button>
             </div>
           ) : (
             /* ── Mode sélection : rôle non connu ou modification demandée ── */

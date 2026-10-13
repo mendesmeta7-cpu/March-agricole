@@ -3,6 +3,47 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [AUTH-4.38] - 2026-10-13
+### Implémentation Complète du Verrouillage du Type de Compte Radiza (AUTH-4.38)
+
+- **Mode** : Implémentation locale complète et tests — Aucun push, aucun déploiement Vercel, aucune modification distante de la base de données.
+- **Décision fonctionnelle** : Le type choisi au début de l'inscription (`/register/company` ou `/register/reseller`) devient le type attendu immuable du compte.
+- **Migration SQL 27 (`20261013000027_enforce_intended_role_locking.sql`) préparée localement** :
+  - Colonne `public.profiles.intended_role VARCHAR(20) NULLABLE` avec contrainte CHECK (`company`, `reseller` ou NULL).
+  - Privilège : `GRANT SELECT (intended_role) ON TABLE public.profiles TO authenticated;` (aucun droit UPDATE accordé).
+  - Trigger `handle_new_user_registration()` mis à jour (`SECURITY DEFINER`, `search_path 'public', 'pg_temp'`) : capture `preferred_role` depuis `raw_user_meta_data` au moment de la création du compte Auth, initialisant `intended_role` avant toute interaction client.
+  - Reprise rétroactive chirurgicale et sûre des comptes en attente existants (`unassigned/pending` dont `intended_role IS NULL` et `preferred_role IN ('company', 'reseller')`). Préservation absolue des 10 profils historiques complétés et du compte en attente sans choix connu (`benovie89@gmail.com`).
+  - RPC `complete_user_onboarding` mise à jour (`SECURITY DEFINER`) : impose que si `v_profile.intended_role IS NOT NULL`, `p_role` DOIT lui correspondre strictement, sous peine d'interruption immédiate (`RAISE EXCEPTION`). Si `intended_role` est NULL (compte sans choix initial), la RPC accepte le choix contrôlé et enregistre `intended_role = p_role` de manière atomique.
+- **Frontend & Server Actions** :
+  - `src/app/onboarding/page.tsx` : Sélection `*` sur `profiles`, priorisation de `profile.intended_role` (vérité DB) avec repli transparent sur `user.user_metadata.preferred_role`.
+  - `src/components/onboarding/OnboardingForm.tsx` : Suppression totale du bouton "Modifier". Si le type est connu, affichage d'un bandeau compact confirmant le type et rendu exclusif des champs métier correspondants. Si le type est NULL, activation de la sélection contrôlée sans attribution arbitraire.
+  - `src/lib/actions/auth.ts` : Dans `completeOnboardingAction`, lecture prioritaire de `profiles.intended_role` et rejet immédiat si divergence avec le rôle soumis.
+- **Suite de tests dédiée 14/14 scénarios (`scripts/test-auth4-38-account-type-lock.mjs`)** :
+  - 14 scénarios validés à 100% (Société, Revendeur, altération métadonnées, appel direct RPC opposé, tentative UPDATE client, type NULL, rollback sur échec, protection anti-concurrence, profils historiques complétés, reprise profil pending avec choix, préservation profil pending sans choix, flux AUTH-2, isolation tableaux de bord, interdiction rôle Admin).
+- **Batterie globale de tests** :
+  - Matrice AUTH-4 : 28/28 tests réussis ✅
+  - Redirections AUTH-2 : 10/10 tests réussis ✅
+  - Isolation des sessions : 20/20 tests réussis ✅
+  - TypeScript : 0 erreur (`npx tsc --noEmit`) ✅
+  - Build de production Next.js : 41/41 routes compilées avec succès ✅
+
+## [AUTH-4.37] - 2026-10-13
+### Verrouillage Sécurisé du Type de Compte (AUTH-4.37)
+
+- **Mode** : Implémentation locale uniquement — Aucun commit, push, déploiement ou changement Supabase de production.
+- **Vecteurs identifiés** : V1 (champ hidden `role` injectable via DevTools) ✅ bloqué — V2 (`user_metadata` modifiable via API) ⚠️ partiellement bloqué — V3 (RPC sans cross-check) ✅ bloqué.
+- **`src/lib/actions/auth.ts`** : Validation croisée dans `completeOnboardingAction` — si `user_metadata.preferred_role` défini et ≠ `role` soumis → rejet + `console.warn`.
+- **`src/components/onboarding/OnboardingForm.tsx`** : Bouton "Modifier" supprimé — bandeau compact verrouillé quand `initialPreferredRole` est défini.
+- **Proposition migration** (locale, non appliquée) : `auth437_migration_proposal.sql` — ajoute `profiles.intended_role` stockée par le trigger SECURITY DEFINER, protégée par REVOKE UPDATE (Migration 26). Défense définitive contre V2.
+- **Tests** : TypeScript 0 erreur ✅ — 28/28 AUTH-4 ✅ — 10/10 AUTH-2 ✅ — 20/20 isolations ✅ — build 41/41 ✅.
+
+## [AUTH-4.36] - 2026-10-13
+### Simplification de l'Onboarding selon le Choix Initial (AUTH-4.36)
+
+- **Mode** : Implémentation locale — Aucun commit, push ou déploiement.
+- **`src/components/onboarding/OnboardingForm.tsx`** : Ajout de `showRoleSelector` (false si `initialPreferredRole` défini). Affichage d'un bandeau compact avec icône, nom du type et badge "Sélectionné" à la place des deux grandes cartes. Comportement inchangé si rôle inconnu.
+- **Tests** : TypeScript 0 erreur ✅ — 28/28 AUTH-4 ✅ — build 41/41 ✅.
+
 ## [AUTH-4.34] - 2026-10-13
 ### Préparation et Création du Commit Local AUTH-4.32 (AUTH-4.34)
 
