@@ -3,7 +3,59 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [AUTH-5.3] - 2026-10-14
+### Implémentation Locale de Google OAuth (Radiza V1)
+
+- **Mode** : Implémentation logicielle locale et tests automatisés. Aucune modification de base de données, aucune modification de production dans Supabase, aucun commit, aucun push, aucun déploiement Vercel.
+- **Nouveaux composants UI** :
+  - `src/components/auth/GoogleSignInButton.tsx` : Bouton client réutilisable « Continuer avec Google » avec icône officielle Google SVG en 4 couleurs, gestion de l'état `loading`, prévention stricte des doubles clics, accessibilité complète (`aria-label`, `aria-busy`, focus ring), et résolution d'URL absolue post-OAuth.
+- **Intégrations dans les pages** :
+  - `src/app/login/page.tsx` : Intégration du bouton Google au-dessus du formulaire d'e-mail avec séparateur visuel épuré. Ajout de la gestion des erreurs de conflit d'identité (`user_already_exists`, `oauth_conflict`) sans fuite d'informations sensibles.
+  - `src/app/register/page.tsx` : Intégration du bouton Google au-dessus des cartes de choix de profil avec séparateur visuel contextuel.
+- **Sécurisation de la route de callback** :
+  - `src/app/auth/callback/route.ts` :
+    - Détection explicite du flux OAuth (`flow=oauth` ou présence du paramètre `provider`).
+    - Préservation intégrale de la session active sans exécution du `signOut` réservé aux inscriptions par e-mail classiques.
+    - Contrôle en base du statut d'onboarding (`role` et `onboarding_status`) : les profils `unassigned` ou `pending` sont automatiquement et obligatoirement redirigés vers `/onboarding`.
+    - Redirection déterministe vers le dashboard métier (`/dashboard/company`, `/dashboard/reseller`, `/dashboard/admin`) pour les comptes déjà complétés.
+    - Gestion sécurisée et traduite des erreurs OAuth (`access_denied`, `user_already_exists`, etc.).
+    - Sanitisation stricte anti-Open-Redirect via `sanitizeRedirectPath`.
+- **Tests et recette** :
+  - Création du script de tests `scripts/test-auth5-google-oauth.mjs` couvrant les 12 points d'audit exigés : 12/12 tests réussis (100%).
+  - Exécution des suites de non-régression existantes :
+    - `test-auth4-onboarding-matrix.mjs` : 28/28 tests réussis.
+    - `test-auth4-38-account-type-lock.mjs` : 14/14 tests réussis.
+    - `test-auth2-redirects.mjs` : 10/10 tests réussis.
+    - `test-session-isolation.mjs` : 20/20 tests réussis.
+    - **Total des tests automatisés** : 84/84 tests réussis à 100%.
+  - Compilation TypeScript : `npx tsc --noEmit` → Code 0 (0 erreur).
+- **Statut de validation** : Implémentation locale terminée et certifiée. Non validé en production (en attente de la configuration externe des identifiants Google Cloud dans Supabase Dashboard).
+
+## [AUTH-4.46] - 2026-10-14
+### Audit Final AUTH-4, Synchronisation du Registre et Clôture Documentaire
+
+- **Mode** : Audit technique en production (lecture seule) + synchronisation du registre des migrations (écriture ciblée sur `supabase_migrations.schema_migrations` uniquement). Aucun fichier code modifié. Aucun commit créé. Aucun push. Aucun déploiement.
+- **Résultat build confirmé (task-59)** : Build Next.js `npm run build` terminé avec code 0. 41/41 routes compilées avec succès (ƒ Dynamic + ○ Static). Aucune erreur de compilation.
+- **Résultat TypeScript** : `npx tsc --noEmit` → code 0 → 0 erreur.
+- **Résultats tests automatisés** : 72/72 tests réussis (28/28 matrice AUTH-4, 14/14 AUTH-4.38, 10/10 AUTH-2, 20/20 sessions).
+- **Validation manuelle production** : Parcours Société et Revendeur validés manuellement par l'utilisateur en production (choix initial → confirmation email → connexion → onboarding → dashboard correspondant).
+- **Synchronisation registre CLI** : Migration `20261013000027_enforce_intended_role_locking` absente du registre `supabase_migrations.schema_migrations` (fonctionnellement appliquée). Enregistrement effectué via INSERT ciblé (équivalent fonctionnel de `supabase migration repair --status applied 20261013000027`). La migration SQL n'a pas été rejouée.
+- **Vérifications post-synchronisation** :
+  - Registre : `20261013000027` présente une seule fois, versions précédentes intactes ✅
+  - Schéma : colonne `intended_role`, contrainte `chk_profiles_intended_role`, triggers `trg_on_auth_user_created` et `trg_prevent_profile_role_escalation` — tous conformes ✅
+  - Profils : 12 total, 12 `completed`, 0 `pending`, 0 `unassigned`, 2 avec `intended_role` renseigné ✅
+  - Privilèges : UPDATE révoqué sur `intended_role`, `role`, `onboarding_status` pour `authenticated` ✅
+  - RPC `complete_user_onboarding` : SECURITY DEFINER, search_path conforme, contrôle 3bis AUTH-4.38 actif, EXECUTE révoqué pour `anon` ✅
+- **Anomalies documentées** :
+  - ~~ANOMALIE 1~~ : Migration 27 absente du registre → **RÉSOLUE** par synchronisation.
+  - ANOMALIE 2 (`anon = EXECUTE` sur trigger handle_new_user_registration) : Comportement PostgreSQL attendu, non exploitable. Aucune action requise.
+  - ANOMALIE 3 (10 profils historiques `intended_role = NULL`) : Conforme à la spec, non bloquant. Aucune action requise.
+- **Scénarios E2E non exécutés (limitations environnement)** : Token de confirmation expiré naturellement, erreur réseau pendant RPC, JWT falsifié envoyé directement à la RPC.
+- **État Git final** : Branche `main`, `up to date with 'origin/main'`, working tree `clean`. Commit de référence : `3a1ded66eaceb31c40b99f0c979bd582a2c73ad0`.
+- **Prérequis AUTH-5 documentés** : Activation provider Google Supabase, `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`, callback `/auth/callback` déjà équipé CAS 3, onboarding unifié déjà prêt. Aucune implémentation démarrée.
+
 ## [AUTH-4.38] - 2026-10-13
+
 ### Implémentation Complète du Verrouillage du Type de Compte Radiza (AUTH-4.38)
 
 - **Mode** : Implémentation locale complète et tests — Aucun push, aucun déploiement Vercel, aucune modification distante de la base de données.

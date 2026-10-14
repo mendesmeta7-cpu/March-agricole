@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-10-13 — Phase AUTH-4 : SOUS-ÉTAPE AUTH-4.38 TERMINÉE LOCALEMENT (Verrouillage complet du type de compte Radiza — Migration 27 préparée localement avec intended_role, trigger handle_new_user_registration et RPC complete_user_onboarding avec contrôle inviolable, priorisation de la vérité DB dans OnboardingPage et completeOnboardingAction, suite de 14 tests dédiée validée 14/14, 28/28 matrice AUTH-4, 10/10 AUTH-2, 20/20 sessions, TypeScript 0 erreur, Build 41/41 certifié — Prêt pour commit local, aucune écriture distante en production).*
+*Dernière mise à jour : 2026-10-14 — Phase AUTH-4 : CLÔTURÉE (AUTH-4.46) — Audit final, synchronisation du registre des migrations (migration 27 enregistrée dans schema_migrations via MCP Supabase), build 41/41 certifié, 72/72 tests automatisés réussis, parcours Société et Revendeur validés manuellement en production. Commit de référence : 3a1ded66. Working tree propre. Prérequis AUTH-5 documentés. Attente instruction pour AUTH-5.*
 
 
 ---
@@ -70,8 +70,8 @@
 | **RESPONSIVE-AVATAR** | **Affichage Avatar Responsive PC / Mobile** | 🟢 **TERMINÉ** | Différenciation responsive : sur PC ($\ge$ `lg`), avatar masqué dans l'en-tête (`lg:hidden`) et conservé dans la barre latérale permanente (cartouche logo + pied utilisateur). Sur mobile ($<$ `lg`), avatar conservé dans l'en-tête pour accès immédiat, tiroir mobile épuré sans doublon. TypeScript 0 erreur, build certifié. |
 | **AUTH-2** | **Correction URLs, Callback & Redirection Connexion** | 🟢 **VALIDÉ EN PRODUCTION (3/3 contrôles vérifiés — Réserve lien expiré)** | Stratégie URL publique absolue (`getAppUrl`), paramètre `emailRedirectTo` avec `flow=signup`, échange PKCE et validation email, terminaison propre de la session temporaire (`signOut` + purge cookies), redirection vers `/login?verified=true` avec affichage du bandeau vert, préservation des flux recovery/OAuth, suite de 10 tests validée à 100%, TypeScript 0 erreur, Build ✓ 38/38 routes.<br>**VALIDÉ EN PRODUCTION** : Déploiement Ready, lien d'activation fonctionnel sans erreur localhost, redirection vers `/login?verified=true`, bandeau de succès vert affiché, connexion manuelle opérationnelle, protection directe des dashboards (`/dashboard/reseller` et `/dashboard/company` -> `/login` en navigation privée sans session active), redirection compte société vers `/dashboard/company`, gestion du lien altéré (erreur explicite, retour `/login`, 0 session, dashboard bloqué).<br>**RÉSERVE DOCUMENTAIRE** : Scénario du lien réellement expiré (token expiré dans le temps) non testé séparément. |
 | **AUTH-3** | **Mot de Passe Oublié & Réinitialisation** | 🟢 **VALIDÉ EN PRODUCTION (6/6 contrôles — Tests manuels — Réserve expiration token)** | Lien « Mot de passe oublié ? » sur `/login`, page `/forgot-password` (demande anti-énumération), callback recovery sécurisé (`type=recovery` obligatoire, anti-hijack), page `/reset-password` (vérif. session serveur + `updateUser` + signOut scope:local + purge cookies), bandeau `password_updated` sur `/login`, gestion `recovery_expired`. TypeScript 0 erreur, Build ✓ 40/40 routes. **VALIDé EN PRODUCTION** : Demande fonctionnelle (message neutre), e-mail reçu, lien → `/reset-password`, mot de passe mis à jour, reconnexion et redirection tableau de bord, lien altéré rejeté, non-régression AUTH-2 confirmée. **RÉSERVE DOCUMENTAIRE** : Expiration naturelle du token non testée séparément. |
-| **AUTH-4** | **Refonte Inscription & Onboarding Découplé** | 🟢 **PRÊT POUR PUBLICATION (Migration 26 homologuée et enregistrée, 28/28 tests matrice réussis, TypeScript 0 erreur, build 41/41 routes certifié — En attente de push GitHub et déploiement Vercel)** |
-| **AUTH-5** | **Connexion avec Google (OAuth)** | ⏳ **PLANIFIÉ (Phase ultérieure — Post AUTH-4)** | Intégration du fournisseur Google, réutilisation du parcours unifié d'onboarding pour les nouveaux profils. |
+| **AUTH-4** | **Refonte Inscription & Onboarding Découplé** | 🟢 **CLÔTURÉ EN PRODUCTION (AUTH-4.46 — 2026-10-14)** | Parcours Société et Revendeur validés manuellement en production. Migrations 26 et 27 appliquées et enregistrées dans `schema_migrations`. 72/72 tests automatisés réussis (28/28 matrice AUTH-4, 14/14 AUTH-4.38, 10/10 AUTH-2, 20/20 sessions). TypeScript 0 erreur. Build 41/41 certifié. Commit de référence : `3a1ded66`. Working tree propre. Registre CLI synchronisé via MCP Supabase. |
+| **AUTH-5** | **Connexion avec Google (OAuth)** | 🟡 **IMPLÉMENTATION LOCALE TERMINÉE (AUTH-5.3 — En attente config externe & revue)** | Bouton « Continuer avec Google » réutilisable (`GoogleSignInButton` avec anti-double clic et feedback loading), intégration sur `/login` et `/register`, sécurisation du callback `/auth/callback` (préservation de session OAuth, orientation des comptes incomplets `unassigned`/`pending` vers `/onboarding`, redirection dashboard pour comptes complétés), gestion sécurisée des conflits d'identité, 84/84 tests automatisés réussis (12/12 AUTH-5, 28/28 AUTH-4, 14/14 AUTH-4.38, 10/10 AUTH-2, 20/20 sessions). TypeScript 0 erreur (`tsc --noEmit` code 0). Non validé en production (en attente configuration externe des clés Google Cloud dans Supabase). |
 | **AUTH-6** | **Connexion avec Apple (OAuth)** | ⏳ **PLANIFIÉ (Phase ultérieure — Post AUTH-5)** | Intégration Sign in with Apple, gestion des alias privés et nom à la première connexion. |
 
 
@@ -207,6 +207,38 @@
 - ⚠️ **Contrôle d'identité dans la RPC privilégiée** : La future fonction RPC `complete_user_onboarding` (`SECURITY DEFINER`) doit impérativement valider `auth.uid() = p_user_id`, rejeter toute valeur `admin`, et valider l'intégrité des clés étrangères (`country_id`, `province_id`).
 - ⚠️ **Migration rétrocompatible obligatoire** : Tous les comptes en base possédant déjà une entreprise ou un profil revendeur doivent être déclarés complets dès l'application de la migration.
 - ⚠️ **Interdiction de démarrer AUTH-4.1** sans autorisation expresse de l'utilisateur.
+
+---
+
+## 2d. BILAN DE L'IMPLÉMENTATION LOCALE AUTH-5 (GOOGLE OAUTH)
+
+* **Date de réalisation locale** : 2026-10-14 (Jalon AUTH-5.3)
+* **Statut de la phase** : 🟡 **IMPLÉMENTATION LOCALE TERMINÉE — EN ATTENTE CONFIGURATION EXTERNE & REVUE**
+* **Livrables techniques réalisés** :
+  - [x] Composant réutilisable `GoogleSignInButton.tsx` (`src/components/auth/GoogleSignInButton.tsx`) : icône officielle Google 4 couleurs, gestion d'état `loading`, prévention des doubles clics, accessibilité ARIA complète.
+  - [x] Intégration sur `/login` avec séparateur visuel au-dessus du formulaire e-mail/mot de passe.
+  - [x] Intégration sur `/register` avec séparateur visuel au-dessus du choix de profil d'inscription.
+  - [x] Sécurisation de la route de callback `src/app/auth/callback/route.ts` :
+    - Détection stricte du flux OAuth (`flow=oauth` ou `provider=google`).
+    - Préservation intégrale de la session active sans déconnexion.
+    - Contrôle en base de `role` et `onboarding_status` : redirection automatique vers `/onboarding` si `unassigned` ou `pending`.
+    - Redirection directe vers le dashboard métier si le compte est complété.
+    - Gestion sécurisée des erreurs OAuth (`access_denied`, `user_already_exists`, etc.) sans fuite de secrets ni de données personnelles.
+    - Sanitisation stricte des redirections anti Open-Redirect (`sanitizeRedirectPath`).
+  - [x] Non-régression totale des flux existants :
+    - Flux classique d'inscription par email : confirmation obligatoire et déconnexion préservées (`signOut scope:local` + `/login?verified=true`).
+    - Flux de mot de passe oublié (AUTH-3) : préservation du flux recovery vers `/reset-password`.
+    - Verrouillage du type de compte (AUTH-4.38) : `intended_role` respecté, exclusion absolue de tout accès admin.
+  - [x] Suite de tests automatisée `scripts/test-auth5-google-oauth.mjs` validant les 12 scénarios d'audit (12/12 réussis à 100%).
+  - [x] Suite globale des tests automatisés au vert : 84/84 tests réussis (12/12 AUTH-5, 28/28 AUTH-4, 14/14 AUTH-4.38, 10/10 AUTH-2, 20/20 sessions).
+  - [x] TypeScript : 0 erreur (`npx tsc --noEmit` code 0).
+* **Limites des tests & Opérations externes requises (Intervention humaine)** :
+  - ⚠️ Validation locale uniquement : aucun test de bout en bout avec un véritable compte Google n'a été exécuté en production (fournisseur Google non encore activé dans Supabase).
+  - ⚠️ Configuration externe à réaliser par l'administrateur :
+    1. Projet Google Cloud & Écran de consentement OAuth.
+    2. Identifiant Client Web Google avec URI de redirection : `https://gonerlgkdnbdewjbebvq.supabase.co/auth/v1/callback`.
+    3. Configuration de `Client ID` et `Client Secret` dans Supabase Dashboard.
+    4. Vérification des URL de redirection autorisées dans Supabase.
 
 ---
 

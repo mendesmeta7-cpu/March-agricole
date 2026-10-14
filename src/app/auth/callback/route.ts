@@ -56,6 +56,16 @@ export async function GET(request: Request) {
       redirectErrorCode = isRecoveryFlow ? "recovery_expired" : "confirmation_expired";
     } else if (error === "access_denied") {
       redirectErrorCode = isRecoveryFlow ? "recovery_expired" : "access_denied";
+    } else if (
+      errorCode === "user_already_exists" ||
+      errorCode === "identity_already_exists" ||
+      errorDescription?.toLowerCase().includes("already registered") ||
+      errorDescription?.toLowerCase().includes("already been registered") ||
+      errorDescription?.toLowerCase().includes("already linked")
+    ) {
+      redirectErrorCode = "user_already_exists";
+    } else if (flow === "oauth" || searchParams.has("provider")) {
+      redirectErrorCode = "access_denied";
     }
 
     return NextResponse.redirect(
@@ -68,10 +78,11 @@ export async function GET(request: Request) {
   const nextRaw = searchParams.get("next");
   const safeNext = sanitizeRedirectPath(nextRaw, "");
 
-  // - Flux d'accès direct ou OAuth (destination explicite vers un dashboard ou présence d'un provider OAuth)
+  // - Flux d'accès direct ou OAuth (destination explicite vers un dashboard, flow=oauth ou présence d'un provider)
+  const isOAuthFlow = flow === "oauth" || searchParams.has("provider");
   const isDirectAccessFlow =
     !isRecoveryFlow &&
-    (safeNext.startsWith("/dashboard") || searchParams.has("provider"));
+    (isOAuthFlow || safeNext.startsWith("/dashboard"));
 
   // - Flux de confirmation d'inscription (explicite via flow=signup / type=signup ou par défaut pour un lien email)
   const isSignupConfirmation =
@@ -97,7 +108,7 @@ export async function GET(request: Request) {
     }
 
     if (authData?.user) {
-      // CAS 1 : Confirmation d'inscription par email
+      // CAS 1 : Confirmation d'inscription par email (Flux classique AUTH-2 & AUTH-4)
       // L'adresse e-mail est validée. On termine proprement la session temporaire pour
       // imposer une connexion explicite avec identifiants, sans accès direct au dashboard.
       if (isSignupConfirmation) {
@@ -138,27 +149,40 @@ export async function GET(request: Request) {
         return NextResponse.redirect(new URL(recoveryTarget, baseUrl));
       }
 
-      // CAS 3 : Authentification directe ou OAuth (AUTH-6 futur)
-      // La session est préservée et l'utilisateur est aiguillé selon sa destination ou son rôle
+      // CAS 3 : Authentification directe ou OAuth (Google OAuth — AUTH-5)
+      // La session est préservée. Contrôle du profil utilisateur (role et onboarding_status).
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role, onboarding_status")
+        .eq("id", authData.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        console.warn("[Auth Callback] Profil introuvable pour l'utilisateur:", authData.user.id);
+        return NextResponse.redirect(new URL("/login?error=profile_missing", baseUrl));
+      }
+
+      // Si l'utilisateur est unassigned ou si son onboarding est incomplet :
+      // Redirection impérative vers /onboarding pour compléter son activité
+      if (profile.role === "unassigned" || profile.onboarding_status !== "completed") {
+        return NextResponse.redirect(new URL("/onboarding", baseUrl));
+      }
+
+      // Si une destination spécifique sécurisée était demandée pour un compte déjà complété
       if (safeNext && safeNext !== "/" && !safeNext.startsWith("/login")) {
         return NextResponse.redirect(new URL(safeNext, baseUrl));
       }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", authData.user.id)
-        .single();
-
-      if (profile?.role === "company") {
+      // Aiguillage déterministe par rôle pour un compte complété
+      if (profile.role === "company") {
         return NextResponse.redirect(new URL("/dashboard/company", baseUrl));
-      } else if (profile?.role === "reseller") {
+      } else if (profile.role === "reseller") {
         return NextResponse.redirect(new URL("/dashboard/reseller", baseUrl));
-      } else if (profile?.role === "admin") {
+      } else if (profile.role === "admin") {
         return NextResponse.redirect(new URL("/dashboard/admin", baseUrl));
       }
 
-      return NextResponse.redirect(new URL("/login?verified=true", baseUrl));
+      return NextResponse.redirect(new URL("/onboarding", baseUrl));
     }
   }
 

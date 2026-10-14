@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Building2, Store, ArrowRight, ArrowLeft } from "lucide-react";
 import BrandLogo from "@/components/ui/BrandLogo";
+import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -25,7 +26,7 @@ export default function RegisterChoicePage() {
 
       {/* Contenu Principal */}
       <main className="max-w-4xl mx-auto w-full my-auto py-4 sm:py-8">
-        <div className="text-center mb-8 sm:mb-12">
+        <div className="text-center mb-8 sm:mb-10">
           <div className="flex justify-center mb-6">
             <BrandLogo variant="horizontal" height={44} priority />
           </div>
@@ -35,6 +36,21 @@ export default function RegisterChoicePage() {
           <p className="text-sm sm:text-base text-forest-900/70 max-w-lg mx-auto">
             Sélectionnez le type d&apos;acteur correspondant à votre activité pour accéder au formulaire d&apos;inscription dédié.
           </p>
+        </div>
+
+        {/* Option d'accès direct avec Google */}
+        <div className="max-w-md mx-auto mb-8 sm:mb-10">
+          <GoogleSignInButton text="Continuer avec Google" />
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-forest-200/60" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-white/80 backdrop-blur-xs px-3 text-forest-900/60 font-medium">
+                ou choisir votre profil par e-mail
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Grille des 2 options d'inscription */}

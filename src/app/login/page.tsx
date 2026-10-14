@@ -8,6 +8,7 @@ import { loginAction } from "@/lib/actions/auth";
 import SubmitButton from "@/components/SubmitButton";
 import { AlertCircle, CheckCircle2, Lock, Mail } from "lucide-react";
 import BrandLogo from "@/components/ui/BrandLogo";
+import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 
 function getUrlErrorMessage(errorKey: string | null): string {
   switch (errorKey) {
@@ -24,6 +25,9 @@ function getUrlErrorMessage(errorKey: string | null): string {
       return "Le lien de réinitialisation du mot de passe a expiré ou est invalide. Veuillez faire une nouvelle demande.";
     case "role_unknown":
       return "Votre compte présente une configuration inattendue. Veuillez contacter le support Radiza.";
+    case "user_already_exists":
+    case "oauth_conflict":
+      return "Un compte associé à cette adresse e-mail existe déjà. Veuillez vous connecter avec vos identifiants habituels.";
     default:
       return "Une erreur est survenue lors de l'authentification.";
   }
@@ -62,6 +66,23 @@ function LoginForm() {
           <div>{state?.error || getUrlErrorMessage(urlError)}</div>
         </div>
       )}
+
+      {/* Connexion rapide avec Google */}
+      <div className="mb-5">
+        <GoogleSignInButton text="Continuer avec Google" />
+      </div>
+
+      {/* Séparateur visuel */}
+      <div className="relative my-5">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-200" />
+        </div>
+        <div className="relative flex justify-center text-xs">
+          <span className="bg-white px-3 text-gray-500 font-medium">
+            ou par e-mail
+          </span>
+        </div>
+      </div>
 
       <form action={formAction} className="space-y-4 sm:space-y-5">
         <div>
