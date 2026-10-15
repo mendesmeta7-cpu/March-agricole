@@ -9,6 +9,7 @@ interface GoogleSignInButtonProps {
   text?: string;
   className?: string;
   redirectTo?: string;
+  role?: "company" | "reseller";
 }
 
 function GoogleIcon({ className = "w-5 h-5" }: { className?: string }) {
@@ -38,6 +39,7 @@ export default function GoogleSignInButton({
   text = "Continuer avec Google",
   className = "",
   redirectTo,
+  role,
 }: GoogleSignInButtonProps) {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -53,9 +55,20 @@ export default function GoogleSignInButton({
       // Résolution de l'URL absolue de redirection
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       const base = getAppUrl() || origin;
-      const callbackUrl =
-        redirectTo ||
-        `${base.replace(/\/+$/, "")}/auth/callback?flow=oauth&provider=google`;
+      
+      let defaultCallback = `${base.replace(/\/+$/, "")}/auth/callback?flow=oauth&provider=google`;
+      if (role && (role === "company" || role === "reseller")) {
+        defaultCallback += `&role=${encodeURIComponent(role)}`;
+        
+        // Mémorisation de secours par cookie sécurisé éphémère (10 minutes)
+        if (typeof document !== "undefined") {
+          const isSecure = window.location.protocol === "https:";
+          const secureFlag = isSecure ? "; Secure" : "";
+          document.cookie = `radiza_oauth_role=${encodeURIComponent(role)}; Path=/; Max-Age=600; SameSite=Lax${secureFlag}`;
+        }
+      }
+
+      const callbackUrl = redirectTo || defaultCallback;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",

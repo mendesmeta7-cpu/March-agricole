@@ -3,6 +3,106 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [AUTH-5.18] - 2026-10-15
+### Correction Locale Consolidée du Callback Google OAuth (Radiza V1)
+
+- **Mode** : Correction applicative locale consolidée suite à l'audit AUTH-5.17. 100/100 tests automatisés réussis. Migration 28 déjà appliquée et enregistrée en production. Aucun commit, aucun push, aucun déploiement Vercel. Code strictement local.
+- **Défauts corrigés dans `src/app/auth/callback/route.ts`** :
+  - **DEF-1 (Purge cookie sur échec PKCE)** : Sur la branche `exchangeError`, invalidation explicite du cookie éphémère `radiza_oauth_role` avec `maxAge = 0` dans les en-têtes HTTP de la réponse retournée.
+  - **DEF-2 (Protection relecture défensive)** : Relecture de profil après échec ou exception de `set_user_intended_role` enveloppée dans un bloc `try/catch` dédié (`refreshEx`) évitant toute erreur HTTP 500 non maîtrisée.
+  - **DEF-3 (Gestion profil complété en relecture)** : Sélection de `id, role, onboarding_status, intended_role` lors de la relecture défensive. Si le profil relu est devenu `completed`, aiguillage direct vers son tableau de bord métier légitime sans passage erroné par `/onboarding`.
+  - **DEF-4 (Résilience globale Route Handler)** : Enveloppement de la fonction `GET()` dans un gestionnaire d'exception de haut niveau `try/catch (fatalError)` retournant `/login?error=oauth_error` et purgeant le cookie `radiza_oauth_role`.
+  - **DEF-5 (Concordance de rôle pour `safeNext`)** : Intégration de la fonction de routage `resolveCompletedDashboard(role, safeNext)`. Rejet de toute destination demandée ciblant l'espace d'un autre rôle au profit du tableau de bord concordant avec le rôle réel en base.
+- **Suite de tests consolidée (`scripts/test-auth5-google-oauth.mjs`)** :
+  - Couverture des 12 scénarios obligatoires de l'audit AUTH-5.17 et AUTH-5.18 (échec PKCE + purge, exception relecture, erreur Supabase relecture, profil absent/invalide, profil devenu completed company/reseller, profil incohérent, safeNext concordant/discordant, destination neutre, purge cookie sur toutes sorties, non-régression signup/recovery).
+  - Bilan de la suite : **28/28 tests réussis à 100%**.
+- **Non-régression totale** :
+  - AUTH-4 Matrice : 28/28 réussis.
+  - AUTH-4.38 Verrouillage : 14/14 réussis.
+  - AUTH-2 Redirections : 10/10 réussis.
+  - Sessions & Isolation : 20/20 réussis.
+  - Total : **100/100 tests automatisés réussis (100%)**.
+- **Contrôles de compilation** :
+  - `npx tsc --noEmit` : Code 0 (0 erreur).
+  - `npm run build` : Code 0 (41/41 routes compilées avec succès).
+- **Statut** : **CORRECTION LOCALE VALIDÉE — PRÊTE POUR REVUE AVANT COMMIT.** Recette manuelle Google OAuth en production toujours en attente du déploiement.
+
+## [AUTH-5.16] - 2026-10-15
+### Sécurisation du Callback Google OAuth et Primauté de la Base de Données (Radiza V1)
+
+- **Mode** : Correction applicative locale et validation automatisée complète (28/28 tests AUTH-5 + 72/72 tests non-régression = 100/100 tests réussis à 100%). Aucun commit, aucun push, aucun déploiement Vercel.
+- **Problème corrigé (Audit AUTH-5.15)** :
+  - Dans la version précédente, si la RPC `set_user_intended_role` échouait ou levait une exception (ex: tentative de contournement ou réinscription avec rôle opposé), l'erreur était passivement journalisée et `user_metadata.preferred_role` était quand même mis à jour avec le rôle non verrouillé, créant une incohérence entre la session et la base.
+- **Améliorations apportées dans `src/app/auth/callback/route.ts`** :
+  - **Sélection exhaustive** : La requête initiale sur `profiles` sélectionne désormais explicitement `id, role, onboarding_status, intended_role`.
+  - **Primauté absolue de la base** : Si `profile.intended_role` est déjà renseigné en base ('company' ou 'reseller'), cette valeur prime sur tout paramètre d'URL `?role=...` ou cookie. Le rôle contradictoire est ignoré.
+  - **Gestion stricte des erreurs de verrouillage** : Si la RPC `set_user_intended_role` échoue ou lève une exception, le code ne présume jamais du succès. Il effectue une relecture défensive en base. Si aucun rôle fiable n'a pu être fixé ou validé, le callback redirige immédiatement vers `/login?error=role_unknown` et purge le cookie éphémère.
+  - **Synchronisation conditionnée** : `supabase.auth.updateUser({ data: { preferred_role } })` n'est invoqué que si le rôle a été formellement validé ou verrouillé. Tout échec secondaire de `updateUser` ne bloque pas la navigation car `/onboarding` lit `profiles.intended_role` (Priorité 1).
+  - **Purge systématique du cookie** : `radiza_oauth_role` est invalidé et supprimé sur toutes les branches (succès, redirection, erreurs).
+- **Extension de la suite de tests (`scripts/test-auth5-google-oauth.mjs`)** :
+  - Ajout d'une Partie 3 dédiée couvrant les 12 scénarios obligatoires du flux callback (RPC succès company/reseller, primauté rôle existant, rejet d'inversion, erreurs RPC, exceptions réseau/DB, profil inaccessible, échec updateUser, compte complété, callback rejoué, purge des cookies).
+  - **Bilan** : 28/28 tests AUTH-5 réussis à 100%. Total suites de tests : 100/100 tests réussis.
+- **Vérifications techniques** :
+  - `npx tsc --noEmit` : Code 0 (0 erreur).
+  - `npm run build` : Code 0 (41/41 routes compilées avec succès).
+- **Statut** : **CORRECTION LOCALE VALIDÉE — PRÊTE POUR REVUE AVANT COMMIT.** Recette manuelle Google OAuth en production en attente du déploiement.
+
+## [AUTH-5.14] - 2026-10-15
+### Application Contrôlée de la Migration 28 en Production et Synchronisation du Registre
+
+- **Mode** : Exécution DDL contrôlée via Supabase MCP sur le projet distant `gonerlgkdnbdewjbebvq`.
+- **Livrables validés en base de production réelle** :
+  - Fonction `public.set_user_intended_role(VARCHAR)` créée avec `SECURITY DEFINER`, propriétaire `postgres`, `search_path = public, pg_temp`.
+  - Privilèges d'exécution vérifiés en base : `anon = false`, `public = false`, `authenticated = true`.
+  - Intégrité des profils existants vérifiée : 10/10 profils intacts, 0 profil corrompu.
+  - Registre `supabase_migrations.schema_migrations` synchronisé avec l'entrée `('20261015000028', 'set_oauth_intended_role')`.
+  - Aucune modification de code ni de commit.
+
+## [AUTH-5.11] - 2026-10-15
+### Correction du Verrouillage du Rôle Google au Niveau PostgreSQL (Radiza V1)
+
+- **Mode** : Audit + implémentation locale. Aucune migration appliquée en production, aucun commit, aucun push, aucun déploiement.
+- **Problème corrigé (ROOT CAUSE AUTH-5.10)** :
+  - `supabase.auth.updateUser({ data: { preferred_role } })` écrit uniquement dans `auth.users.raw_user_meta_data`. Il ne touche **jamais** `public.profiles.intended_role`.
+  - Pour un utilisateur Google OAuth, `profiles.intended_role` restait `NULL` jusqu'à l'appel à `complete_user_onboarding`.
+  - La contrainte PostgreSQL dans Migration 27 (`IF v_profile.intended_role IS NOT NULL AND v_profile.intended_role <> p_role THEN RAISE EXCEPTION`) ne s'activait donc pas si `intended_role = NULL` — laissant une fenêtre exploitable par un appel RPC direct avec un rôle divergent.
+- **Migration 28 — Nouvelle RPC `set_user_intended_role`** :
+  - Fichier : `supabase/migrations/20261015000028_set_oauth_intended_role.sql`
+  - Fonction `public.set_user_intended_role(p_role VARCHAR)` — `SECURITY DEFINER`, `search_path TO 'public', 'pg_temp'`.
+  - Garanties : authentification `auth.uid()` obligatoire · whitelist stricte `company`/`reseller` (rejet immédiat de `admin`) · verrouillage pessimiste `SELECT ... FOR UPDATE` · vérification `onboarding_status = 'pending' AND role = 'unassigned'` · immuabilité one-way ratchet (idempotent si même rôle, exception si rôle différent) · `REVOKE ALL FROM PUBLIC, anon; GRANT EXECUTE TO authenticated`.
+- **Mise à jour `/auth/callback/route.ts`** :
+  - Appel de `supabase.rpc("set_user_intended_role", { p_role: validatedRole })` avant la redirection vers `/onboarding`, pour tout nouvel utilisateur OAuth avec un rôle valide.
+  - `updateUser({ data: { preferred_role } })` est conservé en parallèle (confort session client).
+  - Les erreurs de la RPC sont journalisées (`console.warn`) mais non bloquantes (idempotence garantie sur rejeu).
+- **Suite de tests mise à jour** :
+  - `scripts/test-auth5-google-oauth.mjs` refondu en deux parties : 6 assertions statiques (code source + migration 28) + 10 tests d'exécution comportementale PostgreSQL (simulateur `PostgresEngineSimulator`).
+  - Scénarios couverts : verrouillage `company`, verrouillage `reseller`, rejet `complete_user_onboarding` rôle opposé, exception rôle déjà fixé, rejet `admin`, appel RPC direct bloqué par `intended_role`, idempotence sur rejeu callback, compte complété existant, inscriptions classiques par trigger, appel non authentifié.
+  - **Résultats** : 16/16 tests AUTH-5.11 réussis + 28/28 AUTH-4 + 14/14 AUTH-4.38 + 10/10 AUTH-2 + 20/20 sessions. Total : **88/88 tests automatisés validés à 100%**.
+- **Compilation et build** : `npx tsc --noEmit` → code 0 (0 erreur TypeScript). `npm run build` → code 0, **46/46 routes compilées** (dont `/register/company` et `/register/reseller` nouvellement statiques).
+- **Statut** : **CORRECTION VALIDÉE LOCALEMENT.** Migration 28 prête. En attente d'autorisation explicite de l'utilisateur avant application sur Supabase production, commit et push.
+
+## [AUTH-5.9] - 2026-10-15
+### Refonte du Parcours Google OAuth après Choix du Profil (Radiza V1)
+
+- **Mode** : Implémentation applicative locale et validation automatisée complète (14/14 tests AUTH-5 + 72/72 non-régressions). Aucune migration SQL, aucune écriture en base distante, aucun commit ni déploiement.
+- **Entonnoir d'inscription corrigé** :
+  - `src/app/register/page.tsx` : Suppression du bouton Google et du séparateur. La page redevient un hub d'orientation exclusif entre Société et Revendeur.
+  - `src/app/register/company/page.tsx` : Ajout du bouton « Continuer avec Google » avec `role="company"` et séparateur visuel au-dessus du formulaire classique. Préservation intégrale des champs classiques (nom complet, téléphone, email professionnel, mot de passe).
+  - `src/app/register/reseller/page.tsx` : Ajout du bouton « Continuer avec Google » avec `role="reseller"` et séparateur visuel. Préservation intégrale des champs classiques.
+- **Sécurisation de la transmission du rôle** :
+  - `src/components/auth/GoogleSignInButton.tsx` : Ajout de la propriété `role?: "company" | "reseller"`. Transmission de l'intention via paramètre d'URL `redirectTo` (`&role=...`) et cookie éphémère de secours (`radiza_oauth_role`, SameSite=Lax, Max-Age=600, Secure en https).
+  - `src/app/auth/callback/route.ts` :
+    - Extraction et validation stricte (whitelist) de l'intention de rôle (`company` ou `reseller` uniquement). Toute autre valeur (notamment `admin`) est rejetée.
+    - Pour les nouveaux comptes (`role === "unassigned"` / `onboarding_status !== "completed"`) : enregistrement de l'intention dans `user_metadata.preferred_role` via `supabase.auth.updateUser` avant redirection vers `/onboarding`.
+    - Pour les comptes complétés existants : le rôle réel en base de données (`profiles.role`) prime de façon inviolable. Tout paramètre de rôle transmis est strictement ignoré et l'utilisateur est dirigé vers son dashboard légitime.
+    - Purge systématique du cookie `radiza_oauth_role` sur toutes les routes de redirection (succès et erreurs).
+- **Intégrité et sécurité RBAC (Migration 27 préservée)** :
+  - Aucune attribution de privilège direct depuis les métadonnées client : l'attribution effective et irréversible reste exclusivement orchestrée par la procédure stockée PostgreSQL `complete_user_onboarding` (contrôle 3bis de concordance avec `intended_role`).
+- **Tests et recette** :
+  - Extension de `scripts/test-auth5-google-oauth.mjs` à 14 scénarios d'audit (14/14 réussis à 100%).
+  - Validation des suites de non-régression : AUTH-4 (28/28), AUTH-4.38 (14/14), AUTH-2 (10/10), Sessions (20/20). Total : 86/86 tests automatisés validés.
+  - TypeScript : `npx tsc --noEmit` certifié avec code 0 (0 erreur).
+
 ## [AUTH-5.3] - 2026-10-14
 ### Implémentation Locale de Google OAuth (Radiza V1)
 

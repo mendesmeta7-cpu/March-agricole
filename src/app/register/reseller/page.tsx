@@ -4,6 +4,7 @@ import { useFormState } from "react-dom";
 import Link from "next/link";
 import { registerResellerAction } from "@/lib/actions/auth";
 import SubmitButton from "@/components/SubmitButton";
+import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import { Store, AlertCircle, ArrowLeft, MapPin, MailCheck } from "lucide-react";
 
 export default function RegisterResellerPage() {
@@ -74,6 +75,21 @@ export default function RegisterResellerPage() {
               <div>{state.error}</div>
             </div>
           )}
+
+          {/* Option d'inscription rapide avec Google pour Revendeur */}
+          <div className="mb-6">
+            <GoogleSignInButton role="reseller" text="Continuer avec Google" />
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white px-3 text-gray-500 font-medium">
+                  ou avec votre adresse e-mail
+                </span>
+              </div>
+            </div>
+          </div>
 
           <form action={formAction} className="space-y-5">
             <div>
