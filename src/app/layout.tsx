@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
+import { getAppUrl } from "@/lib/utils/url";
+
+const baseUrl = getAppUrl();
 
 export const metadata: Metadata = {
+  metadataBase: baseUrl ? new URL(baseUrl) : undefined,
   title: "Radiza — Plateforme Agricole B2B",
   description: "Infrastructure numérique B2B de mise en relation et de distribution de produits agricoles.",
 };

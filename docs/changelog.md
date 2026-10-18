@@ -3,6 +3,28 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [LEGAL-PAGES] - 2026-10-18
+### Création des Pages Juridiques Publiques pour Google OAuth (/privacy & /terms) et Compatibilité Domaine Personnalisé
+
+- **Mode** : Création et validation applicative locale des pages légales officielles de Radiza et sécurisation de l'indépendance de domaine. Aucun commit, aucun push, aucun déploiement Vercel, aucune modification de la base Supabase.
+- **Objectif** : Mettre en conformité la plateforme avec les exigences de vérification Google OAuth (Google Cloud Console / Google Identity Services), assurer l'information légale transparente des utilisateurs professionnels (Sociétés et Revendeurs), et garantir une transition transparente lors de l'acquisition future d'un domaine personnalisé.
+- **Livrables créés & modifiés** :
+  - **`src/app/privacy/page.tsx`** : Page publique officielle de Politique de Confidentialité (`/privacy`), accessible sans authentification. Présentation fidèle de l'architecture V1 : éditeur Synapta SARL, minimisation des données collectées (nom, email, téléphone, profil entreprise/revendeur, activités réelles), données reçues via Google OAuth (nom, email vérifié, ID `sub`), prestataires techniques réels (Vercel, Supabase, Google, Cloudinary), cloisonnement RLS PostgreSQL, cookies strictement nécessaires (sessions Supabase + cookie éphémère `radiza_oauth_role` d'onboarding OAuth), droits des utilisateurs (accès, rectification, suppression), balise `alternates.canonical: "/privacy"`, et note de transparence légale sur la V1 expérimentale.
+  - **`src/app/terms/page.tsx`** : Page publique officielle des Conditions Générales d’Utilisation (`/terms`), accessible sans session. Définition claire du service B2B d'intermédiation agricole, catégories d'utilisateurs (Sociétés agricoles et Revendeurs professionnels), séparation stricte inscription / production, exactitude obligatoire des annonces et interdiction formelle des données fictives, **absence expresse de paiement en ligne dans la V1** (règlements financiers, transport et livraison de gré à gré sous la responsabilité conjointe des parties), exclusion de garantie agronomique/solvabilité pour l'éditeur, propriété intellectuelle Synapta SARL, balise `alternates.canonical: "/terms"`, et clause signalée pour revue juridique formelle (droit applicable RDC et juridiction compétente).
+  - **`src/app/layout.tsx`** : Injection dynamique de `metadataBase: baseUrl ? new URL(baseUrl) : undefined` via `getAppUrl()` dans le `RootLayout`, garantissant la résolution automatique des URLs absolues et balises canoniques sans aucune URL de production codée en dur.
+  - **`src/app/page.tsx`** : Ajout des liens de pied de page discrets et accessibles (`Conditions d'utilisation` et `Politique de confidentialité`) dans le footer de la page d'accueil avec signature Synapta.
+  - **`src/lib/utils/url.ts`** : Ajout de `"/privacy"` et `"/terms"` dans la liste blanche `ALLOWED_REDIRECT_PREFIXES` pour prévenir tout faux-positif de redirection anti-Open Redirect.
+  - **`docs/domain-migration-guide.md`** : Guide officiel exhaustif documentant l'architecture agnostique du domaine et la checklist complète étape par étape (DNS Vercel, SSL, variables d'env, Supabase Auth, Google Cloud Console OAuth 2.0 / Consent Screen, protocole de recette).
+  - **`scripts/test-legal-pages.mjs`** : Suite de tests automatisés validant 15 assertions (existence, SEO, liens réciproques, intégration footer, whitelist d'URL, non-interception middleware, mentions obligatoires, configuration metadataBase, balises canoniques, zéro domaine en dur).
+- **Résultats des tests et contrôles** :
+  - `node scripts/test-legal-pages.mjs` : **15/15 tests réussis (100%)**.
+  - `node scripts/test-auth2-redirects.mjs` : **10/10 tests réussis (100%)**.
+  - `node scripts/test-auth5-google-oauth.mjs` : **28/28 tests réussis (100%)**.
+  - `node scripts/test-auth4-onboarding-matrix.mjs` : **28/28 tests réussis (100%)**.
+  - `npx tsc --noEmit` : **Code 0 (0 erreur de typage)**.
+  - `npm run build` : **Code 0 (43/43 routes générées, incluant /privacy et /terms en pages statiques pré-rendues)**.
+- **Statut** : **PAGES JURIDIQUES ET COMPATIBILITÉ DOMAINE VALIDÉES LOCALEMENT — PRÊTES POUR REVUE AVANT DÉPLOIEMENT.**
+
 ## [AUTH-5.18] - 2026-10-15
 ### Correction Locale Consolidée du Callback Google OAuth (Radiza V1)
 

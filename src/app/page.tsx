@@ -148,21 +148,41 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 11. Footer Minimaliste & Discret — Signature « Développé par Synapta » */}
-      <footer className="w-full py-5 sm:py-6 px-4 border-t border-forest-800/80 bg-forest-950 text-white">
-        <div className="max-w-4xl mx-auto flex flex-col xs:flex-row items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm text-center">
-          <span className="text-forest-200/90 font-medium">Développé par</span>
-          <div className="inline-flex items-center gap-2">
-            <Image
-              src="/images/synapta-logo-white.png"
-              alt="Logo Synapta"
-              width={20}
-              height={32}
-              className="h-4 sm:h-5 w-auto object-contain"
-            />
-            <span className="font-bold text-white tracking-tight text-xs sm:text-sm">
-              Synapta
-            </span>
+      {/* 11. Footer Minimaliste & Discret — Signature « Développé par Synapta » et liens juridiques */}
+      <footer className="w-full py-6 px-4 border-t border-forest-800/80 bg-forest-950 text-white">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs sm:text-sm text-center sm:text-left">
+          <div className="flex items-center justify-center gap-2 text-forest-200/90">
+            <span>Développé par</span>
+            <div className="inline-flex items-center gap-1.5">
+              <Image
+                src="/images/synapta-logo-white.png"
+                alt="Logo Synapta"
+                width={20}
+                height={32}
+                className="h-4 sm:h-5 w-auto object-contain"
+              />
+              <span className="font-bold text-white tracking-tight text-xs sm:text-sm">
+                Synapta
+              </span>
+            </div>
+            <span className="text-forest-400/80 hidden xs:inline">•</span>
+            <span className="text-forest-300/80 hidden xs:inline">© 2026 Radiza</span>
+          </div>
+
+          <div className="flex items-center justify-center gap-4 text-xs text-forest-200/80">
+            <Link
+              href="/terms"
+              className="hover:text-white underline-offset-4 hover:underline transition-colors"
+            >
+              Conditions d&apos;utilisation
+            </Link>
+            <span className="text-forest-600">•</span>
+            <Link
+              href="/privacy"
+              className="hover:text-white underline-offset-4 hover:underline transition-colors"
+            >
+              Politique de confidentialité
+            </Link>
           </div>
         </div>
       </footer>

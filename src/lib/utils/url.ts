@@ -55,6 +55,8 @@ const ALLOWED_REDIRECT_PREFIXES = [
   "/reset-password",
   "/forgot-password",
   "/unauthorized",
+  "/privacy",
+  "/terms",
   "/"
 ];
 
