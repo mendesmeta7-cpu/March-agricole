@@ -261,6 +261,23 @@ export default function OnboardingForm({
             </h2>
           </div>
 
+          {/* Champs communs aux deux rôles (auth-5.14) */}
+          <div className="space-y-5">
+            <FormField
+              label="Numéro de téléphone professionnel"
+              optional
+              description="Votre numéro de contact pour vos échanges commerciaux sur Radiza."
+            >
+              <Input
+                name="phone"
+                type="tel"
+                defaultValue={initialPhone}
+                placeholder="Ex : +243 81 234 5678"
+                leftIcon={<Phone className="w-4 h-4" />}
+              />
+            </FormField>
+          </div>
+
           {/* Champs Spécifiques Société */}
           {selectedRole === "company" && (
             <div className="space-y-5 animate-in fade-in duration-200">
@@ -271,7 +288,7 @@ export default function OnboardingForm({
               >
                 <Input
                   name="companyName"
-                  placeholder="Ex : Ferme Agro-Kwilu SARL, Plantations de la Lukaya..."
+                  placeholder={initialFullName ? `Ex : ${initialFullName} SARL, Ferme de la Lukaya...` : "Ex : Ferme Agro-Kwilu SARL, Plantations de la Lukaya..."}
                   leftIcon={<Building2 className="w-4 h-4" />}
                   required
                 />
@@ -287,7 +304,7 @@ export default function OnboardingForm({
                     name="companyPhone"
                     type="tel"
                     defaultValue={initialPhone}
-                    placeholder="Ex : +243 81 234 5678"
+                    placeholder="Ex : +243 81 234 5678"
                     leftIcon={<Phone className="w-4 h-4" />}
                   />
                 </FormField>

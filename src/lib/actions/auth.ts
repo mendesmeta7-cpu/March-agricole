@@ -409,6 +409,7 @@ export async function completeOnboardingAction(
     companyName = formData.get("companyName")?.toString().trim() || null;
     companyDescription = formData.get("companyDescription")?.toString().trim() || null;
     companyAddress = formData.get("companyAddress")?.toString().trim() || null;
+    // companyPhone est pré-rempli depuis le champ dédié Société (rétrocompatibilité) ou du champ commun
     companyPhone = formData.get("companyPhone")?.toString().trim() || null;
 
     if (!companyName) {
@@ -419,10 +420,14 @@ export async function completeOnboardingAction(
     resellerType = formData.get("resellerType")?.toString().trim() || "wholesaler";
     deliveryAddress = formData.get("deliveryAddress")?.toString().trim() || null;
 
-    if (!["wholesaler", "semi_wholesaler", "retailer", "processor"].includes(resellerType)) {
+    if (![ "wholesaler", "semi_wholesaler", "retailer", "processor"].includes(resellerType)) {
       resellerType = "wholesaler";
     }
   }
+
+  // AUTH-5.14 : Lecture du champ téléphone commun (champ "phone" du formulaire OnboardingForm)
+  // Ce champ bénéficie aux deux rôles, notamment au Revendeur dont la RPC ne gère pas de téléphone propre.
+  const sharedPhone = formData.get("phone")?.toString().trim() || null;
 
   const supabase = createClient();
 
@@ -434,6 +439,21 @@ export async function completeOnboardingAction(
 
   if (userError || !user) {
     return { error: "Votre session a expiré ou est invalide. Veuillez vous reconnecter." };
+  }
+
+  // AUTH-5.14 : Mise à jour préalable de profiles.phone si un téléphone commun a été saisi.
+  // Ceci permet notamment au COALESCE de la RPC (v_profile.phone) de l'utiliser pour la Société,
+  // et constitue le seul vecteur de sauvegarde du téléphone pour le Revendeur.
+  if (sharedPhone) {
+    const { error: phoneUpdateError } = await supabase
+      .from("profiles")
+      .update({ phone: sharedPhone })
+      .eq("id", user.id)
+      .is("phone", null); // Ne remplace pas un numéro déjà enregistré
+    if (phoneUpdateError) {
+      console.warn("[Onboarding] Avertissement mise à jour téléphone profil:", phoneUpdateError.message);
+      // Non bloquant : la suite de l'inscription continue
+    }
   }
 
   // AUTH-4.38 — Validation croisée côté serveur & Verrouillage du type de compte :

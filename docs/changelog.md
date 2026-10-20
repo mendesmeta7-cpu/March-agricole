@@ -3,6 +3,53 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [AUTH-5.14.1] - 2026-10-20
+### Fermeture Locale de la Session Google Orpheline & Propagation des Cookies (Radiza V1)
+
+- **Mode** : Correction ciblée suite à l'audit final AUTH-5.14. Aucun commit, aucun push, aucun déploiement Vercel, aucune modification de la base Supabase.
+- **Problème corrigé** :
+  - Sur la branche `!effectiveIntendedRole` du callback OAuth, la session Supabase restait active et les cookies `sb-*` conservés. Le middleware interceptait l'accès à `/register` et re-déroutait l'utilisateur vers `/onboarding`, court-circuitant le blocage Fix-B1.
+- **Corrections apportées** :
+  - **`src/app/auth/callback/route.ts`** : Fermeture explicite de la session locale via `await supabase.auth.signOut({ scope: "local" })` avant la redirection vers `/register?error=no_account_google`. Transfert et conservation des modifications de cookies produites par la déconnexion sur la réponse `noRoleResponse` via `cookieStore.getAll().forEach(...)`.
+  - **`scripts/test-auth5-google-oauth.mjs`** : Mise à jour du simulateur pour inclure `signOutHandler({ scope: "local" })`, ajout du test 17 (reprise d'inscription ultérieure avec la même identité existante sans conflit) et du test 18 (contrôle statique de signOut local et transfert cookies). Suite passée à 34/34 tests réussis.
+- **Résultats des contrôles** :
+  - `node scripts/test-auth5-google-oauth.mjs` : **34/34 réussis (100%)**.
+  - Non-régression globale (Legal Pages, AUTH-2, AUTH-4, Sessions) : **73/73 réussis (100%)**. Total : **107/107 tests**.
+  - `npx tsc --noEmit` : Code 0 (0 erreur TypeScript).
+  - `npm run build` : Code 0 (43/43 routes compilées avec succès).
+- **Statut** : **CORRECTION VALIDÉE LOCALEMENT — PRÊT POUR REVUE AVANT COMMIT.**
+
+## [AUTH-5.14] - 2026-10-20
+### Séparation Stricte des Parcours Google OAuth : Connexion vs Inscription (Radiza V1)
+
+- **Mode** : Correction applicative locale ciblée. Aucun commit, aucun push, aucun déploiement Vercel, aucune modification de la base Supabase, aucune migration créée.
+- **Problèmes corrigés** :
+  - **Problème B (Bloquant — Fix-B1 + Fix-B2)** : Un utilisateur Google non inscrit pouvait arriver sur `/onboarding` avec un profil `unassigned` et aucun rôle verrouillé via le bouton Google de `/login`. Il pouvait alors choisir librement son type de compte, contournant la séparation des flux d'inscription.
+  - **Problème A (UX — Fix-A1)** : Le formulaire d'onboarding (`OnboardingForm`) n'exposait pas de champ téléphone pour le rôle Revendeur. Le Revendeur ne pouvait pas renseigner son numéro lors du parcours Google OAuth. La raison sociale de la Société ne profitait pas du nom Google comme suggestion contextuelle.
+- **Corrections apportées** :
+  - **Fix-B1 — `src/app/auth/callback/route.ts`** : Ajout d'un garde-fou après la détermination de `effectiveIntendedRole`. Si `effectiveIntendedRole` est `null` (utilisateur sans contexte d'inscription — aucun cookie `radiza_oauth_role`, aucun paramètre `?role=`, aucun `intended_role` en base), la redirection vers `/onboarding` est **bloquée** et remplacée par `/register?error=no_account_google`. Le cookie `radiza_oauth_role` est purgé dans tous les cas.
+  - **Fix-B2 — `src/app/register/page.tsx`** : Transformation en composant serveur lisant `searchParams`. Ajout d'un bandeau informatif bleu affiché si `error=no_account_google` est présent, expliquant à l'utilisateur qu'aucun compte Radiza n'est lié à ce compte Google et l'invitant à choisir un type de compte pour s'inscrire.
+  - **Fix-A1 — `src/components/onboarding/OnboardingForm.tsx`** : Ajout d'un champ téléphone commun (`name="phone"`) au-dessus des sections spécifiques par rôle, pré-rempli avec `initialPhone` (métadonnées Google). Le placeholder du champ `companyName` utilise `initialFullName` comme suggestion contextuelle conditionnelle (le nom Google suggère sans imposer la raison sociale officielle).
+  - **Fix-A1 — `src/lib/actions/auth.ts`** : Lecture du champ `phone` commun dans `completeOnboardingAction`. Mise à jour préalable de `profiles.phone` avant l'appel RPC si un téléphone est saisi et si le profil n'en a pas déjà un (`.is("phone", null)` — non écrasant). Ce mécanisme est le seul vecteur de sauvegarde du téléphone pour le Revendeur dont la RPC ne gère pas de champ téléphone propre.
+- **Suite de tests mise à jour (`scripts/test-auth5-google-oauth.mjs`)** :
+  - 4 nouveaux scénarios AUTH-5.14 ajoutés (tests 13 à 16) :
+    - 13. Fix-B1 : Utilisateur Google sans rôle redirigé vers `/register?error=no_account_google`
+    - 14. Fix-B1 : Inscription Google company légitime non bloquée → `/onboarding`
+    - 15. Fix-B2 : Page `/register` contient le code de gestion `no_account_google`
+    - 16. Fix-A1 : Champ téléphone commun dans `OnboardingForm` et `auth.ts`
+  - Le simulateur `simulateFullCallbackRoute` mis à jour pour implémenter Fix-B1.
+  - Bilan de la suite : **32/32 tests réussis (100%)**.
+- **Non-régression totale** :
+  - AUTH-5.18 Callback : 12/12 réussis.
+  - AUTH-5.14 Nouveaux : 4/4 réussis.
+  - AUTH-4 Matrice : 28/28 réussis (exécutés séparément).
+  - AUTH-2 Redirections : 10/10 réussis (exécutés séparément).
+  - Sessions & Isolation : 20/20 réussis (exécutés séparément).
+- **Contrôles de compilation** :
+  - `npx tsc --noEmit` : Code 0 (0 erreur de typage).
+  - `npm run build` : **Code 0 (43/43 routes générées, `/register` compilée en dynamique `ƒ`)**.
+- **Statut** : **CORRECTION LOCALE VALIDÉE — EN ATTENTE D'AUTORISATION DE COMMIT.**
+
 ## [LEGAL-PAGES] - 2026-10-18
 ### Création des Pages Juridiques Publiques pour Google OAuth (/privacy & /terms) et Compatibilité Domaine Personnalisé
 

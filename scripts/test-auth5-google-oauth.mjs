@@ -717,6 +717,20 @@ async function simulateFullCallbackRoute({
           }
         }
 
+        // AUTH-5.14 Fix-B1 & AUTH-5.14.1 : Garde-fou contre les utilisateurs non inscrits sans rôle
+        if (!effectiveIntendedRole) {
+          if (signOutHandler) await signOutHandler({ scope: "local" });
+          cookiesCleared.push("sb-auth-token");
+          cookiesSet.push({ name: "radiza_oauth_role", maxAge: 0 });
+          return {
+            status: "redirect",
+            url: "/register?error=no_account_google",
+            cookiesCleared,
+            cookiesSet,
+            sessionClosed: true,
+          };
+        }
+
         cookiesSet.push({ name: "radiza_oauth_role", maxAge: 0 });
         return {
           status: "redirect",
@@ -1001,8 +1015,198 @@ runTest("CALLBACK OAUTH", "12. Non-régression confirmation email (AUTH-2) et mo
   assert.strictEqual(recoveryRes.url, "/reset-password");
 });
 
+// =============================================================================
+// [PARTIE 4] TESTS AUTH-5.14 — SÉPARATION STRICTE CONNEXION / INSCRIPTION GOOGLE
+// =============================================================================
+
+console.log("\n--- [PARTIE 4] AUTH-5.14 : SÉPARATION CONNEXION / INSCRIPTION GOOGLE ---");
+
+// 13. Fix-B1 & AUTH-5.14.1 : Utilisateur inconnu depuis /login (sans rôle) → déconnecté & /register?error=no_account_google
+runTest(
+  "AUTH-5.14",
+  "13. Fix-B1 / 5.14.1 : Utilisateur Google sans rôle (depuis /login) déconnecté et redirigé vers /register",
+  async () => {
+    // Scénario : utilisateur qui se connecte via Google depuis /login (pas de cookie role, pas d'intended_role)
+    // → le callback doit fermer la session locale et le renvoyer vers /register?error=no_account_google
+    let signedOutScope = null;
+    const res = await simulateFullCallbackRoute({
+      searchParams: new URLSearchParams({ code: "valid_code", flow: "oauth", provider: "google" }),
+      // Pas de role dans les searchParams ni de cookie radiza_oauth_role
+      profileHandler: async () => ({
+        data: { id: "user-unknown-no-role", role: "unassigned", onboarding_status: "pending", intended_role: null },
+        error: null,
+      }),
+      signOutHandler: async (opts) => {
+        signedOutScope = opts?.scope || "global";
+      },
+    });
+    assert.ok(
+      res.url.startsWith("/register"),
+      `Attendu redirection vers /register, obtenu : ${res.url}`
+    );
+    assert.ok(
+      res.url.includes("error=no_account_google"),
+      `Attendu error=no_account_google dans l'URL, obtenu : ${res.url}`
+    );
+    assert.strictEqual(
+      res.sessionClosed,
+      true,
+      "La session locale de l'utilisateur inconnu doit être fermée"
+    );
+    assert.strictEqual(
+      signedOutScope,
+      "local",
+      "signOut doit être appelé avec scope: 'local'"
+    );
+    assert.ok(
+      res.cookiesSet.some((c) => c.name === "radiza_oauth_role" && c.maxAge === 0),
+      "Le cookie radiza_oauth_role doit être purgé"
+    );
+  }
+);
+
+// 14. Fix-B1 : Conservation du flux normal pour inscription Google company (avec rôle)
+runTest(
+  "AUTH-5.14",
+  "14. Fix-B1 : Inscription Google company avec rôle verrouillé → /onboarding (non bloqué)",
+  async () => {
+    // Scénario : utilisateur arrivant depuis /register/company avec role=company
+    // → le callback doit verrouiller le rôle et rediriger vers /onboarding normalement
+    const res = await simulateFullCallbackRoute({
+      searchParams: new URLSearchParams({ code: "valid_code", flow: "oauth", provider: "google", role: "company" }),
+      profileHandler: async () => ({
+        data: { id: "user-new-company", role: "unassigned", onboarding_status: "pending", intended_role: null },
+        error: null,
+      }),
+      // RPC verrouillage réussit
+      rpcHandler: async () => ({ data: { success: true }, error: null }),
+    });
+    // Avec role=company validé → effectiveIntendedRole = 'company' → doit aller vers /onboarding
+    assert.strictEqual(
+      res.url,
+      "/onboarding",
+      `Attendu /onboarding pour une inscription company légitime, obtenu : ${res.url}`
+    );
+  }
+);
+
+// 15. Fix-B2 : Page /register affiche le bandeau no_account_google
+runTest(
+  "AUTH-5.14",
+  "15. Fix-B2 : Page /register contient le code de gestion no_account_google",
+  () => {
+    const registerPage = fs.readFileSync(
+      path.resolve("src/app/register/page.tsx"),
+      "utf8"
+    );
+    assert.ok(
+      registerPage.includes("no_account_google"),
+      "La page /register doit gérer le paramètre error=no_account_google"
+    );
+    assert.ok(
+      registerPage.includes("isNoAccountGoogle"),
+      "La page /register doit avoir la variable isNoAccountGoogle"
+    );
+    assert.ok(
+      registerPage.includes("searchParams"),
+      "La page /register doit lire les searchParams"
+    );
+    assert.ok(
+      registerPage.includes("Aucun compte Radiza associ"),
+      "La page /register doit afficher un message explicatif pour les utilisateurs redirigés depuis /login"
+    );
+  }
+);
+
+// 16. Fix-A1 : Champ téléphone commun dans OnboardingForm et Server Action
+runTest(
+  "AUTH-5.14",
+  "16. Fix-A1 : Champ téléphone commun présent dans OnboardingForm et traité dans auth.ts",
+  () => {
+    const onboardingForm = fs.readFileSync(
+      path.resolve("src/components/onboarding/OnboardingForm.tsx"),
+      "utf8"
+    );
+    // Le champ téléphone commun doit exister avec name="phone"
+    assert.ok(
+      onboardingForm.includes('name="phone"'),
+      "OnboardingForm doit avoir un champ input avec name=phone (commun aux deux rôles)"
+    );
+    // Le placeholder du companyName doit utiliser initialFullName comme suggestion
+    assert.ok(
+      onboardingForm.includes("initialFullName ?"),
+      "Le placeholder de companyName doit utiliser initialFullName comme suggestion conditionnelle"
+    );
+
+    const authActions = fs.readFileSync(
+      path.resolve("src/lib/actions/auth.ts"),
+      "utf8"
+    );
+    // La Server Action doit lire le champ phone commun
+    assert.ok(
+      authActions.includes('formData.get("phone")'),
+      "La Server Action doit lire le champ phone commun"
+    );
+    // La Server Action doit mettre à jour profiles.phone
+    assert.ok(
+      authActions.includes("sharedPhone"),
+      "La Server Action doit utiliser sharedPhone pour la mise à jour de profiles.phone"
+    );
+    assert.ok(
+      authActions.includes(".is(\"phone\", null)"),
+      "La mise à jour de profiles.phone ne doit pas écraser un numéro existant"
+    );
+  }
+);
+
+// 17. AUTH-5.14.1 : Reprise d'inscription ultérieure avec la même identité existante sans conflit
+runTest(
+  "AUTH-5.14",
+  "17. AUTH-5.14.1 : Reprise d'inscription ultérieure avec la même identité existante sans conflit",
+  () => {
+    const db = new PostgresEngineSimulator();
+    const userId = "existing-oauth-user-no-role";
+    // Étape 1 : l'utilisateur a d'abord tenté /login (profil unassigned, intended_role null)
+    db.createUser(userId, "user.oauth@example.com", {});
+    const initialProfile = db.profiles.get(userId);
+    assert.strictEqual(initialProfile.role, "unassigned");
+    assert.strictEqual(initialProfile.intended_role, null);
+
+    // Étape 2 : l'utilisateur choisit ensuite Société sur /register et s'inscrit via /register/company
+    const lockResult = db.setUserIntendedRole(userId, "company");
+    assert.strictEqual(lockResult.success, true);
+    assert.strictEqual(lockResult.intended_role, "company");
+
+    // Étape 3 : finalisation onboarding avec le rôle company
+    const onbResult = db.completeUserOnboarding(userId, "company");
+    assert.strictEqual(onbResult.success, true);
+    assert.strictEqual(onbResult.profile.role, "company");
+    assert.strictEqual(onbResult.profile.onboarding_status, "completed");
+  }
+);
+
+// 18. AUTH-5.14.1 : Contrôle statique de signOut({ scope: 'local' }) et cookieStore dans le callback
+runTest(
+  "AUTH-5.14",
+  "18. AUTH-5.14.1 : Fermeture session locale signOut({ scope: 'local' }) et transfert cookies sur réponse",
+  () => {
+    const callbackCode = fs.readFileSync(
+      path.resolve("src/app/auth/callback/route.ts"),
+      "utf8"
+    );
+    assert.ok(
+      callbackCode.includes('supabase.auth.signOut({ scope: "local" })'),
+      "Le callback OAuth doit exécuter supabase.auth.signOut({ scope: 'local' }) lorsque effectiveIntendedRole est null"
+    );
+    assert.ok(
+      callbackCode.includes("cookieStore.getAll()"),
+      "Le callback OAuth doit propager les cookies mis à jour sur la réponse de redirection"
+    );
+  }
+);
+
 console.log("\n======================================================================");
-console.log(`BILAN DES TESTS AUTH-5.18 : ${passedCount}/${totalCount} RÉUSSIS`);
+console.log(`BILAN DES TESTS AUTH-5.18 + AUTH-5.14 : ${passedCount}/${totalCount} RÉUSSIS`);
 console.log("======================================================================");
 
 if (passedCount !== totalCount) {

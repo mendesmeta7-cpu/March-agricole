@@ -333,6 +333,37 @@ export async function GET(request: Request) {
           }
         }
 
+        // AUTH-5.14 Fix-B1 & AUTH-5.14.1 : Garde-fou contre les utilisateurs non inscrits arrivant via /login.
+        // Si aucun intended_role fiable n'a été déterminé (effectiveIntendedRole = null), cela signifie
+        // que l'utilisateur a utilisé le bouton Google depuis /login sans passer par une page d'inscription
+        // (/register/company ou /register/reseller). Son profil est "unassigned" sans rôle verrouillé.
+        // On ferme sa session locale pour que le middleware ne le renvoie pas vers /onboarding,
+        // et on l'invite à choisir son type de compte sur /register.
+        if (!effectiveIntendedRole) {
+          console.warn("[Auth Callback] Utilisateur Google sans rôle d'inscription détecté, fermeture de session locale et redirection vers /register.", authData.user.id);
+          try {
+            await supabase.auth.signOut({ scope: "local" });
+          } catch (signOutError) {
+            console.warn("[Auth Callback] Erreur fermeture session locale:", signOutError);
+          }
+
+          const noRoleResponse = NextResponse.redirect(
+            new URL("/register?error=no_account_google", baseUrl)
+          );
+
+          // Conserver sur la réponse finale les modifications de cookies produites par la déconnexion Supabase
+          try {
+            cookieStore.getAll().forEach((cookie) => {
+              noRoleResponse.cookies.set(cookie.name, cookie.value, cookie);
+            });
+            noRoleResponse.cookies.set("radiza_oauth_role", "", { maxAge: 0, path: "/" });
+          } catch (cookieError) {
+            console.warn("[Auth Callback] Erreur transfert cookies sur réponse:", cookieError);
+          }
+
+          return noRoleResponse;
+        }
+
         const response = NextResponse.redirect(new URL("/onboarding", baseUrl));
         response.cookies.set("radiza_oauth_role", "", { maxAge: 0, path: "/" });
         return response;

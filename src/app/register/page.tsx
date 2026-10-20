@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2, Store, ArrowRight, ArrowLeft } from "lucide-react";
+import { Building2, Store, ArrowRight, ArrowLeft, Info } from "lucide-react";
 import BrandLogo from "@/components/ui/BrandLogo";
 import type { Metadata } from "next";
 
@@ -9,7 +9,14 @@ export const metadata: Metadata = {
     "Choisissez votre profil pour rejoindre la plateforme : Société / Producteur ou Revendeur professionnel.",
 };
 
-export default function RegisterChoicePage() {
+export default function RegisterChoicePage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
+  const errorParam = typeof searchParams?.error === "string" ? searchParams.error : null;
+  const isNoAccountGoogle = errorParam === "no_account_google";
+
   return (
     <div className="min-h-screen flex flex-col justify-between bg-gradient-to-b from-forest-50/60 via-white to-forest-50/40 py-8 px-4 sm:px-6 lg:px-8">
       {/* Haut de page : Navigation retour & Logo */}
@@ -37,7 +44,21 @@ export default function RegisterChoicePage() {
           </p>
         </div>
 
-        {/* Grille des 2 options d'inscription */}
+        {/* Bandeau informatif Google OAuth (AUTH-5.14) */}
+        {isNoAccountGoogle && (
+          <div className="max-w-3xl mx-auto mb-6">
+            <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4 text-blue-900 text-sm">
+              <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold mb-1">Aucun compte Radiza associé à ce compte Google</p>
+                <p className="text-xs leading-relaxed text-blue-800">
+                  Ce compte Google n&apos;est pas encore lié à un espace Radiza. Choisissez votre type d&apos;activité ci-dessous pour créer votre compte et vous inscrire via Google.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-3xl mx-auto">
           {/* Option 1 : Société / Producteur */}
           <Link
