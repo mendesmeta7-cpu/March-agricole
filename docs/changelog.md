@@ -3,6 +3,23 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [AUTH-5.16] - 2026-10-26
+### Correction Définitive du Rejet Google OAuth /login & Double Verrouillage Middleware (Radiza V1)
+
+- **Mode** : Correction applicative locale ciblée. Aucun commit, aucun push, aucun déploiement Vercel, aucune modification de la base Supabase, aucune suppression de compte.
+- **Problème corrigé (AUTH-5.15)** :
+  - Sur la branche `!effectiveIntendedRole` du Route Handler OAuth (`/auth/callback`), la recopie brute de `cookieStore.getAll()` réémettait les cookies de session actifs avec leur valeur positive sur `noRoleResponse`, au lieu de les expirer. Le middleware interceptait ensuite la redirection vers `/register` et envoyait l'utilisateur vers `/onboarding`, lui permettant de s'inscrire depuis `/login`.
+- **Corrections apportées** :
+  - **`src/app/auth/callback/route.ts`** : Fermeture de session locale `signOut({ scope: "local" })` avec capture des erreurs. Remplacement de la réémission des cookies par une purge exhaustive (`maxAge: 0`, `expires: new Date(0)`) de tous les cookies de session Supabase (`sb-*`, `auth-token`, `supabase`) et du cookie de rôle éphémère `radiza_oauth_role`.
+  - **`src/lib/supabase/middleware.ts`** : Règle d'exception stricte dans `updateSession` interdisant la redirection vers `/onboarding` lorsque l'URL cible est `/register` avec le paramètre `error=no_account_google`. Purge défensive additionnelle de tous les cookies de session résiduels sur `supabaseResponse`.
+  - **`scripts/test-auth5-google-oauth.mjs`** : Mise à niveau de la suite à 39 tests avec validation des Scénarios A (rejet inconnu /login), B (reprise d'inscription avec rôle verrouillé sans doublon), C (inscriptions normales Société et Revendeur), D (connexion Google directe pour compte existant par mot de passe sans duplication), et E (sécurité serveur /onboarding et protection des redirections).
+- **Résultats des contrôles** :
+  - `node scripts/test-auth5-google-oauth.mjs` : **39/39 réussis (100%)**.
+  - Non-régression totale (Legal Pages, AUTH-2, AUTH-4, Sessions) : **87/87 réussis (100%)**. Total : **126/126 tests**.
+  - `npx tsc --noEmit` : **Code 0 (0 erreur TypeScript)**.
+  - `npm run build` : **Code 0 (43/43 routes générées avec succès)**.
+- **Statut** : **CORRECTION LOCALE VALIDÉE — PRÊT POUR REVUE AVANT COMMIT.**
+
 ## [AUTH-5.14.1] - 2026-10-20
 ### Fermeture Locale de la Session Google Orpheline & Propagation des Cookies (Radiza V1)
 

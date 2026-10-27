@@ -1185,10 +1185,10 @@ runTest(
   }
 );
 
-// 18. AUTH-5.14.1 : Contrôle statique de signOut({ scope: 'local' }) et cookieStore dans le callback
+// 18. AUTH-5.16 : Contrôle statique de signOut({ scope: 'local' }) et purge exhaustive des cookies de session
 runTest(
-  "AUTH-5.14",
-  "18. AUTH-5.14.1 : Fermeture session locale signOut({ scope: 'local' }) et transfert cookies sur réponse",
+  "AUTH-5.16",
+  "18. AUTH-5.16 : Fermeture session locale et purge exhaustive avec maxAge: 0 de tous les cookies de session",
   () => {
     const callbackCode = fs.readFileSync(
       path.resolve("src/app/auth/callback/route.ts"),
@@ -1199,16 +1199,227 @@ runTest(
       "Le callback OAuth doit exécuter supabase.auth.signOut({ scope: 'local' }) lorsque effectiveIntendedRole est null"
     );
     assert.ok(
-      callbackCode.includes("cookieStore.getAll()"),
-      "Le callback OAuth doit propager les cookies mis à jour sur la réponse de redirection"
+      callbackCode.includes("maxAge: 0"),
+      "Le callback OAuth doit expirer les cookies de session avec maxAge: 0"
+    );
+    assert.ok(
+      callbackCode.includes("expires: new Date(0)"),
+      "Le callback OAuth doit expirer les cookies de session avec une date passée"
+    );
+    // Vérification qu'on ne réémet pas les cookies actifs avec cookie.value
+    assert.ok(
+      !callbackCode.includes("noRoleResponse.cookies.set(cookie.name, cookie.value"),
+      "Le callback OAuth ne doit EN AUCUN CAS réémettre les valeurs positives des cookies de session"
     );
   }
 );
 
+// 19. AUTH-5.16 : Protection Middleware contre le détournement vers /onboarding
+runTest(
+  "AUTH-5.16",
+  "19. AUTH-5.16 : Protection Middleware - /register?error=no_account_google n'est jamais dérouté vers /onboarding",
+  () => {
+    const middlewareCode = fs.readFileSync(
+      path.resolve("src/lib/supabase/middleware.ts"),
+      "utf8"
+    );
+    assert.ok(
+      middlewareCode.includes('request.nextUrl.searchParams.get("error") === "no_account_google"'),
+      "Le middleware doit vérifier spécifiquement error=no_account_google sur /register"
+    );
+    assert.ok(
+      middlewareCode.includes("return supabaseResponse;"),
+      "Le middleware doit laisser passer la requête vers /register sans déviation vers /onboarding"
+    );
+    assert.ok(
+      middlewareCode.includes("maxAge: 0"),
+      "Le middleware doit effectuer une purge défensive des cookies de session résiduels"
+    );
+  }
+);
+
+// 20. AUTH-5.16 : Scénario A & D — Simulation complète Rejet Inconnu vs Compte Existant mot de passe
+runTest(
+  "AUTH-5.16",
+  "20. AUTH-5.16 : Scénario A & D — Rejet inconnu depuis /login vs Connexion directe compte mot de passe lié",
+  async () => {
+    const db = new PostgresEngineSimulator();
+
+    // 1. Compte Existant mot de passe avec profil completed (Scénario D)
+    const existingUserId = "existing-user-password-company";
+    db.createUser(existingUserId, "ferme.planteur@gmail.com", { preferred_role: "company" });
+    db.setUserIntendedRole(existingUserId, "company");
+    db.completeUserOnboarding(existingUserId, "company");
+
+    // L'utilisateur se connecte via Google avec la même adresse (identités liées au même user_id)
+    const resExisting = await simulateFullCallbackRoute({
+      searchParams: new URLSearchParams({ code: "valid_pkce_code", flow: "oauth" }),
+      exchangeHandler: async () => ({
+        data: { user: { id: existingUserId, email: "ferme.planteur@gmail.com", user_metadata: {} } },
+        error: null,
+      }),
+      profileHandler: async () => ({
+        data: db.profiles.get(existingUserId),
+        error: null,
+      }),
+    });
+
+    assert.strictEqual(resExisting.status, "redirect");
+    assert.strictEqual(resExisting.url, "/dashboard/company");
+    // Aucun nouveau profil n'a été créé
+    assert.strictEqual(db.profiles.size, 1);
+
+    // 2. Compte Inconnu tentant Google depuis /login (Scénario A)
+    const unknownUserId = "unknown-google-user";
+    db.createUser(unknownUserId, "inconnu@gmail.com", {}); // Pas de preferred_role
+    const unknownProfile = db.profiles.get(unknownUserId); // role unassigned, intended_role null
+
+    let signOutCalled = false;
+    const resUnknown = await simulateFullCallbackRoute({
+      searchParams: new URLSearchParams({ code: "valid_pkce_code", flow: "oauth" }),
+      exchangeHandler: async () => ({
+        data: { user: { id: unknownUserId, email: "inconnu@gmail.com", user_metadata: {} } },
+        error: null,
+      }),
+      profileHandler: async () => ({
+        data: unknownProfile,
+        error: null,
+      }),
+      signOutHandler: async ({ scope }) => {
+        if (scope === "local") signOutCalled = true;
+      },
+    });
+
+    assert.strictEqual(resUnknown.status, "redirect");
+    assert.strictEqual(resUnknown.url, "/register?error=no_account_google");
+    assert.strictEqual(signOutCalled, true, "signOut local doit avoir été exécuté");
+    assert.ok(resUnknown.cookiesCleared.includes("sb-auth-token"), "Le cookie auth-token doit être purgé");
+  }
+);
+
+// 21. AUTH-5.16 : Scénario B — Reprise d'inscription après rejet avec verrouillage irrévocable
+runTest(
+  "AUTH-5.16",
+  "21. AUTH-5.16 : Scénario B — Reprise d'inscription sur /register/reseller après rejet /login",
+  () => {
+    const db = new PostgresEngineSimulator();
+    const userId = "rejected-login-user";
+
+    // Étape 1 : Le compte a été rejeté lors d'une tentative sur /login
+    db.createUser(userId, "acheteur.rejet@gmail.com", {});
+    const p1 = db.profiles.get(userId);
+    assert.strictEqual(p1.role, "unassigned");
+    assert.strictEqual(p1.intended_role, null);
+
+    // Étape 2 : L'utilisateur ouvre /register, choisit Revendeur et clique sur Google dans /register/reseller
+    // Le callback reçoit role=reseller et verrouille via set_user_intended_role
+    const lock = db.setUserIntendedRole(userId, "reseller");
+    assert.strictEqual(lock.success, true);
+    assert.strictEqual(lock.intended_role, "reseller");
+
+    // Étape 3 : Tentative frauduleuse de soumettre le rôle company lors de l'onboarding -> bloqué
+    assert.throws(
+      () => db.completeUserOnboarding(userId, "company"),
+      /ne correspond pas au choix initial/
+    );
+
+    // Étape 4 : Finalisation légitime avec le rôle reseller
+    const comp = db.completeUserOnboarding(userId, "reseller");
+    assert.strictEqual(comp.success, true);
+    assert.strictEqual(db.profiles.get(userId).role, "reseller");
+    assert.strictEqual(db.profiles.get(userId).onboarding_status, "completed");
+    // Aucun doublon de profil
+    assert.strictEqual(db.profiles.size, 1);
+  }
+);
+
+// 22. AUTH-5.16 : Scénario C — Inscription Google normale Société et Revendeur
+runTest(
+  "AUTH-5.16",
+  "22. AUTH-5.16 : Scénario C — Inscriptions Google normales company et reseller depuis leurs pages dédiées",
+  async () => {
+    const db = new PostgresEngineSimulator();
+
+    // 1. Parcours normal Société depuis /register/company
+    const companyUserId = "normal-google-company";
+    db.createUser(companyUserId, "ferme.nouvelle@gmail.com", {});
+    const resCompany = await simulateFullCallbackRoute({
+      searchParams: new URLSearchParams({ code: "pkce_company", flow: "oauth", role: "company" }),
+      exchangeHandler: async () => ({
+        data: { user: { id: companyUserId, email: "ferme.nouvelle@gmail.com", user_metadata: {} } },
+        error: null,
+      }),
+      profileHandler: async () => ({
+        data: db.profiles.get(companyUserId),
+        error: null,
+      }),
+      rpcHandler: async (name, { p_role }) => {
+        db.setUserIntendedRole(companyUserId, p_role);
+        return { data: { success: true }, error: null };
+      },
+    });
+
+    assert.strictEqual(resCompany.status, "redirect");
+    assert.strictEqual(resCompany.url, "/onboarding");
+    assert.strictEqual(db.profiles.get(companyUserId).intended_role, "company");
+
+    // 2. Parcours normal Revendeur depuis /register/reseller
+    const resellerUserId = "normal-google-reseller";
+    db.createUser(resellerUserId, "revendeur.nouveau@gmail.com", {});
+    const resReseller = await simulateFullCallbackRoute({
+      searchParams: new URLSearchParams({ code: "pkce_reseller", flow: "oauth", role: "reseller" }),
+      exchangeHandler: async () => ({
+        data: { user: { id: resellerUserId, email: "revendeur.nouveau@gmail.com", user_metadata: {} } },
+        error: null,
+      }),
+      profileHandler: async () => ({
+        data: db.profiles.get(resellerUserId),
+        error: null,
+      }),
+      rpcHandler: async (name, { p_role }) => {
+        db.setUserIntendedRole(resellerUserId, p_role);
+        return { data: { success: true }, error: null };
+      },
+    });
+
+    assert.strictEqual(resReseller.status, "redirect");
+    assert.strictEqual(resReseller.url, "/onboarding");
+    assert.strictEqual(db.profiles.get(resellerUserId).intended_role, "reseller");
+  }
+);
+
+// 23. AUTH-5.16 : Scénario E — Sécurité des sessions, contrôle serveur /onboarding et protection des redirections
+runTest(
+  "AUTH-5.16",
+  "23. AUTH-5.16 : Scénario E — Contrôle serveur /onboarding sans session et sanitisation anti-Open Redirect",
+  () => {
+    // 1. Vérification que /onboarding contrôle la session serveur
+    const onboardingCode = fs.readFileSync(
+      path.resolve("src/app/onboarding/page.tsx"),
+      "utf8"
+    );
+    assert.ok(
+      onboardingCode.includes("supabase.auth.getUser()"),
+      "OnboardingPage doit vérifier l'utilisateur authentifié via getUser()"
+    );
+    assert.ok(
+      onboardingCode.includes('redirect("/login")'),
+      "OnboardingPage doit rediriger vers /login si aucun utilisateur n'est connecté"
+    );
+
+    // 2. Vérification de la sanitisation des redirections
+    assert.strictEqual(sanitizeRedirectPath("https://malicious.com", "/dashboard"), "/dashboard");
+    assert.strictEqual(sanitizeRedirectPath("//malicious.com", "/dashboard"), "/dashboard");
+    assert.strictEqual(sanitizeRedirectPath("javascript:alert(1)", "/dashboard"), "/dashboard");
+    assert.strictEqual(sanitizeRedirectPath("/dashboard/company", "/dashboard"), "/dashboard/company");
+  }
+);
+
 console.log("\n======================================================================");
-console.log(`BILAN DES TESTS AUTH-5.18 + AUTH-5.14 : ${passedCount}/${totalCount} RÉUSSIS`);
+console.log(`BILAN DES TESTS AUTH-5.18 + AUTH-5.14 + AUTH-5.16 : ${passedCount}/${totalCount} RÉUSSIS`);
 console.log("======================================================================");
 
 if (passedCount !== totalCount) {
   process.exit(1);
 }
+

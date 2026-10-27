@@ -194,6 +194,26 @@ export async function updateSession(request: NextRequest) {
       pathname === "/register" ||
       pathname.startsWith("/register/"))
   ) {
+    // AUTH-5.16 : Si l'utilisateur accède à /register avec l'erreur no_account_google,
+    // interdire formellement toute redirection vers /onboarding. Il doit consulter la page
+    // d'inscription et son message explicatif. Purge défensive des cookies de session résiduels.
+    if (pathname === "/register" && request.nextUrl.searchParams.get("error") === "no_account_google") {
+      request.cookies.getAll().forEach((cookie) => {
+        if (
+          cookie.name.startsWith("sb-") ||
+          cookie.name.includes("auth-token") ||
+          cookie.name.includes("supabase")
+        ) {
+          supabaseResponse.cookies.set(cookie.name, "", {
+            maxAge: 0,
+            expires: new Date(0),
+            path: "/",
+          });
+        }
+      });
+      return supabaseResponse;
+    }
+
     const { data: profile } = await supabase
       .from("profiles")
       .select("role, onboarding_status")

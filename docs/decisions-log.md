@@ -621,3 +621,24 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
   3. **Couverture de Tests** : 28/28 tests de la matrice d'onboarding réussis (100%), 10/10 tests de non-régression AUTH-2 réussis (100%), 20/20 tests d'isolation de session réussis (100%).
   4. **Périmètre Délimité & Immuable** : Seuls les fichiers spécifiques à AUTH-4 sont inclus. Aucun push Git ni modification Supabase n'est exécuté sans action directe de l'utilisateur.
 
+### ADR-042 : Double Verrouillage du Rejet Google OAuth /login et Préservation de la Liaison d'Identités Vérifiées (AUTH-5.16)
+* **Date** : 2026-10-26 | **Statut** : Validé et Appliqué Localement
+* **Contexte** : L'audit AUTH-5.15 a identifié qu'un utilisateur sans compte Radiza utilisant le bouton Google de `/login` parvenait à accéder à `/onboarding` et à choisir son rôle, contournant la séparation stricte Inscription / Connexion. L'analyse a démontré : (1) sur la branche `!effectiveIntendedRole` de `/auth/callback`, la recopie brute de `cookieStore.getAll()` réémettait les cookies de session actifs sur la réponse au lieu de les expirer ; (2) le middleware interceptait la redirection vers `/register` pour cet utilisateur avec rôle `unassigned` et le déviait automatiquement vers `/onboarding`. Par ailleurs, les comptes créés avec mot de passe se connectant avec Google avec la même adresse vérifiée bénéficient de la liaison automatique Supabase GoTrue sans duplication de profil.
+* **Décisions & Garanties Validées** :
+  1. **Purge Exhaustive des Cookies de Session dans le Route Handler Callback** :
+     - Sur la branche `!effectiveIntendedRole` de `src/app/auth/callback/route.ts`, appel de `supabase.auth.signOut({ scope: "local" })` avec journalisation des erreurs.
+     - Invalidation inviolable de tous les cookies de session Supabase (`sb-*`, `auth-token`, `supabase`) et du cookie de rôle éphémère (`radiza_oauth_role`) avec `maxAge = 0`, `expires = new Date(0)` et suppression du `cookieStore` local.
+     - Interdiction absolue de réémettre les valeurs positives des cookies de session sur la réponse `noRoleResponse`.
+  2. **Double Verrouillage Défensif dans le Middleware SSR (`middleware.ts`)** :
+     - Exception formelle dans `updateSession` : si la route est `/register` avec le paramètre `error=no_account_google`, toute redirection vers `/onboarding` est **strictement prohibée**, même en présence d'un profil `unassigned` ou de cookies résiduels.
+     - Purge défensive additionnelle de tous les cookies de session sur la réponse `supabaseResponse`.
+  3. **Préservation de la Liaison Native d'Identités Google pour Comptes Existants (Scénario D)** :
+     - Supabase GoTrue lie nativement les identités Google vérifiées aux comptes e-mail existants sous le même `user_id`.
+     - Inspection directe en lecture seule : 0 compte dupliqué, 0 profil dupliqué. Le profil existant et complété (`onboarding_status = 'completed'`) est immédiatement dirigé vers son tableau de bord respectif sans mot de passe redondant.
+  4. **Garantie de Reprise d'Inscription Normale (Scénario B)** :
+     - Tout compte Auth incomplet créé lors d'une tentative `/login` rejetée peut reprendre son inscription via `/register/company` ou `/register/reseller`. Le rôle choisi est verrouillé par `set_user_intended_role` sans conflit d'identité ni duplication de profil.
+* **Fichiers modifiés** :
+  - [`src/app/auth/callback/route.ts`](file:///d:/Marché%20agricole/src/app/auth/callback/route.ts)
+  - [`src/lib/supabase/middleware.ts`](file:///d:/Marché%20agricole/src/lib/supabase/middleware.ts)
+  - [`scripts/test-auth5-google-oauth.mjs`](file:///d:/Marché%20agricole/scripts/test-auth5-google-oauth.mjs)
+

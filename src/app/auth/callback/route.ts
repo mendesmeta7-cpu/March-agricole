@@ -333,32 +333,56 @@ export async function GET(request: Request) {
           }
         }
 
-        // AUTH-5.14 Fix-B1 & AUTH-5.14.1 : Garde-fou contre les utilisateurs non inscrits arrivant via /login.
+        // AUTH-5.14 Fix-B1 & AUTH-5.16 : Garde-fou contre les utilisateurs non inscrits arrivant via /login.
         // Si aucun intended_role fiable n'a été déterminé (effectiveIntendedRole = null), cela signifie
         // que l'utilisateur a utilisé le bouton Google depuis /login sans passer par une page d'inscription
         // (/register/company ou /register/reseller). Son profil est "unassigned" sans rôle verrouillé.
-        // On ferme sa session locale pour que le middleware ne le renvoie pas vers /onboarding,
-        // et on l'invite à choisir son type de compte sur /register.
+        // On ferme sa session locale et on purge rigoureusement tous les cookies de session pour que le
+        // middleware ne le renvoie pas vers /onboarding, et on l'invite à choisir son type de compte sur /register.
         if (!effectiveIntendedRole) {
-          console.warn("[Auth Callback] Utilisateur Google sans rôle d'inscription détecté, fermeture de session locale et redirection vers /register.", authData.user.id);
+          console.warn(
+            "[Auth Callback] Utilisateur Google sans rôle d'inscription détecté, fermeture de session locale et redirection vers /register.",
+            authData.user.id
+          );
+
           try {
-            await supabase.auth.signOut({ scope: "local" });
+            const { error: signOutErr } = await supabase.auth.signOut({ scope: "local" });
+            if (signOutErr) {
+              console.error("[Auth Callback] Échec de la fermeture de session locale:", signOutErr.message);
+            }
           } catch (signOutError) {
-            console.warn("[Auth Callback] Erreur fermeture session locale:", signOutError);
+            console.error("[Auth Callback] Exception fermeture session locale:", signOutError);
           }
 
           const noRoleResponse = NextResponse.redirect(
             new URL("/register?error=no_account_google", baseUrl)
           );
 
-          // Conserver sur la réponse finale les modifications de cookies produites par la déconnexion Supabase
+          // Purge exhaustive et inviolable de TOUS les cookies de session Supabase et du rôle éphémère
           try {
             cookieStore.getAll().forEach((cookie) => {
-              noRoleResponse.cookies.set(cookie.name, cookie.value, cookie);
+              if (
+                cookie.name.startsWith("sb-") ||
+                cookie.name.includes("auth-token") ||
+                cookie.name.includes("supabase")
+              ) {
+                try {
+                  cookieStore.delete(cookie.name);
+                } catch (_) {}
+                noRoleResponse.cookies.set(cookie.name, "", {
+                  maxAge: 0,
+                  expires: new Date(0),
+                  path: "/",
+                });
+              }
             });
-            noRoleResponse.cookies.set("radiza_oauth_role", "", { maxAge: 0, path: "/" });
+            noRoleResponse.cookies.set("radiza_oauth_role", "", {
+              maxAge: 0,
+              expires: new Date(0),
+              path: "/",
+            });
           } catch (cookieError) {
-            console.warn("[Auth Callback] Erreur transfert cookies sur réponse:", cookieError);
+            console.error("[Auth Callback] Erreur purge cookies de rejet:", cookieError);
           }
 
           return noRoleResponse;
