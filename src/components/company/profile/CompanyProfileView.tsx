@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { logoutAction } from "@/lib/actions/auth";
 import CompanyEditProfileDrawer from "./CompanyEditProfileDrawer";
+import SecurityPasswordDrawer from "@/components/security/SecurityPasswordDrawer";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -34,6 +35,7 @@ import {
   CheckCircle2,
   Activity,
   FileText,
+  KeyRound,
 } from "lucide-react";
 
 interface CompanyProfileViewProps {
@@ -83,6 +85,7 @@ export default function CompanyProfileView({
 
   const [activeTab, setActiveTab] = useState<TabType>("identity");
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
+  const [isPasswordDrawerOpen, setIsPasswordDrawerOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [copiedSlug, setCopiedSlug] = useState(false);
@@ -836,6 +839,27 @@ export default function CompanyProfileView({
                       {user.email || profile?.phone}
                     </span>
                   </div>
+
+                  {/* AUTH-6.2 — Gestion du mot de passe */}
+                  <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-between gap-3">
+                    <div>
+                      <span className="text-xs text-gray-500 uppercase font-semibold block">
+                        Mot de passe du compte
+                      </span>
+                      <span className="text-xs text-gray-600 mt-0.5 block">
+                        Identifiant d&apos;accès à votre espace
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsPasswordDrawerOpen(true)}
+                      leftIcon={<KeyRound className="w-3.5 h-3.5 text-forest-700" />}
+                    >
+                      Gérer
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -875,6 +899,13 @@ export default function CompanyProfileView({
         cancelText="Rester connecté"
         variant="destructive"
         isLoading={isLoggingOut}
+      />
+
+      {/* 8. Drawer de gestion du mot de passe (AUTH-6.2) */}
+      <SecurityPasswordDrawer
+        isOpen={isPasswordDrawerOpen}
+        onClose={() => setIsPasswordDrawerOpen(false)}
+        userEmail={user.email}
       />
     </div>
   );

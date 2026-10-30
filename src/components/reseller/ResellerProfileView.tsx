@@ -12,6 +12,7 @@ import {
 import ResellerEditProfileDrawer from "./ResellerEditProfileDrawer";
 import ResellerEditLocationDrawer from "./ResellerEditLocationDrawer";
 import ResellerLogoutButton from "./ResellerLogoutButton";
+import SecurityPasswordDrawer from "@/components/security/SecurityPasswordDrawer";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/Dialog";
@@ -38,6 +39,7 @@ import {
   Info,
   Building2,
   ExternalLink,
+  KeyRound,
 } from "lucide-react";
 
 interface ResellerProfileViewProps {
@@ -96,6 +98,7 @@ export default function ResellerProfileView({
   // Drawers d'édition
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isEditLocationOpen, setIsEditLocationOpen] = useState(false);
+  const [isPasswordDrawerOpen, setIsPasswordDrawerOpen] = useState(false);
 
   // Gestion de l'avatar Cloudinary
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url || null);
@@ -645,6 +648,23 @@ export default function ResellerProfileView({
                   </button>
                 </div>
               </div>
+
+              {/* AUTH-6.2 — Gestion du mot de passe */}
+              <div className="space-y-1.5 pt-2 border-t border-gray-100">
+                <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider block">
+                  Sécurité du Compte
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-center text-xs"
+                  onClick={() => setIsPasswordDrawerOpen(true)}
+                  leftIcon={<KeyRound className="w-3.5 h-3.5 text-forest-700" />}
+                >
+                  Gérer le mot de passe
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -732,6 +752,13 @@ export default function ResellerProfileView({
         cancelText="Annuler"
         variant="destructive"
         isLoading={isDeletingAvatar}
+      />
+
+      {/* 8. Drawer de gestion du mot de passe (AUTH-6.2) */}
+      <SecurityPasswordDrawer
+        isOpen={isPasswordDrawerOpen}
+        onClose={() => setIsPasswordDrawerOpen(false)}
+        userEmail={user.email}
       />
     </div>
   );
