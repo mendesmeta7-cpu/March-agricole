@@ -29,7 +29,7 @@ export interface UserSecurityStatus {
  * 4. Aucun repli permissif sur `app_metadata.providers` n'est toléré.
  */
 export async function getUserSecurityStatusAction(): Promise<UserSecurityStatus> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },
@@ -86,7 +86,7 @@ export async function getUserSecurityStatusAction(): Promise<UserSecurityStatus>
  * - ZÉRO log de code OTP, tokens ou identifiants.
  */
 export async function requestPasswordSetupOtpAction(): Promise<PasswordActionResult> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 1. Vérification de la session active
   const {
@@ -172,7 +172,7 @@ export async function changePasswordAction(
   }
 
   // 2. Vérification de la session active sur le client principal
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
     error: userError,

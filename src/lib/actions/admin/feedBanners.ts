@@ -33,7 +33,7 @@ export async function createAdminFeedBannerAction(
   prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -49,6 +49,9 @@ export async function createAdminFeedBannerAction(
   const subtitle = (formData.get("subtitle") as string)?.trim() || null;
   const buttonLabel = (formData.get("buttonLabel") as string)?.trim() || null;
   const buttonUrl = (formData.get("buttonUrl") as string)?.trim() || "/dashboard/reseller/campaigns";
+  if (!isSafeBannerUrl(buttonUrl)) {
+    return { error: "Le lien du bouton doit être un chemin interne (/...) ou une adresse https://." };
+  }
   const sortOrderStr = (formData.get("sortOrder") as string)?.trim();
   const isActive = formData.get("isActive") === "true" || formData.get("isActive") === "on";
   const imageFile = formData.get("image") as File | null;
@@ -119,7 +122,7 @@ export async function updateAdminFeedBannerAction(
   prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -136,6 +139,9 @@ export async function updateAdminFeedBannerAction(
   const subtitle = (formData.get("subtitle") as string)?.trim() || null;
   const buttonLabel = (formData.get("buttonLabel") as string)?.trim() || null;
   const buttonUrl = (formData.get("buttonUrl") as string)?.trim() || "/dashboard/reseller/campaigns";
+  if (!isSafeBannerUrl(buttonUrl)) {
+    return { error: "Le lien du bouton doit être un chemin interne (/...) ou une adresse https://." };
+  }
   const sortOrderStr = (formData.get("sortOrder") as string)?.trim();
   const isActive = formData.get("isActive") === "true" || formData.get("isActive") === "on";
   const imageFile = formData.get("image") as File | null;
@@ -232,7 +238,7 @@ export async function updateAdminFeedBannerAction(
 export async function deleteAdminFeedBannerAction(
   bannerId: string
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -272,4 +278,19 @@ export async function deleteAdminFeedBannerAction(
   revalidatePath("/dashboard/admin/banners");
   revalidatePath("/dashboard/reseller");
   return { success: true, message: "Bannière supprimée avec succès." };
+}
+
+/**
+ * Lien de bannière (SEC-26) : chemin interne « /… » (sans « // » ni « \ »)
+ * ou URL https absolue. Tout autre schéma (javascript:, data:, http:) est refusé.
+ */
+function isSafeBannerUrl(url: string): boolean {
+  if (url.startsWith("/")) {
+    return !url.startsWith("//") && !url.includes("\\");
+  }
+  try {
+    return new URL(url).protocol === "https:";
+  } catch {
+    return false;
+  }
 }

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import ResellerProfileView from "@/components/reseller/ResellerProfileView";
 
 export default async function ResellerProfilePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

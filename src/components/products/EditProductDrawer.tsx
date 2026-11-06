@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { formatUnitTotals } from "@/lib/utils/unitSeries";
 import { CompanyProductItem } from "@/lib/queries/products";
 import {
   updateCompanyProductAction,
@@ -122,8 +123,9 @@ export default function EditProductDrawer({
 
   const catalogFallbackImage = productItem.product.image_url;
   const productionsCount = productItem.productions_count ?? 0;
-  const totalDeclaredVolume = productItem.total_declared_volume ?? 0;
   const currentUnit = productItem.unit || productItem.product.default_unit || "tonne";
+  // C-5 : volume déclaré ventilé par unité de production (jamais additionné entre unités)
+  const declaredVolumeLabel = formatUnitTotals(productItem.declared_volume_by_unit ?? []) || `0 ${currentUnit}`;
 
   return (
     <Drawer
@@ -180,7 +182,7 @@ export default function EditProductDrawer({
                 {productionsCount} cycle{productionsCount > 1 ? "s" : ""} cultural{productionsCount > 1 ? "aux" : ""} rattaché{productionsCount > 1 ? "s" : ""}
               </p>
               <p className="text-emerald-800 leading-relaxed">
-                Volume total déclaré cumulé : <strong>{totalDeclaredVolume.toLocaleString("fr-FR")} {currentUnit}</strong>.
+                Volume total déclaré cumulé : <strong>{declaredVolumeLabel}</strong>.
                 Pour préserver votre historique agronomique, ce produit ne peut pas être supprimé physiquement mais peut être archivé à tout moment.
               </p>
             </div>

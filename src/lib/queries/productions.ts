@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { isCampaignEffectivelyOpen } from "@/lib/utils/campaignReopenRules";
+import { hasUnitCommitments } from "@/lib/utils/productionRules";
 
 export type ProductionStatus = "draft" | "planned" | "growing" | "harvested" | "cancelled";
 
@@ -20,6 +22,29 @@ export interface ProductionCampaignInfo {
   id: string;
   status: string;
   title: string;
+  end_date?: string | null;
+  campaign_destinations?: Array<{ order_deadline_date: string | null }> | null;
+}
+
+/**
+ * A4 / D1 / D3 — une production est engagée si une campagne 'active' ou 'paused',
+ * effectivement ouverte (C2), en dépend. Miroir de public.guard_production_commitments.
+ */
+/** C-4 : engagements exprimés dans l'unité de la production (miroir de la règle SQL). */
+export function productionHasUnitCommitments(item: any, campaignsList: any[]): boolean {
+  const campaignOrders = campaignsList.flatMap((c: any) => (Array.isArray(c.orders) ? c.orders : []));
+  const directOrders = Array.isArray(item?.orders) ? item.orders : [];
+  return hasUnitCommitments({
+    campaigns: campaignsList,
+    orders: [...directOrders, ...campaignOrders],
+    demandResponses: Array.isArray(item?.demand_responses) ? item.demand_responses : [],
+  });
+}
+
+export function hasEngagingCampaign(campaigns: ProductionCampaignInfo[] | null | undefined): boolean {
+  return (campaigns ?? []).some(
+    (c) => (c.status === "active" || c.status === "paused") && isCampaignEffectivelyOpen(c)
+  );
 }
 
 export interface ProductionItem {
@@ -51,6 +76,10 @@ export interface ProductionItem {
   // Données commerciales réelles rattachées
   campaigns?: ProductionCampaignInfo[];
   has_active_campaign?: boolean;
+  /** A4 / D1 / D3 — campagne active ou suspendue effectivement ouverte rattachée */
+  has_engaging_campaign?: boolean;
+  /** C-4 : unité figée (campagne non annulée, commande en cours ou proposition ouverte). */
+  has_unit_commitments?: boolean;
   active_campaign_id?: string | null;
   campaigns_count?: number;
   demands_count?: number;
@@ -60,7 +89,7 @@ export interface ProductionItem {
  * Récupère toutes les productions déclarées par une entreprise agricole
  */
 export async function getCompanyProductions(companyId: string): Promise<ProductionItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("productions")
     .select(`
@@ -99,10 +128,23 @@ export async function getCompanyProductions(companyId: string): Promise<Producti
       campaigns:campaigns (
         id,
         status,
-        title
+        title,
+        end_date,
+        orders:orders (
+          status
+        ),
+        campaign_destinations (
+          order_deadline_date
+        )
       ),
       demands:demands (
         id
+      ),
+      orders:orders (
+        status
+      ),
+      demand_responses:demand_responses (
+        status
       )
     `)
     .eq("company_id", companyId)
@@ -125,6 +167,8 @@ export async function getCompanyProductions(companyId: string): Promise<Producti
       company_product: Array.isArray(item.company_product) ? item.company_product[0] : item.company_product,
       campaigns: campaignsList,
       has_active_campaign: Boolean(activeCamp),
+      has_engaging_campaign: hasEngagingCampaign(campaignsList),
+      has_unit_commitments: productionHasUnitCommitments(item, campaignsList),
       active_campaign_id: activeCamp?.id || null,
       campaigns_count: campaignsList.length,
       demands_count: demandsList.length,
@@ -139,7 +183,7 @@ export async function getProductionById(
   productionId: string,
   companyId?: string
 ): Promise<ProductionItem | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   let query = supabase
     .from("productions")
     .select(`
@@ -178,10 +222,23 @@ export async function getProductionById(
       campaigns:campaigns (
         id,
         status,
-        title
+        title,
+        end_date,
+        orders:orders (
+          status
+        ),
+        campaign_destinations (
+          order_deadline_date
+        )
       ),
       demands:demands (
         id
+      ),
+      orders:orders (
+        status
+      ),
+      demand_responses:demand_responses (
+        status
       )
     `)
     .eq("id", productionId);
@@ -208,6 +265,8 @@ export async function getProductionById(
     company_product: Array.isArray(data.company_product) ? data.company_product[0] : data.company_product,
     campaigns: campaignsList,
     has_active_campaign: Boolean(activeCamp),
+    has_engaging_campaign: hasEngagingCampaign(campaignsList),
+    has_unit_commitments: productionHasUnitCommitments(data, campaignsList),
     active_campaign_id: activeCamp?.id || null,
     campaigns_count: campaignsList.length,
     demands_count: demandsList.length,

@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { getAppUrl } from "@/lib/utils/url";
+import { getAppUrl, sanitizeRedirectPath } from "@/lib/utils/url";
+import { RECOVERY_PROOF_COOKIE } from "@/lib/auth/recoveryProof";
 
 export interface AuthActionResult {
   success?: boolean;
@@ -23,7 +24,7 @@ export async function loginAction(
     return { error: "Veuillez renseigner votre email et votre mot de passe." };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
@@ -68,12 +69,18 @@ export async function loginAction(
     redirect("/onboarding");
   }
 
-  if (profile.role === "company") {
-    redirect("/dashboard/company");
-  } else if (profile.role === "reseller") {
-    redirect("/dashboard/reseller");
-  } else if (profile.role === "admin") {
-    redirect("/dashboard/admin");
+  const roleHome: Record<string, string> = {
+    company: "/dashboard/company",
+    reseller: "/dashboard/reseller",
+    admin: "/dashboard/admin",
+  };
+  const home = roleHome[profile.role];
+
+  if (home) {
+    // FUN-16 : retour vers la page demandée avant la connexion, uniquement si elle est
+    // interne (sanitizeRedirectPath) ET située dans l'espace du rôle de l'utilisateur.
+    const requested = sanitizeRedirectPath(formData.get("redirect")?.toString(), home);
+    redirect(requested === home || requested.startsWith(`${home}/`) ? requested : home);
   } else {
     // Rôle inconnu malgré un statut completed : erreur explicite, pas d'accès par défaut
     return { error: "Compte incomplet ou non reconnu. Veuillez contacter le support." };
@@ -98,7 +105,7 @@ export async function registerCompanyAction(
     return { error: "Le mot de passe doit contenir au moins 6 caractères." };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 1. Inscription Supabase Auth avec intention de rôle mémorisée dans user_metadata
   const emailRedirectTo = getAppUrl("/auth/callback?flow=signup");
@@ -167,7 +174,7 @@ export async function registerResellerAction(
     return { error: "Le mot de passe doit contenir au moins 6 caractères." };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Inscription Supabase Auth avec intention de rôle mémorisée dans user_metadata
   const emailRedirectTo = getAppUrl("/auth/callback?flow=signup");
@@ -217,7 +224,7 @@ export async function registerResellerAction(
 }
 
 export async function logoutAction() {
-  const supabase = createClient();
+  const supabase = await createClient();
   try {
     await supabase.auth.signOut({ scope: "global" });
   } catch (e) {
@@ -226,7 +233,7 @@ export async function logoutAction() {
 
   // Purge explicite et exhaustive de TOUS les cookies Supabase (chunks sb-*, etc.)
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const allCookies = cookieStore.getAll();
     for (const cookie of allCookies) {
       if (
@@ -272,7 +279,7 @@ export async function requestPasswordResetAction(
     return { error: "L'adresse e-mail saisie n'est pas valide." };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // URL de callback explicitement marquée pour le flux recovery
   const emailRedirectTo = getAppUrl("/auth/callback?flow=recovery&type=recovery&next=/reset-password");
@@ -313,7 +320,7 @@ export async function resetPasswordAction(
     return { error: "Les deux mots de passe ne correspondent pas." };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Vérification de la session côté serveur : l'utilisateur doit être
   // authentifié via le jeton PKCE du flux recovery.
@@ -321,7 +328,12 @@ export async function resetPasswordAction(
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  // Une session ordinaire ne suffit pas (SEC-10) : il faut la preuve posée par
+  // /auth/callback à l'ouverture d'un lien de récupération, liée à ce même compte.
+  const recoveryCookieStore = await cookies();
+  const recoveryProof = recoveryCookieStore.get(RECOVERY_PROOF_COOKIE)?.value;
+
+  if (!user || recoveryProof !== user.id) {
     return {
       error:
         "Votre session de récupération est invalide ou a expiré. Veuillez recommencer depuis la page de connexion.",
@@ -342,16 +354,20 @@ export async function resetPasswordAction(
     return { error: "La mise à jour du mot de passe a échoué. Veuillez réessayer." };
   }
 
-  // Déconnexion de la session temporaire de récupération
+  // Preuve de récupération à usage unique
+  recoveryCookieStore.set(RECOVERY_PROOF_COOKIE, "", { maxAge: 0, path: "/" });
+
+  // Déconnexion de TOUTES les sessions du compte : un éventuel détenteur d'une
+  // ancienne session perd l'accès après la réinitialisation (SEC-10).
   try {
-    await supabase.auth.signOut({ scope: "local" });
+    await supabase.auth.signOut({ scope: "global" });
   } catch (_) {
     // Non-bloquant
   }
 
   // Purge des cookies de session
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.getAll().forEach((cookie) => {
       if (
         cookie.name.startsWith("sb-") ||
@@ -429,7 +445,7 @@ export async function completeOnboardingAction(
   // Ce champ bénéficie aux deux rôles, notamment au Revendeur dont la RPC ne gère pas de téléphone propre.
   const sharedPhone = formData.get("phone")?.toString().trim() || null;
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Vérification de la session active côté serveur
   const {

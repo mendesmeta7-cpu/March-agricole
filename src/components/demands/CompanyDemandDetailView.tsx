@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useTransition, useMemo } from "react";
-import { DemandItem, DemandResponseItem } from "@/lib/queries/demands";
+import { DemandItem, DemandResponseItem, DemandResponseStatus } from "@/lib/queries/demands";
 import { createDemandProposalAction } from "@/lib/actions/demands";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
@@ -37,6 +37,57 @@ interface CompanyProductionOption {
   status: string;
   product_id: string;
 }
+
+/**
+ * FUN-13 — Présentation d'une réponse selon son statut réel (aucune règle métier nouvelle :
+ * simple restitution des statuts existants de demand_responses).
+ */
+const PROPOSAL_STATUS_DISPLAY: Record<
+  DemandResponseStatus,
+  {
+    title: string;
+    badge: string;
+    badgeVariant: "forest" | "success" | "warning" | "danger" | "neutral";
+    cardClass: string;
+    showTerms: boolean;
+  }
+> = {
+  proposed: {
+    title: "Proposition Commerciale Transmise",
+    badge: "En attente de validation revendeur",
+    badgeVariant: "forest",
+    cardClass: "border-emerald-200 bg-emerald-50/40",
+    showTerms: true,
+  },
+  accepted: {
+    title: "Proposition Acceptée",
+    badge: "Acceptée par le revendeur",
+    badgeVariant: "success",
+    cardClass: "border-emerald-300 bg-emerald-50/60",
+    showTerms: true,
+  },
+  ordered: {
+    title: "Proposition Convertie en Commande",
+    badge: "Commande créée par le revendeur",
+    badgeVariant: "success",
+    cardClass: "border-emerald-300 bg-emerald-50/60",
+    showTerms: true,
+  },
+  refused: {
+    title: "Demande Déclinée",
+    badge: "Vous avez décliné cette demande",
+    badgeVariant: "neutral",
+    cardClass: "border-gray-200 bg-gray-50",
+    showTerms: false,
+  },
+  cancelled: {
+    title: "Proposition Annulée",
+    badge: "Proposition annulée",
+    badgeVariant: "danger",
+    cardClass: "border-rose-200 bg-rose-50/40",
+    showTerms: false,
+  },
+};
 
 interface CompanyDemandDetailViewProps {
   demand: DemandItem;
@@ -320,13 +371,23 @@ export default function CompanyDemandDetailView({
         {/* Colonne Droite (1/3) : Formulaire de Proposition ou État Actuel */}
         <div className="space-y-6">
           {currentProposal ? (
-            <Card className="p-5 space-y-4 border-emerald-200 bg-emerald-50/40 shadow-xs">
+            (() => {
+              const display =
+                PROPOSAL_STATUS_DISPLAY[currentProposal.status] ?? PROPOSAL_STATUS_DISPLAY.proposed;
+              const hasTerms =
+                display.showTerms &&
+                Number(currentProposal.proposed_quantity) > 0 &&
+                Number(currentProposal.unit_price) > 0;
+              return (
+            <Card className={`p-5 space-y-4 shadow-xs ${display.cardClass}`}>
               <div className="flex items-center gap-2 text-emerald-950 font-bold text-sm border-b border-emerald-200/60 pb-3">
-                <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                Proposition Commerciale Transmise
+                <CheckCircle2 className="w-4 h-4 text-emerald-700" aria-hidden="true" />
+                {display.title}
               </div>
 
               <div className="space-y-3 text-xs text-gray-700">
+                {hasTerms && (
+                <>
                 <div className="flex justify-between items-center py-1 border-b border-emerald-100/60">
                   <span className="text-gray-600">Quantité proposée</span>
                   <span className="font-bold text-emerald-950">
@@ -348,7 +409,18 @@ export default function CompanyDemandDetailView({
                   </span>
                 </div>
 
-                {currentProposal.production && (
+                </>
+                )}
+
+                {!hasTerms && (
+                  <p className="text-[11px] text-gray-600 leading-relaxed">
+                    {currentProposal.status === "refused"
+                      ? "Aucune offre n'a été transmise au revendeur pour cette demande."
+                      : "Cette proposition n'est plus active."}
+                  </p>
+                )}
+
+                {hasTerms && currentProposal.production && (
                   <div className="py-1">
                     <span className="text-gray-500 text-[11px] block">Production associée</span>
                     <span className="font-semibold text-gray-900">
@@ -364,12 +436,14 @@ export default function CompanyDemandDetailView({
                 )}
 
                 <div className="pt-2 text-center">
-                  <Badge variant="forest" size="md">
-                    En attente de validation revendeur
+                  <Badge variant={display.badgeVariant} size="md">
+                    {display.badge}
                   </Badge>
                 </div>
               </div>
             </Card>
+              );
+            })()
           ) : (
             <Card className="p-5 space-y-4 border-earth-200 bg-white shadow-xs">
               <div className="flex items-center gap-2 text-earth-950 font-bold text-sm border-b border-gray-100 pb-3">

@@ -46,7 +46,7 @@ export interface CompanyPublicProductionItem {
 export async function getPublicCompanyProfile(
   companyId: string
 ): Promise<PublicCompanyProfile | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("companies")
@@ -88,7 +88,7 @@ export async function getPublicCompanyProfile(
 export async function getCompanyPublicProductions(
   companyId: string
 ): Promise<CompanyPublicProductionItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("productions")

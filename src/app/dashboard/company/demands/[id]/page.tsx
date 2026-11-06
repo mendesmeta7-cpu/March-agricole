@@ -1,46 +1,30 @@
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentCompanyId, getCurrentUser } from "@/lib/auth/currentCompany";
+import CompanyAccountMissing from "@/components/company/CompanyAccountMissing";
 import { getDemandById } from "@/lib/queries/demands";
 import { notFound, redirect } from "next/navigation";
 import CompanyDemandDetailView from "@/components/demands/CompanyDemandDetailView";
 
 interface CompanyDemandDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default async function CompanyDemandDetailPage({
-  params,
-}: CompanyDemandDetailPageProps) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default async function CompanyDemandDetailPage(props: CompanyDemandDetailPageProps) {
+  const params = await props.params;
+  const supabase = await createClient();
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect(`/login?redirect=/dashboard/company/demands/${params.id}`);
   }
 
-  // 1. Récupération de l'entreprise connectée
-  const { data: memberData } = await supabase
-    .from("company_members")
-    .select("company_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  let companyId = memberData?.company_id;
+  // 1. Entreprise rattachée (membre ou créateur) — résolution mutualisée et mise en cache (FUN-18)
+  const companyId = await getCurrentCompanyId();
 
   if (!companyId) {
-    const { data: comp } = await supabase
-      .from("companies")
-      .select("id")
-      .eq("created_by", user.id)
-      .maybeSingle();
-    companyId = comp?.id;
-  }
-
-  if (!companyId) {
-    redirect("/dashboard/company");
+    return <CompanyAccountMissing />;
   }
 
   const { data: company } = await supabase

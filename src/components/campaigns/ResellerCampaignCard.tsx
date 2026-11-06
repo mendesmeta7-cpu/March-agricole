@@ -47,8 +47,16 @@ export default function ResellerCampaignCard({
   const formattedStart = formatDate(campaign.start_date);
   const formattedEnd = formatDate(campaign.end_date);
 
-  const availableQty = campaign.available_quantity ?? campaign.marketable_quantity;
-  const isOutOfStock = availableQty <= 0;
+  // Stock revendeur (migration 32) : disponible agrégé lu côté serveur. null = illisible :
+  // aucun repli sur le volume commercialisable, la commande est désactivée.
+  const availableQty = campaign.available_quantity;
+  const isAvailabilityUnknown = availableQty === null || campaign.availability_unavailable === true;
+  const isOutOfStock = !isAvailabilityUnknown && (availableQty ?? 0) <= 0;
+  // FUN-19 : « Commander » n'est actif que si le service d'éligibilité autorise la
+  // commande (campagne ouverte, échéance de destination non dépassée, stock disponible).
+  const canOrder =
+    !isAvailabilityUnknown && (campaign.can_order ?? (campaign.is_eligible && !isOutOfStock));
+  const orderBlockedMessage = !canOrder ? campaign.eligibility_message || null : null;
 
   const imageUrl = campaign.production.main_image_url || campaign.product.image_url;
 
@@ -165,13 +173,20 @@ export default function ResellerCampaignCard({
               <span className="text-[10px] text-forest-700 block uppercase font-bold tracking-wider">
                 Stock Restant Réel
               </span>
-              <span className="text-sm sm:text-base font-extrabold text-gray-900 flex items-center gap-1 mt-0.5">
-                <Layers className="w-3.5 h-3.5 text-earth-600 shrink-0 inline" />
-                <span className="truncate">
-                  {availableQty.toLocaleString("fr-FR")}
+              {isAvailabilityUnknown ? (
+                <span className="text-[11px] font-semibold text-amber-800 flex items-start gap-1 mt-0.5 leading-snug">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-px" aria-hidden="true" />
+                  <span>Disponibilité momentanément indisponible</span>
                 </span>
-                <span className="text-[10px] font-normal text-gray-500">{campaign.unit}</span>
-              </span>
+              ) : (
+                <span className="text-sm sm:text-base font-extrabold text-gray-900 flex items-center gap-1 mt-0.5">
+                  <Layers className="w-3.5 h-3.5 text-earth-600 shrink-0 inline" />
+                  <span className="truncate">
+                    {(availableQty ?? 0).toLocaleString("fr-FR")}
+                  </span>
+                  <span className="text-[10px] font-normal text-gray-500">{campaign.unit}</span>
+                </span>
+              )}
             </div>
           </div>
 
@@ -237,6 +252,12 @@ export default function ResellerCampaignCard({
 
       {/* 3. Pied de carte & Actions */}
       <div className="p-3.5 sm:p-4 bg-gray-50/80 border-t border-gray-100 space-y-2">
+        {campaign.is_eligible && orderBlockedMessage && (
+          <p className="flex items-start gap-1.5 text-[11px] text-amber-900 leading-relaxed">
+            <AlertCircle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-px" aria-hidden="true" />
+            <span>{orderBlockedMessage}</span>
+          </p>
+        )}
         {campaign.is_eligible ? (
           <div className="flex items-center justify-between gap-2">
             {/* Action Voir Détails */}
@@ -262,11 +283,18 @@ export default function ResellerCampaignCard({
               <button
                 type="button"
                 onClick={() => onOrderClick(campaign)}
-                disabled={isOutOfStock}
+                disabled={!canOrder}
+                title={orderBlockedMessage ?? undefined}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-forest-700 text-white font-bold text-xs hover:bg-forest-800 active:scale-98 transition-all shadow-xs disabled:bg-gray-300 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ShoppingBag className="w-3.5 h-3.5" />
-                {isOutOfStock ? "Stock épuisé" : "Commander"}
+                {canOrder
+                  ? "Commander"
+                  : isAvailabilityUnknown
+                  ? "Commande indisponible"
+                  : isOutOfStock
+                  ? "Stock épuisé"
+                  : "Commande fermée"}
               </button>
             )}
           </div>

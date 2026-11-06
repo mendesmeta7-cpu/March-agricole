@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { formatUnitTotals } from "@/lib/utils/unitSeries";
 import { CompanyProductItem } from "@/lib/queries/products";
 import Badge from "@/components/ui/Badge";
 import {
@@ -39,7 +40,8 @@ export default function CompanyProductCard({
   const isCustomProduct = !item.product.is_global;
   const hasCustomImage = Boolean(item.image_url);
   const productionsCount = item.productions_count ?? 0;
-  const totalDeclaredVolume = item.total_declared_volume ?? 0;
+  // C-5 : volume déclaré ventilé par unité de production, jamais additionné entre unités
+  const declaredVolumeLabel = formatUnitTotals(item.declared_volume_by_unit ?? []) || `0 ${displayUnit}`;
 
   return (
     <div
@@ -162,7 +164,7 @@ export default function CompanyProductCard({
                 Volume déclaré cumulé :
               </span>
               <span className="font-bold text-emerald-950">
-                {totalDeclaredVolume.toLocaleString("fr-FR")} {displayUnit}
+                {declaredVolumeLabel}
               </span>
             </div>
           ) : (

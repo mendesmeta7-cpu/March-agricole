@@ -1,7 +1,7 @@
 import {
   SkeletonPageHeader,
   SkeletonFilterBar,
-  SkeletonCardGrid,
+  SkeletonTable,
   Skeleton,
 } from "@/components/ui/Skeleton";
 
@@ -11,7 +11,7 @@ export default function AdminProductionsLoading() {
       <Skeleton className="h-4 w-36 rounded" />
       <SkeletonPageHeader />
       <SkeletonFilterBar />
-      <SkeletonCardGrid count={6} />
+      <SkeletonTable rows={6} />
     </div>
   );
 }

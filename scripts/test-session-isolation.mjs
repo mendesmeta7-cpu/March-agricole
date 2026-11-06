@@ -1,7 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = "https://gonerlgkdnbdewjbebvq.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvbmVybGdrZG5iZGV3amJlYnZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5MzQzOTgsImV4cCI6MjEwNDUxMDM5OH0.T1_nF5NQVUSFbQhQMfsG88oyjfAOFPFOBavCQqLfwmg";
+import { getSupabaseScriptConfig } from "./_supabase-env.mjs";
+
+const { url: SUPABASE_URL } = getSupabaseScriptConfig({ writes: false });
+const { anonKey: SUPABASE_ANON_KEY } = getSupabaseScriptConfig({ writes: false });
 
 // Client Supabase anonyme standard
 const supabaseAnon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -78,21 +80,21 @@ async function runSessionIsolationSuite() {
 
   // Identifiants réels des comptes existants en base
   const resellerUser = {
-    email: "md2trade1999@gmail.com",
+    email: process.env.RADIZA_SCRIPT_RESELLER_EMAIL ?? "",
     expectedRole: "reseller",
     expectedDashboard: "/dashboard/reseller",
     expectedNotifications: "/dashboard/reseller/notifications",
   };
 
   const companyUser = {
-    email: "mendesmeta7@gmail.com",
+    email: process.env.RADIZA_SCRIPT_COMPANY_EMAIL ?? "",
     expectedRole: "company",
     expectedDashboard: "/dashboard/company",
     expectedNotifications: "/dashboard/company/notifications",
   };
 
   const adminUser = {
-    email: "admin@marcheagricole.cd",
+    email: process.env.RADIZA_SCRIPT_ADMIN_EMAIL ?? "",
     expectedRole: "admin",
     expectedDashboard: "/dashboard/admin",
   };

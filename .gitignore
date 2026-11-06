@@ -31,3 +31,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# scripts temporaires contenant des opérations sensibles (jamais versionnés)
+scripts/tmp-*.mjs

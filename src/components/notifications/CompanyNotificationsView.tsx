@@ -68,31 +68,42 @@ function CompanyNotificationsContent({
     e?.stopPropagation();
     setMarkingId(notifId);
     startTransition(async () => {
-      const res = await markNotificationAsReadAction(notifId);
-      if (res.success) {
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === notifId ? { ...n, read_at: new Date().toISOString() } : n))
-        );
-      } else {
-        toast.error("Erreur", { description: res.error || "Impossible de marquer comme lue." });
+      try {
+        const res = await markNotificationAsReadAction(notifId);
+        if (res.success) {
+          setNotifications((prev) =>
+            prev.map((n) => (n.id === notifId ? { ...n, read_at: new Date().toISOString() } : n))
+          );
+        } else {
+          toast.error("Erreur", { description: res.error || "Impossible de marquer comme lue." });
+        }
+      } catch (err) {
+        console.error("Erreur notification:", err);
+        toast.error("Erreur", { description: "La requête n'a pas pu aboutir. Vérifiez votre connexion puis réessayez." });
+      } finally {
+        setMarkingId(null);
       }
-      setMarkingId(null);
     });
   };
 
   // Marquer toutes les notifications comme lues
   const handleMarkAllAsRead = () => {
     startTransition(async () => {
-      const res = await markAllNotificationsAsReadAction();
-      if (res.success) {
-        const now = new Date().toISOString();
-        setNotifications((prev) => prev.map((n) => ({ ...n, read_at: n.read_at || now })));
-        toast.success("Notifications à jour", {
-          description: "Toutes les notifications de votre exploitation ont été marquées comme lues.",
-        });
-        router.refresh();
-      } else {
-        toast.error("Erreur", { description: res.error || "Une erreur est survenue." });
+      try {
+        const res = await markAllNotificationsAsReadAction();
+        if (res.success) {
+          const now = new Date().toISOString();
+          setNotifications((prev) => prev.map((n) => ({ ...n, read_at: n.read_at || now })));
+          toast.success("Notifications à jour", {
+            description: "Toutes les notifications de votre exploitation ont été marquées comme lues.",
+          });
+          router.refresh();
+        } else {
+          toast.error("Erreur", { description: res.error || "Une erreur est survenue." });
+        }
+      } catch (err) {
+        console.error("Erreur notifications:", err);
+        toast.error("Erreur", { description: "La requête n'a pas pu aboutir. Vérifiez votre connexion puis réessayez." });
       }
     });
   };
@@ -245,9 +256,8 @@ function CompanyNotificationsContent({
           : "/dashboard/company/orders";
       case "DATE_ARRIVEE_MODIFIEE":
       case "CAMPAGNE_OUVERTE":
-        return notif.related_entity_id
-          ? `/dashboard/company/campaigns/${notif.related_entity_id}`
-          : "/dashboard/company/campaigns";
+        // FUN-17 : aucune route de détail /dashboard/company/campaigns/[id]
+        return "/dashboard/company/campaigns";
       default:
         return "/dashboard/company";
     }

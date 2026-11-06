@@ -137,6 +137,7 @@ export default function AdminProductModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Fermer la fenêtre"
             className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
@@ -162,10 +163,11 @@ export default function AdminProductModal({
         <form action={handleSubmit} className="p-6 overflow-y-auto space-y-4 flex-1">
           {/* Nom du produit */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">
+            <label htmlFor="admin-product-name" className="block text-xs font-semibold text-gray-700 mb-1">
               Nom du produit (référence standard) *
             </label>
             <input
+              id="admin-product-name"
               type="text"
               name="name"
               required
@@ -226,10 +228,11 @@ export default function AdminProductModal({
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">
+            <label htmlFor="admin-product-description" className="block text-xs font-semibold text-gray-700 mb-1">
               Description agronomique générale (optionnelle)
             </label>
             <textarea
+              id="admin-product-description"
               name="description"
               rows={2}
               defaultValue={productToEdit?.description || ""}

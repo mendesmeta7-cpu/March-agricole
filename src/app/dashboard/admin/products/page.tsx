@@ -4,7 +4,7 @@ import { getAdminCatalogProducts } from "@/lib/queries/products";
 import AdminProductsView from "@/components/admin/AdminProductsView";
 
 export default async function AdminProductsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

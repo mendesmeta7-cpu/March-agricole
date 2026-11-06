@@ -71,6 +71,7 @@ export default function AdminBannerModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Fermer la fenêtre"
             className="p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -95,10 +96,11 @@ export default function AdminBannerModal({
 
           {/* Titre */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+            <label htmlFor="admin-banner-title" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
               Titre de la bannière *
             </label>
             <input
+              id="admin-banner-title"
               type="text"
               name="title"
               required
@@ -110,10 +112,11 @@ export default function AdminBannerModal({
 
           {/* Sous-titre */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+            <label htmlFor="admin-banner-subtitle" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
               Sous-titre / Message descriptif
             </label>
             <textarea
+              id="admin-banner-subtitle"
               name="subtitle"
               rows={2}
               defaultValue={banner?.subtitle || ""}
@@ -125,10 +128,11 @@ export default function AdminBannerModal({
           {/* Bouton d'action */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+              <label htmlFor="admin-banner-buttonLabel" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                 Texte du bouton CTA
               </label>
               <input
+                id="admin-banner-buttonLabel"
                 type="text"
                 name="buttonLabel"
                 defaultValue={banner?.button_label || "Voir les offres"}
@@ -138,10 +142,11 @@ export default function AdminBannerModal({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+              <label htmlFor="admin-banner-buttonUrl" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                 Lien de redirection (URL)
               </label>
               <input
+                id="admin-banner-buttonUrl"
                 type="text"
                 name="buttonUrl"
                 defaultValue={banner?.button_url || "/dashboard/reseller/campaigns"}
@@ -153,7 +158,7 @@ export default function AdminBannerModal({
 
           {/* Image Cloudinary */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+            <label htmlFor="admin-banner-sortOrder" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
               Image d&apos;arrière-plan (Cloudinary) {!isEditing && "*"}
             </label>
 
@@ -200,6 +205,7 @@ export default function AdminBannerModal({
                 Ordre d&apos;affichage
               </label>
               <input
+                id="admin-banner-sortOrder"
                 type="number"
                 name="sortOrder"
                 defaultValue={banner?.sort_order ?? 0}

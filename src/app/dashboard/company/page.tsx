@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { getCurrentCompanyId, getCurrentProfile, getCurrentUser } from "@/lib/auth/currentCompany";
+import CompanyAccountMissing from "@/components/company/CompanyAccountMissing";
+import { sumByCurrency, sumByUnit } from "@/lib/utils/currencyTotals";
 import { getCompanyOrders, getCompanyOrdersForFinancials } from "@/lib/queries/orders";
 import { getCompanyGeneralDemands } from "@/lib/queries/demands";
 import type { DemandItem } from "@/lib/queries/demands";
@@ -15,14 +18,25 @@ import CompanyPendingActions from "@/components/company/dashboard/CompanyPending
 import type { PendingActionItem } from "@/components/company/dashboard/CompanyPendingActions";
 import CompanyRecentActivity from "@/components/company/dashboard/CompanyRecentActivity";
 import CompanyFinancialMetrics from "@/components/company/dashboard/CompanyFinancialMetrics";
+import { isConsumingReservation } from "@/lib/utils/stockRules";
+import { buildProvinceBreakdownByUnit } from "@/lib/utils/unitSeries";
+import type { ProvinceUnitRow } from "@/lib/utils/unitSeries";
 
 export default async function CompanyDashboardPage() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) redirect("/login");
+
+  // ─── Entreprise rattachée (membre ou créateur) ─────────────────────────────
+  // FUN-18 : résolution mutualisée (company_members puis companies.created_by) et
+  // mise en cache pour la requête. Sans entreprise : message explicite, pas de
+  // redirection vers /onboarding (qui bouclait pour un collaborateur non créateur).
+  const resolvedCompanyId = await getCurrentCompanyId();
+  if (!resolvedCompanyId) {
+    return <CompanyAccountMissing />;
+  }
+
+  const supabase = await createClient();
 
   // ─── Profil entreprise ───────────────────────────────────────────────────────
   const { data: company } = await supabase
@@ -30,10 +44,12 @@ export default async function CompanyDashboardPage() {
     .select(
       "id, name, slug, description, address, city, phone, email, verification_status, logo_url, provinces(name), countries(name)"
     )
-    .eq("created_by", user.id)
+    .eq("id", resolvedCompanyId)
     .maybeSingle();
 
-  if (!company?.id) redirect("/onboarding");
+  if (!company?.id) {
+    return <CompanyAccountMissing />;
+  }
 
   const companyId = company.id;
   const locationInfo = [
@@ -44,11 +60,7 @@ export default async function CompanyDashboardPage() {
     .join(", ");
 
   // ─── Profil utilisateur ──────────────────────────────────────────────────────
-  const { data: userProfile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", user.id)
-    .maybeSingle();
+  const userProfile = await getCurrentProfile();
 
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
@@ -68,6 +80,8 @@ export default async function CompanyDashboardPage() {
       .select("id, status")
       .eq("company_id", companyId),
 
+    // FUN-05 : la colonne campaigns.reserved_quantity n'existe pas. Le réservé est
+    // calculé depuis stock_reservations (statut 'active'), comme dans queries/campaigns.ts.
     supabase
       .from("campaigns")
       .select(`
@@ -75,7 +89,6 @@ export default async function CompanyDashboardPage() {
         title,
         status,
         marketable_quantity,
-        reserved_quantity,
         unit,
         start_date,
         end_date,
@@ -83,6 +96,10 @@ export default async function CompanyDashboardPage() {
           id,
           city_name,
           order_deadline_date
+        ),
+        stock_reservations (
+          quantity,
+          status
         )
       `)
       .eq("company_id", companyId),
@@ -112,8 +129,16 @@ export default async function CompanyDashboardPage() {
   ]);
 
   // ─── Productions ─────────────────────────────────────────────────────────────
+  // Une erreur de requête n'est jamais convertie en zéros silencieux (anti faux zéro).
+  if (productionsResult.error) {
+    console.error("Erreur chargement productions (dashboard):", productionsResult.error);
+  }
+  const productionsError = productionsResult.error
+    ? "chargement des productions impossible"
+    : null;
   const productions = productionsResult.data || [];
   const productionsStats = {
+    error: productionsError,
     total: productions.length,
     growing: productions.filter((p) => p.status === "growing").length,
     harvested: productions.filter((p) => p.status === "harvested").length,
@@ -125,39 +150,40 @@ export default async function CompanyDashboardPage() {
   const unansweredDemands = activeDemands.filter(
     (d) => !d.my_response || d.my_response === null
   );
-  const totalDemandedQty = activeDemands.reduce(
-    (acc, d) => acc + (d.quantity || 0),
-    0
-  );
+  // FUN-04 : volumes ventilés par unité (jamais d'addition entre unités différentes).
   const demandsStats = {
     totalActive: activeDemands.length,
     needingResponse: unansweredDemands.length,
-    totalDemandedQuantity: Math.round(totalDemandedQty),
-    unit: activeDemands[0]?.unit || "tonne",
+    demandedByUnit: sumByUnit(activeDemands, (d) => d.quantity, (d) => d.unit),
   };
 
   // ─── Campagnes ───────────────────────────────────────────────────────────────
+  if (campaignsResult.error) {
+    console.error("Erreur chargement campagnes (dashboard):", campaignsResult.error);
+  }
+  const campaignsError = campaignsResult.error
+    ? "chargement des campagnes impossible"
+    : null;
   const rawCampaigns = campaignsResult.data || [];
-  const campaigns = rawCampaigns.map((c: any) => ({
-    ...c,
-    effectiveStatus: getEffectiveCampaignStatus(c),
-  }));
+  const campaigns = rawCampaigns.map((c: any) => {
+    const reservedQty = ((c.stock_reservations || []) as any[])
+      .filter((sr) => isConsumingReservation(sr.status))
+      .reduce((acc: number, sr) => acc + (Number(sr.quantity) || 0), 0);
+    const marketableQty = Number(c.marketable_quantity) || 0;
+    return {
+      ...c,
+      reservedQty,
+      availableQty: Math.max(0, marketableQty - reservedQty),
+      effectiveStatus: getEffectiveCampaignStatus(c),
+    };
+  });
   const activeCampaigns = campaigns.filter((c) => c.effectiveStatus === "active");
-  const totalMarketable = activeCampaigns.reduce(
-    (acc, c) => acc + (Number(c.marketable_quantity) || 0),
-    0
-  );
-  const totalReserved = activeCampaigns.reduce(
-    (acc, c) => acc + (Number(c.reserved_quantity) || 0),
-    0
-  );
   const campaignsStats = {
     activeCount: activeCampaigns.length,
     totalCount: campaigns.length,
-    totalMarketable,
-    totalReserved,
-    totalAvailable: totalMarketable - totalReserved,
-    unit: activeCampaigns[0]?.unit || "tonne",
+    reservedByUnit: sumByUnit(activeCampaigns, (c) => c.reservedQty, (c) => c.unit),
+    availableByUnit: sumByUnit(activeCampaigns, (c) => c.availableQty, (c) => c.unit),
+    error: campaignsError,
   };
 
   // ─── Commandes ───────────────────────────────────────────────────────────────
@@ -165,16 +191,19 @@ export default async function CompanyDashboardPage() {
   const ordersToProcess = recentOrders.filter((o) =>
     inProgressStatuses.includes(o.status)
   );
-  const ordersDelivered = recentOrders.filter((o) => o.status === "delivered");
-  const totalRevenue = recentOrders
-    .filter((o) => o.status !== "cancelled")
-    .reduce((acc, o) => acc + (o.total_amount || 0), 0);
+  // FUN-04 : les indicateurs de commandes s'appuient sur la requête financière exhaustive
+  // (avec erreur explicite) ; l'engagement est ventilé par devise, CDF et USD jamais additionnés.
+  const financialOrders = financialOrdersResult.orders;
   const ordersStats = {
-    total: recentOrders.length,
-    toProcess: ordersToProcess.length,
-    delivered: ordersDelivered.length,
-    totalRevenue: Math.round(totalRevenue),
-    currency: recentOrders[0]?.currency || "USD",
+    total: financialOrders.length,
+    toProcess: financialOrders.filter((o) => inProgressStatuses.includes(o.status)).length,
+    delivered: financialOrders.filter((o) => o.status === "delivered").length,
+    revenueByCurrency: sumByCurrency(
+      financialOrders.filter((o) => o.status !== "cancelled"),
+      (o) => o.total_amount,
+      (o) => o.currency
+    ),
+    error: financialOrdersResult.error,
   };
 
   // ─── Alertes dynamiques du dashboard (Prompt 6) ─────────────────────────────
@@ -305,43 +334,37 @@ export default async function CompanyDashboardPage() {
     return {
       date: d.created_at,
       quantity: Number(d.quantity) || 0,
-      unit: d.unit || "tonne",
+      // Unité d'origine conservée (aucune unité supposée, aucune conversion).
+      unit: d.unit || "",
       productId: d.product_id || prod?.id || "",
       productName: prod?.name || "Produit",
     };
   });
 
   // ─── Géographie demandes ─────────────────────────────────────────────────────
+  // BR-FIN-04 : ventilation par (province, unité). Aucune addition entre unités
+  // différentes, aucune conversion ; les pourcentages sont calculés dans chaque unité.
   const geoRaw = geoResult.data || [];
-  const provinceMap = new Map<
-    string,
-    {
-      province_name: string;
-      demands_count: number;
-      total_quantity: number;
-      unit: string;
-      demands: DemandItem[];
-    }
-  >();
+  const demandsByProvince = new Map<string, DemandItem[]>();
+  const geoRows: ProvinceUnitRow[] = [];
 
   geoRaw.forEach((d: any) => {
-    const provId = d.province_id;
+    const provId: string = d.province_id || "";
     const provRaw = Array.isArray(d.provinces) ? d.provinces[0] : d.provinces;
     const prodRaw = Array.isArray(d.products) ? d.products[0] : d.products;
     const countryRaw = Array.isArray(d.countries) ? d.countries[0] : d.countries;
     const provName = provRaw?.name || "Province non identifiée";
+    const unit: string = d.unit || "";
 
-    const existing = provinceMap.get(provId) || {
-      province_name: provName,
-      demands_count: 0,
-      total_quantity: 0,
-      unit: d.unit || "tonne",
-      demands: [] as DemandItem[],
-    };
+    geoRows.push({
+      provinceId: provId,
+      provinceName: provName,
+      quantity: d.quantity,
+      unit,
+    });
 
-    existing.demands_count += 1;
-    existing.total_quantity += Number(d.quantity) || 0;
-    existing.demands.push({
+    const list = demandsByProvince.get(provId) || [];
+    list.push({
       id: d.id,
       reseller_id: "",
       demand_type: "general",
@@ -349,7 +372,7 @@ export default async function CompanyDashboardPage() {
       production_id: null,
       target_company_id: null,
       quantity: Number(d.quantity) || 0,
-      unit: d.unit || "tonne",
+      unit,
       country_id: countryRaw?.id || "",
       province_id: provId,
       city: null,
@@ -359,33 +382,22 @@ export default async function CompanyDashboardPage() {
       status: "active",
       created_at: d.created_at,
       updated_at: d.created_at,
-      product: prodRaw || { id: d.product_id || "", name: "Produit", category: "", default_unit: d.unit || "tonne", image_url: null },
+      product: prodRaw || { id: d.product_id || "", name: "Produit", category: "", default_unit: unit, image_url: null },
       province: provRaw || { id: provId, name: provName, code: "" },
       country: countryRaw || { id: "", name: "RDC", code: "CD" },
     });
-
-    provinceMap.set(provId, existing);
+    demandsByProvince.set(provId, list);
   });
 
-  const totalGeoQty = Array.from(provinceMap.values()).reduce(
-    (acc, v) => acc + v.total_quantity,
-    0
-  );
-
-  const provincesData: ProvinceDemandData[] = Array.from(provinceMap.entries())
-    .map(([provinceId, val]) => ({
-      provinceId,
-      provinceName: val.province_name,
-      demandsCount: val.demands_count,
-      totalQuantity: val.total_quantity,
-      unit: val.unit,
-      percentage:
-        totalGeoQty > 0
-          ? Math.round((val.total_quantity / totalGeoQty) * 100)
-          : 0,
-      demands: val.demands,
-    }))
-    .sort((a, b) => b.totalQuantity - a.totalQuantity);
+  const geoBreakdown = buildProvinceBreakdownByUnit(geoRows);
+  const provincesData: ProvinceDemandData[] = geoBreakdown.provinces.map((p) => ({
+    provinceId: p.provinceId,
+    provinceName: p.provinceName,
+    demandsCount: p.demandsCount,
+    quantitiesByUnit: p.units,
+    demands: demandsByProvince.get(p.provinceId) || [],
+  }));
+  const geoUnitTotals = geoBreakdown.unitTotals;
 
   // ─── Actions en attente ──────────────────────────────────────────────────────
   const pendingActions: PendingActionItem[] = [];
@@ -454,7 +466,7 @@ export default async function CompanyDashboardPage() {
           demands={trendDemands}
           availableProducts={availableProducts}
         />
-        <CompanyDemandGeoChart provincesData={provincesData} />
+        <CompanyDemandGeoChart provincesData={provincesData} unitTotals={geoUnitTotals} />
       </div>
 
       {/* Activité récente */}

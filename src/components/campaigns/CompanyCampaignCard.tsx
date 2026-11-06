@@ -253,6 +253,7 @@ export default function CompanyCampaignCard({
       {/* 8. Footer : Actions */}
       <div className="p-3 sm:p-4 bg-gray-50/70 border-t border-gray-100 flex items-center justify-between gap-2">
         <button
+          type="button"
           onClick={() => onViewDetail(campaign)}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-forest-700 text-white hover:bg-forest-800 transition-colors shadow-xs"
         >
@@ -261,8 +262,16 @@ export default function CompanyCampaignCard({
         </button>
 
         <button
+          type="button"
           onClick={() => onEdit(campaign)}
           disabled={effectiveStatus === "completed" || effectiveStatus === "cancelled"}
+          title={
+            effectiveStatus === "completed"
+              ? "Campagne clôturée : ouvrez le détail et utilisez « Rouvrir la campagne »."
+              : effectiveStatus === "cancelled"
+              ? "Une campagne annulée ne peut plus être modifiée."
+              : undefined
+          }
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors shadow-xs disabled:opacity-40"
         >
           <Edit className="w-3.5 h-3.5 text-gray-500" />

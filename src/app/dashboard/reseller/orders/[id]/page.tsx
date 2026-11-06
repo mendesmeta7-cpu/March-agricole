@@ -4,15 +4,14 @@ import { getResellerOrderById } from "@/lib/queries/orders";
 import ResellerOrderDetailView from "@/components/orders/ResellerOrderDetailView";
 
 interface ResellerOrderDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default async function ResellerOrderDetailPage({
-  params,
-}: ResellerOrderDetailPageProps) {
-  const supabase = createClient();
+export default async function ResellerOrderDetailPage(props: ResellerOrderDetailPageProps) {
+  const params = await props.params;
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -102,12 +102,20 @@ export default function ResellerOrderCard({
     setCancelling(true);
     setCancelError(null);
 
-    const res = await cancelOrderAction(
-      order.id,
-      cancelReason || "Annulation demandée par le revendeur"
-    );
-
-    setCancelling(false);
+    // LOAD-03 : le spinner est toujours libéré, même en cas d'exception réseau.
+    let res: Awaited<ReturnType<typeof cancelOrderAction>>;
+    try {
+      res = await cancelOrderAction(
+        order.id,
+        cancelReason || "Annulation demandée par le revendeur"
+      );
+    } catch (err) {
+      console.error("Erreur annulation commande:", err);
+      setCancelError("La requête n'a pas pu aboutir. Vérifiez votre connexion puis réessayez.");
+      return;
+    } finally {
+      setCancelling(false);
+    }
 
     if (!res.success) {
       setCancelError(res.error || "Impossible d'annuler cette commande.");
@@ -152,6 +160,7 @@ export default function ResellerOrderCard({
                 onClick={handleCopyOrderNumber}
                 className="p-1 text-gray-400 hover:text-forest-700 rounded-md hover:bg-forest-50 transition-colors"
                 title="Copier le numéro"
+                aria-label={copied ? "Numéro de commande copié" : "Copier le numéro de commande"}
               >
                 {copied ? (
                   <Check className="w-3 h-3 text-emerald-600" />

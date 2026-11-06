@@ -150,11 +150,17 @@ export default function DemandFormModal({
 
     startTransition(async () => {
       let res;
-      if (isEditing && editingDemand) {
-        formData.set("demandId", editingDemand.id);
-        res = await updateDemandAction(null, formData);
-      } else {
-        res = await createDemandAction(null, formData);
+      try {
+        if (isEditing && editingDemand) {
+          formData.set("demandId", editingDemand.id);
+          res = await updateDemandAction(null, formData);
+        } else {
+          res = await createDemandAction(null, formData);
+        }
+      } catch (err) {
+        console.error("Erreur enregistrement demande:", err);
+        setErrorMessage("La requête n'a pas pu aboutir. Vérifiez votre connexion puis réessayez.");
+        return;
       }
 
       if (res.error) {
@@ -191,7 +197,9 @@ export default function DemandFormModal({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Fermer le formulaire de demande"
             className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-white/80 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -201,7 +209,7 @@ export default function DemandFormModal({
         {/* Form Body */}
         <form ref={formRef} onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
           {errorMessage && (
-            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
+            <div role="alert" className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
               <div className="flex-1 leading-relaxed">{errorMessage}</div>
             </div>

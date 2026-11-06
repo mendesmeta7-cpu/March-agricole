@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { getCurrentCompanyId, getCurrentProfile, getCurrentUser } from "@/lib/auth/currentCompany";
 import CompanyDashboardLayout from "@/components/company/CompanyDashboardLayout";
 import { getUnreadNotificationCount } from "@/lib/queries/notifications";
 import { getCompanyPendingOrdersCount } from "@/lib/queries/orders";
@@ -12,19 +13,17 @@ export default async function CompanyLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login?redirect=/dashboard/company");
   }
 
-  // Vérifier rôle profil
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, full_name")
-    .eq("id", user.id)
-    .single();
+  // Profil et entreprise résolus en parallèle via les helpers mis en cache (PERF-02 / FUN-18).
+  const [profile, companyId] = await Promise.all([
+    getCurrentProfile(),
+    getCurrentCompanyId(),
+  ]);
 
   // Isolation stricte : seul le rôle "company" est admis dans cet espace.
   // Un admin ne doit JAMAIS hériter de l'espace société, même via navigation arrière.
@@ -32,23 +31,7 @@ export default async function CompanyLayout({
     redirect("/unauthorized");
   }
 
-  // Récupérer l'entreprise liée (via membership ou créateur direct)
-  const { data: memberData } = await supabase
-    .from("company_members")
-    .select("company_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  let companyId = memberData?.company_id;
-  if (!companyId) {
-    const { data: comp } = await supabase
-      .from("companies")
-      .select("id")
-      .eq("created_by", user.id)
-      .maybeSingle();
-    companyId = comp?.id;
-  }
-
+  const supabase = await createClient();
   const [companyRes, unreadCount, pendingOrdersCount] = await Promise.all([
     companyId
       ? supabase
@@ -69,7 +52,7 @@ export default async function CompanyLayout({
   return (
     <CompanyDashboardLayout
       entityName={company?.name}
-      userName={profile?.full_name}
+      userName={profile?.full_name ?? undefined}
       userEmail={user.email}
       locationInfo={locationInfo}
       logoUrl={company?.logo_url}

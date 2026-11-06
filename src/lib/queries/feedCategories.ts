@@ -16,7 +16,7 @@ export interface FeedCategoryItem {
  * Récupère les catégories actives pour le Flux Revendeur ordonnées par sort_order
  */
 export async function getActiveFeedCategories(): Promise<FeedCategoryItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("feed_categories")
@@ -37,7 +37,7 @@ export async function getActiveFeedCategories(): Promise<FeedCategoryItem[]> {
  * Récupère toutes les catégories pour l'administration (avec comptage de produits associés)
  */
 export async function getAllFeedCategoriesAdmin(): Promise<FeedCategoryItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: categories, error } = await supabase
     .from("feed_categories")

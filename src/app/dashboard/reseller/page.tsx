@@ -3,12 +3,13 @@ import { getPublicFeedProductions } from "@/lib/queries/feed";
 import { getActiveFeedCategories } from "@/lib/queries/feedCategories";
 import { getActiveFeedBanners } from "@/lib/queries/feedBanners";
 import FeedView from "@/components/feed/FeedView";
+import { isCampaignActive } from "@/lib/utils/campaignStatus";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function ResellerDashboardPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -21,7 +22,7 @@ export default async function ResellerDashboardPage() {
     .maybeSingle();
 
   // 2. Chargement conjoint : feed des productions, catégories visuelles et bannières dynamiques
-  const [feedResult, feedCategories, banners, provincesData, campaignsCountRes] = await Promise.all([
+  const [feedResult, feedCategories, banners, provincesData, activeCampaignsRes] = await Promise.all([
     getPublicFeedProductions({
       reseller,
       resellerProvinceId: reseller?.province_id,
@@ -30,7 +31,13 @@ export default async function ResellerDashboardPage() {
     getActiveFeedCategories(),
     getActiveFeedBanners(),
     supabase.from("provinces").select("id, name").order("name", { ascending: true }),
-    supabase.from("campaigns").select("*", { count: "exact", head: true }).eq("status", "active"),
+    // FUN-21 : le statut brut 'active' inclut des campagnes expirées (end_date ou
+    // échéances de toutes les destinations dépassées) ; le statut effectif est
+    // calculé avec la source unique de vérité (campaignStatus.ts).
+    supabase
+      .from("campaigns")
+      .select("id, status, start_date, end_date, campaign_destinations (order_deadline_date)")
+      .eq("status", "active"),
   ]);
 
   const provinces = (provincesData.data || []).map((p: any) => ({
@@ -38,7 +45,10 @@ export default async function ResellerDashboardPage() {
     name: p.name,
   }));
 
-  const campaignsCount = campaignsCountRes.count || 0;
+  if (activeCampaignsRes.error) {
+    console.error("Erreur comptage des campagnes actives (flux revendeur):", activeCampaignsRes.error);
+  }
+  const campaignsCount = (activeCampaignsRes.data || []).filter((c: any) => isCampaignActive(c)).length;
 
   return (
     <div className="w-full">
@@ -46,6 +56,7 @@ export default async function ResellerDashboardPage() {
       <FeedView
         initialItems={feedResult.items}
         totalCount={feedResult.totalCount}
+        initialError={feedResult.error}
         categories={feedCategories}
         banners={banners}
         provinces={provinces}

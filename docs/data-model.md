@@ -249,8 +249,10 @@ Vue d'analyse macro calculée dynamiquement sur les demandes actives (`status = 
 * `end_date` : `DATE`
 * `availability_period` : `VARCHAR(150)`
 * `status` : `VARCHAR(30) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'paused', 'completed', 'cancelled'))`
+* `status_before_completion` : `VARCHAR(30)` (migration 32, non appliquée ; statut d'origine d'une campagne `completed`, écrit uniquement par le trigger `trg_guard_campaign_business_rules`)
 * `created_at`, `updated_at` : `TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 * *Contrainte* : `chk_campaigns_dates CHECK (end_date IS NULL OR end_date >= start_date)`
+* *Contrainte* : `chk_campaigns_status_before_completion` (vide, ou campagne `completed` avec `draft`, `active` ou `paused`)
 * *Index* : `idx_campaigns_company_id`, `idx_campaigns_production_id`, `idx_campaigns_product_id`, `idx_campaigns_status`, `idx_campaigns_start_date`
 * *Trigger* : `trg_campaigns_updated_at`
 
@@ -372,3 +374,34 @@ Procédure transactionnelle `SECURITY DEFINER` créant une commande ferme depuis
 9. Retourne `order_id`, `order_number`, `total_amount` et `reserved_quantity`.
 
 
+
+---
+
+## 4. FONCTIONS ET TRIGGERS AJOUTÉS PAR LES MIGRATIONS 29 À 31 (2026-11-01/02 — NON APPLIQUÉES)
+
+| Objet | Migration | Rôle |
+| :--- | :--- | :--- |
+| `check_global_product_image_protection` + `trg_protect_global_product_images` | 29 | Rattrapage à l'identique de l'objet de production (BR-PROD-04) |
+| `is_company_member_or_creator(uuid)` | 30 | Appartenance à une entreprise (membre ou créateur) pour RLS et RPC |
+| `update_order_status(uuid, varchar)` | 30 | Seul canal de changement de statut d'une commande (A13) |
+| `notify_reseller_of_demand_response(uuid)` | 30 | Notification de proposition construite côté serveur |
+| `admin_set_company_verification(uuid, varchar)` | 30 | Badge de vérification, administrateur uniquement (A6) |
+| `get_production_reserved_quantity(uuid)` | 30 | Réservations actives et livrées d'une production (interne) |
+| `guard_demand_response_write`, `guard_campaign_consistency`, `guard_production_quantity` | 30 (31 pour les deux derniers) | Intégrité propositions / campagnes / productions |
+| `get_campaign_consumed_quantity(uuid)` | 31 | Volume consommé d'une campagne : réservations actives + livrées (A11, interne) |
+| `get_production_committed_quantity(uuid, uuid)` | 31 | Volume engagé d'une production (A3, interne) |
+| `guard_campaign_business_rules` / `trg_guard_campaign_business_rules` | 31 | Plafond cumulé des campagnes (A3) et réouverture (A12) |
+| `guard_production_status` / `trg_guard_production_status` | 31 | Production récoltée figée si campagne active ou suspendue (A4) |
+| `is_campaign_effectively_open(text, date, uuid)` | 32 | Ouverture effective d'une campagne (C2), INVOKER, miroir de `campaignStatus.ts` |
+| `guard_production_commitments` / `trg_guard_production_commitments` | 32 | Remplace `guard_production_status` : statut, produit, visibilité figés si production engagée (A4/D1/D3) ; unité figée par campagne non annulée, réservation active ou proposition ouverte (C-4) |
+| `guard_campaign_destination_reopening` / `trg_guard_campaign_destination_reopening` | 32 | Destination jamais déplacée (C-2) ; ajout / suppression sans réouverture, report seul (C-3 / R-4) avec D2 et A3 ; cascade ignorée |
+| `guard_campaign_consistency` / `trg_guard_campaign_consistency` | 32 (redéfinie) | Contrôles 031 + unité de campagne = unité de production (C-4) ; trigger étendu à `unit` |
+| `reopen_campaign(uuid, date, jsonb)` | 32 | Réouverture atomique (A12, A12-bis, C3, D5), INVOKER |
+| `update_campaign_with_destinations(uuid, jsonb, uuid[], jsonb)` | 32 | Modification atomique campagne + zones + destinations + dépôts, dans l'ordre du plan applicatif (C-6), INVOKER |
+| `get_productions_campaign_availability(uuid[], uuid)` | 32 | Volume disponible par production pour les campagnes (D4) |
+| `get_campaigns_available_quantity(uuid[])` | 32 | Disponible agrégé des campagnes actives pour les revendeurs |
+| `check_and_close_expired_campaigns()` | 32 (redéfinie) | Clôture des campagnes active/paused expirées, journalisée (C1) ; opération technique identifiée, propriétaire uniquement |
+| `technical_operation_identity()` | 32 | Identité d'une opération sans utilisateur : session directe avec motif, sinon NULL (interne) |
+| `authorize_campaign_reopening(uuid)` | 32 | Autorise ou refuse une réouverture, renvoie l'identité à journaliser (interne) |
+| `update_destination_order_deadline(uuid, date)` | 32 (redéfinie) | Fonction de la 030 avec la date du jour en UTC |
+| Tâche `radiza_close_expired_campaigns` | 33 | `pg_cron`, tous les jours à 00 h 05 UTC, **créée inactive** |

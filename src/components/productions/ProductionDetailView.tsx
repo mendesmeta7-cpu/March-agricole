@@ -16,6 +16,7 @@ import { useToast } from "@/components/ui/Toast";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { formatProductionSeasonCalendar } from "@/lib/utils/seasonalMonths";
+import { PRODUCTION_LOCK_MESSAGES } from "@/lib/utils/productionRules";
 import {
   ArrowLeft,
   Calendar,
@@ -74,6 +75,11 @@ export default function ProductionDetailView({
 
   const isHarvested = production.status === "harvested";
   const hasActiveCampaign = Boolean(production.has_active_campaign);
+  // A4 / D3 — production engagée : statut figé, passage en non public interdit
+  const isEngaged = Boolean(production.has_engaging_campaign);
+  const isVisibilityLocked = isEngaged && production.is_public;
+  const statusLockId = `production-${production.id}-status-lock`;
+  const visibilityLockId = `production-${production.id}-visibility-lock`;
   const regions = demandsAnalysis?.regions || [];
   const totalDemandsCount = demandsAnalysis?.totalDemandsCount || 0;
   const totalQuantityDemanded = demandsAnalysis?.totalQuantityDemanded || 0;
@@ -205,13 +211,18 @@ export default function ProductionDetailView({
             <button
               type="button"
               onClick={handleToggleVisibility}
-              disabled={isPending}
-              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-md shadow-xs transition-all cursor-pointer ${
+              disabled={isPending || isVisibilityLocked}
+              aria-describedby={isVisibilityLocked ? visibilityLockId : undefined}
+              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-md shadow-xs transition-all cursor-pointer disabled:cursor-not-allowed ${
                 production.is_public
                   ? "bg-white/95 text-forest-800 hover:bg-white"
                   : "bg-black/75 text-gray-200 hover:bg-black/90"
               }`}
-              title="Cliquez pour changer la visibilité de cette production auprès des revendeurs"
+              title={
+                isVisibilityLocked
+                  ? PRODUCTION_LOCK_MESSAGES.visibility
+                  : "Cliquez pour changer la visibilité de cette production auprès des revendeurs"
+              }
             >
               {production.is_public ? (
                 <>
@@ -362,7 +373,9 @@ export default function ProductionDetailView({
                       key={st}
                       type="button"
                       onClick={() => handleStatusChange(st)}
-                      disabled={isPending || isCurrent}
+                      disabled={isPending || isCurrent || isEngaged}
+                      aria-pressed={isCurrent}
+                      aria-describedby={isEngaged ? statusLockId : undefined}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                         isCurrent
                           ? "bg-forest-700 text-white shadow-xs"
@@ -379,6 +392,21 @@ export default function ProductionDetailView({
                 }
               )}
             </div>
+
+            {isEngaged && (
+              <div className="space-y-1.5 text-[11px] text-amber-900 bg-amber-50/70 p-2.5 rounded-xl border border-amber-200">
+                <p id={statusLockId} className="flex items-start gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px text-amber-700" aria-hidden="true" />
+                  <span>{PRODUCTION_LOCK_MESSAGES.status}</span>
+                </p>
+                <p className="pl-5">{PRODUCTION_LOCK_MESSAGES.unit}</p>
+                {isVisibilityLocked && (
+                  <p id={visibilityLockId} className="pl-5">
+                    {PRODUCTION_LOCK_MESSAGES.visibility}
+                  </p>
+                )}
+              </div>
+            )}
 
             {!isHarvested && (
               <p className="text-[11px] text-amber-800 bg-amber-50/70 p-2.5 rounded-xl border border-amber-200 flex items-center gap-1.5">

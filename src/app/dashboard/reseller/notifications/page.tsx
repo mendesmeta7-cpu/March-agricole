@@ -4,7 +4,7 @@ import { getUserNotifications } from "@/lib/queries/notifications";
 import ResellerNotificationsView from "@/components/notifications/ResellerNotificationsView";
 
 export default async function ResellerNotificationsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

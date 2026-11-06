@@ -3,12 +3,16 @@
 import { useState, useEffect, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { lookupOrderForDeliveryAction, LookupDeliveryOrderResult } from "@/lib/actions/orders";
-import QRScannerModal from "./QRScannerModal";
+import dynamic from "next/dynamic";
 import DeliveryConfirmationModal from "./DeliveryConfirmationModal";
 import { Camera, Search, AlertCircle, QrCode, Sparkles } from "lucide-react";
 
+// PERF-03 : html5-qrcode n'est chargé qu'à l'ouverture du scanner (jamais côté serveur).
+const QRScannerModal = dynamic(() => import("./QRScannerModal"), { ssr: false });
+
 interface CompanyOrderLookupWidgetProps {
-  onDeliveryUpdated?: () => void;
+  /** Appelé avec le numéro de la commande dont la livraison vient d'être confirmée. */
+  onDeliveryUpdated?: (orderNumber: string) => void;
 }
 
 export default function CompanyOrderLookupWidget({
@@ -129,6 +133,7 @@ export default function CompanyOrderLookupWidget({
                   <button
                     type="button"
                     onClick={() => setSearchNumber("")}
+                    aria-label="Effacer le numéro saisi"
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-forest-400 hover:text-white text-xs"
                   >
                     ×
@@ -141,6 +146,7 @@ export default function CompanyOrderLookupWidget({
                 disabled={isPending || !searchNumber.trim()}
                 className="px-3.5 py-2.5 text-xs font-bold text-white bg-forest-800 hover:bg-forest-700 disabled:opacity-40 rounded-2xl border border-forest-600/80 transition-all shadow-xs flex items-center justify-center shrink-0"
                 title="Rechercher la commande"
+                aria-label="Rechercher la commande"
               >
                 {isPending ? (
                   <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -162,6 +168,7 @@ export default function CompanyOrderLookupWidget({
       </div>
 
       {/* Modal Scanner Caméra */}
+      {isScannerOpen && (
       <QRScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
@@ -172,6 +179,7 @@ export default function CompanyOrderLookupWidget({
           inputEl?.focus();
         }}
       />
+      )}
 
       {/* Modal Détails & Confirmation de Livraison */}
       <DeliveryConfirmationModal
@@ -181,8 +189,11 @@ export default function CompanyOrderLookupWidget({
           setIsConfirmationOpen(false);
           setFoundOrder(null);
         }}
-        onDeliveryConfirmed={() => {
-          onDeliveryUpdated?.();
+        onDeliveryConfirmed={(orderNumber) => {
+          setFoundOrder((prev) =>
+            prev ? { ...prev, status: "delivered", delivered_at: new Date().toISOString() } : prev
+          );
+          onDeliveryUpdated?.(orderNumber);
         }}
       />
 

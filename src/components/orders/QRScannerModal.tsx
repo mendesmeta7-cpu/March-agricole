@@ -123,6 +123,8 @@ export default function QRScannerModal({
             </div>
           </div>
           <button
+            type="button"
+            aria-label="Fermer"
             onClick={onClose}
             className="p-1.5 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-white/80 transition-colors"
           >

@@ -124,7 +124,7 @@ export interface AggregatedDemandItem {
  * (Demandes Générales et Demandes sur Production avec leurs réponses)
  */
 export async function getResellerDemands(resellerId: string): Promise<DemandItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("demands")
     .select(`
@@ -238,7 +238,7 @@ export async function getResellerDemands(resellerId: string): Promise<DemandItem
  * avec l'état de réponse de l'entreprise (en attente, refusée, proposée)
  */
 export async function getCompanyGeneralDemands(companyId: string): Promise<DemandItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("demands")
     .select(`
@@ -346,7 +346,7 @@ export async function getProductionDemandsAnalysis(
   regions: ProductionDemandRegionAnalysis[];
   demandsList: DemandItem[];
 }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("demands")
     .select(`
@@ -443,7 +443,7 @@ export async function getDemandById(
   demandId: string,
   resellerId?: string
 ): Promise<DemandItem | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   let query = supabase
     .from("demands")
     .select(`
@@ -565,7 +565,7 @@ export async function getAggregatedMarketDemands(filters?: {
   provinceId?: string;
   countryId?: string;
 }): Promise<AggregatedDemandItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   let query = supabase
     .from("v_market_demands_aggregated")
     .select("*")

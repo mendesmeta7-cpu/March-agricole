@@ -834,7 +834,11 @@ runTest("39. Intégration Espace Revendeur : ResellerProfileView intègre le Dra
 runTest("40. Non-régression AUTH-3 : resetPasswordAction intacte dans auth.ts", () => {
   const code = fs.readFileSync(authActionsPath, "utf-8");
   assert.match(code, /export async function resetPasswordAction/i);
-  assert.match(code, /signOut\({\s*scope:\s*["']local["']\s*}\)/i);
+  // Durcissement SEC-10 (2026-11-01) : la réinitialisation exige la preuve de
+  // récupération posée par /auth/callback et révoque toutes les sessions (global).
+  const resetBody = code.slice(code.indexOf("export async function resetPasswordAction"));
+  assert.match(resetBody, /RECOVERY_PROOF_COOKIE/);
+  assert.match(resetBody, /signOut\({\s*scope:\s*["']global["']\s*}\)/i);
   assert.match(code, /redirect\(["']\/login\?password_updated=true["']\)/i);
 });
 

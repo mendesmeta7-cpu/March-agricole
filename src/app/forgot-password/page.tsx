@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useFormState } from "react-dom";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requestPasswordResetAction } from "@/lib/actions/auth";
@@ -12,7 +12,9 @@ import BrandLogo from "@/components/ui/BrandLogo";
 // Formulaire de demande de réinitialisation
 // ---------------------------------------------------------------------------
 function ForgotPasswordForm() {
-  const [state, formAction] = useFormState(requestPasswordResetAction, null);
+  const [state, formAction] = useActionState(requestPasswordResetAction, null);
+  // Champ contrôlé : React 19 réinitialise les champs non contrôlés après soumission.
+  const [email, setEmail] = useState("");
 
   if (state?.success && state?.emailSent) {
     return (
@@ -42,7 +44,7 @@ function ForgotPasswordForm() {
   return (
     <div className="bg-white py-6 px-5 sm:py-8 sm:px-10 shadow-sm border border-gray-200 rounded-2xl">
       {state?.error && (
-        <div className="mb-5 rounded-xl bg-red-50 p-3.5 border border-red-200 flex items-start gap-2.5 text-red-800 text-xs sm:text-sm">
+        <div role="alert" className="mb-5 rounded-xl bg-red-50 p-3.5 border border-red-200 flex items-start gap-2.5 text-red-800 text-xs sm:text-sm">
           <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
           <div>{state.error}</div>
         </div>
@@ -62,7 +64,7 @@ function ForgotPasswordForm() {
             Adresse e-mail
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <span aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
               <Mail className="w-4 h-4" />
             </span>
             <input
@@ -70,6 +72,8 @@ function ForgotPasswordForm() {
               name="email"
               type="email"
               autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="votre@email.com"
               className="w-full pl-9 pr-4 py-3 text-sm rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-forest-400 focus:border-transparent bg-gray-50 transition-all"
@@ -106,7 +110,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 py-10">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-6">
-          <Link href="/" aria-label="Retour à l accueil Radiza">
+          <Link href="/" aria-label="Retour à l'accueil Radiza">
             <BrandLogo variant="horizontal" className="h-9 w-auto" />
           </Link>
         </div>

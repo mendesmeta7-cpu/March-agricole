@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -56,15 +56,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
       setToasts((prev) => [...prev.slice(-4), newToast]); // Garder au maximum 5 toasts
 
-      if (duration > 0) {
-        setTimeout(() => {
-          dismissToast(id);
-        }, duration);
-      }
-
+      // La fermeture automatique est gérée par chaque carte (ToastCard) afin de
+      // pouvoir être suspendue au survol et au focus (A11Y-04).
       return id;
     },
-    [dismissToast]
+    []
   );
 
   const toast = useMemo(() => {
@@ -152,17 +148,37 @@ function ToastContainer({
   toasts: ToastItem[];
   onDismiss: (id: string) => void;
 }) {
-  if (toasts.length === 0) return null;
+  // A11Y-04 : les régions live restent toujours montées (même vides) afin que
+  // la première annonce ne soit pas perdue. Les erreurs sont annoncées de façon
+  // assertive (role="alert"), les autres de façon polie (role="status").
+  // UX-13 : sous `lg`, la pile est placée au-dessus de la barre de navigation basse.
+  const errorToasts = toasts.filter((t) => t.type === "error");
+  const otherToasts = toasts.filter((t) => t.type !== "error");
 
   return (
-    <div
-      aria-live="polite"
-      aria-atomic="true"
-      className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-md z-[100] flex flex-col gap-2.5 pointer-events-none"
-    >
-      {toasts.map((t) => (
-        <ToastCard key={t.id} toast={t} onDismiss={() => onDismiss(t.id)} />
-      ))}
+    <div className="fixed left-4 right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] sm:left-auto sm:right-6 sm:max-w-md lg:bottom-6 z-[100] flex flex-col gap-2.5 pointer-events-none">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="false"
+        aria-relevant="additions text"
+        className="flex flex-col gap-2.5"
+      >
+        {otherToasts.map((t) => (
+          <ToastCard key={t.id} toast={t} onDismiss={() => onDismiss(t.id)} />
+        ))}
+      </div>
+      <div
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="false"
+        aria-relevant="additions text"
+        className="flex flex-col gap-2.5"
+      >
+        {errorToasts.map((t) => (
+          <ToastCard key={t.id} toast={t} onDismiss={() => onDismiss(t.id)} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -174,6 +190,31 @@ function ToastCard({
   toast: ToastItem;
   onDismiss: () => void;
 }) {
+  const duration = toast.duration ?? 4000;
+  const [isPaused, setIsPaused] = useState(false);
+  const remainingRef = useRef(duration);
+  const startedAtRef = useRef<number>(0);
+  const onDismissRef = useRef(onDismiss);
+  useEffect(() => {
+    onDismissRef.current = onDismiss;
+  }, [onDismiss]);
+
+  // Fermeture automatique suspendue au survol / focus (A11Y-04)
+  useEffect(() => {
+    if (duration <= 0 || isPaused) return;
+    startedAtRef.current = Date.now();
+    const timer = window.setTimeout(() => {
+      onDismissRef.current();
+    }, Math.max(remainingRef.current, 0));
+    return () => {
+      window.clearTimeout(timer);
+      remainingRef.current -= Date.now() - startedAtRef.current;
+    };
+  }, [duration, isPaused]);
+
+  const pause = () => setIsPaused(true);
+  const resume = () => setIsPaused(false);
+
   const iconMap = {
     success: <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />,
     error: <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />,
@@ -195,9 +236,14 @@ function ToastCard({
         "animate-slide-in-up sm:animate-slide-in-down",
         borderMap[toast.type]
       )}
-      role="status"
+      onMouseEnter={pause}
+      onMouseLeave={resume}
+      onFocus={pause}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) resume();
+      }}
     >
-      <div className="mt-0.5">{iconMap[toast.type]}</div>
+      <div className="mt-0.5" aria-hidden="true">{iconMap[toast.type]}</div>
 
       <div className="flex-1 min-w-0 space-y-0.5">
         <h4 className="text-xs sm:text-sm font-semibold text-gray-900 tracking-tight leading-snug">

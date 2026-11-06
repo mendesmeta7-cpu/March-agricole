@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function OnboardingPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 1. Contrôle d'authentification serveur
   const {

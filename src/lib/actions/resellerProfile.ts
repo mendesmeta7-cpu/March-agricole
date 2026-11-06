@@ -21,7 +21,7 @@ export async function updateResellerAvatarAction(
   prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -60,7 +60,10 @@ export async function updateResellerAvatarAction(
   let newPublicId: string;
 
   try {
+    // Nom imposé côté serveur et rattaché à l'utilisateur : seule une image dont
+    // l'identifiant commence par synapta/profiles/<user.id>- pourra être supprimée (SEC-09).
     const uploadRes = await uploadImageToCloudinary(file, "profiles", {
+      customFilename: `${user.id}-${Date.now()}`,
       transformation: [
         { width: 400, height: 400, crop: "fill", gravity: "face" },
         { quality: "auto" },
@@ -70,7 +73,8 @@ export async function updateResellerAvatarAction(
     newUrl = uploadRes.secure_url;
     newPublicId = uploadRes.public_id;
   } catch (err: any) {
-    return { error: `Erreur d'upload Cloudinary : ${err.message}` };
+    console.error("Erreur upload avatar:", err);
+    return { error: "L'envoi de la photo a échoué. Veuillez réessayer." };
   }
 
   // 3. Mise à jour atomique du profil de l'utilisateur authentifié
@@ -86,11 +90,12 @@ export async function updateResellerAvatarAction(
   if (updateErr) {
     // Si l'update échoue, on supprime la nouvelle image Cloudinary pour ne pas laisser d'orphelin
     await deleteImageFromCloudinary(newPublicId);
-    return { error: `Erreur lors de la mise à jour du profil : ${updateErr.message}` };
+    console.error("Erreur mise à jour avatar:", updateErr);
+    return { error: "La mise à jour de la photo de profil a échoué. Veuillez réessayer." };
   }
 
   // 4. Suppression de l'ancienne image Cloudinary s'il y en avait une
-  if (oldPublicId && oldPublicId !== newPublicId) {
+  if (oldPublicId && oldPublicId !== newPublicId && isOwnedAvatarPublicId(oldPublicId, user.id)) {
     await deleteImageFromCloudinary(oldPublicId);
   }
 
@@ -107,7 +112,7 @@ export async function updateResellerAvatarAction(
  * Supprime la photo de profil de l'utilisateur authentifié
  */
 export async function deleteResellerAvatarAction(): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -128,8 +133,12 @@ export async function deleteResellerAvatarAction(): Promise<ActionResponse> {
   const oldPublicId = currentProfile?.avatar_cloudinary_public_id;
 
   // 2. Suppression de l'image de Cloudinary
-  if (oldPublicId) {
+  // La colonne avatar_cloudinary_public_id est modifiable par l'utilisateur via l'API :
+  // on ne supprime jamais une image qui ne lui appartient pas de façon vérifiable (SEC-09).
+  if (oldPublicId && isOwnedAvatarPublicId(oldPublicId, user.id)) {
     await deleteImageFromCloudinary(oldPublicId);
+  } else if (oldPublicId) {
+    console.warn("Suppression Cloudinary ignorée : identifiant d'avatar non rattaché à l'utilisateur.");
   }
 
   // 3. Réinitialisation en base
@@ -143,7 +152,8 @@ export async function deleteResellerAvatarAction(): Promise<ActionResponse> {
     .eq("id", user.id);
 
   if (updateErr) {
-    return { error: `Erreur lors de la suppression de l'avatar : ${updateErr.message}` };
+    console.error("Erreur suppression avatar:", updateErr);
+    return { error: "La suppression de la photo de profil a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/reseller/profile");
@@ -168,7 +178,7 @@ export interface UpdateResellerGeneralProfileInput {
 export async function updateResellerGeneralProfileAction(
   input: UpdateResellerGeneralProfileInput
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -209,7 +219,8 @@ export async function updateResellerGeneralProfileAction(
     .eq("id", user.id);
 
   if (profileErr) {
-    return { success: false, error: `Erreur profil : ${profileErr.message}` };
+    console.error("Erreur mise à jour profil:", profileErr);
+    return { success: false, error: "La mise à jour de votre profil a échoué. Veuillez réessayer." };
   }
 
   // 3. Mise à jour dans resellers
@@ -223,7 +234,8 @@ export async function updateResellerGeneralProfileAction(
     .eq("id", user.id);
 
   if (resellerErr) {
-    return { success: false, error: `Erreur revendeur : ${resellerErr.message}` };
+    console.error("Erreur mise à jour revendeur:", resellerErr);
+    return { success: false, error: "La mise à jour de votre profil revendeur a échoué. Veuillez réessayer." };
   }
 
   revalidatePath("/dashboard/reseller/profile");
@@ -233,4 +245,9 @@ export async function updateResellerGeneralProfileAction(
     success: true,
     message: "Profil mis à jour avec succès.",
   };
+}
+
+/** Une image d'avatar appartient à l'utilisateur si son identifiant a été généré par le serveur pour lui. */
+function isOwnedAvatarPublicId(publicId: string, userId: string): boolean {
+  return publicId.startsWith(`synapta/profiles/${userId}-`);
 }

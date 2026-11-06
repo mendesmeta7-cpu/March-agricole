@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -34,11 +34,17 @@ function getUrlErrorMessage(errorKey: string | null): string {
 }
 
 function LoginForm() {
-  const [state, formAction] = useFormState(loginAction, null);
+  const [state, formAction] = useActionState(loginAction, null);
   const searchParams = useSearchParams();
   const urlError = searchParams.get("error");
   const urlVerified = searchParams.get("verified") === "true";
   const urlPasswordUpdated = searchParams.get("password_updated") === "true";
+  // FUN-16 : chemin demandé par le middleware (?redirect=). Transmis tel quel,
+  // la Server Action le valide via sanitizeRedirectPath (jamais de confiance côté client).
+  const redirectParam = searchParams.get("redirect") ?? "";
+  // React 19 réinitialise les champs non contrôlés après chaque soumission :
+  // l'email est contrôlé pour être conservé après une erreur (jamais le mot de passe).
+  const [email, setEmail] = useState("");
 
   return (
     <div className="bg-white py-6 px-5 sm:py-8 sm:px-10 shadow-sm border border-gray-200 rounded-2xl">
@@ -61,7 +67,7 @@ function LoginForm() {
       )}
 
       {(state?.error || urlError) && (
-        <div className="mb-5 rounded-xl bg-red-50 p-3.5 border border-red-200 flex items-start gap-2.5 text-red-800 text-xs sm:text-sm">
+        <div role="alert" className="mb-5 rounded-xl bg-red-50 p-3.5 border border-red-200 flex items-start gap-2.5 text-red-800 text-xs sm:text-sm">
           <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
           <div>{state?.error || getUrlErrorMessage(urlError)}</div>
         </div>
@@ -85,17 +91,22 @@ function LoginForm() {
       </div>
 
       <form action={formAction} className="space-y-4 sm:space-y-5">
+        {redirectParam && <input type="hidden" name="redirect" value={redirectParam} />}
         <div>
-          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="login-email" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
             Adresse email
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+            <div aria-hidden="true" className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
               <Mail className="w-4 h-4" />
             </div>
             <input
+              id="login-email"
               type="email"
               name="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="nom@domaine.com"
               className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none text-sm"
@@ -104,16 +115,18 @@ function LoginForm() {
         </div>
 
         <div>
-          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="login-password" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
             Mot de passe
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+            <div aria-hidden="true" className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
               <Lock className="w-4 h-4" />
             </div>
             <input
+              id="login-password"
               type="password"
               name="password"
+              autoComplete="current-password"
               required
               placeholder="••••••••"
               className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none text-sm"
@@ -158,9 +171,9 @@ export default function LoginPage() {
         >
           <BrandLogo variant="horizontal" height={42} priority />
         </Link>
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
           Connexion à votre espace
-        </h2>
+        </h1>
         <p className="mt-1.5 text-xs sm:text-sm text-gray-600">
           Ou{" "}
           <Link href="/register" className="font-medium text-forest-700 hover:text-forest-800 underline">

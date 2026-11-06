@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { completeOnboardingAction, logoutAction } from "@/lib/actions/auth";
 import GeographySelector from "@/components/GeographySelector";
 import SubmitButton from "@/components/SubmitButton";
@@ -40,7 +40,19 @@ export default function OnboardingForm({
   );
   // showRoleSelector : false si le rôle est déjà connu (bandeau compact), true sinon (cartes de sélection)
   const [showRoleSelector, setShowRoleSelector] = useState<boolean>(!initialPreferredRole);
-  const [state, formAction] = useFormState(completeOnboardingAction, null);
+  const [state, formAction] = useActionState(completeOnboardingAction, null);
+
+  // React 19 réinitialise les champs non contrôlés après chaque soumission d'une
+  // action de formulaire : les champs sont contrôlés pour que la saisie soit
+  // conservée lorsque le serveur renvoie une erreur.
+  const [phone, setPhone] = useState(initialPhone);
+  const [companyName, setCompanyName] = useState("");
+  const [companyPhone, setCompanyPhone] = useState(initialPhone);
+  const [companyAddress, setCompanyAddress] = useState("");
+  const [companyDescription, setCompanyDescription] = useState("");
+  const [businessName, setBusinessName] = useState(initialFullName);
+  const [resellerType, setResellerType] = useState("wholesaler");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
 
   return (
     <div className="space-y-8">
@@ -265,13 +277,17 @@ export default function OnboardingForm({
           <div className="space-y-5">
             <FormField
               label="Numéro de téléphone professionnel"
+              htmlFor="onboarding-phone"
               optional
               description="Votre numéro de contact pour vos échanges commerciaux sur Radiza."
             >
               <Input
+                id="onboarding-phone"
                 name="phone"
                 type="tel"
-                defaultValue={initialPhone}
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 placeholder="Ex : +243 81 234 5678"
                 leftIcon={<Phone className="w-4 h-4" />}
               />
@@ -283,11 +299,16 @@ export default function OnboardingForm({
             <div className="space-y-5 animate-in fade-in duration-200">
               <FormField
                 label="Dénomination / Raison sociale de l'entreprise"
+                htmlFor="onboarding-company-name"
                 required
                 description="Le nom officiel de votre exploitation, ferme ou coopérative."
               >
                 <Input
+                  id="onboarding-company-name"
                   name="companyName"
+                  autoComplete="organization"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
                   placeholder={initialFullName ? `Ex : ${initialFullName} SARL, Ferme de la Lukaya...` : "Ex : Ferme Agro-Kwilu SARL, Plantations de la Lukaya..."}
                   leftIcon={<Building2 className="w-4 h-4" />}
                   required
@@ -297,13 +318,17 @@ export default function OnboardingForm({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   label="Téléphone professionnel"
+                  htmlFor="onboarding-company-phone"
                   optional
                   description="Numéro de contact pour vos échanges commerciaux."
                 >
                   <Input
+                    id="onboarding-company-phone"
                     name="companyPhone"
                     type="tel"
-                    defaultValue={initialPhone}
+                    autoComplete="tel"
+                    value={companyPhone}
+                    onChange={(e) => setCompanyPhone(e.target.value)}
                     placeholder="Ex : +243 81 234 5678"
                     leftIcon={<Phone className="w-4 h-4" />}
                   />
@@ -311,11 +336,16 @@ export default function OnboardingForm({
 
                 <FormField
                   label="Adresse de l'exploitation ou siège"
+                  htmlFor="onboarding-company-address"
                   optional
                   description="Adresse physique, route ou repère de la ferme."
                 >
                   <Input
+                    id="onboarding-company-address"
                     name="companyAddress"
+                    autoComplete="street-address"
+                    value={companyAddress}
+                    onChange={(e) => setCompanyAddress(e.target.value)}
                     placeholder="Ex : Route de Bandundu, Km 18"
                     leftIcon={<MapPin className="w-4 h-4" />}
                   />
@@ -324,11 +354,15 @@ export default function OnboardingForm({
 
               <FormField
                 label="Description des activités"
+                htmlFor="onboarding-company-description"
                 optional
                 description="Décrivez brièvement vos cultures principales, spécialités ou méthodes de travail."
               >
                 <Textarea
+                  id="onboarding-company-description"
                   name="companyDescription"
+                  value={companyDescription}
+                  onChange={(e) => setCompanyDescription(e.target.value)}
                   rows={3}
                   placeholder="Ex : Exploitation agricole spécialisée dans la production de maïs blanc, manioc doux et maraîchage de saison avec livraison vers Kinshasa..."
                 />
@@ -341,12 +375,16 @@ export default function OnboardingForm({
             <div className="space-y-5 animate-in fade-in duration-200">
               <FormField
                 label="Nom commercial / Enseigne"
+                htmlFor="onboarding-business-name"
                 optional
                 description="Le nom commercial de votre point de vente (par défaut votre nom complet)."
               >
                 <Input
+                  id="onboarding-business-name"
                   name="businessName"
-                  defaultValue={initialFullName}
+                  autoComplete="organization"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="Ex : Établissements Mwana Mboka, Superette de l'Avenir..."
                   leftIcon={<Store className="w-4 h-4" />}
                 />
@@ -354,12 +392,15 @@ export default function OnboardingForm({
 
               <FormField
                 label="Type d'activité de distribution"
+                htmlFor="onboarding-reseller-type"
                 required
                 description="Sélectionnez l'échelle principale de vos activités d'achat et vente."
               >
                 <Select
+                  id="onboarding-reseller-type"
                   name="resellerType"
-                  defaultValue="wholesaler"
+                  value={resellerType}
+                  onValueChange={setResellerType}
                   required
                   options={[
                     {
@@ -388,11 +429,16 @@ export default function OnboardingForm({
 
               <FormField
                 label="Adresse habituelle de livraison / Dépôt"
+                htmlFor="onboarding-delivery-address"
                 optional
                 description="Adresse de votre entrepôt, magasin ou point de déchargement."
               >
                 <Input
+                  id="onboarding-delivery-address"
                   name="deliveryAddress"
+                  autoComplete="street-address"
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
                   placeholder="Ex : Grand Marché, Allée 4, Dépôt n°12"
                   leftIcon={<MapPin className="w-4 h-4" />}
                 />

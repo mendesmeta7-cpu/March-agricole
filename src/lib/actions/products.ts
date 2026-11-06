@@ -9,6 +9,65 @@ export interface ActionResponse {
   message?: string;
 }
 
+// ─── Validation serveur des images (FUN-20 / SEC-31) ─────────────────────────
+// Seuls JPEG, PNG et WebP sont acceptés (SVG exclu), 5 Mo maximum. Le type déclaré
+// par le navigateur est confronté à la signature binaire du fichier, et l'extension
+// stockée est dérivée du type validé, jamais du nom de fichier fourni par le client.
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const IMAGE_MIME_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+function detectImageMime(bytes: Uint8Array): string | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
+    bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  return null;
+}
+
+async function validateImageUpload(
+  file: File,
+  sizeErrorMessage: string
+): Promise<{ ok: true; ext: string; contentType: string } | { ok: false; error: string }> {
+  if (file.size > MAX_IMAGE_BYTES) {
+    return { ok: false, error: sizeErrorMessage };
+  }
+  const declared = (file.type || "").toLowerCase();
+  if (!IMAGE_MIME_EXTENSIONS[declared]) {
+    return { ok: false, error: "Format d'image non supporté (utilisez JPG, PNG ou WebP)." };
+  }
+  let detected: string | null = null;
+  try {
+    const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+    detected = detectImageMime(header);
+  } catch {
+    detected = null;
+  }
+  if (!detected || detected !== declared) {
+    return {
+      ok: false,
+      error: "Le fichier transmis n'est pas une image JPG, PNG ou WebP valide.",
+    };
+  }
+  return { ok: true, ext: IMAGE_MIME_EXTENSIONS[detected], contentType: detected };
+}
+
 /**
  * Récupère l'ID d'entreprise associée à un utilisateur (via membership ou créateur)
  */
@@ -41,7 +100,7 @@ export async function associateCatalogProductAction(
   prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -68,21 +127,18 @@ export async function associateCatalogProductAction(
   // Upload optionnel de la photo personnalisée de la société
   let customImageUrl: string | null = null;
   if (imageFile && imageFile.size > 0) {
-    if (imageFile.size > 5 * 1024 * 1024) {
-      return { error: "La photo personnalisée ne doit pas dépasser 5 Mo." };
+    const imageCheck = await validateImageUpload(imageFile, "La photo personnalisée ne doit pas dépasser 5 Mo.");
+    if (!imageCheck.ok) {
+      return { error: imageCheck.error };
     }
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(imageFile.type)) {
-      return { error: "Format d'image non supporté (utilisez JPG, PNG ou WebP)." };
-    }
-
-    const ext = imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
+    const ext = imageCheck.ext;
     const filePath = `company-products/${crypto.randomUUID()}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from("public-assets")
       .upload(filePath, imageFile, {
+        contentType: imageCheck.contentType,
         cacheControl: "3600",
         upsert: false,
       });
@@ -164,7 +220,7 @@ export async function createAndAssociateProductAction(
   prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -196,33 +252,34 @@ export async function createAndAssociateProductAction(
   // Upload optionnel de photo propre à l'exploitation
   let imageUrl: string | null = null;
   if (imageFile && imageFile.size > 0) {
-    if (imageFile.size > 5 * 1024 * 1024) {
-      return { error: "L'image du produit ne doit pas dépasser 5 Mo." };
+    const imageCheck = await validateImageUpload(imageFile, "L'image du produit ne doit pas dépasser 5 Mo.");
+    if (!imageCheck.ok) {
+      return { error: imageCheck.error };
     }
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(imageFile.type)) {
-      return { error: "Format d'image non supporté (utilisez JPG, PNG ou WebP)." };
-    }
-
-    const ext = imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
+    const ext = imageCheck.ext;
     const filePath = `company-products/${crypto.randomUUID()}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from("public-assets")
       .upload(filePath, imageFile, {
+        contentType: imageCheck.contentType,
         cacheControl: "3600",
         upsert: false,
       });
 
+    // FUN-20 : un échec de téléversement n'est plus masqué par un faux succès.
     if (uploadError) {
-      console.warn("Avertissement upload image produit:", uploadError.message);
-    } else {
-      const { data: publicUrlData } = supabase.storage
-        .from("public-assets")
-        .getPublicUrl(filePath);
-      imageUrl = publicUrlData.publicUrl;
+      console.error("Erreur upload image produit:", uploadError.message);
+      return {
+        error: "Le téléchargement de l'image du produit a échoué. Le produit n'a pas été enregistré. Vérifiez le format (JPG, PNG, WebP) et la taille du fichier (max. 5 Mo), puis réessayez.",
+      };
     }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("public-assets")
+      .getPublicUrl(filePath);
+    imageUrl = publicUrlData.publicUrl;
   }
 
   // Appel de la procédure atomique révisée (is_global = FALSE, strictly private)
@@ -258,7 +315,7 @@ export async function updateCompanyProductAction(
   prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -293,21 +350,18 @@ export async function updateCompanyProductAction(
 
   // Upload d'une nouvelle photo personnalisée si fournie
   if (imageFile && imageFile.size > 0) {
-    if (imageFile.size > 5 * 1024 * 1024) {
-      return { error: "La photo personnalisée ne doit pas dépasser 5 Mo." };
+    const imageCheck = await validateImageUpload(imageFile, "La photo personnalisée ne doit pas dépasser 5 Mo.");
+    if (!imageCheck.ok) {
+      return { error: imageCheck.error };
     }
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(imageFile.type)) {
-      return { error: "Format d'image non supporté (utilisez JPG, PNG ou WebP)." };
-    }
-
-    const ext = imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
+    const ext = imageCheck.ext;
     const filePath = `company-products/${crypto.randomUUID()}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from("public-assets")
       .upload(filePath, imageFile, {
+        contentType: imageCheck.contentType,
         cacheControl: "3600",
         upsert: false,
       });
@@ -346,7 +400,7 @@ export async function toggleCompanyProductStatusAction(
   companyProductId: string,
   currentStatus: boolean
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -390,7 +444,7 @@ export async function toggleCompanyProductStatusAction(
 export async function deleteCompanyProductAction(
   companyProductId: string
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

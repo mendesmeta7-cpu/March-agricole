@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getAppUrl, sanitizeRedirectPath } from "@/lib/utils/url";
+import { RECOVERY_PROOF_COOKIE, RECOVERY_PROOF_MAX_AGE_SECONDS } from "@/lib/auth/recoveryProof";
 
 /**
  * Détermine la destination sécurisée d'un utilisateur dont l'onboarding est complété.
@@ -145,8 +146,8 @@ export async function GET(request: Request) {
       (!isRecoveryFlow && !isDirectAccessFlow);
 
     if (code) {
-      const supabase = createClient();
-      const cookieStore = cookies();
+      const supabase = await createClient();
+      const cookieStore = await cookies();
 
       // Échange du code temporaire contre la validation du compte et session
       const { data: authData, error: exchangeError } =
@@ -202,7 +203,17 @@ export async function GET(request: Request) {
         if (isRecoveryFlow) {
           const recoveryTarget =
             safeNext.startsWith("/reset-password") ? safeNext : "/reset-password";
-          return NextResponse.redirect(new URL(recoveryTarget, baseUrl));
+          const recoveryResponse = NextResponse.redirect(new URL(recoveryTarget, baseUrl));
+          // Preuve de récupération (SEC-10) : seul un utilisateur arrivé par un lien de
+          // récupération valide peut définir un nouveau mot de passe sur /reset-password.
+          recoveryResponse.cookies.set(RECOVERY_PROOF_COOKIE, authData.user.id, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+            maxAge: RECOVERY_PROOF_MAX_AGE_SECONDS,
+          });
+          return recoveryResponse;
         }
 
         // CAS 3 : Authentification directe ou OAuth (Google OAuth — AUTH-5)

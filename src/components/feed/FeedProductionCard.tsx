@@ -39,14 +39,17 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
   const hasActiveCampaign = !!production.active_campaign;
   const isEligible = production.active_campaign?.is_eligible ?? false;
   const eligibilityReason = production.active_campaign?.eligibility_reason;
-  const canOrder = production.active_campaign?.can_order !== false && isEligible;
+  // Stock revendeur (migration 32) : disponible agrégé lu côté serveur. null = illisible :
+  // aucun repli sur le volume commercialisable, la commande est désactivée.
+  const availableStock = production.active_campaign?.available_quantity ?? null;
+  const isAvailabilityUnknown =
+    hasActiveCampaign &&
+    (availableStock === null || production.active_campaign?.availability_unavailable === true);
+  const canOrder =
+    production.active_campaign?.can_order !== false && isEligible && !isAvailabilityUnknown;
   const isDeadlineExpired = eligibilityReason === "DESTINATION_DEADLINE_EXPIRED";
   const isOutOfStock = eligibilityReason === "OUT_OF_STOCK";
   const isCampaignClosed = eligibilityReason === "CAMPAIGN_NOT_OPEN";
-  const availableStock =
-    production.active_campaign?.available_quantity ??
-    production.active_campaign?.marketable_quantity ??
-    0;
 
   const statusInfo = getStatusInfo(production.status);
   const staggerDelay = `${Math.min(index * 55, 330)}ms`;
@@ -148,10 +151,16 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <span className="text-[9px] sm:text-[10px] font-semibold text-gray-600">
-                  {availableStock.toLocaleString("fr-FR")}{" "}
-                  <span className="font-normal text-gray-400">{production.unit}</span>
-                </span>
+                {isAvailabilityUnknown || availableStock === null ? (
+                  <span className="text-[9px] sm:text-[10px] font-semibold text-amber-700 leading-tight block max-w-[7rem]">
+                    Disponibilité momentanément indisponible
+                  </span>
+                ) : (
+                  <span className="text-[9px] sm:text-[10px] font-semibold text-gray-600">
+                    {availableStock.toLocaleString("fr-FR")}{" "}
+                    <span className="font-normal text-gray-400">{production.unit}</span>
+                  </span>
+                )}
               </div>
             </div>
           ) : (
@@ -176,6 +185,16 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
                   <ShoppingCart className="w-2.5 h-2.5 flex-shrink-0" />
                   <span>Commander</span>
                 </Link>
+              ) : isAvailabilityUnknown ? (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-amber-50 text-amber-800 font-semibold text-[9px] sm:text-[10px] border border-amber-200 cursor-not-allowed"
+                  title={production.active_campaign?.eligibility_message || "Disponibilité momentanément indisponible"}
+                >
+                  <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
+                  <span>Commande indisponible</span>
+                </button>
               ) : isDeadlineExpired ? (
                 <button
                   type="button"

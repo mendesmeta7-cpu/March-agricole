@@ -1,6 +1,6 @@
 # RÈGLES MÉTIER OFFICIELLES V1 (docs/business-rules.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-09-09*
+*Dernière mise à jour : 2026-11-06 — Décisions de réouverture et de clôture intégrées (ADR-047, migrations 32 et 33 non appliquées) ; décisions C1, C2, C3, D1–D7 et stock revendeur (ADR-046) ; corrections de la revue ciblée (C-2 à C-6, R-1)*
 
 ---
 
@@ -94,6 +94,7 @@
   - `growing` (En cours de culture) : Culture en champ ;
   - `harvested` (Récoltée) : Récolte achevée, volume physique disponible en stock ;
   - `cancelled` (Annulée) : Production abandonnée ou détruite.
+* **BR-PRD-04-bis (Décision A4 — 2026-11-02)** : Une production au statut `harvested` ne peut pas changer de statut (y compris vers `planned` ou `cancelled`, ou par archivage) tant qu'une campagne `active` ou `paused` y est rattachée. La campagne doit d'abord être terminée ou annulée. *Garanti en base : trigger `trg_guard_production_status` (migration 31).*
 * **BR-PRD-05** : Seules les productions dont la visibilité est explicitement marquée comme publique (`is_public = true`) et ayant un statut actif (`planned`, `growing`, `harvested`) apparaissent dans le feed de découverte des revendeurs.
 
 ---
@@ -134,6 +135,7 @@
 * **BR-CMP-01** : Une campagne commerciale est obligatoirement adossée à une production existante de l'entreprise.
 * **BR-CMP-02** : Une entreprise peut créer plusieurs campagnes successives ou parallèles à partir d'une même production (ex. : une campagne ciblant Kinshasa et une campagne ciblant Matadi).
 * **BR-CMP-03** : La quantité commercialisable affectée à une campagne ne peut excéder la quantité disponible de la production parente.
+* **BR-CMP-03-bis (Décision A3 — 2026-11-02)** : **Une campagne engage la totalité de son volume commercialisable** sur la production, qu'il soit vendu ou non. Le **volume engagé** d'une production est la somme : (1) des quantités commercialisables de ses campagnes ouvertes (`draft`, `active`, `paused`) et (2) des quantités réservées ou livrées hors de ces campagnes (campagnes terminées ou annulées, commandes issues de propositions). Ce volume ne peut jamais dépasser la quantité de la production : création, réouverture ou augmentation d'une campagne, commande sur proposition et réduction de la quantité de la production sont refusées en cas de dépassement. Une réduction du volume d'une campagne reste toujours possible (sans descendre sous son volume consommé). *Garanti en base : `get_production_committed_quantity`, triggers `trg_guard_campaign_business_rules` et `trg_guard_production_quantity` (migration 31).*
 
 ### 8.2 Attributs d'une Campagne
 * **BR-CMP-04** : Une campagne définit contractuellement :
@@ -151,6 +153,7 @@
   - `paused` (Suspendue) : Prise de commande temporairement interrompue par l'entreprise ;
   - `completed` (Terminée) : Stock entièrement réservé, date de fin globale atteinte, ou toutes les destinations expirées ;
   - `cancelled` (Annulée) : Campagne retirée par l'entreprise (les commandes déjà confirmées doivent être traitées ou résolues).
+* **BR-CMP-05-bis (Décision A12 — 2026-11-02)** : Une campagne **annulée ne peut jamais être réactivée**. Une campagne **terminée** ne peut être rouverte (brouillon, active ou suspendue) **que si sa date de fin est prolongée** : nouvelle date de fin renseignée, postérieure à l'ancienne et au moins égale à la date du jour. Le volume est alors à nouveau contrôlé (BR-CMP-03-bis). *Garanti en base : trigger `trg_guard_campaign_business_rules` (migration 31). L'interface actuelle ne propose pas encore la réouverture d'une campagne terminée (plus restrictive que la règle).*
 
 ### 8.4 Statut Réel, Multi-Destinations et Source Unique de Vérité (Étape 4)
 * **BR-CMP-06 (Source Unique de Vérité du Statut Réel des Campagnes)** :
@@ -190,6 +193,11 @@
   - `ready` (Prête pour enlèvement ou expédition) ;
   - `delivered` (Livrée / réceptionnée par le revendeur) ;
   - `cancelled` (Annulée selon les conditions autorisées).
+* **BR-ORD-05-bis (Décision A13 — 2026-11-02)** : L'entreprise vendeuse fait progresser une commande **uniquement vers l'avant** : `pending` → `confirmed` → `preparing` → `ready` (sauter une étape vers l'avant est permis, revenir en arrière ne l'est pas). `delivered` et `cancelled` ne s'obtiennent que par leurs procédures dédiées. *Garanti en base : RPC `update_order_status` (migration 30).*
+* **BR-ORD-05-ter (Décision A5 — 2026-11-02)** :
+  - **Livraison** : seule une commande au statut `ready` (« Prête ») peut être confirmée comme livrée (`confirm_order_delivery`).
+  - **Annulation** : le **revendeur** ne peut annuler qu'une commande `pending` ; l'**entreprise vendeuse** (et l'administrateur) peut annuler une commande `pending` ou `confirmed`. Au-delà (`preparing`, `ready`), aucune annulation.
+  - *Garanti en base : `confirm_order_delivery` et `cancel_order_and_release_reservation` (migration 31).*
 
 ### 9.3 QR Code, Recherche Rapide et Confirmation de Livraison (Phase 16 & Correctif Ciblé)
 * **BR-ORD-06 (Génération de Jeton Opaque)** : À la création de toute commande, un jeton aléatoire unique (`qr_code_token`) est automatiquement généré via trigger Postgres. Il est strictement distinct de l'identifiant technique UUID pour éviter toute prévisibilité.
@@ -232,7 +240,7 @@
 ### 10.1 Formule de Stock et Règle d'Absence de Sur-Réservation
 * **BR-STK-01** : Pour toute campagne commerciale active :
   $$\text{Stock Restant (Disponible)} = \text{Quantité Commercialisable} - \sum \text{Quantités Réservées des Commandes Valides}$$
-  *(Une commande est considérée valide si son statut est `pending`, `confirmed`, `preparing` ou `ready`).*
+  *(Décision A11 — 2026-11-02 : sont comptées les réservations des commandes en cours — `pending`, `confirmed`, `preparing`, `ready` — **et des commandes livrées** — `delivered`. Une livraison ne remet jamais du volume en vente ; seule une annulation le libère. Calcul de référence : `get_campaign_consumed_quantity` (base) et `src/lib/utils/stockRules.ts` (interface).)*
 * **BR-STK-02** : Si le revendeur saisit une quantité $Q_{\text{cmd}} > \text{Stock Restant}$, la commande doit être immédiatement rejetée avec le motif "Stock disponible insuffisant".
 
 ### 10.2 Concurrence et Atomicité de la Réservation (PostgreSQL Locking)
@@ -270,7 +278,7 @@
 
 | Sujet | Point en suspens | Statut |
 | :--- | :--- | :--- |
-| **Politique d'annulation par le revendeur** | Le revendeur peut-il annuler unilatéralement une commande tant qu'elle est en statut `pending` sans accord préalable de l'entreprise ? *(Recommandé : Oui pour `pending`, Non à partir de `confirmed`).* | *À préciser / validation nécessaire* |
+| **Politique d'annulation par le revendeur** | Le revendeur peut annuler unilatéralement une commande `pending` ; non à partir de `confirmed`. | ✅ **Tranché — Décision A5 (2026-11-02), BR-ORD-05-ter** |
 | **Seuil minimum de commande** | Faut-il autoriser une quantité minimale de commande (`minimum_order_quantity`) par campagne dès la V1 ? *(Recommandé : optionnel en V1, valeur par défaut = 1 unité).* | *À préciser / validation nécessaire* |
 | **Date d'expiration automatique des demandes** | Quelle est la durée de validité par défaut d'une demande de revendeur si aucune date limite n'est précisée ? *(Recommandé : 30 jours par défaut).* | *À préciser / validation nécessaire* |
 
@@ -334,3 +342,37 @@
   - L'identifiant de société (`companyId`) alimentant les métriques financières provient exclusivement de la session vérifiée du serveur (`companies.created_by = user.id`).
   - Les règles PostgreSQL RLS empêchent toute fuite de données inter-entreprises.
 
+---
+
+## 15. ADMINISTRATION V1 (Décision A6 — 2026-11-02)
+
+* **BR-ADM-01 (Vérification des entreprises)** : Seul l'administrateur attribue, retire ou rejette le badge de vérification d'une entreprise (`verification_status` : `pending`, `verified`, `rejected`), exclusivement via la fonction serveur `admin_set_company_verification`, qui journalise l'opération dans `audit_logs`. Une entreprise ne peut ni créer ni modifier son propre badge.
+* **BR-ADM-02 (Supervision en lecture)** : L'espace administrateur présente en **lecture seule** les entreprises, revendeurs, productions, demandes, campagnes (statut effectif) et commandes, avec pagination. Aucune modification de ces enregistrements n'est proposée en V1, hors badge de vérification. *Écart connu, non corrigé : voir `docs/security-rules.md` §8.*
+
+---
+
+## 16. CAMPAGNES EXPIRÉES, PROTECTION DES PRODUCTIONS ET STOCK REVENDEUR (ADR-046 — 2026-11-03)
+
+* **BR-CMP-07 (Ouverture effective — C2)** : une campagne est **effectivement ouverte** si son statut est `draft`, `active` ou `paused`, que sa date générale de fin n'est pas dépassée (vide = sans limite) et qu'au moins une destination est ouverte (date limite vide = sans limite) ou qu'elle n'a aucune destination. Une campagne qui n'est plus effectivement ouverte **n'engage plus de volume** (BR-CMP-03-bis) : seules ses réservations et livraisons restent comptées. Aucune commande n'est acceptée sur une campagne qui n'est pas effectivement ouverte, y compris pour un revendeur desservi par une zone de livraison sans destination propre. *Base : `is_campaign_effectively_open` ; interface : `campaignReopenRules.ts`.*
+* **BR-CMP-08 (Clôture automatique — C1, ADR-047)** : les campagnes `active` **et** `paused` qui ne sont plus effectivement ouvertes passent au statut `completed`. **La date générale de fin prévaut sur les destinations** (BR-CMP-06) : une fois dépassée, la campagne est close même si des destinations restent ouvertes. Si la date générale est valide ou vide, une destination ouverte empêche la clôture. La clôture ne modifie que le statut de la campagne : elle ne supprime, n'annule et ne libère aucune commande ni réservation, et ne modifie aucune production ; les commandes restent traitables et consultables. Le statut d'origine est conservé (`status_before_completion`). Chaque clôture est journalisée (`audit_logs`, action `CAMPAIGN_AUTO_CLOSED`, acteur vide, identité système dans les détails). *Fonction `check_and_close_expired_campaigns`, réservée à une opération technique identifiée ; tâche quotidienne de 00 h 05 UTC, créée inactive par la migration 33 et activée sur autorisation.*
+* **BR-CMP-14 (Statut d'origine — ADR-047)** : une campagne terminée ne revient qu'à son statut d'origine (`draft`, `active` ou `paused` ; `active` si non renseigné). Une campagne `paused` reste donc `paused` après réouverture : seule sa reprise explicite par la société la rend `active`. Le statut d'origine est écrit uniquement par la base ; toute valeur transmise est ignorée. *Base : `trg_guard_campaign_business_rules`.*
+* **BR-CMP-15 (Qui peut rouvrir — ADR-047)** : seul un membre de la société propriétaire peut rouvrir une campagne. **Un administrateur ne le peut pas, quel que soit le canal.** Une opération sans utilisateur n'est admise que pour une session directe à la base avec un motif explicite ; une requête API, y compris avec la clé `service_role`, n'en est jamais une. Chaque réouverture est journalisée une fois (`audit_logs`, action `CAMPAIGN_REOPENED`), quel que soit le canal. Une campagne `cancelled` n'est jamais rouverte. *Base : `authorize_campaign_reopening`, `technical_operation_identity`.*
+* **BR-CMP-09 (Réouverture — A12, A12-bis, C3, D5, D6)** :
+  - une campagne **annulée** n'est jamais rouverte ;
+  - **si l'expiration vient de la date générale**, une nouvelle date est obligatoire ; **si la date générale est encore valide (ou vide), sa prolongation n'est pas exigée** (C3) ;
+  - toute nouvelle date générale respecte D5 : ancienne date vide → nouvelle date ≥ aujourd'hui ; ancienne date renseignée → nouvelle date strictement postérieure et ≥ aujourd'hui ;
+  - si toutes les destinations sont expirées, **au moins une date limite de destination doit être reportée** (≥ aujourd'hui) ;
+  - une campagne expirée par sa date ne peut pas contourner ces règles en vidant ou modifiant directement sa date (D6) ;
+  - toute réouverture, y compris par le simple report d'une destination, revérifie la production récoltée (D2) et le volume disponible (A3) ;
+  - **seul le report de la date limite d'une destination existante** peut rouvrir une campagne fermée par ses destinations (C3) : **l'ajout** d'une destination ne la rouvre jamais, **la suppression** non plus, y compris la suppression de la dernière destination expirée (qui la laisserait « sans destination », donc ouverte). Cette règle s'applique **aussi lorsque la date générale est dépassée**. Ajouter une destination déjà expirée, supprimer une destination parmi d'autres expirées, fermer ou modifier une destination sans effet d'ouverture restent permis. La suppression d'une campagne (et de ses destinations en cascade) n'est pas bloquée (revue 032, C-3 / R-4).
+  - **arbitrage C3 (2026-11-04)** : une destination ne peut servir à rouvrir une campagne expirée **que si elle existait avant l'expiration de son propre délai de commande** (date de création ≤ date limite). Une destination créée après son expiration ne peut pas être prolongée pour contourner C3. La date de création est fixée par la base et n'est pas modifiable ;
+  - la modification d'une campagne (champs, provinces, destinations, dépôts) est enregistrée **en une seule opération** : en cas de refus, rien n'est modifié (C-6).
+  *Base : `reopen_campaign` (atomique), `update_campaign_with_destinations` (atomique), triggers `trg_guard_campaign_business_rules` et `trg_guard_campaign_destination_reopening`.*
+* **BR-CMP-12 (Destinations rattachées — C-2)** : une destination ne change jamais de campagne ; ses autres champs (ville, province, dates) restent modifiables selon BR-CMP-09. *Base : `trg_guard_campaign_destination_reopening`.*
+* **BR-CMP-13 (Unité de la campagne — C-4)** : l'unité d'une campagne est **toujours celle de sa production**, à la création, au changement de production et à toute mise à jour (y compris par appel direct à l'API). *Base : `trg_guard_campaign_consistency`.*
+* **BR-CMP-10 (Production récoltée — D2)** : une campagne, **même en brouillon**, ne peut être créée que sur une production `harvested` ; son activation ou sa réactivation exige que la production soit toujours récoltée.
+* **BR-PRD-06 (Production engagée — A4, D1, D3)** : tant qu'une campagne `active` ou `paused` effectivement ouverte dépend d'une production, sont interdits : le changement de statut (dont l'archivage), le changement de produit et le passage de publique à non publique. L'unité suit sa propre règle, plus large (BR-PRD-07). Le passage de non publique à publique et les modifications descriptives (titre, description, photo, localisation, saisons…) restent autorisés. *Base : trigger `trg_guard_production_commitments` (remplace `trg_guard_production_status`).*
+* **BR-PRD-07 (Unité de mesure d'une production — C-4)** : l'unité est figée tant qu'une campagne **non annulée** (brouillon et campagne terminée compris), une **réservation en cours** ou une **proposition ouverte** (`proposed` / `accepted`) s'y rapporte. Les campagnes annulées, les réservations libérées ou livrées (hors campagne non annulée) et les propositions closes ne bloquent pas. *Base : `trg_guard_production_commitments` ; interface : `hasUnitCommitments` (`productionRules.ts`).*
+* **BR-CMP-11 (Volume disponible — D4)** : le formulaire et les actions de campagne utilisent le volume **réellement disponible** de la production (quantité − volume engagé, en excluant la campagne en cours de modification), et non sa quantité totale. *Fonction `get_productions_campaign_availability`.*
+* **BR-FED-04 (Stock revendeur)** : les revendeurs connectés voient le **disponible agrégé** de chaque campagne active effectivement ouverte, calculé côté serveur ; aucune réservation individuelle, commande ni information permettant d'identifier les commandes d'autres revendeurs n'est exposée. Si le calcul est indisponible, l'interface l'indique et bloque la commande (jamais de repli sur le volume commercialisable). *Fonction `get_campaigns_available_quantity`.*
+* **BR-FIN-14 (Unités dans les graphiques)** : chaque graphique et indicateur présente **une série distincte par unité de mesure** ; aucune conversion implicite (ex. kg → t) ni addition d'unités différentes. Les volumes déclarés d'un produit sont présentés par **unité de production** (`declared_volume_by_unit`), jamais en total global (revue 032, C-5).
