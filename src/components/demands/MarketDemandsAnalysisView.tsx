@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { formatQuantity, formatUnitTotals, groupQuantitiesByUnit } from "@/lib/utils/unitSeries";
 
 interface MarketDemandsAnalysisViewProps {
   initialGeneralDemands?: DemandItem[];
@@ -121,11 +122,17 @@ export default function MarketDemandsAnalysisView({
 
   // ─── Statistiques réelles ─────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const totalVolume = initialAggregates.reduce((acc, curr) => acc + curr.total_demanded_quantity, 0);
+    // BR-FIN-04 : un total par unité (les agrégats portent leur unité), jamais d'addition
+    // entre unités différentes ni de conversion.
+    const volumeByUnit = groupQuantitiesByUnit(
+      initialAggregates,
+      (a) => a.total_demanded_quantity,
+      (a) => a.unit
+    );
     const totalDemands = initialAggregates.reduce((acc, curr) => acc + curr.total_demands_count, 0);
     const distinctProvinces = new Set(initialAggregates.map((i) => i.province_id)).size;
     const distinctProducts = new Set(initialAggregates.map((i) => i.product_id)).size;
-    return { totalVolume, totalDemands, distinctProvinces, distinctProducts };
+    return { volumeByUnit, totalDemands, distinctProvinces, distinctProducts };
   }, [initialAggregates]);
 
   // Nombre de filtres actifs
@@ -249,8 +256,30 @@ export default function MarketDemandsAnalysisView({
           },
           {
             label: "Volume total recherché",
-            value: stats.totalVolume.toLocaleString("fr-FR"),
-            unit: "t/u",
+            // Une valeur par unité, séparées par « · » (jamais additionnées entre unités)
+            value:
+              stats.volumeByUnit.length === 0 ? (
+                0
+              ) : (
+                <span
+                  className={`inline-flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 ${
+                    stats.volumeByUnit.length > 1 ? "text-base sm:text-lg" : ""
+                  }`}
+                >
+                  {stats.volumeByUnit.map((u, idx) => (
+                    <span key={u.unitKey} className="whitespace-nowrap">
+                      {idx > 0 && (
+                        <span className="text-gray-300 font-normal mr-1.5" aria-hidden="true">
+                          ·
+                        </span>
+                      )}
+                      {formatQuantity(u.total)}
+                      <span className="text-xs font-normal text-gray-500 ml-1">{u.unitLabel}</span>
+                    </span>
+                  ))}
+                </span>
+              ),
+            unit: "",
             icon: Scale,
             bg: "bg-forest-50",
             iconColor: "text-forest-700",
@@ -333,6 +362,7 @@ export default function MarketDemandsAnalysisView({
           const isActive = activeTab === tab.id;
           return (
             <button
+              type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold transition-all border-b-2 -mb-px cursor-pointer ${
@@ -374,7 +404,9 @@ export default function MarketDemandsAnalysisView({
             />
             {searchQuery && (
               <button
+                type="button"
                 onClick={() => setSearchQuery("")}
+                aria-label="Effacer la recherche"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
@@ -384,6 +416,7 @@ export default function MarketDemandsAnalysisView({
 
           {/* Bouton Filtres (mobile) */}
           <button
+            type="button"
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm rounded-xl border transition-all cursor-pointer font-medium ${
               activeFiltersCount > 0
@@ -404,6 +437,7 @@ export default function MarketDemandsAnalysisView({
           {/* Réinitialiser (si filtres actifs) */}
           {activeFiltersCount > 0 && (
             <button
+              type="button"
               onClick={resetFilters}
               className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-earth-700 hover:text-earth-800 underline underline-offset-2 cursor-pointer whitespace-nowrap"
             >
@@ -466,6 +500,7 @@ export default function MarketDemandsAnalysisView({
               </p>
               {activeFiltersCount > 0 && filteredGeneralDemands.length < generalDemands.length && (
                 <button
+                  type="button"
                   onClick={resetFilters}
                   className="text-xs text-earth-700 hover:text-earth-800 font-semibold underline underline-offset-2 cursor-pointer"
                 >
@@ -498,6 +533,7 @@ export default function MarketDemandsAnalysisView({
                 </p>
               </div>
               <button
+                type="button"
                 onClick={resetFilters}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-earth-700 hover:text-earth-800 underline underline-offset-2 cursor-pointer"
               >
@@ -651,6 +687,7 @@ export default function MarketDemandsAnalysisView({
                           type="button"
                           onClick={() => setRefusingDemand(dem)}
                           title="Écarter cette demande"
+                          aria-label="Écarter cette demande"
                           className="p-2 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border border-gray-200 cursor-pointer"
                         >
                           <XCircle className="w-4 h-4" />
@@ -699,6 +736,7 @@ export default function MarketDemandsAnalysisView({
                 </p>
               </div>
               <button
+                type="button"
                 onClick={resetFilters}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-forest-700 hover:text-forest-800 underline underline-offset-2 cursor-pointer"
               >
@@ -793,9 +831,11 @@ export default function MarketDemandsAnalysisView({
                 </p>
                 <div className="flex items-center gap-4 text-xs font-semibold text-gray-700">
                   <span>Total : {stats.totalDemands} acheteur(s)</span>
-                  <span className="text-forest-700">
-                    {stats.totalVolume.toLocaleString("fr-FR")} unité(s) recherché(s)
-                  </span>
+                  {stats.volumeByUnit.length > 0 && (
+                    <span className="text-forest-700">
+                      Volume recherché : {formatUnitTotals(stats.volumeByUnit) || "0"}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

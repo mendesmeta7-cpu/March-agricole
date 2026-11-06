@@ -5,12 +5,13 @@ import Link from "next/link";
 import BrandLogo from "@/components/ui/BrandLogo";
 
 interface PublicCompanyPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default async function PublicCompanyPage({ params }: PublicCompanyPageProps) {
+export default async function PublicCompanyPage(props: PublicCompanyPageProps) {
+  const params = await props.params;
   const company = await getPublicCompanyProfile(params.id);
 
   if (!company) {

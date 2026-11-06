@@ -24,19 +24,18 @@ import Link from "next/link";
 import { formatProductionSeasonCalendar } from "@/lib/utils/seasonalMonths";
 
 interface ResellerProductionDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
-  searchParams?: {
+  }>;
+  searchParams?: Promise<{
     order?: string;
-  };
+  }>;
 }
 
-export default async function ResellerProductionDetailPage({
-  params,
-  searchParams,
-}: ResellerProductionDetailPageProps) {
-  const supabase = createClient();
+export default async function ResellerProductionDetailPage(props: ResellerProductionDetailPageProps) {
+  const params = await props.params;
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   // 1. Récupération préalable de la localisation officielle du revendeur connecté

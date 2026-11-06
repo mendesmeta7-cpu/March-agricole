@@ -27,7 +27,7 @@ export interface ActionResult<T = any> {
 export async function createOrderAction(
   input: CreateOrderInput
 ): Promise<ActionResult<{ orderId: string; orderNumber: string; totalAmount: number }>> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -92,17 +92,26 @@ export async function createOrderAction(
 
     if (error) {
       console.error("Erreur RPC create_order_with_reservation:", error);
-      let friendlyMessage = error.message;
-      if (friendlyMessage.includes("Cette campagne n'est pas disponible dans votre région") || friendlyMessage.includes("ne dessert pas la province")) {
+      // Les messages de la RPC sont sans accents : on les traduit en messages métier,
+      // sans jamais renvoyer un message technique brut (SEC-24).
+      const raw = (error.message || "").normalize("NFD").replace(/\p{Diacritic}/gu, "");
+      let friendlyMessage = "La commande n'a pas pu être enregistrée. Veuillez réessayer.";
+      if (raw.includes("pas disponible dans votre region") || raw.includes("ne dessert pas la province") || raw.includes("ne correspond pas a la destination")) {
         friendlyMessage = "Cette campagne n'est pas disponible dans votre région.";
-      } else if (friendlyMessage.includes("Vous ne pouvez commander que pour la destination")) {
-        friendlyMessage = "Vous ne pouvez commander que pour la destination correspondant à votre région de rattachement.";
-      } else if (friendlyMessage.includes("Stock disponible insuffisant")) {
+      } else if (raw.includes("periode de commande pour la destination")) {
+        friendlyMessage = "La période de commande pour votre destination est terminée.";
+      } else if (raw.includes("Stock disponible insuffisant sur la production")) {
+        friendlyMessage = "La quantité restante de la production est insuffisante pour cette commande.";
+      } else if (raw.includes("Stock disponible insuffisant")) {
         friendlyMessage = "Stock disponible insuffisant pour cette quantité sur cette offre.";
-      } else if (friendlyMessage.includes("période de commercialisation")) {
+      } else if (raw.includes("periode de commercialisation") || raw.includes("pas ouverte aux commandes")) {
         friendlyMessage = "Cette offre n'est plus ou pas encore ouverte à la vente.";
-      } else if (friendlyMessage.includes("seuil minimum")) {
+      } else if (raw.includes("minimum autorise") || raw.includes("seuil minimum")) {
         friendlyMessage = "La quantité demandée est inférieure au seuil minimum d'achat imposé par le producteur.";
+      } else if (raw.includes("Seuls les revendeurs") || raw.includes("Acces refuse")) {
+        friendlyMessage = "Seuls les revendeurs enregistrés peuvent commander pour leur propre compte.";
+      } else if (raw.includes("Profil revendeur incomplet")) {
+        friendlyMessage = "Votre profil revendeur est incomplet : renseignez votre province de rattachement.";
       }
       return { success: false, error: friendlyMessage };
     }
@@ -146,7 +155,7 @@ export async function cancelOrderAction(
   orderId: string,
   reason: string = "Annulation demandée par l'acheteur"
 ): Promise<ActionResult> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -167,7 +176,10 @@ export async function cancelOrderAction(
 
     if (error) {
       console.error("Erreur RPC cancel_order_and_release_reservation:", error);
-      return { success: false, error: "L'annulation de la commande a échoué. Veuillez réessayer." };
+      return {
+        success: false,
+        error: toUserFacingRpcError(error.message, "L'annulation de la commande a échoué. Veuillez réessayer."),
+      };
     }
 
     // Revalidation
@@ -192,7 +204,7 @@ export async function updateOrderStatusAction(
   orderId: string,
   newStatus: OrderStatus
 ): Promise<ActionResult> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -205,25 +217,12 @@ export async function updateOrderStatusAction(
     return { success: false, error: "Paramètres manquants pour la mise à jour." };
   }
 
-  // 1. Récupération de la commande
-  const { data: order, error: orderErr } = await supabase
-    .from("orders")
-    .select("id, company_id, status")
-    .eq("id", orderId)
-    .maybeSingle();
-
-  if (orderErr || !order) {
-    return { success: false, error: "Commande introuvable." };
-  }
-
-  // 2. Si le nouveau statut est 'cancelled', utiliser la fonction RPC dédiée pour libérer le stock
+  // L'annulation passe par la procédure dédiée qui libère le stock réservé
   if (newStatus === "cancelled") {
     return cancelOrderAction(orderId, "Annulation par l'exploitation agricole");
   }
 
-  // 3. Règle d'intégrité Prompt 3 : le statut 'delivered' ne peut JAMAIS être forcé manuellement
-  // La livraison physique exige obligatoirement confirmOrderDeliveryAction (RPC confirm_order_delivery)
-  // pour garantir l'horodatage, la quantité livrée, les audits, la notification et la confirmation de réservation de stock.
+  // Règle d'intégrité Prompt 3 : 'delivered' exige confirmOrderDeliveryAction (RPC confirm_order_delivery)
   if (newStatus === "delivered") {
     return {
       success: false,
@@ -232,31 +231,20 @@ export async function updateOrderStatusAction(
     };
   }
 
-  // 4. Mise à jour directe du statut (protégée par RLS)
-  const { error: updateErr } = await supabase
-    .from("orders")
-    .update({
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", orderId);
-
-  if (updateErr) {
-    console.error("Erreur mise à jour statut commande:", updateErr);
-    return { success: false, error: "Impossible de mettre à jour le statut de la commande." };
-  }
-
-  // 4. Trace dans audit_logs
-  await supabase.from("audit_logs").insert({
-    actor_id: user.id,
-    action: "ORDER_STATUS_UPDATED",
-    entity_type: "order",
-    entity_id: orderId,
-    details: {
-      previous_status: order.status,
-      new_status: newStatus,
-    },
+  // Transition contrôlée en base (SEC-03 / FUN-01) : entreprise vendeuse uniquement,
+  // progression vers l'avant uniquement, journalisation dans audit_logs par la RPC.
+  const { error } = await supabase.rpc("update_order_status", {
+    p_order_id: orderId,
+    p_new_status: newStatus,
   });
+
+  if (error) {
+    console.error("Erreur RPC update_order_status:", error);
+    return {
+      success: false,
+      error: toUserFacingRpcError(error.message, "Impossible de mettre à jour le statut de la commande."),
+    };
+  }
 
   revalidatePath("/dashboard/company/orders");
   revalidatePath(`/dashboard/company/orders/${orderId}`);
@@ -266,6 +254,39 @@ export async function updateOrderStatusAction(
   return { success: true };
 }
 
+/**
+ * Messages métier levés par les procédures SQL (RAISE EXCEPTION) qui peuvent être
+ * montrés tels quels à l'utilisateur. Tout autre message technique est remplacé
+ * par le texte de repli (pas de fuite de noms de tables ou de contraintes).
+ */
+const USER_FACING_RPC_ERRORS = [
+  "Transition non autorisée",
+  "Cette commande est clôturée",
+  "Accès refusé",
+  "Impossible d'annuler une commande au statut actuel",
+  "Impossible de livrer une commande annulée",
+  "Cette commande a déjà été livrée",
+  "La livraison doit être confirmée",
+  "L'annulation doit passer",
+  "Stock disponible insuffisant",
+  "Cette proposition n'est plus disponible",
+  "Cette proposition ne comporte pas de prix unitaire valide",
+  "Cette proposition ne correspond pas",
+  "La quantité demandée",
+  "La production proposée",
+  "Seuls les revendeurs",
+  "Commande introuvable",
+  "Authentification requise",
+  // Décision A5 (migration 031)
+  "Seule une commande prête peut être livrée",
+  "Un revendeur ne peut annuler qu'une commande en attente",
+];
+
+function toUserFacingRpcError(message: string | undefined | null, fallback: string): string {
+  if (!message) return fallback;
+  return USER_FACING_RPC_ERRORS.some((prefix) => message.includes(prefix)) ? message : fallback;
+}
+
 export interface CreateOrderFromDemandResponseInput {
   response_id: string;
   quantity?: number;
@@ -273,6 +294,8 @@ export interface CreateOrderFromDemandResponseInput {
   delivery_city?: string;
   delivery_address?: string;
   notes?: string;
+  /** Prix unitaire affiché au revendeur : la commande est refusée s'il a changé entre-temps. */
+  expected_unit_price?: number;
 }
 
 /**
@@ -281,7 +304,7 @@ export interface CreateOrderFromDemandResponseInput {
 export async function createOrderFromDemandResponseAction(
   input: CreateOrderFromDemandResponseInput
 ): Promise<ActionResult<{ orderId: string; orderNumber: string; totalAmount: number; currency: string }>> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -347,15 +370,21 @@ export async function createOrderFromDemandResponseAction(
       p_delivery_city: input.delivery_city?.trim() || null,
       p_delivery_address: input.delivery_address?.trim() || null,
       p_notes: input.notes?.trim() || null,
+      p_expected_unit_price:
+        typeof input.expected_unit_price === "number" && Number.isFinite(input.expected_unit_price)
+          ? input.expected_unit_price
+          : null,
     });
 
     if (error) {
       console.error("Erreur RPC create_order_from_demand_response:", error);
-      let friendlyMessage = error.message;
-      if (friendlyMessage.includes("Stock disponible insuffisant")) {
+      let friendlyMessage = toUserFacingRpcError(error.message, "La commande n'a pas pu être enregistrée. Veuillez réessayer.");
+      if (error.message?.includes("Stock disponible insuffisant")) {
         friendlyMessage = "Le stock disponible de la production proposée est désormais insuffisant.";
-      } else if (friendlyMessage.includes("Cette proposition n'est plus disponible")) {
+      } else if (error.message?.includes("Cette proposition n'est plus disponible")) {
         friendlyMessage = "Cette proposition n'est plus disponible ou a déjà été traitée.";
+      } else if (error.message?.includes("Le prix de cette proposition a été modifié")) {
+        friendlyMessage = "Le prix de cette proposition a été modifié par la société. Vérifiez la nouvelle proposition avant de commander.";
       }
       return { success: false, error: friendlyMessage };
     }
@@ -456,7 +485,7 @@ async function getCompanyIdForUser(supabase: any, userId: string): Promise<strin
 export async function lookupOrderForDeliveryAction(
   identifier: string
 ): Promise<ActionResult<LookupDeliveryOrderResult>> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -730,7 +759,7 @@ export async function confirmOrderDeliveryAction(
     deliveredQuantity: number;
   }>
 > {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -751,7 +780,7 @@ export async function confirmOrderDeliveryAction(
 
     if (error) {
       console.error("Erreur RPC confirm_order_delivery:", error);
-      let friendlyMessage = "La confirmation de la livraison a échoué. Veuillez réessayer.";
+      let friendlyMessage = toUserFacingRpcError(error.message, "La confirmation de la livraison a échoué. Veuillez réessayer.");
       if (error.message?.includes("déjà") || error.message?.includes("already")) {
         friendlyMessage = "Cette commande a déjà été confirmée comme livrée.";
       }

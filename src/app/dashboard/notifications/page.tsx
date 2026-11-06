@@ -10,7 +10,7 @@ export const revalidate = 0;
  * vers le centre de notifications correspondant à son rôle réel.
  */
 export default async function GenericNotificationsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

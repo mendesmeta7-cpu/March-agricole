@@ -1,13 +1,20 @@
 "use client";
 
-import { useState, useEffect, useTransition, useMemo } from "react";
+import { useState, useEffect, useTransition, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/Toast";
 import {
   EligibleProductionOption,
   CompanyCampaignItem,
 } from "@/lib/queries/campaigns";
 import { AggregatedDemandItem } from "@/lib/queries/demands";
 import { Province } from "@/lib/queries/geography";
-import { createCampaignAction, updateCampaignAction } from "@/lib/actions/campaigns";
+import {
+  createCampaignAction,
+  updateCampaignAction,
+  getProductionAvailabilityAction,
+} from "@/lib/actions/campaigns";
+import type { ProductionCampaignAvailability } from "@/lib/actions/campaignAvailability";
 import Select from "@/components/ui/Select";
 import {
   X,
@@ -78,14 +85,65 @@ export default function CampaignFormModal({
   const [destinations, setDestinations] = useState<FormDestination[]>([]);
   const [status, setStatus] = useState<"draft" | "active">("draft");
 
-  const productionOptions = useMemo(
-    () =>
-      eligibleProductions.map((prod) => ({
-        value: prod.id,
-        label: `${prod.title} — ${prod.product_name} (${prod.expected_quantity} ${prod.unit})`,
-      })),
-    [eligibleProductions]
-  );
+  // D2 / D4 — seules les productions récoltées sont proposées, avec leur volume encore
+  // disponible pour une campagne. En modification, la production de la campagne est
+  // affichée même si elle n'est plus proposable (le sélecteur est alors verrouillé).
+  const productionOptions = useMemo(() => {
+    const options = eligibleProductions.map((prod) => ({
+      value: prod.id,
+      label:
+        prod.available_quantity === null
+          ? `${prod.title} — ${prod.product_name} (disponibilité illisible)`
+          : `${prod.title} — ${prod.product_name} (disponible : ${prod.available_quantity.toLocaleString("fr-FR")} ${prod.unit})`,
+    }));
+    if (campaignToEdit && !options.some((o) => o.value === campaignToEdit.production_id)) {
+      options.unshift({
+        value: campaignToEdit.production_id,
+        label: `${campaignToEdit.production.title} — ${campaignToEdit.product.name}`,
+      });
+    }
+    return options;
+  }, [eligibleProductions, campaignToEdit]);
+
+  // D4 — en modification, disponibilité lue côté serveur en excluant la campagne modifiée
+  const [editAvailability, setEditAvailability] = useState<
+    | { state: "idle" }
+    | { state: "loading" }
+    | { state: "ready"; data: ProductionCampaignAvailability }
+    | { state: "error"; message: string }
+  >({ state: "idle" });
+
+  useEffect(() => {
+    if (!isOpen || !campaignToEdit) {
+      setEditAvailability({ state: "idle" });
+      return;
+    }
+    let cancelled = false;
+    setEditAvailability({ state: "loading" });
+    getProductionAvailabilityAction(campaignToEdit.production_id, campaignToEdit.id)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success && res.availability) {
+          setEditAvailability({ state: "ready", data: res.availability });
+        } else {
+          setEditAvailability({
+            state: "error",
+            message: res.error || "La disponibilité de la production est momentanément illisible.",
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setEditAvailability({
+            state: "error",
+            message: "La disponibilité de la production est momentanément illisible. Vérifiez votre connexion.",
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, campaignToEdit]);
 
   const currencyOptions = useMemo(
     () => [
@@ -97,6 +155,16 @@ export default function CampaignFormModal({
 
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const router = useRouter();
+  const { toast } = useToast();
+  const errorRef = useRef<HTMLDivElement | null>(null);
+
+  // LOAD-04 : l'erreur est affichée près du bouton d'envoi et ramenée dans le champ de vision.
+  useEffect(() => {
+    if (errorMessage && errorRef.current) {
+      errorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [errorMessage]);
 
   // Initialisation lors de l'ouverture ou du changement de campagne à éditer
   useEffect(() => {
@@ -167,7 +235,7 @@ export default function CampaignFormModal({
       setProductionId(initialProdId);
       setTitle(prod ? `Campagne ${prod.title}` : "");
       setDescription("");
-      setMarketableQuantity(prod?.expected_quantity || "");
+      setMarketableQuantity(prod?.available_quantity ? prod.available_quantity : "");
       setUnitPrice("");
       setCurrency("USD");
       setMinOrderQuantity(1);
@@ -184,8 +252,54 @@ export default function CampaignFormModal({
 
   // Production actuellement sélectionnée
   const selectedProduction = eligibleProductions.find((p) => p.id === productionId);
-  const maxAllowedQuantity = selectedProduction?.expected_quantity || 0;
-  const currentUnit = selectedProduction?.unit || "tonne";
+
+  // D4 — volume disponible pour CETTE campagne (null = inconnu : enregistrement bloqué,
+  // jamais de repli sur le volume déclaré). En modification, la quantité actuelle de la
+  // campagne reste acceptée (le contrôle en base ne porte que sur un engagement accru).
+  const availabilityInfo: {
+    available: number | null;
+    committed: number | null;
+    expected: number | null;
+    unit: string;
+    loading: boolean;
+    error: string | null;
+  } = isEditing
+    ? editAvailability.state === "ready"
+      ? {
+          available: editAvailability.data.available_quantity,
+          committed: editAvailability.data.committed_quantity,
+          expected: editAvailability.data.expected_quantity,
+          unit: editAvailability.data.unit,
+          loading: false,
+          error: null,
+        }
+      : {
+          available: null,
+          committed: null,
+          expected: null,
+          unit: campaignToEdit?.unit || "tonne",
+          loading: editAvailability.state === "loading" || editAvailability.state === "idle",
+          error: editAvailability.state === "error" ? editAvailability.message : null,
+        }
+    : {
+        available: selectedProduction?.available_quantity ?? null,
+        committed: selectedProduction?.committed_quantity ?? null,
+        expected: selectedProduction?.expected_quantity ?? null,
+        unit: selectedProduction?.unit || "tonne",
+        loading: false,
+        error:
+          selectedProduction && selectedProduction.availability_error
+            ? "La disponibilité de cette production est momentanément illisible. Veuillez recharger la page."
+            : null,
+      };
+  const originalQuantity = isEditing ? Number(campaignToEdit?.marketable_quantity || 0) : 0;
+  const maxAllowedQuantity =
+    availabilityInfo.available === null ? null : Math.max(availabilityInfo.available, originalQuantity);
+  const currentUnit = availabilityInfo.unit;
+  const isQuantityOverMax =
+    typeof marketableQuantity === "number" &&
+    maxAllowedQuantity !== null &&
+    marketableQuantity > maxAllowedQuantity;
   const todayStr = new Date().toISOString().split("T")[0];
 
   // Demandes observées pertinentes pour ce produit (aide à la décision)
@@ -340,13 +454,23 @@ export default function CampaignFormModal({
       return;
     }
 
-    if (
-      typeof marketableQuantity !== "number" ||
-      marketableQuantity <= 0 ||
-      marketableQuantity > maxAllowedQuantity
-    ) {
+    if (maxAllowedQuantity === null) {
       setErrorMessage(
-        `La quantité commercialisée doit être comprise entre 1 et ${maxAllowedQuantity.toLocaleString("fr-FR")} ${currentUnit}.`
+        availabilityInfo.loading
+          ? "Vérification du volume disponible en cours, veuillez patienter."
+          : availabilityInfo.error || "Le volume disponible de la production est momentanément illisible."
+      );
+      return;
+    }
+
+    if (typeof marketableQuantity !== "number" || marketableQuantity <= 0) {
+      setErrorMessage("La quantité mise en vente doit être strictement positive.");
+      return;
+    }
+
+    if (marketableQuantity > maxAllowedQuantity) {
+      setErrorMessage(
+        `La quantité mise en vente (${marketableQuantity.toLocaleString("fr-FR")} ${currentUnit}) dépasse le volume disponible pour cette campagne (${maxAllowedQuantity.toLocaleString("fr-FR")} ${currentUnit}).`
       );
       return;
     }
@@ -401,6 +525,10 @@ export default function CampaignFormModal({
       }
       for (let j = 0; j < dest.depots.length; j++) {
         const dep = dest.depots[j];
+        if (!dep.name.trim()) {
+          setErrorMessage(`Veuillez renseigner le nom du dépôt #${j + 1} à ${dest.city_name}.`);
+          return;
+        }
         if (!dep.commune.trim()) {
           setErrorMessage(`Veuillez renseigner la commune pour le dépôt #${j + 1} à ${dest.city_name}.`);
           return;
@@ -440,7 +568,20 @@ export default function CampaignFormModal({
           : await createCampaignAction(formData);
 
         if (res.success) {
+          toast.success(isEditing ? "Campagne mise à jour" : "Campagne enregistrée", {
+            description: res.message,
+          });
           onClose();
+          router.refresh();
+        } else if (res.campaignId) {
+          // La campagne existe mais est incomplète : on ferme la modale (pour éviter une
+          // seconde création) et on affiche l'erreur de façon persistante.
+          toast.error("Campagne incomplète", {
+            description: res.error || "La campagne doit être complétée.",
+            duration: 12000,
+          });
+          onClose();
+          router.refresh();
         } else {
           setErrorMessage(res.error || "Une erreur est survenue.");
         }
@@ -464,8 +605,11 @@ export default function CampaignFormModal({
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-9 h-9 rounded-xl hover:bg-gray-200/80 flex items-center justify-center text-gray-500 transition-colors"
+            disabled={isPending}
+            aria-label="Fermer"
+            className="w-9 h-9 rounded-xl hover:bg-gray-200/80 flex items-center justify-center text-gray-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <X className="w-5 h-5" />
           </button>
@@ -473,21 +617,15 @@ export default function CampaignFormModal({
 
         {/* Corps du formulaire */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1 text-sm">
-          {errorMessage && (
-            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
           {/* 1. Sélection obligatoire de la production parente */}
           <div className="space-y-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
               Production de Référence (Obligatoire) *
             </label>
-            {eligibleProductions.length === 0 ? (
+            {!isEditing && eligibleProductions.length === 0 ? (
               <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
-                Aucune production disponible. Vous devez d&apos;abord enregistrer une production dans votre exploitation avant de créer une campagne.
+                Aucune production récoltée disponible. Une campagne ne peut être créée que sur une production au statut
+                « Récoltée » : faites évoluer le statut de votre production depuis l&apos;espace Productions, puis revenez ici.
               </div>
             ) : (
               <Select
@@ -502,15 +640,43 @@ export default function CampaignFormModal({
               />
             )}
 
-            {selectedProduction && (
-              <div className="p-3 rounded-xl bg-forest-50/60 border border-forest-100 flex items-center justify-between text-xs text-forest-900">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <Tractor className="w-4 h-4 text-forest-700" />
-                  Volume total déclaré :
-                </span>
-                <span className="font-extrabold text-forest-950">
-                  {maxAllowedQuantity.toLocaleString("fr-FR")} {currentUnit}
-                </span>
+            {(selectedProduction || isEditing) && (
+              <div
+                id="campaign-production-availability"
+                className="p-3 rounded-xl bg-forest-50/60 border border-forest-100 text-xs text-forest-900 space-y-1"
+                aria-live="polite"
+              >
+                {availabilityInfo.loading ? (
+                  <span className="flex items-center gap-1.5 font-medium text-forest-800">
+                    <Clock className="w-4 h-4 text-forest-700" aria-hidden="true" />
+                    Vérification du volume disponible…
+                  </span>
+                ) : availabilityInfo.error || availabilityInfo.available === null ? (
+                  <span className="flex items-start gap-1.5 font-medium text-amber-900">
+                    <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" aria-hidden="true" />
+                    {availabilityInfo.error ||
+                      "La disponibilité de cette production est momentanément illisible."}
+                  </span>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <Tractor className="w-4 h-4 text-forest-700" aria-hidden="true" />
+                        Disponible pour cette campagne :
+                      </span>
+                      <span className="font-extrabold text-forest-950">
+                        {availabilityInfo.available.toLocaleString("fr-FR")} {currentUnit}
+                      </span>
+                    </div>
+                    {availabilityInfo.committed !== null && availabilityInfo.expected !== null && (
+                      <p className="text-[11px] text-forest-800/80">
+                        Déjà engagé sur d&apos;autres campagnes ou commandes :{" "}
+                        {availabilityInfo.committed.toLocaleString("fr-FR")} {currentUnit} sur un volume déclaré de{" "}
+                        {availabilityInfo.expected.toLocaleString("fr-FR")} {currentUnit}.
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -534,30 +700,40 @@ export default function CampaignFormModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Quantité commercialisée */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
+              <label
+                htmlFor="campaign-marketable-quantity"
+                className="block text-xs font-bold uppercase tracking-wider text-gray-700"
+              >
                 Quantité Mise en Vente ({currentUnit}) *
               </label>
               <div className="relative">
                 <input
+                  id="campaign-marketable-quantity"
                   type="number"
                   step="any"
                   min="0.01"
-                  max={maxAllowedQuantity || undefined}
+                  max={maxAllowedQuantity ?? undefined}
                   value={marketableQuantity}
                   onChange={(e) =>
                     setMarketableQuantity(e.target.value === "" ? "" : parseFloat(e.target.value))
                   }
-                  placeholder={`Max: ${maxAllowedQuantity}`}
+                  placeholder={
+                    maxAllowedQuantity === null
+                      ? "Disponibilité en cours de vérification"
+                      : `Max : ${maxAllowedQuantity.toLocaleString("fr-FR")}`
+                  }
                   required
+                  aria-invalid={isQuantityOverMax || undefined}
+                  aria-describedby="campaign-marketable-quantity-hint campaign-production-availability"
                   className={`w-full px-3.5 py-2 rounded-xl border text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden ${
-                    typeof marketableQuantity === "number" && marketableQuantity > maxAllowedQuantity
-                      ? "border-rose-400 bg-rose-50"
-                      : "border-gray-300"
+                    isQuantityOverMax ? "border-rose-400 bg-rose-50" : "border-gray-300"
                   }`}
                 />
               </div>
-              <span className="text-[11px] text-gray-500 block">
-                Doit être &le; au volume de production ({maxAllowedQuantity} {currentUnit})
+              <span id="campaign-marketable-quantity-hint" className="text-[11px] text-gray-500 block">
+                {maxAllowedQuantity === null
+                  ? "Le volume disponible doit être vérifié avant l'enregistrement."
+                  : `Doit être ≤ au volume disponible pour cette campagne (${maxAllowedQuantity.toLocaleString("fr-FR")} ${currentUnit}).`}
               </span>
             </div>
 
@@ -973,6 +1149,18 @@ export default function CampaignFormModal({
             </div>
           )}
 
+          {/* Message d'erreur placé près du bouton d'envoi (LOAD-04) */}
+          {errorMessage && (
+            <div
+              ref={errorRef}
+              role="alert"
+              className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5"
+            >
+              <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           {/* Boutons d'action */}
           <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
             <button
@@ -985,7 +1173,11 @@ export default function CampaignFormModal({
             </button>
             <button
               type="submit"
-              disabled={isPending || eligibleProductions.length === 0}
+              disabled={
+                isPending ||
+                (!isEditing && eligibleProductions.length === 0) ||
+                maxAllowedQuantity === null
+              }
               className="px-5 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white font-semibold transition-all shadow-xs disabled:opacity-50 flex items-center gap-2"
             >
               {isPending ? "Enregistrement..." : isEditing ? "Mettre à jour l'offre" : "Enregistrer la campagne"}

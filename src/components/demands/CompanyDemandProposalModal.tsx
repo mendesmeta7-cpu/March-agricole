@@ -124,7 +124,9 @@ export default function CompanyDemandProposalModal({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Fermer"
             className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-white/80 transition-colors"
           >
             <X className="w-5 h-5" />

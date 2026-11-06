@@ -4,7 +4,7 @@ import { getResellerCampaigns } from "@/lib/queries/campaigns";
 import ResellerCampaignsView from "@/components/campaigns/ResellerCampaignsView";
 
 export default async function ResellerCampaignsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

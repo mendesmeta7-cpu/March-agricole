@@ -257,8 +257,17 @@ assert(
   pageCode.includes("getCompanyOrders(companyId)"),
   "page.tsx appelle getCompanyOrders filtré strictement sur companyId de la session"
 );
+// Depuis FUN-18 (2026-11-01), la résolution passe par le helper serveur mis en
+// cache getCurrentCompanyId() (company_members puis companies.created_by, à partir
+// de la session) : on vérifie l'appel dans la page ET la logique dans le helper.
+const currentCompanyCode = readFileSync(
+  join(__dirname, "..", "src", "lib", "auth", "currentCompany.ts"),
+  "utf8"
+);
 assert(
-  pageCode.includes('.eq("created_by", user.id)'),
+  pageCode.includes("getCurrentCompanyId(") &&
+    currentCompanyCode.includes("auth.getUser()") &&
+    currentCompanyCode.includes('"created_by"'),
   "L'identifiant companyId est résolu côté serveur via la session authentifiée (auth.uid)"
 );
 

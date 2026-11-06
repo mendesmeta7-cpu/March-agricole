@@ -16,6 +16,7 @@ import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import Badge from "@/components/ui/Badge";
 import Select from "@/components/ui/Select";
+import { formatQuantity, groupQuantitiesByUnit } from "@/lib/utils/unitSeries";
 import {
   Package,
   Plus,
@@ -114,9 +115,16 @@ export default function CompanyProductsView({
     (sum, i) => sum + (i.productions_count || 0),
     0
   );
-  const totalDeclaredVolume = items.reduce(
-    (sum, i) => sum + (i.total_declared_volume || 0),
-    0
+  // BR-FIN-04 / C-5 : volumes ventilés par unité de CHAQUE production (productions.unit),
+  // regroupés entre produits par unité — jamais additionnés entre unités ni convertis.
+  const declaredVolumeByUnit = useMemo(
+    () =>
+      groupQuantitiesByUnit(
+        items.flatMap((i) => (i.declared_volume_by_unit ?? []).filter((u) => u.total !== 0)),
+        (u) => u.total,
+        (u) => u.unitLabel
+      ),
+    [items]
   );
 
   // Bascule activation / archivage
@@ -272,11 +280,32 @@ export default function CompanyProductsView({
             <span className="text-xs font-semibold text-forest-900">Volume Total Déclaré</span>
             <Scale className="w-4 h-4 text-forest-700" />
           </div>
-          <div className="text-xl sm:text-2xl font-bold text-forest-950">
-            {totalDeclaredVolume.toLocaleString("fr-FR")}
-          </div>
+          {declaredVolumeByUnit.length === 0 ? (
+            <div className="text-xl sm:text-2xl font-bold text-forest-950">0</div>
+          ) : (
+            <ul
+              className={`flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 font-bold text-forest-950 ${
+                declaredVolumeByUnit.length > 1 ? "text-base sm:text-lg" : "text-xl sm:text-2xl"
+              }`}
+              aria-label="Volume total déclaré par unité"
+            >
+              {declaredVolumeByUnit.map((u, idx) => (
+                <li key={u.unitKey} className="whitespace-nowrap">
+                  {idx > 0 && (
+                    <span className="text-forest-300 font-normal mr-1.5" aria-hidden="true">
+                      ·
+                    </span>
+                  )}
+                  {formatQuantity(u.total)}{" "}
+                  <span className="text-xs font-semibold text-forest-700">{u.unitLabel}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="text-[11px] text-forest-700/80 mt-0.5">
-            Quantités cumulées des productions
+            {declaredVolumeByUnit.length > 1
+              ? "Quantités cumulées par unité, sans conversion"
+              : "Quantités cumulées des productions"}
           </div>
         </div>
       </div>

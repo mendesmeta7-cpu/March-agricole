@@ -14,6 +14,7 @@ import Switch from "@/components/ui/Switch";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 import { useToast } from "@/components/ui/Toast";
+import { PRODUCTION_LOCK_MESSAGES } from "@/lib/utils/productionRules";
 import {
   Tractor,
   Upload,
@@ -81,6 +82,19 @@ export default function ProductionDrawer({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeCompanyProducts = companyProducts.filter((p) => p.is_active);
+
+  // A4 / D1 / D3 — production engagée par une campagne active ou suspendue ouverte :
+  // unité, statut et passage en non public sont figés (le trigger reste l'autorité).
+  const isEngaged = Boolean(isEditing && editingProduction?.has_engaging_campaign);
+  // C-4 : l'unité est figée par ses propres engagements (campagne non annulée,
+  // commande en cours, proposition ouverte), même sans campagne ouverte.
+  const isUnitLocked = Boolean(isEditing && (editingProduction?.has_unit_commitments ?? isEngaged));
+  const isVisibilityLocked = isEngaged && Boolean(editingProduction?.is_public);
+  const lockIdPrefix = React.useId();
+  const unitLockId = `${lockIdPrefix}-unit-lock`;
+  const statusLockId = `${lockIdPrefix}-status-lock`;
+  const visibilityLockId = `${lockIdPrefix}-visibility-lock`;
+  const productNoteId = `${lockIdPrefix}-product-note`;
 
   const monthOptions = useMemo(
     () => [
@@ -291,17 +305,28 @@ export default function ProductionDrawer({
             <FormField
               label="Culture / Produit d'exploitation"
               required
-              description="Sélectionnez la denrée cultivée enregistrée dans votre catalogue société."
+              description={
+                isEditing ? (
+                  <span id={productNoteId}>
+                    Le produit d&apos;une production n&apos;est plus modifiable après sa création.
+                    {isEngaged ? ` ${PRODUCTION_LOCK_MESSAGES.product}` : ""}
+                  </span>
+                ) : (
+                  "Sélectionnez la denrée cultivée enregistrée dans votre catalogue société."
+                )
+              }
             >
-              <Select
-                name="companyProductId"
-                value={selectedCompanyProductId}
-                onChange={(e) => handleProductChange(e.target.value)}
-                options={productOptions}
-                searchable
-                disabled={isEditing}
-                required
-              />
+              <div role="group" aria-describedby={isEditing ? productNoteId : undefined}>
+                <Select
+                  name="companyProductId"
+                  value={selectedCompanyProductId}
+                  onChange={(e) => handleProductChange(e.target.value)}
+                  options={productOptions}
+                  searchable
+                  disabled={isEditing}
+                  required
+                />
+              </div>
             </FormField>
           )}
         </div>
@@ -364,15 +389,27 @@ export default function ProductionDrawer({
           <FormField
             label="Unité de mesure"
             required
-            description="Unité de pesée ou de conditionnement."
+            description={
+              isUnitLocked ? (
+                <span id={unitLockId} className="text-amber-800 font-medium">
+                  {PRODUCTION_LOCK_MESSAGES.unit}
+                </span>
+              ) : (
+                "Unité de pesée ou de conditionnement."
+              )
+            }
           >
-            <Select
-              name="unit"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              options={unitOptions}
-              required
-            />
+            {/* Le champ masqué du Select transmet l'unité actuelle même verrouillé */}
+            <div role="group" aria-describedby={isUnitLocked ? unitLockId : undefined}>
+              <Select
+                name="unit"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                options={unitOptions}
+                disabled={isUnitLocked}
+                required
+              />
+            </div>
           </FormField>
         </div>
 
@@ -485,27 +522,50 @@ export default function ProductionDrawer({
           <FormField
             label="Statut du cycle cultural"
             required
-            description="Étape agronomique d'avancement."
+            description={
+              isEngaged ? (
+                <span id={statusLockId} className="text-amber-800 font-medium">
+                  {PRODUCTION_LOCK_MESSAGES.status}
+                </span>
+              ) : (
+                "Étape agronomique d'avancement."
+              )
+            }
           >
-            <Select
-              name="status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as ProductionStatus)}
-              options={statusOptions}
-              required
-            />
+            <div role="group" aria-describedby={isEngaged ? statusLockId : undefined}>
+              <Select
+                name="status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value as ProductionStatus)}
+                options={statusOptions}
+                disabled={isEngaged}
+                required
+              />
+            </div>
           </FormField>
 
-          <div className="flex items-center justify-between p-3.5 rounded-2xl border border-gray-200 bg-gray-50/70 self-end">
-            <div>
-              <span className="text-xs font-semibold text-gray-900 block">Visibilité publique</span>
-              <span className="text-[11px] text-gray-500 block">Visible sur le flux revendeur (si actif)</span>
+          <div className="p-3.5 rounded-2xl border border-gray-200 bg-gray-50/70 self-end space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <span className="text-xs font-semibold text-gray-900 block">Visibilité publique</span>
+                <span className="text-[11px] text-gray-500 block">Visible sur le flux revendeur (si actif)</span>
+              </div>
+              <Switch
+                name={isVisibilityLocked ? undefined : "isPublic"}
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+                disabled={isVisibilityLocked}
+                aria-label="Visibilité publique"
+                aria-describedby={isVisibilityLocked ? visibilityLockId : undefined}
+              />
+              {/* Un champ désactivé n'est pas transmis : la valeur publique est conservée explicitement */}
+              {isVisibilityLocked && <input type="hidden" name="isPublic" value="true" />}
             </div>
-            <Switch
-              name="isPublic"
-              checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
-            />
+            {isVisibilityLocked && (
+              <p id={visibilityLockId} className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                {PRODUCTION_LOCK_MESSAGES.visibility}
+              </p>
+            )}
           </div>
         </div>
 

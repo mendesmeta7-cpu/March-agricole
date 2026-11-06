@@ -84,6 +84,7 @@ export default function AdminCategoryModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Fermer la fenêtre"
             className="p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -108,10 +109,11 @@ export default function AdminCategoryModal({
 
           {/* Nom */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+            <label htmlFor="admin-category-name" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
               Nom de la catégorie *
             </label>
             <input
+              id="admin-category-name"
               type="text"
               name="name"
               required
@@ -123,7 +125,7 @@ export default function AdminCategoryModal({
 
           {/* Image Cloudinary */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+            <label htmlFor="admin-category-sortOrder" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
               Image de la catégorie (Cloudinary)
             </label>
             <div className="flex items-center gap-4">
@@ -140,6 +142,7 @@ export default function AdminCategoryModal({
                       onClick={handleRemoveImage}
                       className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
                       title="Supprimer l'image"
+                      aria-label="Supprimer l'image"
                     >
                       <Trash2 className="w-5 h-5 text-red-300" />
                     </button>
@@ -180,6 +183,7 @@ export default function AdminCategoryModal({
                 Ordre d&apos;affichage
               </label>
               <input
+                id="admin-category-sortOrder"
                 type="number"
                 name="sortOrder"
                 defaultValue={category?.sort_order ?? 0}

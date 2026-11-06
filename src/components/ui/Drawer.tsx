@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useId, useRef } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useFocusTrap } from "./useFocusTrap";
 
 export type DrawerSize = "sm" | "md" | "lg" | "xl" | "full";
 export type DrawerSide = "right" | "left" | "bottom";
@@ -48,29 +49,29 @@ export function Drawer({
   bodyClassName,
   footerClassName,
 }: DrawerProps) {
-  // Gestion de la touche Échap
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isDismissable) {
-        onClose();
-      }
-    },
-    [isDismissable, onClose]
-  );
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+
+  // A11Y-03 : focus initial, piège Tab/Maj+Tab, Échap (surface la plus haute
+  // uniquement) et restauration du focus vers le déclencheur à la fermeture.
+  useFocusTrap(panelRef, {
+    isOpen,
+    onEscape: onClose,
+    escapeEnabled: isDismissable,
+  });
 
   // Verrouillage du scroll arrière-plan
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
-      window.addEventListener("keydown", handleKeyDown);
     } else {
       document.body.style.overflow = "";
     }
     return () => {
       document.body.style.overflow = "";
-      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, handleKeyDown]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -82,6 +83,8 @@ export function Drawer({
       className="fixed inset-0 z-50 flex overflow-hidden"
       role="dialog"
       aria-modal="true"
+      aria-labelledby={title ? titleId : undefined}
+      aria-describedby={description ? descriptionId : undefined}
     >
       {/* Backdrop sombre avec flou doux */}
       <div
@@ -103,8 +106,10 @@ export function Drawer({
       >
         {/* Panneau du Drawer */}
         <div
+          ref={panelRef}
+          tabIndex={-1}
           className={cn(
-            "pointer-events-auto flex flex-col bg-white shadow-2xl border-gray-200/90 w-full transition-all ease-out",
+            "pointer-events-auto focus:outline-none flex flex-col bg-white shadow-2xl border-gray-200/90 w-full transition-all ease-out",
             isBottom
               ? "max-h-[92vh] rounded-t-3xl border-t animate-slide-in-up"
               : isLeft
@@ -131,15 +136,17 @@ export function Drawer({
                     </div>
                   )}
                   {typeof title === "string" ? (
-                    <h2 className="text-base sm:text-lg font-bold text-gray-950 truncate tracking-tight">
+                    <h2 id={titleId} className="text-base sm:text-lg font-bold text-gray-950 truncate tracking-tight">
                       {title}
                     </h2>
-                  ) : (
-                    title
-                  )}
+                  ) : title ? (
+                    <div id={titleId} className="contents">
+                      {title}
+                    </div>
+                  ) : null}
                 </div>
                 {description && (
-                  <p className="text-xs sm:text-sm text-gray-500 leading-relaxed">
+                  <p id={descriptionId} className="text-xs sm:text-sm text-gray-500 leading-relaxed">
                     {description}
                   </p>
                 )}

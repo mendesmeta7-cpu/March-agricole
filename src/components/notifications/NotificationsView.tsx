@@ -190,6 +190,7 @@ export default function NotificationsView({
         action={
           unreadCount > 0 ? (
             <button
+              type="button"
               onClick={handleMarkAllAsRead}
               disabled={isPending}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
@@ -204,6 +205,7 @@ export default function NotificationsView({
       {/* Barre de filtres par type */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2">
         <button
+          type="button"
           onClick={() => setActiveFilter("ALL")}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeFilter === "ALL"
@@ -215,6 +217,7 @@ export default function NotificationsView({
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveFilter("DEMANDE_REPONSE")}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
             activeFilter === "DEMANDE_REPONSE"
@@ -227,6 +230,7 @@ export default function NotificationsView({
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveFilter("CAMPAGNE_OUVERTE")}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
             activeFilter === "CAMPAGNE_OUVERTE"
@@ -239,6 +243,7 @@ export default function NotificationsView({
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveFilter("COMMANDE_CREEE")}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
             activeFilter === "COMMANDE_CREEE"
@@ -251,6 +256,7 @@ export default function NotificationsView({
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveFilter("DATE_ARRIVEE_MODIFIEE")}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
             activeFilter === "DATE_ARRIVEE_MODIFIEE"
@@ -276,6 +282,7 @@ export default function NotificationsView({
             Aucune notification dans cette catégorie.
           </p>
           <button
+            type="button"
             onClick={() => setActiveFilter("ALL")}
             className="text-xs font-semibold text-earth-700 underline"
           >

@@ -80,23 +80,31 @@ export default function DemandResponsesModal({
     setErrorMessage(null);
 
     startTransition(async () => {
-      const res = await createOrderFromDemandResponseAction({
-        response_id: selectedResponse.id,
-        delivery_province_id: deliveryProvinceId,
-        delivery_city: deliveryCity,
-        delivery_address: deliveryAddress,
-        notes: orderNotes,
-      });
-
-      if (!res.success || res.error) {
-        setErrorMessage(res.error || "Une erreur est survenue lors de la validation de la commande.");
-      } else if (res.data) {
-        setSuccessOrder({
-          orderNumber: res.data.orderNumber,
-          totalAmount: res.data.totalAmount,
-          currency: res.data.currency || selectedResponse.currency,
+      try {
+        const res = await createOrderFromDemandResponseAction({
+          response_id: selectedResponse.id,
+          delivery_province_id: deliveryProvinceId,
+          delivery_city: deliveryCity,
+          delivery_address: deliveryAddress,
+          notes: orderNotes,
+          // Prix affiché au revendeur : le serveur refuse la commande s'il a changé.
+          expected_unit_price: selectedResponse.unit_price,
         });
-        onOrderSuccess?.(res.data.orderNumber);
+
+        if (!res.success || res.error || !res.data) {
+          // Le message métier renvoyé par le serveur (stock insuffisant, prix invalide
+          // ou modifié…) est affiché tel quel ; aucun succès n'est annoncé.
+          setErrorMessage(res.error || "Une erreur est survenue lors de la validation de la commande.");
+        } else {
+          setSuccessOrder({
+            orderNumber: res.data.orderNumber,
+            totalAmount: res.data.totalAmount,
+            currency: res.data.currency || selectedResponse.currency,
+          });
+          onOrderSuccess?.(res.data.orderNumber);
+        }
+      } catch {
+        setErrorMessage("La commande n'a pas pu être envoyée. Vérifiez votre connexion puis réessayez.");
       }
     });
   };
@@ -107,11 +115,12 @@ export default function DemandResponsesModal({
         className="relative w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 mt-auto sm:mt-0"
         role="dialog"
         aria-modal="true"
+        aria-labelledby="demand-responses-title"
       >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-earth-900/5">
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
+            <h2 id="demand-responses-title" className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
               <span>Propositions reçues ({responses.length})</span>
             </h2>
             <p className="text-xs text-gray-500">
@@ -119,10 +128,13 @@ export default function DemandResponsesModal({
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            disabled={isPending}
+            aria-label="Fermer les propositions"
             className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-white/80 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -176,7 +188,7 @@ export default function DemandResponsesModal({
               </div>
 
               {errorMessage && (
-                <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
+                <div role="alert" className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
                   <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
                   <div className="flex-1 leading-relaxed">{errorMessage}</div>
                 </div>
@@ -206,10 +218,11 @@ export default function DemandResponsesModal({
 
               {/* Province de livraison */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-800">
+                <label htmlFor="demand-order-province" className="block text-xs font-semibold text-gray-800">
                   Province de livraison <span className="text-rose-500">*</span>
                 </label>
                 <Select
+                  id="demand-order-province"
                   required
                   searchable
                   leftIcon={<MapPin className="w-4 h-4 text-earth-700" />}
@@ -223,9 +236,11 @@ export default function DemandResponsesModal({
               {/* Ville & Adresse */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-800">Ville / Commune</label>
+                  <label htmlFor="demand-order-city" className="block text-xs font-semibold text-gray-800">Ville / Commune</label>
                   <input
+                    id="demand-order-city"
                     type="text"
+                    autoComplete="address-level2"
                     placeholder="Ex: Lubumbashi"
                     value={deliveryCity}
                     onChange={(e) => setDeliveryCity(e.target.value)}
@@ -233,9 +248,11 @@ export default function DemandResponsesModal({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-800">Adresse / Point de livraison</label>
+                  <label htmlFor="demand-order-address" className="block text-xs font-semibold text-gray-800">Adresse / Point de livraison</label>
                   <input
+                    id="demand-order-address"
                     type="text"
+                    autoComplete="street-address"
                     placeholder="Ex: Dépôt Avenue des Usines N°12"
                     value={deliveryAddress}
                     onChange={(e) => setDeliveryAddress(e.target.value)}
@@ -246,8 +263,9 @@ export default function DemandResponsesModal({
 
               {/* Notes logistiques */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-800">Notes pour le producteur (optionnel)</label>
+                <label htmlFor="demand-order-notes" className="block text-xs font-semibold text-gray-800">Notes pour le producteur (optionnel)</label>
                 <textarea
+                  id="demand-order-notes"
                   rows={2}
                   placeholder="Instructions de déchargement ou contact sur place..."
                   value={orderNotes}

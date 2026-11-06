@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { sumByUnit } from "@/lib/utils/currencyTotals";
 import {
   CompanyCampaignItem,
   EligibleProductionOption,
@@ -52,13 +53,22 @@ export default function CompanyCampaignsView({
   initialModalOpen = false,
   defaultProductionId,
 }: CompanyCampaignsViewProps) {
-  const [campaigns] = useState<CompanyCampaignItem[]>(initialCampaigns);
+  const [campaigns, setCampaigns] = useState<CompanyCampaignItem[]>(initialCampaigns);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [isModalOpen, setIsModalOpen] = useState(initialModalOpen);
   const [campaignToEdit, setCampaignToEdit] = useState<CompanyCampaignItem | null>(null);
   const [detailCampaign, setDetailCampaign] = useState<CompanyCampaignItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // FUN-08 : resynchronisation avec les données serveur après router.refresh()
+  // (création, modification, changement de statut), y compris la campagne ouverte dans le tiroir.
+  useEffect(() => {
+    setCampaigns(initialCampaigns);
+    setDetailCampaign((prev) =>
+      prev ? initialCampaigns.find((c) => c.id === prev.id) ?? prev : prev
+    );
+  }, [initialCampaigns]);
 
   // Statuts effectifs (correction bug expiration)
   const campaignsWithEffectiveStatus = useMemo(
@@ -90,10 +100,15 @@ export default function CompanyCampaignsView({
     const active = campaignsWithEffectiveStatus.filter((c) => c._effectiveStatus === "active").length;
     const draft = campaignsWithEffectiveStatus.filter((c) => c._effectiveStatus === "draft").length;
     const completed = campaignsWithEffectiveStatus.filter((c) => c._effectiveStatus === "completed").length;
-    const totalVolume = campaignsWithEffectiveStatus
-      .filter((c) => c._effectiveStatus === "active")
-      .reduce((acc, c) => acc + c.marketable_quantity, 0);
-    return { total, active, draft, completed, totalVolume };
+    // FUN-04 : volume actif ventilé par unité (jamais d'addition entre unités différentes)
+    const activeVolumeByUnit = Object.entries(
+      sumByUnit(
+        campaignsWithEffectiveStatus.filter((c) => c._effectiveStatus === "active"),
+        (c) => c.marketable_quantity,
+        (c) => c.unit
+      )
+    ).filter(([, qty]) => qty !== 0);
+    return { total, active, draft, completed, activeVolumeByUnit };
   }, [campaigns, campaignsWithEffectiveStatus]);
 
   const handleOpenCreate = () => {
@@ -166,13 +181,17 @@ export default function CompanyCampaignsView({
                 <span className="block text-2xl font-extrabold">{metrics.total}</span>
                 <span className="block text-white/60 text-xs">Total</span>
               </div>
-              <div className="w-px h-8 bg-white/20" />
-              <div className="text-center">
-                <span className="block text-2xl font-extrabold">
-                  {metrics.totalVolume.toLocaleString("fr-FR")}
-                </span>
-                <span className="block text-white/60 text-xs">Tonnes actives</span>
-              </div>
+              {metrics.activeVolumeByUnit.map(([unit, qty]) => (
+                <div key={unit} className="flex items-center gap-4">
+                  <div className="w-px h-8 bg-white/20" />
+                  <div className="text-center">
+                    <span className="block text-2xl font-extrabold">
+                      {qty.toLocaleString("fr-FR")}
+                    </span>
+                    <span className="block text-white/60 text-xs">{unit} actif(s)</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -217,10 +236,16 @@ export default function CompanyCampaignsView({
                 <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
                   Volume actif
                 </span>
-                <span className="text-2xl font-extrabold text-forest-950 mt-1 block">
-                  {metrics.totalVolume.toLocaleString("fr-FR")}
-                  <span className="text-xs font-normal text-gray-500 ml-1">t</span>
-                </span>
+                {metrics.activeVolumeByUnit.length === 0 ? (
+                  <span className="text-2xl font-extrabold text-forest-950 mt-1 block">0</span>
+                ) : (
+                  metrics.activeVolumeByUnit.map(([unit, qty]) => (
+                    <span key={unit} className="text-xl font-extrabold text-forest-950 mt-1 block">
+                      {qty.toLocaleString("fr-FR")}
+                      <span className="text-xs font-normal text-gray-500 ml-1">{unit}</span>
+                    </span>
+                  ))
+                )}
               </div>
               <div className="w-10 h-10 rounded-xl bg-forest-50 text-forest-800 flex items-center justify-center">
                 <Layers className="w-5 h-5" />
@@ -277,6 +302,8 @@ export default function CompanyCampaignsView({
               />
               {searchQuery && (
                 <button
+                  type="button"
+                  aria-label="Effacer la recherche"
                   onClick={() => setSearchQuery("")}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
@@ -285,6 +312,7 @@ export default function CompanyCampaignsView({
               )}
             </div>
             <button
+              type="button"
               onClick={handleOpenCreate}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white font-semibold text-xs transition-all shadow-xs whitespace-nowrap"
             >
@@ -299,6 +327,7 @@ export default function CompanyCampaignsView({
             {statusTabs.map((tab) => (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setSelectedStatus(tab.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
                   selectedStatus === tab.id
@@ -341,6 +370,7 @@ export default function CompanyCampaignsView({
             </p>
             {campaigns.length === 0 && (
               <button
+                type="button"
                 onClick={handleOpenCreate}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-forest-700 text-white font-semibold text-xs hover:bg-forest-800 transition-colors shadow-xs"
               >
@@ -350,6 +380,7 @@ export default function CompanyCampaignsView({
             )}
             {campaigns.length > 0 && (
               <button
+                type="button"
                 onClick={() => { setSearchQuery(""); setSelectedStatus("all"); }}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold text-xs hover:bg-gray-50 transition-colors"
               >

@@ -165,20 +165,27 @@ export default function ResellerDemandsView({
     setIsCancelling(true);
 
     startTransition(async () => {
-      const res = await cancelDemandAction(demandToCancelId);
-      if (res.error) {
-        toast.error("Impossible d'annuler", { description: res.error });
-      } else {
-        setDemands((prev) =>
-          prev.map((d) => (d.id === demandToCancelId ? { ...d, status: "cancelled" } : d))
-        );
-        toast.success("Demande annulée", {
-          description: res.message || "Votre expression de besoin a été retirée du marché.",
-        });
+      try {
+        const res = await cancelDemandAction(demandToCancelId);
+        if (res.error) {
+          toast.error("Impossible d'annuler", { description: res.error });
+        } else {
+          setDemands((prev) =>
+            prev.map((d) => (d.id === demandToCancelId ? { ...d, status: "cancelled" } : d))
+          );
+          toast.success("Demande annulée", {
+            description: res.message || "Votre expression de besoin a été retirée du marché.",
+          });
+        }
+      } catch (err) {
+        console.error("Erreur annulation demande:", err);
+        toast.error("Impossible d'annuler", { description: "La requête n'a pas pu aboutir. Vérifiez votre connexion puis réessayez." });
+      } finally {
+        // LOAD-03 : état toujours réinitialisé
+        setIsCancelling(false);
+        setIsConfirmCancelOpen(false);
+        setDemandToCancelId(null);
       }
-      setIsCancelling(false);
-      setIsConfirmCancelOpen(false);
-      setDemandToCancelId(null);
     });
   };
 
@@ -407,6 +414,7 @@ export default function ResellerDemandsView({
                   onClick={handleResetFilters}
                   className="p-2 text-gray-400 hover:text-earth-800 rounded-xl hover:bg-gray-100 transition-colors"
                   title="Réinitialiser les filtres"
+                  aria-label="Réinitialiser les filtres"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>

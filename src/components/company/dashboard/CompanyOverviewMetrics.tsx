@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { nonZeroCurrencies, type CurrencyTotals } from "@/lib/utils/currencyTotals";
 import {
+  AlertCircle,
   Tractor,
   TrendingUp,
   Megaphone,
@@ -19,28 +21,52 @@ export interface CompanyOverviewMetricsProps {
     harvested: number;
     planned: number;
     draft: number;
+    /** Erreur de chargement : aucun chiffre n'est affiché (anti faux zéro). */
+    error?: string | null;
   };
   demandsStats: {
     totalActive: number;
     needingResponse: number;
-    totalDemandedQuantity: number;
-    unit: string;
+    /** Volumes exprimés, ventilés par unité (jamais additionnés entre unités). */
+    demandedByUnit: Record<string, number>;
   };
   campaignsStats: {
     activeCount: number;
     totalCount: number;
-    totalMarketable: number;
-    totalReserved: number;
-    totalAvailable: number;
-    unit: string;
+    /** Volumes réservés (réservations actives), ventilés par unité. */
+    reservedByUnit: Record<string, number>;
+    /** Volumes encore disponibles, ventilés par unité. */
+    availableByUnit: Record<string, number>;
+    error?: string | null;
   };
   ordersStats: {
     total: number;
     toProcess: number;
     delivered: number;
-    totalRevenue: number;
-    currency: string;
+    /** Engagement hors commandes annulées, ventilé par devise (CDF et USD jamais additionnés). */
+    revenueByCurrency: CurrencyTotals;
+    error?: string | null;
   };
+}
+
+function formatUnitTotals(totals: Record<string, number>): string | null {
+  const entries = Object.entries(totals).filter(([, qty]) => qty !== 0);
+  if (entries.length === 0) return null;
+  return entries
+    .map(([unit, qty]) => `${qty.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ${unit}`)
+    .join(" · ");
+}
+
+function formatCurrencyTotals(totals: CurrencyTotals): string | null {
+  const currencies = nonZeroCurrencies(totals);
+  if (currencies.length === 0) return null;
+  return currencies
+    .map((currency) =>
+      currency === "CDF"
+        ? `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(totals.CDF)} CDF`
+        : `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(totals.USD)} USD`
+    )
+    .join(" · ");
 }
 
 interface KpiCardProps {
@@ -53,6 +79,8 @@ interface KpiCardProps {
   href: string;
   details: { label: string; value: string | number; highlight?: boolean }[];
   footer?: string;
+  /** Message d'erreur : remplace les chiffres pour ne jamais afficher de faux zéro. */
+  error?: string | null;
 }
 
 function KpiCard({
@@ -65,6 +93,7 @@ function KpiCard({
   href,
   details,
   footer,
+  error,
 }: KpiCardProps) {
   return (
     <Link href={href} className="group block">
@@ -87,6 +116,19 @@ function KpiCard({
             </div>
           </div>
 
+          {error ? (
+            <div
+              role="alert"
+              className="mb-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2"
+            >
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
+              <span>
+                Données temporairement indisponibles ({error}). Aucun chiffre approximatif
+                n&apos;est affiché. Veuillez rafraîchir la page.
+              </span>
+            </div>
+          ) : (
+          <>
           {/* Valeur principale */}
           <div className="flex items-baseline gap-2 mb-4">
             <span className="text-3xl sm:text-4xl font-black text-gray-950 tracking-tight">
@@ -114,9 +156,11 @@ function KpiCard({
               ))}
             </div>
           )}
+          </>
+          )}
         </div>
 
-        {footer && (
+        {footer && !error && (
           <p className="mt-4 text-[11px] text-gray-400 border-t border-gray-50 pt-3">
             {footer}
           </p>
@@ -132,11 +176,10 @@ export default function CompanyOverviewMetrics({
   campaignsStats,
   ordersStats,
 }: CompanyOverviewMetricsProps) {
-  const formattedRevenue = new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: ordersStats.currency || "USD",
-    maximumFractionDigits: 0,
-  }).format(ordersStats.totalRevenue);
+  const formattedRevenue = formatCurrencyTotals(ordersStats.revenueByCurrency);
+  const formattedDemanded = formatUnitTotals(demandsStats.demandedByUnit);
+  const formattedReserved = formatUnitTotals(campaignsStats.reservedByUnit);
+  const formattedAvailable = formatUnitTotals(campaignsStats.availableByUnit);
 
   return (
     <div className="space-y-3">
@@ -172,6 +215,7 @@ export default function CompanyOverviewMetrics({
             },
           ]}
           footer="Volume déclaré — hors réservations"
+          error={productionsStats.error}
         />
 
         {/* 2. Demandes du marché */}
@@ -191,10 +235,7 @@ export default function CompanyOverviewMetrics({
             },
             {
               label: "Volume exprimé",
-              value:
-                demandsStats.totalDemandedQuantity > 0
-                  ? `${demandsStats.totalDemandedQuantity} ${demandsStats.unit}`
-                  : "0 t",
+              value: formattedDemanded ?? "Aucun volume",
               highlight: false,
             },
           ]}
@@ -213,19 +254,19 @@ export default function CompanyOverviewMetrics({
           details={[
             {
               label: "Réservé par acheteurs",
-              value: `${campaignsStats.totalReserved} ${campaignsStats.unit}`,
-              highlight: campaignsStats.totalReserved > 0,
+              value: formattedReserved ?? "Aucune réservation",
+              highlight: formattedReserved !== null,
             },
             {
               label: "Encore disponible",
               value:
-                campaignsStats.totalAvailable > 0
-                  ? `${campaignsStats.totalAvailable} ${campaignsStats.unit}`
-                  : "Complet",
+                formattedAvailable ??
+                (campaignsStats.activeCount > 0 ? "Complet" : "Aucune campagne active"),
               highlight: false,
             },
           ]}
           footer={`${campaignsStats.totalCount} campagne(s) au total`}
+          error={campaignsStats.error}
         />
 
         {/* 4. Commandes */}
@@ -249,7 +290,8 @@ export default function CompanyOverviewMetrics({
               highlight: false,
             },
           ]}
-          footer={`Engagement total : ${formattedRevenue}`}
+          footer={`Engagement total : ${formattedRevenue ?? "aucun engagement en cours"}`}
+          error={ordersStats.error}
         />
       </div>
     </div>

@@ -642,3 +642,89 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
   - [`src/lib/supabase/middleware.ts`](file:///d:/Marché%20agricole/src/lib/supabase/middleware.ts)
   - [`scripts/test-auth5-google-oauth.mjs`](file:///d:/Marché%20agricole/scripts/test-auth5-google-oauth.mjs)
 
+
+---
+
+### ADR-043 : Durcissement de Sécurité Post-Audit — Migration 30 (Non Appliquée)
+* **Date** : 2026-11-01 | **Statut** : Préparé localement — **NON appliqué en production** — en attente d'un environnement isolé et de validation humaine
+* **Contexte** : L'audit global du 2026-11-01 (dossier `audit-radiza`) a confirmé en production, en lecture seule, plusieurs contournements des règles métier directement via l'API REST publique (clé `anon`) : RPC `SECURITY DEFINER` dont le contrôle est sauté pour un appelant anonyme (`IF auth.uid() IS NOT NULL AND …`), commandes modifiables directement (statut, montant, entreprise), prix des propositions réécrivables par le revendeur, notifications et journaux d'audit falsifiables, auto-attribution du badge « vérifiée », absence de contrôle du stock des productions, fuite de commande via `lookup_order_for_delivery` pour un anonyme.
+* **Décisions** :
+  1. Toute écriture sur `orders`, `order_items`, `stock_reservations`, `audit_logs` et toute création de `notifications` passe exclusivement par des fonctions serveur `SECURITY DEFINER` (plus aucun privilège d'écriture directe pour `anon`/`authenticated`).
+  2. Les RPC applicatives ne sont plus exécutables par `anon` ; toute RPC exige `auth.uid()` ; les helpers RLS restent exécutables par `anon` (politiques publiques).
+  3. Changement de statut des commandes via la RPC `update_order_status` : progression vers l'avant uniquement (pending → confirmed → preparing → ready), entreprise vendeuse uniquement. *Interprétation de BR-ORD-05 à confirmer par le métier.*
+  4. Le prix d'une commande issue d'une proposition provient exclusivement de `demand_responses`, désormais non modifiable par le revendeur ; la commande est refusée si le prix a changé depuis l'affichage (`p_expected_unit_price`).
+  5. **Contrôle physique du stock des productions** : aucune commande (campagne ou proposition) ne peut faire dépasser la quantité de la production, en comptant les réservations actives ET livrées. Le calcul du stock de CAMPAGNE reste celui de BR-STK-01 (réservations actives) en attendant l'arbitrage A11.
+  6. `verification_status`, `created_by`, `is_active` des entreprises : modifiables par l'administrateur uniquement (RPC `admin_set_company_verification`). Coordonnées privées (téléphone, e-mail, adresse) non lisibles anonymement.
+  7. Les administrateurs ne sont plus créés par migration (bloc de la migration 14 neutralisé : mot de passe en clair).
+* **Points volontairement NON tranchés (arbitrages métier en attente)** : A3 (plafond cumulé des campagnes), A4 (statut d'une production avec campagnes actives), A5 (statut minimum de livraison, annulation revendeur en `confirmed`), A6 (écrans admin), A7 (multi-entreprises, changement de province), A11 (une commande livrée libère-t-elle du stock de campagne ?).
+* **Fichiers** : `supabase/migrations/20261101000030_security_hardening.sql`, `supabase/tests/security_hardening_030_test.sql`.
+
+### ADR-044 : Montée de Version Next.js 15.5.28 / React 19 (Correctifs de Sécurité)
+* **Date** : 2026-11-01 | **Statut** : Appliqué localement (build et TypeScript validés) — non déployé
+* **Contexte** : Next.js 14.2.35 est concerné par 26 avis de sécurité (dont RCE critiques sur l'Image Optimization API et l'hébergement Windows) sans correctif en 14.x.
+* **Décision** : passage à `next@15.5.28` (étiquette officielle « backport », plus basse version corrigeant tous les avis jusqu'à 15.5.27), React/React DOM 19.3.1. Next 16 écarté (migration d'architecture inutile). `@supabase/ssr` conservé en 0.5.2 (compatible avec `cookies()` asynchrone).
+* **Conséquences** : `createClient()` serveur asynchrone ; `params`/`searchParams` asynchrones ; `useFormState` → `useActionState`. Optimiseur d'images restreint au projet Supabase et au compte Cloudinary configurés ; en-têtes HTTP de sécurité ajoutés.
+* **Résidu** : `npm audit` signale encore `postcss` 8.4.31 embarqué par Next 15.5.28 (outil de build, CSS interne uniquement) ; correction uniquement via Next 16 ou un `overrides` non supporté officiellement — décision laissée au porteur du projet.
+
+### ADR-045 : Décisions Métier Validées A3, A4, A5, A6, A11, A12, A13
+* **Date** : 2026-11-02 | **Statut** : Validé par le porteur du projet — intégré localement (migration 31 NON appliquée)
+* **Décisions** :
+  - **A3** — Une campagne engage la totalité de son volume ; le volume engagé d'une production (campagnes ouvertes `draft`/`active`/`paused` + réservations et livraisons hors de ces campagnes) ne dépasse jamais sa quantité (BR-CMP-03-bis).
+  - **A4** — Une production `harvested` ne change pas de statut tant qu'une campagne `active` ou `paused` en dépend (BR-PRD-04-bis).
+  - **A5** — Livraison uniquement depuis `ready` ; annulation : revendeur en `pending` seulement, entreprise en `pending` ou `confirmed` (BR-ORD-05-ter).
+  - **A6** — Administrateur : vérification des entreprises via `admin_set_company_verification` + listes en lecture seule (BR-ADM-01/02).
+  - **A11** — Une commande livrée reste consommée sur la campagne ; seule l'annulation libère du volume (BR-STK-01).
+  - **A12** — Campagne annulée jamais réactivée ; campagne terminée rouverte seulement avec une date de fin prolongée (BR-CMP-05-bis).
+  - **A13** — Progression des statuts de commande vers l'avant uniquement (déjà en place, migration 30 ; BR-ORD-05-bis).
+* **Précisions d'implémentation retenues** : un brouillon de campagne engage aussi son volume (A3) ; une campagne `paused` compte comme rattachée (A4) ; la réouverture d'une campagne terminée exige une nouvelle date de fin renseignée, postérieure à l'ancienne et ≥ aujourd'hui (A12).
+* **Implémentation** : `supabase/migrations/20261102000031_business_rules_a3_a13.sql` (fonctions de la migration 30 reprises par extraction contrôlée), `supabase/tests/business_rules_031_test.sql` (tests comportementaux R0–R7), `src/lib/utils/{stockRules,orderRules}.ts`, tests unitaires `tests/unit/businessRules.test.ts`.
+
+### ADR-046 : Campagnes Expirées, Protection des Productions, Réouverture et Stock Revendeur (Migration 32)
+* **Date** : 2026-11-03 | **Statut** : Décisions validées par le porteur du projet — implémentation locale, migration 32 **NON appliquée**
+* **Décisions** : C1 (clôture automatique des campagnes `active` et `paused` expirées), C2 (une campagne effectivement expirée n'engage plus de volume), C3 (réouverture par report d'au moins une destination sans prolonger une date générale encore valide), A4/D1 (produit et unité figés), D2 (production récoltée exigée, même pour un brouillon et à toute activation), D3 (ni passage public → non public ni archivage), D5 (règles de date générale), A12-bis (report d'au moins une destination si toutes sont expirées), stock agrégé revendeur, une série par unité dans les graphiques.
+* **Précisions d'implémentation** :
+  - la nouvelle date générale n'est **exigée** que si l'expiration vient de la date générale ; quand une date est fournie, D5 s'applique toujours ;
+  - la réouverture par simple report d'une destination (campagne restée au statut ouvert) revérifie D2 et A3 (trigger sur `campaign_destinations`), car C2 a pu libérer puis réengager son volume ;
+  - commande refusée sur une campagne non effectivement ouverte, y compris pour un revendeur desservi par une zone de livraison sans destination propre (trou constaté dans la 031) ;
+  - nouvelles fonctions : `search_path = ''` et noms qualifiés ; `create_order_with_reservation` aussi depuis la revue (R-1) ;
+  - clôture : `FOR UPDATE SKIP LOCKED` (une campagne verrouillée par une commande en cours est traitée au passage suivant) ; une ligne `audit_logs` par campagne, `actor_id` vide (colonne nullable, migration 006).
+* **Corrections de la revue ciblée (2026-11-03, intégrées dans la 032 non appliquée)** :
+  - **C-2** : une destination ne peut plus être déplacée vers une autre campagne ;
+  - **C-3 / R-4** (décision validée) : seul le report d'une destination existante rouvre une campagne fermée par ses destinations ; ajout et suppression ne la rouvrent jamais ; l'ouverture est évaluée avant / après l'opération, sans tenir compte du statut (une campagne `completed` n'est pas rendue rouvrable autrement que par un report) ; la suppression en cascade d'une campagne est ignorée (`pg_trigger_depth() > 1`, et campagne déjà absente) ;
+  - **C-4** : unité de campagne = unité de production (`guard_campaign_consistency` redéfinie, trigger étendu à `unit`) ; unité de production figée par campagne non annulée, réservation active ou proposition ouverte ;
+  - **C-5** : volumes déclarés par unité dans le catalogue produits ;
+  - **C-6** : synchronisation des destinations ordonnée (suppressions anticipées pour conflit de ville → mises à jour qui restent ouvertes → ajouts, ouvertes d'abord → mises à jour qui ferment → suppressions) ; un ajout portant la ville d'une destination retirée reprend cette destination ; refus explicite, avant toute écriture, d'une modification qui rouvrirait la campagne sans report. La synchronisation reste une suite d'appels (non atomique, limitation préexistante) ; une fonction serveur unique est l'évolution proposée si elle ne suffit pas ;
+  - **R-1** : `create_order_with_reservation` passe en `search_path = ''` (qualification vérifiée) ; **R-2** : fonctions 030 / 031 documentées dans `docs/security-search-path-review.md`, non modifiées.
+* **Finalisation locale (2026-11-03, intégrée dans la 032 non appliquée ; 029–031 inchangées, aucune migration 033)** :
+  - **C-3 / R-4 complété** : une campagne expirée par sa **date générale** n'est plus exemptée du contrôle des destinations ; sinon, si toutes ses destinations étaient aussi expirées, ajouter une destination ouverte ou supprimer la dernière destination expirée permettait ensuite de la rouvrir par une simple nouvelle date, sans report (contraire à BR-CMP-09). Le report sur une telle campagne ne déclenche pas D2 / A3 dans le trigger de destination : ils sont contrôlés au §5 avec la nouvelle date ;
+  - **D2 à toute réouverture** : le trigger de campagne revérifie la production récoltée aussi quand une campagne au statut ouvert mais expirée redevient ouverte sans changement de statut (ex. nouvelle date générale) — cas non couvert jusque-là (BR-CMP-09) ;
+  - **C-6 atomique** : `update_campaign_with_destinations` (SECURITY INVOKER, `search_path = ''`, verrou de la campagne) écrit campagne, zones, destinations et dépôts dans une seule transaction, dans l'ordre du plan `destinationSync.ts` ; la protection des destinations et dépôts commandés y est revérifiée. Remplace la suite d'appels de `updateCampaignAction` (plus d'état « campagne incomplète » en modification). La création (`createCampaignAction`) n'est pas concernée ;
+  - **`create_order_with_reservation`** : la 030 retire déjà `EXECUTE` à `PUBLIC` et `anon` (conservé par `CREATE OR REPLACE` en 031 / 032) et la fonction refuse tout appel sans `auth.uid()` ; la 032 réaffirme les droits à l'identique (défense en profondeur). Seul appelant applicatif : `createOrderAction`, client de session (clé anon + JWT utilisateur), `p_reseller_id` = utilisateur authentifié.
+* **Arbitrage C3 (2026-11-04, décision du porteur du projet, intégrée dans la 032 non appliquée)** : une destination ne peut servir à rouvrir une campagne expirée que si elle existait avant l'expiration de son propre délai de commande ; une destination créée après son expiration ne peut pas être prolongée pour contourner C3.
+  - **Données** : `campaign_destinations.created_at` (migration 018, NOT NULL) comparé à la date limite courante (`created_at::date ≤ order_deadline_date`, dates dans le fuseau de la base comme `CURRENT_DATE`). L'historique des dates limites n'étant pas conservé, la date limite **courante** fait foi.
+  - **Fiabilité** : `created_at` était modifiable par l'API ; le trigger de destination le fixe désormais à `now()` à l'insertion et le rend immuable (trigger étendu à `created_at`). Côté application, toute date limite saisie est ≥ aujourd'hui (création, modification, réouverture) : une destination créée par l'application satisfait toujours la règle. Seule l'action serveur `updateDestinationOrderDeadlineAction` (sans interface) permet une date passée.
+  - **Ordre** : `reopen_campaign` et `update_campaign_with_destinations` traitent d'abord les destinations éligibles, le résultat ne dépend pas de l'ordre transmis.
+* **Effet sur le test 031** : le scénario R5 (« terminée non rouverte sans prolongation ») est assoupli par C3 quand la date générale est valide ; le test 031 s'exécute **avant** l'application de la 032.
+* **Fichiers** : `supabase/migrations/20261103000032_business_rules_d1_d7_stock.sql`, `supabase/tests/business_rules_032_test.sql`, `src/lib/utils/{productionRules,campaignReopenRules}.ts`, `tests/unit/rules032.test.ts`.
+
+### ADR-047 : Réouverture, Clôture et Opérations Techniques des Campagnes (Migrations 32 et 33)
+* **Date** : 2026-11-06 | **Statut** : Décisions validées par le porteur du projet — implémentation locale, migrations 32 et 33 **NON appliquées**
+* **Décisions** :
+  - **Modèle B encadré** : une campagne fermée par ses destinations se rouvre par le report d'une destination créée avant l'expiration de sa propre date limite ; ni ajout ni suppression ne la rouvrent ;
+  - **la date générale prévaut sur les destinations** (BR-CMP-06) : BR-CMP-08 et le commentaire de la 032, qui affirmaient qu'une campagne ayant une destination ouverte n'est jamais close, sont corrigés ;
+  - **statut d'origine conservé** par `campaigns.status_before_completion` : une campagne `paused` reste `paused` après réouverture ; `draft` suit les mêmes règles ; `cancelled` n'est jamais rouverte ;
+  - **aucun administrateur humain ne rouvre**, quel que soit le canal ;
+  - **opérations techniques** : admises seulement en session directe avec motif, identifiées dans `audit_logs` ; une requête `service_role` n'est pas légitime d'office ;
+  - **réouvertures journalisées** dans les triggers, une ligne par réouverture, tous canaux ;
+  - **planification** : tâche quotidienne de 00 h 05 UTC, créée inactive (migration 33), activée sur autorisation distincte ;
+  - **dates en UTC** partout.
+* **Choix d'implémentation** :
+  - `session_user` sert de preuve : il ne dépend ni de `SET ROLE` ni de `SECURITY DEFINER`, et un client API ne peut pas le changer. Le motif seul ne prouve rien ;
+  - liste autorisée (`postgres`, `supabase_admin`) plutôt que liste refusée ;
+  - la clôture perd le droit `service_role`, accordé par la 030 : aucun code n'utilise cette clé et la tâche tourne avec le rôle propriétaire ;
+  - `audit_logs.actor_id` référence `profiles` : l'identité système va dans `details` ;
+  - `cron.schedule_in_database(..., active := false)` crée la tâche inactive en un seul appel ; une tâche existante n'est jamais modifiée.
+* **Données de production prises en compte (2026-11-06)** : Tomates de Kananga, Riz de Bandundu et Maïs de Matadi, campagnes `active` à date générale dépassée, passeront à `completed` lors de la première clôture autorisée, sans effet sur leurs commandes, réservations et productions.
+* **Risque préexistant non traité** : droits d'écriture de l'administrateur sur les campagnes, voir `docs/security-rules.md` §8.
+* **Rotation du mot de passe administrateur (2026-11-06)** : effectuée, testée et confirmée par le porteur du projet ; clé temporaire révoquée.
+* **Fichiers** : migrations 32 et 33, `supabase/tests/{security_hardening_030,business_rules_032,schedule_033}_test.sql`, `src/components/feed/ResellerProductionDetailActions.tsx`.

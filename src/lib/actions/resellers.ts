@@ -22,7 +22,7 @@ export interface ResellerActionResult {
 export async function updateResellerLocationAction(
   input: UpdateResellerLocationInput
 ): Promise<ResellerActionResult> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

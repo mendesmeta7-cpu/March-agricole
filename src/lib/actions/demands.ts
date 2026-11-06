@@ -40,7 +40,7 @@ export async function createGeneralDemandAction(
   prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -156,7 +156,7 @@ export async function createProductionDemandAction(
   maybeFormData?: FormData
 ): Promise<ActionResponse> {
   const formData = maybeFormData || (prevStateOrFormData instanceof FormData ? prevStateOrFormData : new FormData());
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -271,7 +271,7 @@ export async function createProductionDemandAction(
  * Enregistre le REFUS d'une demande générale par une entreprise
  */
 export async function refuseDemandAction(demandId: string): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -298,7 +298,8 @@ export async function refuseDemandAction(demandId: string): Promise<ActionRespon
     );
 
   if (error) {
-    return { error: "L'enregistrement du refus a échoué. Veuillez réessayer." };
+    console.error("Erreur enregistrement refus:", error);
+    return { error: proposalErrorMessage(error.message, "L'enregistrement du refus a échoué. Veuillez réessayer.") };
   }
 
   revalidatePath("/dashboard/company/demands");
@@ -313,7 +314,7 @@ export async function createDemandProposalAction(
   maybeFormData?: FormData
 ): Promise<ActionResponse> {
   const formData = maybeFormData || (prevStateOrFormData instanceof FormData ? prevStateOrFormData : new FormData());
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -387,12 +388,6 @@ export async function createDemandProposalAction(
     return { error: "La production sélectionnée ne correspond pas au produit demandé." };
   }
 
-  const { data: company } = await supabase
-    .from("companies")
-    .select("name")
-    .eq("id", companyId)
-    .single();
-
   // 3. Enregistrement de la proposition
   const { data: responseData, error: respErr } = await supabase
     .from("demand_responses")
@@ -415,23 +410,18 @@ export async function createDemandProposalAction(
     .single();
 
   if (respErr) {
-    return { error: "L'envoi de votre proposition a échoué. Veuillez réessayer." };
+    console.error("Erreur enregistrement proposition:", respErr);
+    return { error: proposalErrorMessage(respErr.message, "L'envoi de votre proposition a échoué. Veuillez réessayer.") };
   }
 
-  // 4. Création d'une notification interne pour le revendeur
-  const productName = Array.isArray(production.products)
-    ? production.products[0]?.name
-    : (production.products as any)?.name || "Produit";
-
-  await supabase.from("notifications").insert({
-    user_id: demand.reseller_id,
-    type: "DEMANDE_REPONSE",
-    title: `Nouvelle proposition de ${company?.name || "un producteur"}`,
-    message: `${company?.name || "Une société"} a répondu à votre demande pour ${proposedQuantity.toLocaleString("fr-FR")} ${production.unit} de ${productName} à ${unitPrice.toLocaleString("fr-FR")} ${currency}/${production.unit}.`,
-    related_entity_type: "demand_response",
-    related_entity_id: responseData.id,
-    action_url: "/dashboard/reseller/demands",
+  // 4. Notification du revendeur : le texte est construit en base à partir de la
+  //    proposition enregistrée (plus d'insertion directe de notification — SEC-06).
+  const { error: notifErr } = await supabase.rpc("notify_reseller_of_demand_response", {
+    p_response_id: responseData.id,
   });
+  if (notifErr) {
+    console.error("Erreur notification proposition:", notifErr);
+  }
 
   revalidatePath("/dashboard/company/demands");
   revalidatePath(`/dashboard/company/demands/${demandId}`);
@@ -451,7 +441,7 @@ export async function updateDemandAction(
   prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -531,7 +521,7 @@ export async function updateDemandAction(
  * Annule une demande existante
  */
 export async function cancelDemandAction(demandId: string): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -560,4 +550,19 @@ export async function cancelDemandAction(demandId: string): Promise<ActionRespon
     success: true,
     message: "Demande annulée. Elle ne sera plus comptabilisée dans l'analyse de marché.",
   };
+}
+
+/**
+ * Messages levés par le trigger de garde des propositions (migration 30) qui
+ * peuvent être affichés tels quels ; tout autre message technique est masqué.
+ */
+function proposalErrorMessage(message: string | undefined | null, fallback: string): string {
+  const userFacing = [
+    "La production proposée doit appartenir à votre exploitation.",
+    "Cette demande n'est plus ouverte aux propositions.",
+    "Cette proposition a déjà été convertie en commande et ne peut plus être modifiée.",
+    "Quantité et prix unitaire doivent être strictement positifs.",
+  ];
+  const match = userFacing.find((m) => message?.includes(m));
+  return match ?? fallback;
 }

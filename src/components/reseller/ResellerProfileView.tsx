@@ -639,6 +639,7 @@ export default function ResellerProfileView({
                     onClick={handleCopyId}
                     className="p-1 text-gray-400 hover:text-gray-700 rounded transition-colors"
                     title="Copier l'identifiant"
+                    aria-label={copiedId ? "Identifiant copié" : "Copier l'identifiant"}
                   >
                     {copiedId ? (
                       <Check className="w-3.5 h-3.5 text-emerald-600" />

@@ -13,19 +13,29 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import { DemandItem } from "@/lib/queries/demands";
+import {
+  formatQuantity,
+  type ProvinceUnitShare,
+  type UnitTotal,
+} from "@/lib/utils/unitSeries";
 
+/**
+ * Données d'une province, ventilées par unité (BR-FIN-04) : aucune addition entre
+ * unités différentes, aucune conversion ; chaque pourcentage est calculé à
+ * l'intérieur de son unité.
+ */
 export interface ProvinceDemandData {
   provinceId: string;
   provinceName: string;
   demandsCount: number;
-  totalQuantity: number;
-  unit: string;
-  percentage: number;
+  quantitiesByUnit: ProvinceUnitShare[];
   demands: DemandItem[];
 }
 
 export interface CompanyDemandGeoChartProps {
   provincesData: ProvinceDemandData[];
+  /** Totaux du marché par unité (une ligne par unité, jamais additionnées). */
+  unitTotals: UnitTotal[];
 }
 
 /**
@@ -90,15 +100,13 @@ function getRankStyle(index: number) {
 
 export default function CompanyDemandGeoChart({
   provincesData,
+  unitTotals,
 }: CompanyDemandGeoChartProps) {
   const [selectedProvince, setSelectedProvince] =
     useState<ProvinceDemandData | null>(null);
 
   const hasData = provincesData.length > 0;
-  const totalQuantityAll = provincesData.reduce(
-    (acc, curr) => acc + curr.totalQuantity,
-    0
-  );
+  const isMultiUnit = unitTotals.length > 1;
 
   return (
     <>
@@ -112,6 +120,7 @@ export default function CompanyDemandGeoChart({
             </h3>
             <p className="text-xs text-gray-500 mt-1">
               Volume d&apos;achat exprimé selon les bassins de consommation
+              {isMultiUnit && " — part calculée dans chaque unité, sans conversion"}
             </p>
           </div>
           {hasData && (
@@ -172,33 +181,59 @@ export default function CompanyDemandGeoChart({
                     </div>
                   </div>
 
-                  {/* Barre de progression colorée selon le rang */}
-                  <div className="w-full bg-gray-200/60 h-1.5 rounded-full overflow-hidden">
-                    <div
-                      className={`${rank.bar} h-full rounded-full transition-all duration-700 ease-out motion-safe:animate-none`}
-                      style={{
-                        width: `${Math.max(4, Math.min(100, item.percentage))}%`,
-                      }}
-                    />
-                  </div>
+                  {/* Une barre par unité : part de la province dans le total de CETTE unité */}
+                  <div className={isMultiUnit ? "space-y-2" : undefined}>
+                    {item.quantitiesByUnit.map((share) => (
+                      <div key={share.unitKey}>
+                        <div
+                          className="w-full bg-gray-200/60 h-1.5 rounded-full overflow-hidden"
+                          role="img"
+                          aria-label={`${item.provinceName} : ${formatQuantity(share.quantity)} ${share.unitLabel}, soit ${share.percentage} % du total exprimé en ${share.unitLabel}`}
+                        >
+                          <div
+                            className={`${rank.bar} h-full rounded-full transition-all duration-700 ease-out motion-safe:animate-none`}
+                            style={{
+                              width: `${Math.max(4, Math.min(100, share.percentage))}%`,
+                            }}
+                          />
+                        </div>
 
-                  {/* Volume et % */}
-                  <div className="flex items-center justify-between mt-1.5 text-[11px] text-gray-400">
-                    <span>
-                      {item.totalQuantity} {item.unit}
-                    </span>
-                    <span className="font-semibold">{item.percentage}% du total</span>
+                        {/* Volume et % (dans l'unité) */}
+                        <div className="flex items-center justify-between mt-1.5 text-[11px] text-gray-400">
+                          <span>
+                            {formatQuantity(share.quantity)} {share.unitLabel}
+                          </span>
+                          <span className="font-semibold">
+                            {isMultiUnit
+                              ? `${share.percentage}% du total en ${share.unitLabel}`
+                              : `${share.percentage}% du total`}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               );
             })}
 
-            {/* Total global */}
-            <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs text-gray-500">
-              <span>Total marché exprimé</span>
-              <span className="font-bold text-gray-900">
-                {totalQuantityAll} {provincesData[0]?.unit || "t"}
-              </span>
+            {/* Total du marché : une valeur par unité, jamais additionnées entre elles */}
+            <div className="flex items-start justify-between gap-3 pt-2 border-t border-gray-100 text-xs text-gray-500">
+              <span className="shrink-0">Total marché exprimé</span>
+              <ul
+                className="flex flex-wrap justify-end gap-x-1.5 gap-y-0.5 font-bold text-gray-900 text-right"
+                aria-label="Total du marché exprimé par unité"
+              >
+                {unitTotals.map((u, i) => (
+                  <li key={u.unitKey}>
+                    {i > 0 && (
+                      <span className="text-gray-300 font-normal mr-1.5" aria-hidden="true">
+                        ·
+                      </span>
+                    )}
+                    {formatQuantity(u.total)} {u.unitLabel}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         )}

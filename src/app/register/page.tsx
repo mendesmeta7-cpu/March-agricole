@@ -9,11 +9,10 @@ export const metadata: Metadata = {
     "Choisissez votre profil pour rejoindre la plateforme : Société / Producteur ou Revendeur professionnel.",
 };
 
-export default function RegisterChoicePage({
-  searchParams,
-}: {
-  searchParams?: Record<string, string | string[] | undefined>;
+export default async function RegisterChoicePage(props: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const searchParams = await props.searchParams;
   const errorParam = typeof searchParams?.error === "string" ? searchParams.error : null;
   const isNoAccountGoogle = errorParam === "no_account_google";
 

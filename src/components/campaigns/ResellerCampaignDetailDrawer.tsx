@@ -54,8 +54,13 @@ export default function ResellerCampaignDetailDrawer({
 
   const formattedStart = formatDate(campaign.start_date);
   const formattedEnd = formatDate(campaign.end_date);
-  const availableQty = campaign.available_quantity ?? campaign.marketable_quantity;
-  const isOutOfStock = availableQty <= 0;
+  // Stock revendeur (migration 32) : aucun repli sur le volume commercialisable.
+  const availableQty = campaign.available_quantity;
+  const isAvailabilityUnknown = availableQty === null || campaign.availability_unavailable === true;
+  const isOutOfStock = !isAvailabilityUnknown && (availableQty ?? 0) <= 0;
+  const canOrder =
+    !isAvailabilityUnknown && (campaign.can_order ?? (campaign.is_eligible && !isOutOfStock));
+  const orderBlockedMessage = !canOrder ? campaign.eligibility_message || null : null;
 
   const imageUrl = campaign.production.main_image_url || campaign.product.image_url;
 
@@ -78,7 +83,12 @@ export default function ResellerCampaignDetailDrawer({
       footer={
         <div className="w-full flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="text-xs text-gray-500">
-            {campaign.is_eligible ? (
+            {campaign.is_eligible && orderBlockedMessage ? (
+              <span className="text-amber-800 font-medium flex items-start gap-1.5">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-px" aria-hidden="true" />
+                {orderBlockedMessage}
+              </span>
+            ) : campaign.is_eligible ? (
               <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 Votre région est éligible à la commande
@@ -100,14 +110,21 @@ export default function ResellerCampaignDetailDrawer({
               <Button
                 variant="primary"
                 size="sm"
-                disabled={isOutOfStock}
+                disabled={!canOrder}
+                title={orderBlockedMessage ?? undefined}
                 onClick={() => {
                   onClose();
                   onOrderClick(campaign);
                 }}
                 leftIcon={<ShoppingBag className="w-4 h-4" />}
               >
-                {isOutOfStock ? "Stock épuisé" : "Commander maintenant"}
+                {canOrder
+                  ? "Commander maintenant"
+                  : isAvailabilityUnknown
+                  ? "Commande indisponible"
+                  : isOutOfStock
+                  ? "Stock épuisé"
+                  : "Commande fermée"}
               </Button>
             ) : (
               <Link
@@ -229,13 +246,20 @@ export default function ResellerCampaignDetailDrawer({
             <span className="text-[11px] font-semibold uppercase tracking-wider text-earth-700 block">
               Stock restant réel
             </span>
-            <div className="text-xl sm:text-2xl font-extrabold text-earth-950 mt-1 flex items-baseline gap-1">
-              <Layers className="w-5 h-5 text-earth-700 shrink-0 inline" />
-              <span>{availableQty.toLocaleString("fr-FR")}</span>
-              <span className="text-xs font-bold text-earth-800 uppercase">
-                {campaign.unit}
-              </span>
-            </div>
+            {isAvailabilityUnknown ? (
+              <p className="text-sm font-semibold text-amber-800 mt-1 flex items-start gap-1.5">
+                <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" aria-hidden="true" />
+                <span>Disponibilité momentanément indisponible</span>
+              </p>
+            ) : (
+              <div className="text-xl sm:text-2xl font-extrabold text-earth-950 mt-1 flex items-baseline gap-1">
+                <Layers className="w-5 h-5 text-earth-700 shrink-0 inline" />
+                <span>{(availableQty ?? 0).toLocaleString("fr-FR")}</span>
+                <span className="text-xs font-bold text-earth-800 uppercase">
+                  {campaign.unit}
+                </span>
+              </div>
+            )}
             {campaign.min_order_quantity > 1 && (
               <span className="text-[10px] text-earth-700 block mt-1">
                 Minimum par commande : {campaign.min_order_quantity} {campaign.unit}

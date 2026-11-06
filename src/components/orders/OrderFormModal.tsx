@@ -51,14 +51,25 @@ export default function OrderFormModal({
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Évaluation d'éligibilité via la source unique de vérité
+  // Stock revendeur (migration 32) : disponible agrégé lu côté serveur. null = illisible :
+  // aucun repli sur le volume commercialisable, la commande est désactivée.
+  const availableQty: number | null = campaign ? campaign.available_quantity ?? null : null;
+  const isAvailabilityUnknown =
+    !!campaign && (availableQty === null || campaign.availability_unavailable === true);
+
+  // Évaluation d'éligibilité via la source unique de vérité (disponible inconnu = 0)
   const eligibility = isResellerEligibleForCampaign({
     reseller: resellerProvinceId ? { province_id: resellerProvinceId } : null,
-    campaign,
+    campaign: campaign ? { ...campaign, available_quantity: availableQty ?? 0 } : null,
   });
 
   const matchingDestination = eligibility.matchingDestination || null;
   const isTerritoriallyEligible = eligibility.eligible;
+  // FUN-19 : la commande n'est possible que si toutes les conditions sont réunies
+  // (territoire, campagne ouverte, échéance de destination, stock), pas seulement le territoire.
+  const canOrder = eligibility.canOrder && !isAvailabilityUnknown;
+  const availabilityUnknownMessage =
+    "Disponibilité momentanément indisponible. La commande est temporairement désactivée, veuillez réessayer plus tard.";
 
   // Initialisation à l'ouverture
   useEffect(() => {
@@ -101,7 +112,6 @@ export default function OrderFormModal({
   };
 
   const minQty = campaign.min_order_quantity || 1;
-  const availableQty = campaign.available_quantity ?? campaign.marketable_quantity;
   const numQty = typeof quantity === "number" ? quantity : 0;
   const totalAmount = numQty * campaign.unit_price;
 
@@ -117,6 +127,19 @@ export default function OrderFormModal({
 
     if (!isTerritoriallyEligible) {
       setErrorMessage(eligibility.message || "Cette offre commerciale n'est pas disponible dans votre région de rattachement.");
+      return;
+    }
+
+    if (
+      (isAvailabilityUnknown || availableQty === null) &&
+      (eligibility.canOrder || eligibility.reason === "OUT_OF_STOCK")
+    ) {
+      setErrorMessage(availabilityUnknownMessage);
+      return;
+    }
+
+    if (!canOrder || availableQty === null) {
+      setErrorMessage(eligibility.message || "Cette offre n'est pas ouverte à la commande actuellement.");
       return;
     }
 
@@ -168,16 +191,21 @@ export default function OrderFormModal({
       } else {
         router.push("/dashboard/reseller/orders");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Erreur soumission commande:", err);
-      setErrorMessage(err.message || "Impossible de finaliser la commande.");
+      setErrorMessage("Impossible de finaliser la commande. Vérifiez votre connexion puis réessayez.");
       setSubmitting(false);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
+      <div
+        className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-8 animate-in fade-in zoom-in duration-200"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-form-title"
+      >
         {/* En-tête du Modal */}
         <div className="px-6 py-5 bg-gradient-to-r from-forest-900 to-forest-800 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -185,18 +213,20 @@ export default function OrderFormModal({
               <ShoppingBag className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold">Passer une Commande Ferme</h2>
+              <h2 id="order-form-title" className="text-base font-bold">Passer une Commande Ferme</h2>
               <span className="text-xs text-forest-200">
                 {campaign.company.name} • {campaign.product.name}
               </span>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             disabled={submitting}
+            aria-label="Fermer le formulaire de commande"
             className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -221,11 +251,20 @@ export default function OrderFormModal({
                 </Link>
               </div>
             </div>
+          ) : !canOrder ? (
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <span className="font-semibold leading-relaxed">
+                {isAvailabilityUnknown && (eligibility.canOrder || eligibility.reason === "OUT_OF_STOCK")
+                  ? availabilityUnknownMessage
+                  : eligibility.message}
+              </span>
+            </div>
           ) : null}
 
           {/* Message d'erreur dynamique */}
           {errorMessage && (
-            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-rose-800 text-xs">
+            <div role="alert" className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-rose-800 text-xs">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>{errorMessage}</span>
             </div>
@@ -243,9 +282,13 @@ export default function OrderFormModal({
             <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 pt-2 border-t border-gray-200/60">
               <div className="flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-earth-700" />
-                <span>
-                  Stock restant réel : <strong>{availableQty.toLocaleString("fr-FR")} {campaign.unit}</strong>
-                </span>
+                {availableQty === null || isAvailabilityUnknown ? (
+                  <span className="text-amber-800 font-semibold">Disponibilité momentanément indisponible</span>
+                ) : (
+                  <span>
+                    Stock restant réel : <strong>{availableQty.toLocaleString("fr-FR")} {campaign.unit}</strong>
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-forest-700" />
@@ -258,20 +301,21 @@ export default function OrderFormModal({
 
           {/* Saisie de la quantité */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-gray-900">
+            <label htmlFor="order-quantity" className="block text-xs font-bold text-gray-900">
               Quantité à commander ({campaign.unit}) *
             </label>
             <div className="relative">
               <input
+                id="order-quantity"
                 type="number"
                 step="0.01"
                 min={minQty}
-                max={availableQty}
+                max={availableQty ?? undefined}
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value === "" ? "" : Number(e.target.value))}
                 placeholder={`Minimum : ${minQty} ${campaign.unit}`}
                 required
-                disabled={!isTerritoriallyEligible}
+                disabled={!canOrder}
                 className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 focus:border-forest-500 outline-hidden font-semibold disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
               <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-medium">
@@ -280,7 +324,11 @@ export default function OrderFormModal({
             </div>
             <div className="flex items-center justify-between text-[11px] text-gray-500">
               <span>Minimum requis : {minQty} {campaign.unit}</span>
-              <span>Max disponible : {availableQty} {campaign.unit}</span>
+              <span>
+                {availableQty === null || isAvailabilityUnknown
+                  ? "Max disponible : momentanément indisponible"
+                  : `Max disponible : ${availableQty.toLocaleString("fr-FR")} ${campaign.unit}`}
+              </span>
             </div>
           </div>
 
@@ -339,7 +387,7 @@ export default function OrderFormModal({
 
                 {/* Choix du dépôt d'arrivée au sein de cette destination */}
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold text-gray-800">
+                  <label htmlFor="order-depot" className="block text-xs font-bold text-gray-800">
                     Point / Dépôt de retrait ({currentDestination.city_name}) *
                   </label>
                   {(!currentDestination?.depots || currentDestination.depots.length === 0) ? (
@@ -348,10 +396,11 @@ export default function OrderFormModal({
                     </div>
                   ) : (
                   <Select
+                      id="order-depot"
                       value={selectedDepotId}
                       onChange={(e) => handleDepotChange(e.target.value)}
                       required
-                      disabled={!isTerritoriallyEligible}
+                      disabled={!canOrder}
                       options={currentDestination.depots.map((dep) => ({
                         value: dep.id,
                         label: dep.name,
@@ -393,24 +442,27 @@ export default function OrderFormModal({
               <div className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="block text-[11px] font-medium text-gray-700">
+                    <label htmlFor="order-city" className="block text-[11px] font-medium text-gray-700">
                       Ville / Siège de livraison
                     </label>
                     <input
+                      id="order-city"
                       type="text"
+                      autoComplete="address-level2"
                       value={deliveryCity}
                       onChange={(e) => setDeliveryCity(e.target.value)}
                       placeholder="Ex: Kinshasa, Matadi..."
-                      disabled={!isTerritoriallyEligible}
+                      disabled={!canOrder}
                       className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block text-[11px] font-medium text-gray-700">
+                    <label htmlFor="order-province" className="block text-[11px] font-medium text-gray-700">
                       Province de rattachement
                     </label>
                     <input
+                      id="order-province"
                       type="text"
                       value={targetProvinceName}
                       disabled
@@ -420,15 +472,17 @@ export default function OrderFormModal({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[11px] font-medium text-gray-700">
+                  <label htmlFor="order-address" className="block text-[11px] font-medium text-gray-700">
                     Adresse ou Entrepôt de livraison
                   </label>
                   <input
+                    id="order-address"
                     type="text"
+                    autoComplete="street-address"
                     value={deliveryAddress}
                     onChange={(e) => setDeliveryAddress(e.target.value)}
                     placeholder="Ex: Hangar N°4, Marché Central..."
-                    disabled={!isTerritoriallyEligible}
+                    disabled={!canOrder}
                     className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden"
                   />
                 </div>
@@ -436,15 +490,16 @@ export default function OrderFormModal({
             )}
 
             <div className="space-y-1">
-              <label className="block text-[11px] font-medium text-gray-700">
+              <label htmlFor="order-notes" className="block text-[11px] font-medium text-gray-700">
                 Instructions particulières / Notes pour l&apos;exploitation (Optionnel)
               </label>
               <textarea
+                id="order-notes"
                 rows={2}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Précisions de conditionnement, créneau horaire souhaité..."
-                disabled={!isTerritoriallyEligible}
+                disabled={!canOrder}
                 className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden resize-none"
               />
             </div>
@@ -471,7 +526,7 @@ export default function OrderFormModal({
 
             <button
               type="submit"
-              disabled={submitting || availableQty <= 0 || !isTerritoriallyEligible}
+              disabled={submitting || availableQty === null || availableQty <= 0 || !canOrder}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-forest-700 text-white text-xs font-bold hover:bg-forest-800 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? (
@@ -481,6 +536,8 @@ export default function OrderFormModal({
                 </>
               ) : !isTerritoriallyEligible ? (
                 <span>Non disponible dans votre région</span>
+              ) : !canOrder ? (
+                <span>Commande indisponible</span>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />

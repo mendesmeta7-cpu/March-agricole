@@ -1,7 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = "https://gonerlgkdnbdewjbebvq.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvbmVybGdrZG5iZGV3amJlYnZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5MzQzOTgsImV4cCI6MjEwNDUxMDM5OH0.T1_nF5NQVUSFbQhQMfsG88oyjfAOFPFOBavCQqLfwmg";
+import { getSupabaseScriptConfig, generateTestPassword } from "./_supabase-env.mjs";
+
+const { url: SUPABASE_URL } = getSupabaseScriptConfig({ writes: true });
+const { anonKey: SUPABASE_ANON_KEY } = getSupabaseScriptConfig({ writes: true });
 
 async function runCampaignEvolutionSuite() {
   console.log("================================================================================");
@@ -12,7 +14,7 @@ async function runCampaignEvolutionSuite() {
   const companyEmail = `agricom.test.${testSuffix}@gmail.com`;
   const resellerKinEmail = `reseller.kin.${testSuffix}@gmail.com`;
   const resellerMatadiEmail = `reseller.matadi.${testSuffix}@gmail.com`;
-  const testPassword = "Password123!Secure";
+  const testPassword = generateTestPassword();
 
   const clientAnon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 

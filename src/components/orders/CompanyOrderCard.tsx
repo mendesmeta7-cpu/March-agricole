@@ -1,6 +1,7 @@
 "use client";
 
 import { OrderDetail, OrderStatus } from "@/lib/queries/orders";
+import { canChangeCompanyOrderStatus } from "./CompanyOrderStatusOptions";
 import OrderStatusBadge from "./OrderStatusBadge";
 import Button from "@/components/ui/Button";
 import Image from "next/image";
@@ -207,7 +208,7 @@ export default function CompanyOrderCard({
       {/* 8. Barre d'actions du bas */}
       <div className="px-4 py-3 bg-gray-50/70 border-t border-gray-100 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1">
-          {onOpenStatusModal && order.status !== "delivered" && order.status !== "cancelled" && (
+          {onOpenStatusModal && canChangeCompanyOrderStatus(order.status) && (
             <button
               type="button"
               onClick={() => onOpenStatusModal(order)}

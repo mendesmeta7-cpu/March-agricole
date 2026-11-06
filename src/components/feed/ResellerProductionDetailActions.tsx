@@ -49,10 +49,9 @@ function computeDeadlineStatus(deadlineDateStr?: string | null): {
     return { daysLeft: null, isExpired: false, isUrgent: false, formattedDate: null };
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const deadline = new Date(deadlineDateStr);
-  deadline.setHours(0, 0, 0, 0);
+  // Dates comparées en UTC, comme le serveur et le reste de l'application
+  const today = new Date(new Date().toISOString().split("T")[0]);
+  const deadline = new Date(deadlineDateStr.split("T")[0]);
 
   const diffMs = deadline.getTime() - today.getTime();
   const daysLeft = Math.round(diffMs / (1000 * 60 * 60 * 24));
@@ -61,6 +60,7 @@ function computeDeadlineStatus(deadlineDateStr?: string | null): {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "UTC",
   }).format(deadline);
 
   return {
@@ -80,13 +80,21 @@ export default function ResellerProductionDetailActions({
   resellerInfo,
 }: ResellerProductionDetailActionsProps) {
   const isEligible = Boolean(activeCampaign?.is_eligible);
-  const canOrder = activeCampaign ? activeCampaign.can_order !== false && isEligible : false;
+  // Stock revendeur (migration 32) : null = disponibilité illisible, commande désactivée
+  const availableQty = activeCampaign ? activeCampaign.available_quantity : null;
+  const isAvailabilityUnknown = Boolean(
+    activeCampaign && (availableQty === null || activeCampaign.availability_unavailable === true)
+  );
+  const canOrder = activeCampaign
+    ? activeCampaign.can_order !== false && isEligible && !isAvailabilityUnknown
+    : false;
   const eligibilityReason = activeCampaign?.eligibility_reason;
   const eligibilityMessage = activeCampaign?.eligibility_message;
   const isDeadlineExpired = eligibilityReason === "DESTINATION_DEADLINE_EXPIRED";
   const isOutOfStock = Boolean(
     activeCampaign &&
-    (activeCampaign.available_quantity <= 0 || eligibilityReason === "OUT_OF_STOCK")
+    !isAvailabilityUnknown &&
+    ((availableQty ?? 0) <= 0 || eligibilityReason === "OUT_OF_STOCK")
   );
 
   // Phase 28 : Résolution de la deadline de la destination du revendeur
@@ -136,9 +144,15 @@ export default function ResellerProductionDetailActions({
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="text-gray-600">Stock disponible</span>
-              <span className="font-bold text-gray-900">
-                {activeCampaign.available_quantity.toLocaleString("fr-FR")} {activeCampaign.unit}
-              </span>
+              {isAvailabilityUnknown || availableQty === null ? (
+                <span className="font-semibold text-amber-800 text-right">
+                  Disponibilité momentanément indisponible
+                </span>
+              ) : (
+                <span className="font-bold text-gray-900">
+                  {availableQty.toLocaleString("fr-FR")} {activeCampaign.unit}
+                </span>
+              )}
             </div>
             {activeCampaign.min_order_quantity > 1 && (
               <div className="flex items-center justify-between text-xs text-gray-500">
@@ -187,6 +201,14 @@ export default function ResellerProductionDetailActions({
               <ShoppingCart className="w-4 h-4" />
               Commander sur cette production
             </button>
+          ) : isEligible && isAvailabilityUnknown && !isDeadlineExpired && eligibilityReason !== "CAMPAIGN_NOT_OPEN" ? (
+            <div role="status" className="p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl space-y-1">
+              <span className="font-bold block">Disponibilité momentanément indisponible</span>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Le stock disponible de cette offre ne peut pas être vérifié pour le moment. La commande est
+                temporairement désactivée ; veuillez réessayer plus tard.
+              </p>
+            </div>
           ) : isDeadlineExpired ? (
             <div className="p-3 bg-orange-50 border border-orange-200 text-orange-900 text-xs rounded-xl space-y-1">
               <span className="font-bold block">

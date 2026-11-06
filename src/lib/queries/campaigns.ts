@@ -8,6 +8,15 @@ import {
   isCampaignActive,
   getCampaignDestinationsSummary,
 } from "@/lib/utils/campaignStatus";
+import { isConsumingReservation } from "@/lib/utils/stockRules";
+import {
+  AVAILABILITY_UNAVAILABLE_MESSAGE,
+  CampaignAvailabilityLookup,
+  chunkIds,
+  resolveCampaignAvailability,
+  toCampaignAvailabilityLookup,
+  toProductionAvailability,
+} from "@/lib/actions/campaignAvailability";
 
 export type CampaignStatus = "draft" | "active" | "paused" | "completed" | "cancelled";
 
@@ -72,7 +81,10 @@ export interface CompanyCampaignItem {
   start_date: string;
   end_date: string | null;
   availability_period: string | null;
+  /** Statut affiché : statut persisté, ou 'completed' si une campagne 'active' est expirée. */
   status: CampaignStatus;
+  /** Statut réellement enregistré en base (espace société). */
+  stored_status?: CampaignStatus;
   created_at: string;
   updated_at: string;
   product: {
@@ -100,7 +112,17 @@ export interface CompanyCampaignItem {
   destinations?: CampaignDestination[];
 }
 
-export interface ResellerCampaignItem extends CompanyCampaignItem {
+export interface ResellerCampaignItem
+  extends Omit<CompanyCampaignItem, "available_quantity" | "reserved_quantity"> {
+  /**
+   * Disponible agrégé lu par public.get_campaigns_available_quantity (migration 32).
+   * null = disponibilité momentanément illisible (jamais de repli sur le volume commercialisable).
+   */
+  available_quantity: number | null;
+  /** Volume déjà consommé, agrégé (commercialisable - disponible) ; null si inconnu. */
+  reserved_quantity: number | null;
+  /** Vrai si la disponibilité n'a pas pu être lue : la commande est alors désactivée. */
+  availability_unavailable?: boolean;
   company: {
     id: string;
     name: string;
@@ -137,6 +159,12 @@ export interface EligibleProductionOption {
   period_end: string | null;
   status: string;
   main_image_url: string | null;
+  /** D4 — volume déjà engagé sur la production (null si la lecture a échoué). */
+  committed_quantity: number | null;
+  /** D4 — volume encore disponible pour une nouvelle campagne (null si la lecture a échoué). */
+  available_quantity: number | null;
+  /** Vrai si la disponibilité n'a pas pu être lue (aucune valeur de repli). */
+  availability_error: boolean;
 }
 
 export interface CampaignFilterParams {
@@ -148,12 +176,59 @@ export interface CampaignFilterParams {
 }
 
 /**
+ * Stock revendeur (migration 32) — disponible agrégé des campagnes, lu en un seul
+ * appel par lot de 200 identifiants (un seul appel dans le cas courant).
+ * Les réservations embarquées ne sont PAS utilisées côté revendeur : la RLS ne
+ * renvoie que les réservations du revendeur, ce qui surestimerait le disponible.
+ * Toute erreur rend la disponibilité inconnue (aucun repli).
+ */
+export async function fetchCampaignsAvailability(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  campaignIds: string[]
+): Promise<CampaignAvailabilityLookup> {
+  const chunks = chunkIds(campaignIds);
+  if (chunks.length === 0) return toCampaignAvailabilityLookup([], false);
+
+  const rows: Array<{ campaign_id: string; available_quantity: number | string | null }> = [];
+  for (const ids of chunks) {
+    const { data, error } = await supabase.rpc("get_campaigns_available_quantity", {
+      p_campaign_ids: ids,
+    });
+    if (error) {
+      console.error("Erreur lecture disponibilité des campagnes (get_campaigns_available_quantity):", error);
+      return toCampaignAvailabilityLookup(null, true);
+    }
+    rows.push(...((data as typeof rows | null) ?? []));
+  }
+  return toCampaignAvailabilityLookup(rows, false);
+}
+
+/**
+ * Applique la disponibilité agrégée au résultat d'éligibilité : sans disponibilité
+ * lisible, la commande est désactivée avec un message explicite.
+ */
+export function applyAvailabilityToEligibility(
+  eligibility: { canOrder: boolean; reason: string; message: string },
+  availabilityUnavailable: boolean
+): { canOrder: boolean; reason: string; message: string } {
+  if (!availabilityUnavailable) return eligibility;
+  const stockRelated = eligibility.reason === "ORDER_ALLOWED" || eligibility.reason === "OUT_OF_STOCK";
+  return {
+    canOrder: false,
+    reason: stockRelated ? "AVAILABILITY_UNAVAILABLE" : eligibility.reason,
+    message: stockRelated
+      ? `${AVAILABILITY_UNAVAILABLE_MESSAGE}. La commande est temporairement désactivée, veuillez réessayer plus tard.`
+      : eligibility.message,
+  };
+}
+
+/**
  * Récupère l'ensemble des campagnes d'une entreprise agricole avec stock réservé réel
  */
 export async function getCompanyCampaigns(
   companyId: string
 ): Promise<CompanyCampaignItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("campaigns")
@@ -250,7 +325,7 @@ export async function getCompanyCampaigns(
   return (data || []).map((item: any) => {
     const marketableQty = Number(item.marketable_quantity);
     const reservedQty = (item.stock_reservations || [])
-      .filter((sr: any) => sr.status === "active")
+      .filter((sr: any) => isConsumingReservation(sr.status))
       .reduce((acc: number, curr: any) => acc + Number(curr.quantity), 0);
     const availableQty = Math.max(0, marketableQty - reservedQty);
     const effectiveStatus = getEffectiveCampaignStatus(item);
@@ -258,6 +333,7 @@ export async function getCompanyCampaigns(
     return {
       ...item,
       status: effectiveStatus,
+      stored_status: item.status,
       marketable_quantity: marketableQty,
       reserved_quantity: reservedQty,
       available_quantity: availableQty,
@@ -282,12 +358,17 @@ export async function getCompanyCampaigns(
 }
 
 /**
- * Récupère les productions actives de l'entreprise éligibles pour l'adossement
+ * Récupère les productions de l'entreprise éligibles à une campagne.
+ * D2 : seules les productions récoltées ('harvested') sont proposées.
+ * D4 : chaque production est enrichie du volume engagé / disponible lu en UN appel
+ * groupé à public.get_productions_campaign_availability. En cas d'erreur, la
+ * disponibilité est signalée comme illisible (availability_error) — jamais
+ * remplacée par le volume déclaré.
  */
 export async function getCompanyEligibleProductions(
   companyId: string
 ): Promise<EligibleProductionOption[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("productions")
@@ -311,7 +392,7 @@ export async function getCompanyEligibleProductions(
       )
     `)
     .eq("company_id", companyId)
-    .in("status", ["planned", "growing", "harvested"])
+    .eq("status", "harvested")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -319,8 +400,28 @@ export async function getCompanyEligibleProductions(
     return [];
   }
 
+  const productionIds = (data || []).map((item: any) => item.id as string);
+  const availabilityById = new Map<string, ReturnType<typeof toProductionAvailability>>();
+  let availabilityFailed = false;
+
+  for (const ids of chunkIds(productionIds)) {
+    const { data: rows, error: rpcError } = await supabase.rpc("get_productions_campaign_availability", {
+      p_production_ids: ids,
+    });
+    if (rpcError) {
+      console.error("Erreur lecture disponibilité des productions (get_productions_campaign_availability):", rpcError);
+      availabilityFailed = true;
+      break;
+    }
+    for (const row of (rows as any[] | null) ?? []) {
+      const parsed = toProductionAvailability(row);
+      availabilityById.set(parsed.production_id, parsed);
+    }
+  }
+
   return (data || []).map((item: any) => {
     const product = Array.isArray(item.product) ? item.product[0] : item.product;
+    const availability = availabilityFailed ? undefined : availabilityById.get(item.id);
     return {
       id: item.id,
       title: item.title,
@@ -337,6 +438,10 @@ export async function getCompanyEligibleProductions(
       period_end: item.period_end,
       status: item.status,
       main_image_url: item.main_image_url,
+      committed_quantity: availability ? availability.committed_quantity : null,
+      available_quantity: availability ? availability.available_quantity : null,
+      // Production absente du résultat (non autorisée côté base) : disponibilité illisible
+      availability_error: !availability,
     };
   });
 }
@@ -348,7 +453,7 @@ export async function getCompanyCampaignById(
   campaignId: string,
   companyId: string
 ): Promise<CompanyCampaignItem | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("campaigns")
@@ -442,7 +547,7 @@ export async function getCompanyCampaignById(
   const rawItem = data as any;
   const marketableQty = Number(rawItem.marketable_quantity);
   const reservedQty = (rawItem.stock_reservations || [])
-    .filter((sr: any) => sr.status === "active")
+    .filter((sr: any) => isConsumingReservation(sr.status))
     .reduce((acc: number, curr: any) => acc + Number(curr.quantity), 0);
   const availableQty = Math.max(0, marketableQty - reservedQty);
   const effectiveStatus = getEffectiveCampaignStatus(rawItem);
@@ -450,6 +555,7 @@ export async function getCompanyCampaignById(
   return {
     ...rawItem,
     status: effectiveStatus,
+    stored_status: rawItem.status,
     marketable_quantity: marketableQty,
     reserved_quantity: reservedQty,
     available_quantity: availableQty,
@@ -480,7 +586,7 @@ export async function getResellerCampaigns(
   resellerOrProvinceId?: ResellerLocationContext | string | null,
   filters: CampaignFilterParams = {}
 ): Promise<ResellerCampaignItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   let query = supabase
     .from("campaigns")
@@ -565,11 +671,6 @@ export async function getResellerCampaigns(
           complement,
           created_at
         )
-      ),
-      stock_reservations (
-        id,
-        quantity,
-        status
       )
     `)
     .eq("status", "active")
@@ -591,12 +692,16 @@ export async function getResellerCampaigns(
     return [];
   }
 
-  const todayStr = new Date().toISOString().split("T")[0];
-
   // Règle 6 & Phase 28 : Fin automatique des campagnes ayant atteint end_date ou dont toutes les destinations sont expirées
   const activeData = (data || []).filter((item: any) => {
     return isCampaignActive(item);
   });
+
+  // Stock revendeur : disponible agrégé, un seul appel groupé pour toute la liste
+  const availabilityLookup = await fetchCampaignsAvailability(
+    supabase,
+    activeData.map((item: any) => item.id as string)
+  );
 
   const campaigns: ResellerCampaignItem[] = activeData.map((item: any) => {
     const rawCompany = Array.isArray(item.company) ? item.company[0] : item.company;
@@ -625,27 +730,32 @@ export async function getResellerCampaigns(
         : null;
 
     const marketableQty = Number(item.marketable_quantity);
-    const reservedQty = (item.stock_reservations || [])
-      .filter((sr: any) => sr.status === "active")
-      .reduce((acc: number, curr: any) => acc + Number(curr.quantity), 0);
-    const availableQty = Math.max(0, marketableQty - reservedQty);
+    const availability = resolveCampaignAvailability(availabilityLookup, item.id);
 
-    // Évaluation d'éligibilité via la source unique de vérité
-    const eligibility = isResellerEligibleForCampaign({
+    // Évaluation d'éligibilité via la source unique de vérité (disponible inconnu = 0 : non commandable)
+    const baseEligibility = isResellerEligibleForCampaign({
       reseller: resellerContext,
       campaign: {
         ...item,
-        available_quantity: availableQty,
+        available_quantity: availability.available_quantity ?? 0,
         delivery_zones: deliveryZones,
         destinations: destinations,
       },
     });
+    const eligibility = {
+      ...baseEligibility,
+      ...applyAvailabilityToEligibility(baseEligibility, availability.availability_unavailable),
+    };
 
     return {
       ...item,
       marketable_quantity: marketableQty,
-      reserved_quantity: reservedQty,
-      available_quantity: availableQty,
+      reserved_quantity:
+        availability.available_quantity === null
+          ? null
+          : Math.max(0, marketableQty - availability.available_quantity),
+      available_quantity: availability.available_quantity,
+      availability_unavailable: availability.availability_unavailable,
       unit_price: Number(item.unit_price),
       min_order_quantity: Number(item.min_order_quantity || 1),
       company,
@@ -680,7 +790,7 @@ export async function getActiveCampaignByProductionId(
   productionId: string,
   resellerOrProvinceId?: ResellerLocationContext | string | null
 ): Promise<ResellerCampaignItem | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("campaigns")
@@ -765,11 +875,6 @@ export async function getActiveCampaignByProductionId(
           complement,
           created_at
         )
-      ),
-      stock_reservations (
-        id,
-        quantity,
-        status
       )
     `)
     .eq("production_id", productionId)
@@ -784,10 +889,9 @@ export async function getActiveCampaignByProductionId(
   }
 
   const rawItem = data as any;
-  const todayStr = new Date().toISOString().split("T")[0];
 
-  // Règle 6 : Si la date de fin est dépassée, la campagne n'est plus active
-  if (rawItem.end_date && rawItem.end_date < todayStr) {
+  // Règle 6 / C2 : date de fin dépassée ou toutes les destinations expirées → plus active
+  if (!isCampaignActive(rawItem)) {
     return null;
   }
 
@@ -817,26 +921,32 @@ export async function getActiveCampaignByProductionId(
       : null;
 
   const marketableQty = Number(rawItem.marketable_quantity);
-  const reservedQty = (rawItem.stock_reservations || [])
-    .filter((sr: any) => sr.status === "active")
-    .reduce((acc: number, curr: any) => acc + Number(curr.quantity), 0);
-  const availableQty = Math.max(0, marketableQty - reservedQty);
+  const availabilityLookup = await fetchCampaignsAvailability(supabase, [rawItem.id]);
+  const availability = resolveCampaignAvailability(availabilityLookup, rawItem.id);
 
-  const eligibility = isResellerEligibleForCampaign({
+  const baseEligibility = isResellerEligibleForCampaign({
     reseller: resellerContext,
     campaign: {
       ...rawItem,
-      available_quantity: availableQty,
+      available_quantity: availability.available_quantity ?? 0,
       delivery_zones: deliveryZones,
       destinations: destinations,
     },
   });
+  const eligibility = {
+    ...baseEligibility,
+    ...applyAvailabilityToEligibility(baseEligibility, availability.availability_unavailable),
+  };
 
   return {
     ...rawItem,
     marketable_quantity: marketableQty,
-    reserved_quantity: reservedQty,
-    available_quantity: availableQty,
+    reserved_quantity:
+      availability.available_quantity === null
+        ? null
+        : Math.max(0, marketableQty - availability.available_quantity),
+    available_quantity: availability.available_quantity,
+    availability_unavailable: availability.availability_unavailable,
     unit_price: Number(rawItem.unit_price),
     min_order_quantity: Number(rawItem.min_order_quantity || 1),
     company,

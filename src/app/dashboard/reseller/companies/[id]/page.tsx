@@ -3,14 +3,13 @@ import { notFound } from "next/navigation";
 import CompanyPublicProfileView from "@/components/companies/CompanyPublicProfileView";
 
 interface ResellerCompanyDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default async function ResellerCompanyDetailPage({
-  params,
-}: ResellerCompanyDetailPageProps) {
+export default async function ResellerCompanyDetailPage(props: ResellerCompanyDetailPageProps) {
+  const params = await props.params;
   const company = await getPublicCompanyProfile(params.id);
 
   if (!company) {

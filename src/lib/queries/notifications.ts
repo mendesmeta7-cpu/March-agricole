@@ -36,7 +36,7 @@ export async function getUserNotifications(
   userId: string,
   filterCategory: "all" | "demands" | "campaigns" | "orders" = "all"
 ): Promise<UserNotificationsResult> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   let query = supabase
     .from("notifications")
@@ -87,7 +87,7 @@ export async function getUserNotifications(
  * Récupère le nombre de notifications non lues d'un utilisateur
  */
 export async function getUnreadNotificationCount(userId: string): Promise<number> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { count, error } = await supabase
     .from("notifications")
     .select("*", { count: "exact", head: true })

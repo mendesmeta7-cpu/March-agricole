@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import Link from "next/link";
 import { useEffect, useRef, Suspense } from "react";
 import { resetPasswordAction } from "@/lib/actions/auth";
@@ -13,7 +13,7 @@ import { useState } from "react";
 // Formulaire de définition du nouveau mot de passe
 // ---------------------------------------------------------------------------
 function ResetPasswordForm() {
-  const [state, formAction] = useFormState(resetPasswordAction, null);
+  const [state, formAction] = useActionState(resetPasswordAction, null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -29,7 +29,7 @@ function ResetPasswordForm() {
       </div>
 
       {state?.error && (
-        <div className="mb-5 rounded-xl bg-red-50 p-3.5 border border-red-200 flex items-start gap-2.5 text-red-800 text-xs sm:text-sm">
+        <div role="alert" className="mb-5 rounded-xl bg-red-50 p-3.5 border border-red-200 flex items-start gap-2.5 text-red-800 text-xs sm:text-sm">
           <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
           <div>{state.error}</div>
         </div>
@@ -45,7 +45,7 @@ function ResetPasswordForm() {
             Nouveau mot de passe
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <span aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
               <Lock className="w-4 h-4" />
             </span>
             <input
@@ -78,7 +78,7 @@ function ResetPasswordForm() {
             Confirmer le mot de passe
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <span aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
               <Lock className="w-4 h-4" />
             </span>
             <input
@@ -139,7 +139,7 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 py-10">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-6">
-          <Link href="/" aria-label="Retour à l accueil Radiza">
+          <Link href="/" aria-label="Retour à l'accueil Radiza">
             <BrandLogo variant="horizontal" className="h-9 w-auto" />
           </Link>
         </div>

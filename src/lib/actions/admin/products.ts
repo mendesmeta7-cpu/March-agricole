@@ -29,7 +29,7 @@ export async function createAdminCatalogProductAction(
   prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -117,7 +117,7 @@ export async function updateAdminCatalogProductAction(
   prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -216,7 +216,7 @@ export async function toggleAdminCatalogProductStatusAction(
   productId: string,
   currentStatus: boolean
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

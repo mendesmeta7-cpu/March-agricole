@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { registerCompanyAction } from "@/lib/actions/auth";
 import SubmitButton from "@/components/SubmitButton";
@@ -8,7 +8,12 @@ import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import { Building2, AlertCircle, ArrowLeft, ShieldAlert, MailCheck } from "lucide-react";
 
 export default function RegisterCompanyPage() {
-  const [state, formAction] = useFormState(registerCompanyAction, null);
+  const [state, formAction] = useActionState(registerCompanyAction, null);
+  // React 19 réinitialise les champs non contrôlés après chaque soumission :
+  // champs contrôlés pour conserver la saisie après une erreur (jamais le mot de passe).
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
 
   if (state?.emailSent) {
     return (
@@ -70,7 +75,7 @@ export default function RegisterCompanyPage() {
           </div>
 
           {state?.error && (
-            <div className="mb-6 rounded-lg bg-red-50 p-4 border border-red-200 flex items-start gap-3 text-red-800 text-sm">
+            <div role="alert" className="mb-6 rounded-lg bg-red-50 p-4 border border-red-200 flex items-start gap-3 text-red-800 text-sm">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div>{state.error}</div>
             </div>
@@ -93,12 +98,16 @@ export default function RegisterCompanyPage() {
 
           <form action={formAction} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="register-company-fullName" className="block text-sm font-medium text-gray-700 mb-1">
                 Nom complet du responsable <span className="text-red-500">*</span>
               </label>
               <input
+                id="register-company-fullName"
                 type="text"
                 name="fullName"
+                autoComplete="name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
                 required
                 placeholder="Ex: Jean Mukendi"
                 className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
@@ -106,24 +115,32 @@ export default function RegisterCompanyPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="register-company-phone" className="block text-sm font-medium text-gray-700 mb-1">
                 Numéro de téléphone
               </label>
               <input
+                id="register-company-phone"
                 type="tel"
                 name="phone"
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 placeholder="Ex: +243 990 000 000"
                 className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="register-company-email" className="block text-sm font-medium text-gray-700 mb-1">
                 Adresse email professionnelle <span className="text-red-500">*</span>
               </label>
               <input
+                id="register-company-email"
                 type="email"
                 name="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="contact@ferme-agro.cd"
                 className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
@@ -131,12 +148,14 @@ export default function RegisterCompanyPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="register-company-password" className="block text-sm font-medium text-gray-700 mb-1">
                 Mot de passe <span className="text-red-500">*</span>
               </label>
               <input
+                id="register-company-password"
                 type="password"
                 name="password"
+                autoComplete="new-password"
                 required
                 minLength={6}
                 placeholder="Au moins 6 caractères"

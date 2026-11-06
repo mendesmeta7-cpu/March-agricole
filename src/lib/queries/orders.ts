@@ -130,7 +130,7 @@ export async function getResellerOrders(
   resellerId: string,
   filters: OrderFilterParams = {}
 ): Promise<OrderDetail[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   let query = supabase
     .from("orders")
@@ -262,7 +262,7 @@ export async function getResellerOrderById(
   orderId: string,
   resellerId: string
 ): Promise<OrderDetail | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("orders")
@@ -389,7 +389,7 @@ export async function getCompanyOrders(
   companyId: string,
   filters: OrderFilterParams = {}
 ): Promise<OrderDetail[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   let query = supabase
     .from("orders")
@@ -525,7 +525,7 @@ export async function getCompanyOrderById(
   orderId: string,
   companyId: string
 ): Promise<OrderDetail | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("orders")
@@ -653,7 +653,7 @@ export async function getCampaignAvailableStock(campaignId: string): Promise<{
   reserved_quantity: number;
   available_quantity: number;
 }> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase.rpc("get_campaign_stock_summary", {
     p_campaign_id: campaignId,
@@ -848,7 +848,7 @@ export interface CompanyFinancialOrdersResult {
 export async function getCompanyOrdersForFinancials(
   companyId: string
 ): Promise<CompanyFinancialOrdersResult> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const PAGE_SIZE = 1000;
   const MAX_PAGES = 50; // Garde-fou de sécurité : jusqu'à 50 000 commandes
   const allOrders: OrderFinancialRecord[] = [];
@@ -941,7 +941,7 @@ export async function getCompanyOrdersForFinancials(
  * - Le filtre company_id garantit l'isolation stricte multi-tenant.
  */
 export async function getCompanyPendingOrdersCount(companyId: string): Promise<number> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { count, error } = await supabase
     .from("orders")

@@ -10,7 +10,7 @@ export const revalidate = 0;
  * vers son espace dashboard exclusif selon son rôle.
  */
 export default async function DashboardRootPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

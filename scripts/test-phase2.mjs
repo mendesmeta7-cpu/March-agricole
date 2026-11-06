@@ -1,7 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = "https://gonerlgkdnbdewjbebvq.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvbmVybGdrZG5iZGV3amJlYnZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5MzQzOTgsImV4cCI6MjEwNDUxMDM5OH0.T1_nF5NQVUSFbQhQMfsG88oyjfAOFPFOBavCQqLfwmg";
+import { getSupabaseScriptConfig, generateTestPassword } from "./_supabase-env.mjs";
+
+const { url: SUPABASE_URL } = getSupabaseScriptConfig({ writes: true });
+const { anonKey: SUPABASE_ANON_KEY } = getSupabaseScriptConfig({ writes: true });
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -13,7 +15,7 @@ async function runTests() {
   const testSuffix = Math.random().toString(36).substring(2, 8);
   const companyEmail = `agritest.company.${testSuffix}@gmail.com`;
   const resellerEmail = `agritest.reseller.${testSuffix}@gmail.com`;
-  const testPassword = "Password123!Secure";
+  const testPassword = generateTestPassword();
 
   let companyUserId = null;
   let resellerUserId = null;
@@ -304,7 +306,7 @@ async function runTests() {
     console.log("\n[TEST P] Erreurs de connexion...");
     const { error: badPassErr } = await supabase.auth.signInWithPassword({
       email: companyEmail,
-      password: "WrongPassword999!",
+      password: generateTestPassword(),
     });
     if (!badPassErr) {
       throw new Error("Échec TEST P : Connexion acceptée avec mauvais mot de passe!");

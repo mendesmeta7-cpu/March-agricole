@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useEffect } from "react";
 import { OrderDetail, OrderStatus } from "@/lib/queries/orders";
 import OrderStatusBadge from "./OrderStatusBadge";
 import CompanyOrderCard from "./CompanyOrderCard";
@@ -14,6 +14,11 @@ import Drawer from "@/components/ui/Drawer";
 import Select from "@/components/ui/Select";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { ToastProvider, useToast } from "@/components/ui/Toast";
+import {
+  COMPANY_ORDER_STATUS_LABELS,
+  canChangeCompanyOrderStatus,
+  getNextCompanyOrderStatusOptions,
+} from "./CompanyOrderStatusOptions";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -48,6 +53,11 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [orders, setOrders] = useState<OrderDetail[]>(initialOrders);
+
+  // Resynchronisation après router.refresh() : les props serveur font foi (FUN-09).
+  useEffect(() => {
+    setOrders(initialOrders);
+  }, [initialOrders]);
 
   // Filtres
   const [searchQuery, setSearchQuery] = useState("");
@@ -85,11 +95,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
     const delivered = orders.filter((o) => o.status === "delivered").length;
     const cancelled = orders.filter((o) => o.status === "cancelled").length;
 
-    const totalVolume = orders
-      .filter((o) => o.status !== "cancelled")
-      .reduce((sum, o) => sum + (o.order_items[0]?.quantity || 0), 0);
-
-    return { total, pending, confirmed, preparing, ready, inProgress, delivered, cancelled, totalVolume };
+    return { total, pending, confirmed, preparing, ready, inProgress, delivered, cancelled };
   }, [orders]);
 
   // Liste des campagnes uniques présentes dans les commandes réelles
@@ -111,15 +117,10 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
     [uniqueCampaigns]
   );
 
+  // FUN-01 : uniquement les statuts strictement postérieurs au statut courant de la commande ciblée.
   const statusOptions = useMemo(
-    () => [
-      { value: "pending", label: "En attente de confirmation" },
-      { value: "confirmed", label: "Confirmée par l'exploitation" },
-      { value: "preparing", label: "En cours de préparation" },
-      { value: "ready", label: "Prête pour retrait / expédition" },
-      { value: "cancelled", label: "Annulée (Libère le stock réservé)" },
-    ],
-    []
+    () => (statusModalOrder ? getNextCompanyOrderStatusOptions(statusModalOrder.status) : []),
+    [statusModalOrder]
   );
 
   // Commandes filtrées
@@ -166,8 +167,10 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
   };
 
   const handleOpenStatusModal = (order: OrderDetail) => {
+    const options = getNextCompanyOrderStatusOptions(order.status);
+    if (options.length === 0) return;
     setStatusModalOrder(order);
-    setNewStatus(order.status === "pending" ? "confirmed" : order.status);
+    setNewStatus(options[0].value);
   };
 
   // Transition rapide de statut (ex: pending -> confirmed)
@@ -183,7 +186,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
       }
 
       toast.success("Statut mis à jour", {
-        description: `La commande ${order.order_number} est désormais à l'état "${targetStatus}".`,
+        description: `La commande ${order.order_number} est désormais à l'état « ${COMPANY_ORDER_STATUS_LABELS[targetStatus]} ».`,
       });
 
       // Mise à jour de l'état local
@@ -207,6 +210,12 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
   // Soumission modale de changement de statut
   const handleSubmitStatusModal = async () => {
     if (!statusModalOrder) return;
+    if (!statusOptions.some((opt) => opt.value === newStatus)) {
+      toast.error("Statut non disponible", {
+        description: "Ce statut ne peut pas être appliqué à la commande dans son état actuel.",
+      });
+      return;
+    }
     setActionLoading(true);
     try {
       const res = await updateOrderStatusAction(statusModalOrder.id, newStatus);
@@ -218,7 +227,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
       }
 
       toast.success("Statut mis à jour", {
-        description: `La commande ${statusModalOrder.order_number} est passée à "${newStatus}".`,
+        description: `La commande ${statusModalOrder.order_number} est passée à « ${COMPANY_ORDER_STATUS_LABELS[newStatus]} ».`,
       });
 
       setOrders((prev) =>
@@ -278,15 +287,34 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
   };
 
   // Callback confirmation de livraison depuis Lookup Widget ou modal
+  // FUN-09 : la livraison confirmée est reflétée immédiatement (statut, compteurs, boutons),
+  // puis les données serveur sont rechargées.
+  const markOrderDelivered = (updatedOrderNumber: string) => {
+    const deliveredAt = new Date().toISOString();
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.order_number === updatedOrderNumber
+          ? { ...o, status: "delivered", delivered_at: o.delivered_at || deliveredAt }
+          : o
+      )
+    );
+    setSelectedOrderForDetail((prev) =>
+      prev && prev.order_number === updatedOrderNumber
+        ? { ...prev, status: "delivered", delivered_at: prev.delivered_at || deliveredAt }
+        : prev
+    );
+    startTransition(() => {
+      router.refresh();
+    });
+  };
+
   const handleDeliveryConfirmed = (updatedOrderNumber: string) => {
     toast.success("Livraison confirmée", {
       description: `La commande ${updatedOrderNumber} est marquée comme livrée.`,
     });
     setDeliveryModalOrder(null);
     setIsDetailDrawerOpen(false);
-    startTransition(() => {
-      router.refresh();
-    });
+    markOrderDelivered(updatedOrderNumber);
   };
 
   // Onglets de statut avec compteurs réels
@@ -436,7 +464,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
       </div>
 
       {/* 4. Widget de Récupération Rapide & Scanner QR */}
-      <CompanyOrderLookupWidget onDeliveryUpdated={() => router.refresh()} />
+      <CompanyOrderLookupWidget onDeliveryUpdated={markOrderDelivered} />
 
       {/* 5. Onglets de Statut Défilables */}
       <div className="border-b border-gray-200/80">
@@ -446,6 +474,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setSelectedStatus(tab.id)}
                 className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
                   isActive
@@ -483,6 +512,8 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
           />
           {searchQuery && (
             <button
+              type="button"
+              aria-label="Effacer la recherche"
               onClick={() => setSearchQuery("")}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
             >
@@ -525,6 +556,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
             <button
               type="button"
               onClick={handleResetFilters}
+              aria-label="Réinitialiser les filtres"
               className="text-xs text-forest-700 hover:text-forest-900 font-semibold flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-forest-50 transition-colors"
             >
               <RotateCcw className="w-3 h-3" />
@@ -703,12 +735,13 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
                       {/* Actions */}
                       <td className="py-3.5 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
-                          {order.status !== "cancelled" && order.status !== "delivered" && (
+                          {canChangeCompanyOrderStatus(order.status) && (
                             <button
                               type="button"
                               onClick={() => handleOpenStatusModal(order)}
                               className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:text-forest-800 hover:bg-forest-50 transition-colors"
                               title="Changer le statut"
+                              aria-label={`Changer le statut de la commande ${order.order_number}`}
                             >
                               <Settings className="w-3.5 h-3.5" />
                             </button>
@@ -720,6 +753,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
                             onClick={() => handleOpenDetail(order)}
                             className="p-1.5 h-auto text-xs"
                             title="Voir le détail"
+                            aria-label={`Voir le détail de la commande ${order.order_number}`}
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </Button>
@@ -750,7 +784,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
       />
 
       {/* 9. Modal Changement Manuel de Statut */}
-      {statusModalOrder && (
+      {statusModalOrder && statusOptions.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="relative w-full max-w-md bg-white rounded-3xl shadow-xl border border-gray-100 p-5 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
@@ -759,8 +793,11 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
                 Actualiser le Statut Logistique
               </h3>
               <button
+                type="button"
                 onClick={() => setStatusModalOrder(null)}
-                className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400"
+                disabled={actionLoading}
+                aria-label="Fermer"
+                className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 disabled:opacity-50"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -782,14 +819,10 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
               />
             </div>
 
-            {newStatus === "cancelled" && (
-              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-amber-800 text-xs">
-                <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                <span>
-                  Attention : L&apos;annulation libérera immédiatement la réservation de stock liée pour la restituer à l&apos;offre commerciale.
-                </span>
-              </div>
-            )}
+            <p className="text-[11px] text-gray-500 leading-relaxed">
+              Le statut ne peut qu&apos;avancer. La livraison se confirme via le QR code ou le
+              numéro de commande ; l&apos;annulation via le bouton « Annuler ».
+            </p>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
               <Button

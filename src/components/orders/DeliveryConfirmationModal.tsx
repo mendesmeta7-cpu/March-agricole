@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { LookupDeliveryOrderResult, confirmOrderDeliveryAction } from "@/lib/actions/orders";
 import OrderStatusBadge from "./OrderStatusBadge";
+import { canConfirmDelivery } from "@/lib/utils/orderRules";
 import {
   X,
   CheckCircle2,
@@ -40,9 +41,20 @@ export default function DeliveryConfirmationModal({
   } | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // Réinitialise l'état interne à chaque nouvelle commande ouverte (évite d'afficher
+  // l'écran de succès d'une commande précédente).
+  const currentOrderId = order?.order_id ?? null;
+  useEffect(() => {
+    setIsConfirmingStep(false);
+    setDeliveryNotes("");
+    setErrorMessage(null);
+    setSuccessData(null);
+  }, [currentOrderId]);
+
   if (!isOpen || !order) return null;
 
   const isAlreadyDelivered = order.status === "delivered";
+  const canDeliver = canConfirmDelivery(order.status);
 
   const handleConfirmDelivery = () => {
     setErrorMessage(null);
@@ -106,6 +118,8 @@ export default function DeliveryConfirmationModal({
             </div>
           </div>
           <button
+            type="button"
+            aria-label="Fermer"
             onClick={onClose}
             className="p-1.5 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-white/80 transition-colors"
           >
@@ -259,8 +273,20 @@ export default function DeliveryConfirmationModal({
                 </div>
               </div>
 
+              {/* A5 : une commande trouvée par scan ou numéro mais pas encore « prête » */}
+              {!isAlreadyDelivered && !canDeliver && (
+                <div role="status" className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 flex items-start gap-2.5">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
+                  <p className="text-xs text-amber-900">
+                    {order.status === "cancelled"
+                      ? "Cette commande est annulée : elle ne peut pas être livrée."
+                      : "Seule une commande « Prête » peut être livrée. Faites d'abord évoluer son statut depuis la liste des commandes."}
+                  </p>
+                </div>
+              )}
+
               {/* Formulaire de confirmation de livraison */}
-              {!isAlreadyDelivered && (
+              {canDeliver && (
                 <div className="space-y-3 pt-2">
                   {isConfirmingStep ? (
                     <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 space-y-3 animate-in fade-in duration-150">

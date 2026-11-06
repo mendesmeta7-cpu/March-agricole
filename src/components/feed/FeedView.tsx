@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useEffect, useRef, useCallback } from "react";
 import { FeedProductionItem } from "@/lib/queries/feed";
+import { loadResellerFeedPageAction } from "@/app/dashboard/reseller/feedActions";
 import FeedProductionCard from "@/components/feed/FeedProductionCard";
 import FeedSearchBar from "@/components/feed/FeedSearchBar";
 import CategoryScroller from "@/components/feed/CategoryScroller";
@@ -9,7 +10,7 @@ import FeedHighlightBanner from "@/components/feed/FeedHighlightBanner";
 import FeedFilters from "@/components/feed/FeedFilters";
 import FeedSkeleton from "@/components/feed/FeedSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
-import { Compass, RefreshCw, Sparkles, FilterX } from "lucide-react";
+import { Compass, RefreshCw, Sparkles, FilterX, AlertTriangle, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { FeedCategoryItem } from "@/lib/queries/feedCategories";
@@ -23,15 +24,28 @@ interface ProvinceOption {
 interface FeedViewProps {
   initialItems: FeedProductionItem[];
   totalCount: number;
+  /** Vrai si le chargement initial du flux a échoué côté serveur */
+  initialError?: boolean;
   categories: (FeedCategoryItem | string)[];
   provinces: ProvinceOption[];
   campaignsCount?: number;
   banners?: FeedBannerItem[];
 }
 
+interface FeedFiltersState {
+  search: string;
+  category: string;
+  status: string;
+  provinceId: string;
+}
+
+const filtersKey = (f: FeedFiltersState) =>
+  JSON.stringify([f.search.trim(), f.category, f.status, f.provinceId]);
+
 export default function FeedView({
   initialItems,
   totalCount,
+  initialError = false,
   categories,
   provinces,
   campaignsCount = 0,
@@ -45,39 +59,105 @@ export default function FeedView({
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  // Filtrage réactif côté client sur les données réelles chargées
-  const filteredItems = useMemo(() => {
-    return initialItems.filter((item) => {
-      // 1. Filtre par recherche textuelle (titre, produit, société, localisation)
-      if (search.trim() !== "") {
-        const term = search.toLowerCase();
-        const matchesTitle = item.title.toLowerCase().includes(term);
-        const matchesProduct = item.product.name.toLowerCase().includes(term);
-        const matchesCompany = item.company.name.toLowerCase().includes(term);
-        const matchesLocation = item.location_name.toLowerCase().includes(term);
-        if (!matchesTitle && !matchesProduct && !matchesCompany && !matchesLocation) {
-          return false;
+  // FUN-06 : les productions sont filtrées et paginées côté serveur.
+  const [items, setItems] = useState<FeedProductionItem[]>(initialItems);
+  const [total, setTotal] = useState(totalCount);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loadError, setLoadError] = useState(initialError);
+  const [loadMoreError, setLoadMoreError] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Recherche différée pour éviter une requête à chaque frappe
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 350);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  const appliedFilters: FeedFiltersState = {
+    search: debouncedSearch,
+    category,
+    status,
+    provinceId,
+  };
+  const appliedKey = filtersKey(appliedFilters);
+
+  // Identifiant de requête : seules les réponses de la dernière requête sont appliquées
+  const requestIdRef = useRef(0);
+  const lastLoadedKeyRef = useRef(
+    filtersKey({ search: "", category: "all", status: "all", provinceId: "all" })
+  );
+
+  const fetchFeedPage = useCallback(
+    async (filters: FeedFiltersState, page: number, mode: "replace" | "append") => {
+      const requestId = ++requestIdRef.current;
+      if (mode === "replace") {
+        setIsFiltering(true);
+        setLoadMoreError(false);
+      } else {
+        setIsLoadingMore(true);
+        setLoadMoreError(false);
+      }
+
+      try {
+        const res = await loadResellerFeedPageAction({
+          search: filters.search.trim(),
+          category: filters.category,
+          status: filters.status,
+          provinceId: filters.provinceId,
+          page,
+        });
+        if (requestId !== requestIdRef.current) return;
+
+        if (res.error) {
+          if (mode === "replace") setLoadError(true);
+          else setLoadMoreError(true);
+          return;
+        }
+
+        lastLoadedKeyRef.current = filtersKey(filters);
+        setLoadError(false);
+        setTotal(res.totalCount);
+        setCurrentPage(res.page);
+        setItems((prev) => {
+          if (mode === "replace") return res.items;
+          const seen = new Set(prev.map((p) => p.id));
+          return [...prev, ...res.items.filter((p) => !seen.has(p.id))];
+        });
+      } catch (err) {
+        console.error("Erreur chargement du flux:", err);
+        if (requestId !== requestIdRef.current) return;
+        if (mode === "replace") setLoadError(true);
+        else setLoadMoreError(true);
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setIsFiltering(false);
+          setIsLoadingMore(false);
         }
       }
+    },
+    []
+  );
 
-      // 2. Filtre par catégorie
-      if (category !== "all" && item.product.category !== category) {
-        return false;
-      }
+  // Rechargement de la première page à chaque changement de filtre appliqué
+  useEffect(() => {
+    if (appliedKey === lastLoadedKeyRef.current) return;
+    fetchFeedPage(appliedFilters, 1, "replace");
+    // appliedFilters est entièrement décrit par appliedKey
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedKey, fetchFeedPage]);
 
-      // 3. Filtre par statut
-      if (status !== "all" && item.status !== status) {
-        return false;
-      }
+  const hasMore = !loadError && items.length < total;
 
-      // 4. Filtre par province
-      if (provinceId !== "all" && item.company.province_id !== provinceId) {
-        return false;
-      }
+  const handleLoadMore = () => {
+    if (isLoadingMore || isFiltering) return;
+    fetchFeedPage(appliedFilters, currentPage + 1, "append");
+  };
 
-      return true;
-    });
-  }, [initialItems, search, category, status, provinceId]);
+  const handleRetry = () => {
+    fetchFeedPage(appliedFilters, 1, "replace");
+  };
 
   const hasActiveFilters =
     search !== "" || category !== "all" || status !== "all" || provinceId !== "all";
@@ -90,10 +170,14 @@ export default function FeedView({
   };
 
   const handleRefresh = () => {
+    // Bannières et compteurs (serveur) + première page du flux avec les filtres courants
     startTransition(() => {
       router.refresh();
     });
+    fetchFeedPage(appliedFilters, 1, "replace");
   };
+
+  const isBusy = isPending || isFiltering;
 
   return (
     <div className="space-y-6">
@@ -155,36 +239,81 @@ export default function FeedView({
           <h2 className="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight">
             {hasActiveFilters ? "Résultats de recherche" : "Productions disponibles"}
           </h2>
-          <span className="text-xs text-gray-500 block mt-0.5">
-            {filteredItems.length}{" "}
-            {filteredItems.length > 1 ? "productions réelles trouvées" : "production réelle trouvée"}
+          <span className="text-xs text-gray-500 block mt-0.5" aria-live="polite">
+            {loadError
+              ? "Chargement impossible"
+              : `${total} ${total > 1 ? "productions réelles trouvées" : "production réelle trouvée"}`}
           </span>
         </div>
 
         <button
           type="button"
           onClick={handleRefresh}
-          disabled={isPending}
+          disabled={isBusy}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:text-forest-700 hover:bg-forest-50 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
           title="Actualiser les productions"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isPending ? "animate-spin text-forest-700" : ""}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${isBusy ? "animate-spin text-forest-700" : ""}`} aria-hidden="true" />
           <span className="hidden sm:inline">Actualiser</span>
         </button>
       </div>
 
       {/* 6. Grille des cartes de production compactes */}
-      {isPending ? (
+      {isBusy ? (
         <FeedSkeleton count={6} />
-      ) : filteredItems.length > 0 ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
-          {filteredItems.map((production, index) => (
-            <FeedProductionCard
-              key={production.id}
-              production={production}
-              index={index}
-            />
-          ))}
+      ) : loadError ? (
+        <EmptyState
+          title="Impossible de charger les productions"
+          description="Le flux n'a pas pu être récupéré. Vérifiez votre connexion puis réessayez."
+          icon={<AlertTriangle className="w-8 h-8 text-earth-700" />}
+          action={
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="px-5 py-2.5 rounded-2xl bg-forest-700 hover:bg-forest-800 text-white text-xs sm:text-sm font-bold shadow-xs cursor-pointer transition-all"
+            >
+              Réessayer
+            </button>
+          }
+        />
+      ) : items.length > 0 ? (
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+            {items.map((production, index) => (
+              <FeedProductionCard
+                key={production.id}
+                production={production}
+                index={index}
+              />
+            ))}
+          </div>
+
+          {/* Chargement progressif (FUN-06) */}
+          {(hasMore || loadMoreError) && (
+            <div className="flex flex-col items-center gap-2">
+              {loadMoreError && (
+                <p role="alert" className="text-xs text-rose-700">
+                  Le chargement des productions suivantes a échoué. Veuillez réessayer.
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 min-h-[44px] rounded-2xl border border-gray-200 bg-white text-xs sm:text-sm font-semibold text-gray-700 hover:text-forest-700 hover:bg-forest-50 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+              >
+                {isLoadingMore ? (
+                  <RefreshCw className="w-4 h-4 animate-spin text-forest-700" aria-hidden="true" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" aria-hidden="true" />
+                )}
+                <span>{isLoadingMore ? "Chargement…" : "Charger plus de productions"}</span>
+              </button>
+              <span className="text-[11px] text-gray-500">
+                {items.length} sur {total} affichées
+              </span>
+            </div>
+          )}
         </div>
       ) : (
         <EmptyState

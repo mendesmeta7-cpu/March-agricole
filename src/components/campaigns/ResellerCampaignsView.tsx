@@ -227,6 +227,7 @@ export default function ResellerCampaignsView({
               onClick={handleResetFilters}
               className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
               title="Réinitialiser tous les filtres"
+              aria-label="Réinitialiser tous les filtres"
             >
               <RefreshCw className="w-4 h-4" />
             </button>

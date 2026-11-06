@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { groupQuantitiesByUnit, type UnitTotal } from "@/lib/utils/unitSeries";
 
 export interface CatalogProduct {
   id: string;
@@ -26,14 +27,18 @@ export interface CompanyProductItem {
   updated_at: string;
   product: CatalogProduct;
   productions_count?: number;
-  total_declared_volume?: number;
+  /**
+   * C-5 : volume déclaré des productions, ventilé par unité de CHAQUE production
+   * (productions.unit). Jamais additionné entre unités différentes ni converti.
+   */
+  declared_volume_by_unit?: UnitTotal[];
 }
 
 /**
  * Récupère l'intégralité du catalogue officiel des produits actifs (is_global = true)
  */
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
     .select("id, name, category, description, default_unit, image_url, is_active, is_global, created_by_company_id")
@@ -56,7 +61,7 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
  * Récupère l'ensemble du catalogue officiel pour la supervision Administrateur (actifs et inactifs)
  */
 export async function getAdminCatalogProducts(): Promise<CatalogProduct[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
     .select("id, name, category, description, default_unit, image_url, is_active, is_global, created_by_company_id")
@@ -80,7 +85,7 @@ export async function getAdminCatalogProducts(): Promise<CatalogProduct[]> {
  * ainsi que le décompte et le volume total déclaré des productions rattachées
  */
 export async function getCompanyProducts(companyId: string): Promise<CompanyProductItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("company_products")
     .select(`
@@ -109,6 +114,7 @@ export async function getCompanyProducts(companyId: string): Promise<CompanyProd
       productions:productions (
         id,
         expected_quantity,
+        unit,
         status
       )
     `)
@@ -125,9 +131,11 @@ export async function getCompanyProducts(companyId: string): Promise<CompanyProd
     const rawProd = Array.isArray(item.product) ? item.product[0] : item.product;
     const prods = Array.isArray(item.productions) ? item.productions : [];
     const productionsCount = prods.length;
-    const totalDeclaredVolume = prods.reduce(
-      (sum: number, p: any) => sum + (Number(p.expected_quantity) || 0),
-      0
+    // C-5 : une ligne par unité de production (tonne, caisse…), aucune addition entre unités
+    const declaredVolumeByUnit = groupQuantitiesByUnit(
+      prods,
+      (p: any) => p.expected_quantity,
+      (p: any) => p.unit
     );
 
     return {
@@ -137,7 +145,7 @@ export async function getCompanyProducts(companyId: string): Promise<CompanyProd
         is_global: rawProd?.is_global ?? true,
       },
       productions_count: productionsCount,
-      total_declared_volume: totalDeclaredVolume,
+      declared_volume_by_unit: declaredVolumeByUnit,
     };
   }) as CompanyProductItem[];
 }

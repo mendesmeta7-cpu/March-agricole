@@ -5,7 +5,7 @@ import { getCatalogProducts } from "@/lib/queries/products";
 import ResellerDemandsView from "@/components/demands/ResellerDemandsView";
 
 export default async function ResellerDemandsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

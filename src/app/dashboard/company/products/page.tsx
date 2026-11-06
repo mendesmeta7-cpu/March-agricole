@@ -1,35 +1,23 @@
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentCompanyId, getCurrentUser } from "@/lib/auth/currentCompany";
+import CompanyAccountMissing from "@/components/company/CompanyAccountMissing";
 import { redirect } from "next/navigation";
 import { getCatalogProducts, getCompanyProducts } from "@/lib/queries/products";
 import CompanyProductsView from "@/components/products/CompanyProductsView";
 
 export default async function CompanyProductsPage() {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient();
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login?redirect=/dashboard/company/products");
   }
 
-  // 1. Récupération de l'entreprise rattachée à l'utilisateur (membership ou créateur)
-  const { data: memberData } = await supabase
-    .from("company_members")
-    .select("company_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  let companyId = memberData?.company_id;
-  if (!companyId) {
-    const { data: comp } = await supabase
-      .from("companies")
-      .select("id")
-      .eq("created_by", user.id)
-      .maybeSingle();
-    companyId = comp?.id;
-  }
+  // 1. Entreprise rattachée (membre ou créateur) — résolution mutualisée et mise en cache (FUN-18)
+  const companyId = await getCurrentCompanyId();
 
   if (!companyId) {
-    redirect("/dashboard/company");
+    return <CompanyAccountMissing />;
   }
 
   const { data: company } = await supabase
@@ -39,7 +27,7 @@ export default async function CompanyProductsPage() {
     .maybeSingle();
 
   if (!company) {
-    redirect("/dashboard/company");
+    return <CompanyAccountMissing />;
   }
 
   // 2. Récupération simultanée des données réelles

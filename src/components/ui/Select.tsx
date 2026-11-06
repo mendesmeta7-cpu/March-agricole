@@ -108,7 +108,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
       if (children) {
         const extracted: SelectOption[] = [];
         React.Children.forEach(children, (child) => {
-          if (React.isValidElement(child) && child.type === "option") {
+          if (React.isValidElement<{ value?: any; children?: any; disabled?: boolean }>(child) && child.type === "option") {
             const val = child.props.value !== undefined ? child.props.value : child.props.children;
             let label = String(child.props.children || val || "");
             let badge: string | undefined = undefined;
@@ -371,6 +371,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                 onClick={handleClear}
                 className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
                 title="Effacer la sélection"
+                aria-label="Effacer la sélection"
               >
                 <X className="w-3.5 h-3.5" />
               </button>

@@ -3,6 +3,79 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [VALIDATION-SQL-LOCALE] - 2026-11-06
+### Premier Passage Réel des Migrations et Tests SQL — PostgreSQL 17.11 Local, Hors Supabase
+
+- **Environnement** : PostgreSQL 17.11 Windows sur M: (`M:\radiza-pg`), rôles et schémas Supabase imités, `postgres` non superutilisateur. Aucune connexion à Supabase.
+- **Résultats** : 33 migrations rejouées sur base vierge ; T1–T9 (après la 030 et après la 032), R0–R7, S0–S33 réussis ; session `authenticator` A0–A6 réussie ; 18 défauts injectés sur 18 détectés ; 032 réappliquée sans erreur.
+- **Migration 033** : garde de création de `pg_cron` ajoutée. Logique et P1–P4 réussis sur une **imitation** de `pg_cron`, pas sur le vrai.
+- **Écart découvert** : la migration 014 ne se rejoue pas sur base vierge (politique `products_admin_manage` déjà créée par la 008). Migration déjà en production, non modifiée ; contournée par un pré-script local.
+
+## [ROTATION-ADMIN] - 2026-11-06
+### Mot de Passe Administrateur
+
+- Mot de passe administrateur changé, testé et confirmé ; clé temporaire révoquée. Remplace la mention « reste à changer » de l'entrée [SÉCURITÉ-LOT-1-4].
+
+## [CORRECTIF-FINAL-029-033] - 2026-11-06
+### Réouverture, Clôture et Opérations Techniques (ADR-047) — Local, Non Appliqué
+
+- **Migration 032** (029–031 inchangées) : colonne `status_before_completion` protégée par trigger ; une campagne terminée ne revient qu'à son statut d'origine ; administrateur refusé sur tous les canaux ; opérations sans utilisateur limitées aux sessions directes avec motif ; journal `CAMPAIGN_REOPENED` dans les triggers ; identité système dans `CAMPAIGN_AUTO_CLOSED` ; clôture retirée à `service_role` ; `update_destination_order_deadline` en UTC.
+- **Migration 033** (nouvelle) : `pg_cron` et tâche quotidienne de 00 h 05 UTC, créée inactive.
+- **Tests** : T9 et message final du test 030 réparés (erreur de syntaxe `$`) ; test 032 complété de S27 à S33, S9 adapté, administrateur de test, utilitaire `as_owner` ; nouveau test `schedule_033_test.sql`. Aucun test SQL exécuté (aucun PostgreSQL disponible).
+- **Application** : délai de commande affiché en UTC (`ResellerProductionDetailActions.tsx`).
+- **Documentation** : BR-CMP-08 corrigée (la date générale prévaut), BR-CMP-14, BR-CMP-15, ADR-047, risque des droits administrateur (`security-rules.md` §8), procédure de déploiement (`test-environment-setup.md` §9).
+
+## [ARBITRAGE-C3] - 2026-11-04
+### Clôture Locale V1 — Arbitrage C3 dans la Migration 032 (Non Appliquée)
+
+- **Migration 032** (029–031 inchangées, pas de 033) : une destination créée après l'expiration de sa date limite ne peut plus rouvrir une campagne ; `created_at` des destinations fixé par la base et immuable ; reports traités destinations éligibles d'abord (`reopen_campaign`, `update_campaign_with_destinations`).
+- **Tests SQL** : S21 (contournement en deux étapes, antidatation, ordre des reports) ; destinations reportées des scénarios existants créées par `pg_temp.add_existing_destination`. Non exécutés (aucun PostgreSQL local).
+- **Vérifications locales** : tsc 0 erreur ; 58/58 tests unitaires ; scripts locaux 10/11 à 01:21, 11/11 avec horloge avancée de 3 h — `test-financial-exhaustiveness-prompt4-2.mjs` date sa livraison « aujourd'hui » à maintenant − 2 h et échoue donc entre 00:00 et 02:00 (défaut du script, non modifié) ; build Next.js réussi ; vérification statique 030/031/032 sans anomalie.
+
+## [FINALISATION-032] - 2026-11-03
+### Finalisation Locale de la Migration 032 — Non Appliquée
+
+- **Migration 032** (029–031 inchangées, pas de 033) : contrôle des destinations étendu aux campagnes expirées par leur date générale (C-3 / R-4) ; D2 revérifié à toute réouverture sans changement de statut ; nouvelle fonction atomique `update_campaign_with_destinations` (C-6) ; droits de `create_order_with_reservation` réaffirmés (anon et PUBLIC exclus, comme en 030).
+- **Application** : `updateCampaignAction` enregistre la modification en un seul appel atomique (plus d'état « campagne incomplète » en modification).
+- **Tests** : SQL S17–S20 et compléments S11 (non exécutés : aucun PostgreSQL local) ; tsc 0 erreur ; 58/58 tests unitaires ; 11/11 scripts locaux ; vérification statique de la 032 sans anomalie ; build non abouti (mémoire insuffisante sur la machine).
+
+## [REVUE-032] - 2026-11-03
+### Corrections de la Revue Ciblée du Lot 032 — Locales, Non Appliquées
+
+- **Migration 032 complétée** (toujours non appliquée ; 029–031 inchangées) : destination non déplaçable (C-2) ; ajout / suppression de destinations sans réouverture, report seul (C-3 / R-4), cascade non bloquée ; unité de campagne = unité de production et unité de production protégée (C-4) ; `create_order_with_reservation` en `search_path = ''` (R-1).
+- **Application** : volumes déclarés par unité dans le catalogue produits (C-5) ; synchronisation ordonnée des destinations (`destinationSync.ts`, C-6) ; verrou d'unité de production aligné sur la base (`hasUnitCommitments`).
+- **Tests** : SQL S12–S16 (non exécutés : aucune base isolée) ; tests unitaires `tests/unit/lot032Corrections.test.ts`.
+- **Documentation** : BR-CMP-09 complété, BR-CMP-12/13, BR-PRD-07, ADR-046 complété, revue R-2 `docs/security-search-path-review.md` (corrections proposées, non appliquées).
+
+## [MIGRATION-032] - 2026-11-03
+### Règles D1–D7, C1–C3 et Stock Revendeur (ADR-046) — Locale, Non Appliquée
+
+- **Migration `20261103000032_business_rules_d1_d7_stock.sql`** (non appliquée ; 029–031 inchangées, empreintes vérifiées) : ouverture effective (C2), volume engagé hors campagnes expirées, commande refusée sur campagne expirée, protection des productions engagées (A4/D1/D3), production récoltée exigée (D2), réouverture atomique `reopen_campaign` (A12, A12-bis, C3, D5) et par les destinations, D6, disponibilité des productions (D4), stock agrégé revendeur, clôture automatique active/paused journalisée (C1, sans planification).
+- **Tests SQL** `supabase/tests/business_rules_032_test.sql` (S0–S11, non exécutés : aucune base isolée).
+- **Application** : règles partagées `productionRules.ts`, `campaignReopenRules.ts` ; formulaires et actions de campagne et de production ; parcours « Rouvrir » ; stock revendeur via fonction agrégée ; graphiques par unité.
+
+## [DÉCISIONS-A3-A13] - 2026-11-02
+### Intégration des Décisions Métier Validées (ADR-045) — Locale, Non Déployée
+
+- **Migration `20261102000031_business_rules_a3_a13.sql`** (non appliquée) : volume engagé des productions (A3), production récoltée figée si campagne active (A4), livraison depuis « prête » et annulation revendeur limitée à « en attente » (A5), stock de campagne incluant les livraisons (A11), réouverture des campagnes encadrée (A12).
+- **Tests SQL** `supabase/tests/business_rules_031_test.sql` : scénarios comportementaux (données de test créées puis annulées par ROLLBACK).
+- **Application** : calcul du stock consommé partagé (`stockRules.ts`) dans 7 calculs (flux, campagnes, tableau de bord) ; règles de commande partagées (`orderRules.ts`) ; fenêtre de livraison bloquée hors statut « prête » ; nouveaux messages métier relayés ; écrans administrateur (A6).
+- **Documentation** : business-rules (BR-PRD-04-bis, BR-CMP-03-bis, BR-CMP-05-bis, BR-ORD-05-bis/ter, BR-STK-01, §15 Administration), ADR-045, procédure de test.
+
+## [SÉCURITÉ-LOT-1-4] - 2026-11-01
+### Correction et Sécurisation Post-Audit (Radiza V1) — Locale, Non Déployée
+
+- **Mode** : corrections locales. Aucune migration appliquée, aucune écriture en base de production, aucun déploiement, aucun commit.
+- **Lot 1 — Sécurité** :
+  - Secrets : mot de passe administrateur et clés retirés de 10 scripts et de la migration 14 ; configuration par variables d'environnement (`scripts/_supabase-env.mjs`, garde-fou refusant la production pour les scripts qui écrivent). **Le mot de passe exposé reste à changer dans la console Supabase.**
+  - Migration `20261101000030_security_hardening.sql` (non appliquée) + suite `supabase/tests/security_hardening_030_test.sql` (BEGIN/ROLLBACK, non exécutée faute de base isolée). Voir ADR-043.
+  - Next.js 14.2.35 → 15.5.28, React 18.3.1 → 19.3.1 (ADR-044). En-têtes HTTP de sécurité, optimiseur d'images restreint.
+  - Actions serveur : statut de commande via RPC `update_order_status` ; notification de proposition via RPC ; prix attendu transmis à la commande ; avatar Cloudinary rattaché à l'utilisateur ; logo validé (droits avant upload, MIME, taille) ; preuve de récupération exigée sur /reset-password + révocation globale des sessions ; redirection post-connexion limitée à l'espace du rôle ; liens de bannière validés ; messages d'erreur techniques masqués.
+- **Lot 2 — Fiabilité métier** : montants ventilés CDF/USD et volumes par unité (`currencyTotals.ts`) ; colonne inexistante `campaigns.reserved_quantity` remplacée ; flux revendeur paginé avec filtres serveur ; création de campagne sans valeurs inventées ni erreurs avalées ; propositions affichées selon leur statut.
+- **Lot 3 — Fiabilité fonctionnelle** : pages 404 / erreur à la marque ; saisie conservée après erreur (React 19) ; listes resynchronisées après action ; spinners jamais bloqués ; bouton Commander basé sur `canOrder` ; résolution d'entreprise unique (`currentCompany.ts`, plus de boucle de redirection).
+- **Lot 4 — Préparation design** : focus piégé/restauré dans Dialog/Drawer, toasts accessibles et au-dessus de la barre mobile, libellés de formulaires associés, boutons icône nommés, scanner QR chargé à la demande.
+- **Tests** : 20 tests unitaires `node:test` sur les vrais modules (`npm run test:unit`) ; 11 scripts locaux verts (2 assertions mises à jour pour des changements voulus) ; `tsc` 0 erreur ; build Next 15.5.28 réussi.
+
 ## [AUTH-5.16] - 2026-10-26
 ### Correction Définitive du Rejet Google OAuth /login & Double Verrouillage Middleware (Radiza V1)
 
@@ -250,7 +323,7 @@ Toutes les modifications notables apportées à ce projet sont consignées dans 
   - Colonne `public.profiles.intended_role VARCHAR(20) NULLABLE` avec contrainte CHECK (`company`, `reseller` ou NULL).
   - Privilège : `GRANT SELECT (intended_role) ON TABLE public.profiles TO authenticated;` (aucun droit UPDATE accordé).
   - Trigger `handle_new_user_registration()` mis à jour (`SECURITY DEFINER`, `search_path 'public', 'pg_temp'`) : capture `preferred_role` depuis `raw_user_meta_data` au moment de la création du compte Auth, initialisant `intended_role` avant toute interaction client.
-  - Reprise rétroactive chirurgicale et sûre des comptes en attente existants (`unassigned/pending` dont `intended_role IS NULL` et `preferred_role IN ('company', 'reseller')`). Préservation absolue des 10 profils historiques complétés et du compte en attente sans choix connu (`benovie89@gmail.com`).
+  - Reprise rétroactive chirurgicale et sûre des comptes en attente existants (`unassigned/pending` dont `intended_role IS NULL` et `preferred_role IN ('company', 'reseller')`). Préservation absolue des 10 profils historiques complétés et du compte en attente sans choix connu (`compte-test@example.invalid`).
   - RPC `complete_user_onboarding` mise à jour (`SECURITY DEFINER`) : impose que si `v_profile.intended_role IS NOT NULL`, `p_role` DOIT lui correspondre strictement, sous peine d'interruption immédiate (`RAISE EXCEPTION`). Si `intended_role` est NULL (compte sans choix initial), la RPC accepte le choix contrôlé et enregistre `intended_role = p_role` de manière atomique.
 - **Frontend & Server Actions** :
   - `src/app/onboarding/page.tsx` : Sélection `*` sur `profiles`, priorisation de `profile.intended_role` (vérité DB) avec repli transparent sur `user.user_metadata.preferred_role`.

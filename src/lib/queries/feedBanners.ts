@@ -18,7 +18,7 @@ export interface FeedBannerItem {
  * Récupère les bannières actives pour le carrousel du Flux Revendeur
  */
 export async function getActiveFeedBanners(): Promise<FeedBannerItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("feed_banners")
@@ -39,7 +39,7 @@ export async function getActiveFeedBanners(): Promise<FeedBannerItem[]> {
  * Récupère toutes les bannières pour l'espace d'administration
  */
 export async function getAllFeedBannersAdmin(): Promise<FeedBannerItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("feed_banners")

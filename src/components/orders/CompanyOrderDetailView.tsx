@@ -14,6 +14,11 @@ import Select from "@/components/ui/Select";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { ToastProvider, useToast } from "@/components/ui/Toast";
 import {
+  COMPANY_ORDER_STATUS_LABELS,
+  canCompanyCancelOrder,
+  getNextCompanyOrderStatusOptions,
+} from "./CompanyOrderStatusOptions";
+import {
   ArrowLeft,
   ShoppingBag,
   Store,
@@ -61,16 +66,12 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
   const [isPending, startTransition] = useTransition();
   const [updating, setUpdating] = useState(false);
 
+  // FUN-01 : uniquement les statuts strictement postérieurs (jamais livrée / annulée, jamais de retour arrière).
   const statusOptions = useMemo(
-    () => [
-      { value: "pending", label: "En attente de confirmation" },
-      { value: "confirmed", label: "Confirmée par l'exploitation" },
-      { value: "preparing", label: "En cours de préparation" },
-      { value: "ready", label: "Prête pour retrait / expédition" },
-      { value: "cancelled", label: "Annulée (Libère le stock réservé)" },
-    ],
-    []
+    () => getNextCompanyOrderStatusOptions(order.status),
+    [order.status]
   );
+  const canCancel = canCompanyCancelOrder(order.status);
 
   const mainItem = order.order_items[0];
   const itemQuantity = mainItem ? mainItem.quantity : 0;
@@ -123,7 +124,7 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
       }
 
       toast.success("Statut actualisé", {
-        description: `La commande est désormais à l'état "${targetStatus}".`,
+        description: `La commande est désormais à l'état « ${COMPANY_ORDER_STATUS_LABELS[targetStatus]} ».`,
       });
 
       setOrder((prev) => ({ ...prev, status: targetStatus }));
@@ -139,6 +140,12 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
 
   // Mise à jour depuis modal de statut
   const handleUpdateStatus = async () => {
+    if (!statusOptions.some((opt) => opt.value === newStatus)) {
+      toast.error("Statut non disponible", {
+        description: "Ce statut ne peut pas être appliqué à la commande dans son état actuel.",
+      });
+      return;
+    }
     setUpdating(true);
     try {
       const res = await updateOrderStatusAction(order.id, newStatus);
@@ -148,7 +155,7 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
       }
 
       toast.success("Statut enregistré", {
-        description: `La commande est passée à "${newStatus}".`,
+        description: `La commande est passée à « ${COMPANY_ORDER_STATUS_LABELS[newStatus]} ».`,
       });
 
       setOrder((prev) => ({ ...prev, status: newStatus }));
@@ -239,19 +246,21 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
 
           {order.status !== "cancelled" && order.status !== "delivered" && (
             <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setNewStatus(order.status === "pending" ? "confirmed" : order.status);
-                  setShowStatusModal(true);
-                }}
-                disabled={updating}
-                className="gap-1.5 text-xs font-semibold"
-              >
-                <Settings className="w-3.5 h-3.5" />
-                <span>Changer le statut</span>
-              </Button>
+              {statusOptions.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setNewStatus(statusOptions[0].value);
+                    setShowStatusModal(true);
+                  }}
+                  disabled={updating}
+                  className="gap-1.5 text-xs font-semibold"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>Changer le statut</span>
+                </Button>
+              )}
 
               {order.status === "pending" && (
                 <Button
@@ -305,16 +314,18 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
                 </Button>
               )}
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCancelModal(true)}
-                disabled={updating}
-                className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-semibold"
-              >
-                <XCircle className="w-3.5 h-3.5 mr-1" />
-                Annuler
-              </Button>
+              {canCancel && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowCancelModal(true)}
+                  disabled={updating}
+                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-semibold"
+                >
+                  <XCircle className="w-3.5 h-3.5 mr-1" />
+                  Annuler
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -677,7 +688,7 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
       </div>
 
       {/* Modal d'actualisation de statut */}
-      {showStatusModal && (
+      {showStatusModal && statusOptions.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="relative w-full max-w-md bg-white rounded-3xl shadow-xl border border-gray-100 p-5 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
@@ -686,8 +697,11 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
                 Actualiser l&apos;état logistique
               </h3>
               <button
+                type="button"
                 onClick={() => setShowStatusModal(false)}
-                className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400"
+                disabled={updating}
+                aria-label="Fermer"
+                className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 disabled:opacity-50"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -709,14 +723,10 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
               />
             </div>
 
-            {newStatus === "cancelled" && (
-              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-2 text-amber-800 text-xs">
-                <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                <span>
-                  Attention : L&apos;annulation libérera immédiatement la réservation de stock liée.
-                </span>
-              </div>
-            )}
+            <p className="text-[11px] text-gray-500 leading-relaxed">
+              Le statut ne peut qu&apos;avancer. La livraison se confirme via le QR code ou le
+              numéro de commande ; l&apos;annulation via le bouton « Annuler ».
+            </p>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
               <Button

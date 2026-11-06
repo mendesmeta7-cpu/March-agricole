@@ -4,7 +4,7 @@ import { getResellerOrders } from "@/lib/queries/orders";
 import ResellerOrdersView from "@/components/orders/ResellerOrdersView";
 
 export default async function ResellerOrdersPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

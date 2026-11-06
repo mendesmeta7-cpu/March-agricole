@@ -9,6 +9,7 @@ import {
   archiveProductionAction,
 } from "@/lib/actions/productions";
 import ProductionCard from "./ProductionCard";
+import { PRODUCTION_LOCK_MESSAGES } from "@/lib/utils/productionRules";
 import ProductionDrawer from "./ProductionDrawer";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/Toast";
@@ -450,7 +451,14 @@ export default function CompanyProductionsView({
               production={production}
               onEdit={handleOpenEdit}
               onDelete={(prod) => setDeletingProduction(prod)}
-              onArchive={(prod) => setArchivingProduction(prod)}
+              onArchive={(prod) => {
+                // A4 / D3 — archivage refusé tant qu'une campagne active ou suspendue y est rattachée
+                if (prod.has_engaging_campaign) {
+                  toast.error("Archivage impossible", PRODUCTION_LOCK_MESSAGES.status);
+                  return;
+                }
+                setArchivingProduction(prod);
+              }}
             />
           ))}
         </div>

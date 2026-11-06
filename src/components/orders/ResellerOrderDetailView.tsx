@@ -110,12 +110,21 @@ export default function ResellerOrderDetailView({
     setCancelling(true);
     setCancelError(null);
 
-    const res = await cancelOrderAction(
-      order.id,
-      cancelReason || "Annulation demandée par le revendeur"
-    );
-
-    setCancelling(false);
+    // LOAD-03 : le spinner est toujours libéré, même en cas d'exception réseau.
+    let res: Awaited<ReturnType<typeof cancelOrderAction>>;
+    try {
+      res = await cancelOrderAction(
+        order.id,
+        cancelReason || "Annulation demandée par le revendeur"
+      );
+    } catch (err) {
+      console.error("Erreur annulation commande:", err);
+      setCancelError("La requête n'a pas pu aboutir. Vérifiez votre connexion puis réessayez.");
+      toast.error("Annulation impossible", { description: "La requête n'a pas pu aboutir. Vérifiez votre connexion puis réessayez." });
+      return;
+    } finally {
+      setCancelling(false);
+    }
 
     if (!res.success) {
       setCancelError(res.error || "Impossible d'annuler cette commande.");

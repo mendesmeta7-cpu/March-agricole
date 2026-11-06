@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   CompanyCampaignItem,
   CampaignDestination,
@@ -18,6 +19,8 @@ import {
   updateDestinationArrivalDateAction,
 } from "@/lib/actions/campaigns";
 import CampaignStatusBadge from "./CampaignStatusBadge";
+import ReopenCampaignDialog from "./ReopenCampaignDialog";
+import { canOfferReopen } from "@/lib/utils/campaignReopenRules";
 import {
   Megaphone,
   Tag,
@@ -38,6 +41,7 @@ import {
   Package,
   TrendingUp,
   Info,
+  RotateCcw,
 } from "lucide-react";
 
 interface CompanyCampaignDetailDrawerProps {
@@ -54,6 +58,7 @@ export default function CompanyCampaignDetailDrawer({
   onEdit,
 }: CompanyCampaignDetailDrawerProps) {
   const { toast } = useToast();
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [confirmAction, setConfirmAction] = useState<{
     type: "pause" | "activate" | "complete" | "cancel";
@@ -66,13 +71,20 @@ export default function CompanyCampaignDetailDrawer({
   const [newDeadlineDate, setNewDeadlineDate] = useState("");
   const [isUpdatingDate, setIsUpdatingDate] = useState(false);
   const [updateDateError, setUpdateDateError] = useState<string | null>(null);
+  const [isReopenOpen, setIsReopenOpen] = useState(false);
 
   if (!campaign) return null;
 
   const todayStr = new Date().toISOString().split("T")[0];
   const effectiveStatus = getEffectiveCampaignStatus(campaign);
   const destSummary = getCampaignDestinationsSummary(campaign.destinations);
-  const isEffectivelyCompleted = effectiveStatus === "completed" && campaign.status === "active";
+  const storedStatus = campaign.stored_status ?? campaign.status;
+  // D7 / A12 — réouverture proposée si la campagne est clôturée, ou ouverte en base
+  // mais effectivement expirée ; jamais pour une campagne annulée.
+  const isReopenable =
+    storedStatus !== "cancelled" &&
+    canOfferReopen({ ...campaign, status: storedStatus });
+  const isEffectivelyCompleted = isReopenable && storedStatus !== "completed";
 
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return "—";
@@ -101,6 +113,8 @@ export default function CompanyCampaignDetailDrawer({
           toast.success("Statut mis à jour", {
             description: `La campagne est maintenant ${newStatus === "active" ? "ouverte" : newStatus === "paused" ? "suspendue" : newStatus === "completed" ? "clôturée" : "annulée"}.`,
           });
+          // FUN-08 : la liste, les compteurs et ce tiroir sont rechargés depuis le serveur.
+          router.refresh();
         } else {
           toast.error("Erreur", { description: res.error || "Impossible de changer le statut." });
         }
@@ -143,6 +157,7 @@ export default function CompanyCampaignDetailDrawer({
         editingDest.expected_arrival_date = newArrivalDate;
         editingDest.order_deadline_date = newDeadlineDate || null;
         setEditingDest(null);
+        router.refresh();
       } else {
         setUpdateDateError(res.error || "Impossible de mettre à jour.");
       }
@@ -205,16 +220,24 @@ export default function CompanyCampaignDetailDrawer({
         icon={<Megaphone className="w-5 h-5" />}
       >
         <div className="space-y-5">
-          {/* ALERTE : Campagne terminée par expiration des destinations */}
-          {isEffectivelyCompleted && (
-            <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 flex items-start gap-3">
-              <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+          {/* Campagne clôturée ou arrivée à échéance : modification fermée, réouverture possible */}
+          {isReopenable && (
+            <div
+              id="campaign-reopen-explanation"
+              className="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 flex items-start gap-3"
+            >
+              <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" aria-hidden="true" />
               <div>
-                <p className="text-sm font-bold text-blue-900">Campagne arrivée à échéance</p>
+                <p className="text-sm font-bold text-blue-900">
+                  {isEffectivelyCompleted ? "Campagne arrivée à échéance" : "Campagne clôturée"}
+                </p>
                 <p className="text-xs text-blue-700 mt-0.5 leading-relaxed">
-                  Toutes les destinations de cette campagne ont atteint leur date limite de commande.
-                  La campagne est terminée automatiquement côté revendeurs. Vous pouvez la clôturer
-                  officiellement ou consulter l'historique des commandes.
+                  {isEffectivelyCompleted
+                    ? "Sa date de fin ou les dates limites de toutes ses destinations sont dépassées : elle n'accepte plus de commandes. "
+                    : "Elle n'accepte plus de nouvelles commandes. "}
+                  Une campagne clôturée n&apos;est plus modifiable. Pour la rendre de nouveau commandable,
+                  utilisez « Rouvrir la campagne » : vous pourrez reporter sa date de fin et les dates limites
+                  de ses destinations. Les commandes existantes restent consultables depuis l&apos;espace Commandes.
                 </p>
               </div>
             </div>
@@ -450,24 +473,17 @@ export default function CompanyCampaignDetailDrawer({
             </div>
           )}
 
-          {/* Note métier */}
-          {isEffectivelyCompleted && (
-            <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200 flex items-start gap-2 text-xs text-amber-900">
-              <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <span>
-                Les commandes historiques de cette campagne sont conservées et restent consultables depuis l'espace Commandes.
-              </span>
-            </div>
-          )}
         </div>
       </Drawer>
 
       {/* Actions dans le footer du drawer — injectées via un portal */}
-      {isOpen && (
+      {isOpen && !isReopenOpen && !confirmAction && (
         <div className="fixed bottom-0 right-0 z-[55] sm:max-w-2xl w-full px-5 py-3.5 bg-white border-t border-gray-100 flex items-center justify-between gap-2">
           <button
+            type="button"
             onClick={() => { onClose(); onEdit(campaign); }}
-            disabled={isPending || effectiveStatus === "completed" || effectiveStatus === "cancelled"}
+            disabled={isPending || isReopenable || effectiveStatus === "completed" || effectiveStatus === "cancelled"}
+            aria-describedby={isReopenable ? "campaign-reopen-explanation" : undefined}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             <Edit className="w-3.5 h-3.5" />
@@ -475,8 +491,22 @@ export default function CompanyCampaignDetailDrawer({
           </button>
 
           <div className="flex items-center gap-2">
+            {isReopenable && (
+              <button
+                type="button"
+                onClick={() => setIsReopenOpen(true)}
+                disabled={isPending}
+                aria-describedby="campaign-reopen-explanation"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-forest-700 text-white hover:bg-forest-800 transition-colors disabled:opacity-50"
+              >
+                <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+                Rouvrir la campagne
+              </button>
+            )}
+
             {(campaign.status === "draft" || campaign.status === "paused") && (
               <button
+                type="button"
                 onClick={() => setConfirmAction({ type: "activate", label: "Ouvrir" })}
                 disabled={isPending}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-forest-700 text-white hover:bg-forest-800 transition-colors disabled:opacity-50"
@@ -489,6 +519,7 @@ export default function CompanyCampaignDetailDrawer({
             {campaign.status === "active" && (
               <>
                 <button
+                  type="button"
                   onClick={() => setConfirmAction({ type: "pause", label: "Suspendre" })}
                   disabled={isPending}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-amber-100 text-amber-900 hover:bg-amber-200 transition-colors disabled:opacity-50"
@@ -497,6 +528,7 @@ export default function CompanyCampaignDetailDrawer({
                   Suspendre
                 </button>
                 <button
+                  type="button"
                   onClick={() => setConfirmAction({ type: "complete", label: "Clôturer" })}
                   disabled={isPending}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-blue-100 text-blue-900 hover:bg-blue-200 transition-colors disabled:opacity-50"
@@ -509,16 +541,27 @@ export default function CompanyCampaignDetailDrawer({
 
             {campaign.status !== "completed" && campaign.status !== "cancelled" && (
               <button
+                type="button"
                 onClick={() => setConfirmAction({ type: "cancel", label: "Annuler" })}
                 disabled={isPending}
                 className="inline-flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium rounded-xl text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50"
                 title="Annuler la campagne"
+                aria-label="Annuler la campagne"
               >
                 <XCircle className="w-4 h-4" />
               </button>
             )}
           </div>
         </div>
+      )}
+
+      {/* Réouverture (D7 / A12 / C3 / D5) */}
+      {isReopenable && (
+        <ReopenCampaignDialog
+          campaign={campaign}
+          isOpen={isReopenOpen}
+          onClose={() => setIsReopenOpen(false)}
+        />
       )}
 
       {/* ConfirmDialog pour les actions de statut */}
@@ -555,7 +598,9 @@ export default function CompanyCampaignDetailDrawer({
                 <h3 className="text-sm font-bold">Reporter la date d&apos;arrivée</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setEditingDest(null)}
+                aria-label="Fermer"
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
               >
                 <X className="w-4 h-4" />

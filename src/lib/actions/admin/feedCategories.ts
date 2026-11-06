@@ -33,7 +33,7 @@ export async function createAdminFeedCategoryAction(
   prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -113,7 +113,7 @@ export async function updateAdminFeedCategoryAction(
   prevState: ActionResponse | null,
   formData: FormData
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -220,7 +220,7 @@ export async function updateAdminFeedCategoryAction(
 export async function deleteAdminFeedCategoryAction(
   categoryId: string
 ): Promise<ActionResponse> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

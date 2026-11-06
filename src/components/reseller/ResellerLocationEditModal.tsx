@@ -96,8 +96,10 @@ export default function ResellerLocationEditModal({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             disabled={isPending}
+            aria-label="Fermer la fenêtre"
             className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
           >
             <X className="w-4 h-4" />

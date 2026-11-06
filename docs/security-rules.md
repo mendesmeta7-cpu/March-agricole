@@ -113,3 +113,31 @@ Deux buckets ont été créés et configurés dans `storage.buckets` avec politi
    Le trigger `prevent_profile_role_escalation` lève une exception (`Action interdite : modification non autorisée du rôle utilisateur`) si un utilisateur non-admin tente un `UPDATE` modifiant la colonne `role` dans `public.profiles`.
 3. **Assignation automatique du rôle Owner** :
    Le trigger `handle_new_company_created` associe immédiatement le créateur de l'entreprise comme `owner` dans `public.company_members`, éliminant tout blocage RLS d'initialisation et assurant la conformité avec BR-COMP-05.
+
+---
+
+## 6. CRÉATION DES COMPTES ADMINISTRATEURS ET SECRETS (2026-11-01 — ADR-043)
+
+* **Aucun compte administrateur n'est créé par migration.** Le bloc de provisionnement de la migration 14 (mot de passe écrit en clair) est neutralisé.
+* **Procédure** : (1) créer le compte dans la console Supabase (Authentication > Users) avec un mot de passe fort et unique ; (2) attribuer le rôle `admin` dans `public.profiles` par un opérateur habilité, depuis le SQL Editor, hors de tout fichier versionné ; (3) consigner l'opération (date, opérateur) hors du dépôt.
+* **Secrets** : aucun identifiant (mot de passe, clé, e-mail réel) dans le code, les scripts, les migrations ou la documentation. Les scripts de `scripts/` lisent leur configuration depuis l'environnement du terminal (`scripts/_supabase-env.mjs`) ; ceux qui écrivent refusent le projet de production.
+* **Retirer un secret du code ne le révoque pas** : tout secret ayant figuré dans l'historique Git doit être changé à la source.
+
+## 7. MATRICE DES ÉCRITURES APRÈS MIGRATION 30 (ADR-043)
+
+| Table | Écriture directe client | Canal autorisé |
+| :--- | :--- | :--- |
+| `orders`, `order_items`, `stock_reservations` | ❌ aucune | `create_order_with_reservation`, `create_order_from_demand_response`, `update_order_status`, `cancel_order_and_release_reservation`, `confirm_order_delivery` |
+| `audit_logs` | ❌ aucune | fonctions serveur uniquement |
+| `notifications` | ❌ création ; ✅ `read_at` seulement | `notify_*`, fonctions métier |
+| `demand_responses` | ✅ entreprise propriétaire (`proposed`/`refused`), ❌ revendeur | trigger `guard_demand_response_write` |
+| `companies` | ✅ champs de profil seulement ; ❌ création | `complete_user_onboarding`, `admin_set_company_verification` |
+| Toutes tables | ❌ aucune écriture ni TRUNCATE pour `anon` | — |
+
+## 8. RÉOUVERTURE, CLÔTURE ET OPÉRATIONS TECHNIQUES (ADR-047 — MIGRATIONS 32 ET 33, NON APPLIQUÉES)
+
+* **Clôture** : `check_and_close_expired_campaigns` n'est exécutable ni par `anon`, ni par `authenticated`, ni par `service_role` : seuls le propriétaire et la tâche planifiée la lancent. **Tant que la 030 n'est pas appliquée en production, la fonction n'a pas de restriction de droits dans les migrations** : voir `docs/test-environment-setup.md` §9.
+* **Opération technique** : session directe à la base (`session_user` = `postgres` ou `supabase_admin`) avec un motif dans `radiza.technical_reason`. PostgREST se connecte en `authenticator` : une requête API, même avec `service_role`, ne remplit jamais la condition, car elle ne peut pas changer `session_user`. Ce refus reste à vérifier par un véritable appel à l'API.
+* **Journal** : `audit_logs.actor_id` référence `profiles` ; une opération système a donc un acteur vide et son identité dans `details` (`actor_type`, `system_actor`, `reason`, `application_name`).
+* **Risque ouvert — droits de l'administrateur (BR-ADM-02)** : la supervision est prévue en lecture seule, mais `campaigns_manage`, `campaign_delivery_zones_manage`, `campaign_destinations_all_owner` et `campaign_depots_all_owner` autorisent l'administrateur en écriture. Avec sa session, il peut, par appel direct à l'API, modifier titre, prix, quantité, dates et statut d'une campagne, ainsi que ses zones, destinations et dépôts. Aucun écran ne l'offre, les triggers métier s'appliquent, les prix des commandes restent figés et la réouverture lui est interdite. **Risque non corrigé, hors périmètre de la décision ADR-047.**
+* **Mot de passe administrateur** : le mot de passe exposé dans l'historique Git a été changé, testé et confirmé, et la clé temporaire a été révoquée (2026-11-06). L'ancienne valeur reste dans l'historique : ne pas publier cet historique.

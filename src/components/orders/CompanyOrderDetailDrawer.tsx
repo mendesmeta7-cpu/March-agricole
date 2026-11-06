@@ -4,6 +4,10 @@ import { useState } from "react";
 import { OrderDetail, OrderStatus } from "@/lib/queries/orders";
 import OrderStatusBadge from "./OrderStatusBadge";
 import Drawer from "@/components/ui/Drawer";
+import {
+  canChangeCompanyOrderStatus,
+  canCompanyCancelOrder,
+} from "./CompanyOrderStatusOptions";
 import Button from "@/components/ui/Button";
 import Image from "next/image";
 import Link from "next/link";
@@ -182,36 +186,37 @@ export default function CompanyOrderDetailDrawer({
       footer={
         <div className="flex items-center justify-between gap-3 w-full flex-wrap sm:flex-nowrap">
           <div className="flex items-center gap-2">
-            {order.status !== "delivered" && order.status !== "cancelled" && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onOpenStatusModal(order)}
-                  disabled={isActionLoading}
-                  className="gap-1.5 text-xs"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                  <span>Statut</span>
-                </Button>
+            {canChangeCompanyOrderStatus(order.status) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onOpenStatusModal(order)}
+                disabled={isActionLoading}
+                className="gap-1.5 text-xs"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span>Statut</span>
+              </Button>
+            )}
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onRequestCancel(order)}
-                  disabled={isActionLoading}
-                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs"
-                >
-                  <XCircle className="w-3.5 h-3.5 mr-1" />
-                  Annuler
-                </Button>
-              </>
+            {canCompanyCancelOrder(order.status) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onRequestCancel(order)}
+                disabled={isActionLoading}
+                className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs"
+              >
+                <XCircle className="w-3.5 h-3.5 mr-1" />
+                Annuler
+              </Button>
             )}
 
             <Link
               href={`/dashboard/company/orders/${order.id}`}
               className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-forest-800 p-2 rounded-xl hover:bg-gray-100 transition-colors"
               title="Ouvrir la page complète"
+              aria-label="Ouvrir la page complète de la commande"
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </Link>

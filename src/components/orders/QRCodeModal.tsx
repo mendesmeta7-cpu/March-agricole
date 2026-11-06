@@ -89,7 +89,9 @@ export default function QRCodeModal({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Fermer le QR code"
             className="p-1.5 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-white/80 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -128,6 +130,7 @@ export default function QRCodeModal({
                 type="button"
                 onClick={handleCopyOrderNumber}
                 title="Copier le numéro"
+                aria-label={copied ? "Numéro de commande copié" : "Copier le numéro de commande"}
                 className="p-2 text-gray-500 hover:text-forest-800 hover:bg-forest-50 rounded-xl border border-gray-200 transition-colors"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useId, useRef } from "react";
 import { X, AlertTriangle, CheckCircle2, Info, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "./Button";
+import { useFocusTrap } from "./useFocusTrap";
 
 export type DialogSize = "sm" | "md" | "lg" | "xl" | "2xl" | "full";
 
@@ -21,6 +22,10 @@ export interface DialogProps {
   className?: string;
   bodyClassName?: string;
   footerClassName?: string;
+  /** Id d'un élément titre rendu dans le corps (si `title` n'est pas fourni) */
+  ariaLabelledBy?: string;
+  /** Id d'un élément descriptif rendu dans le corps (si `description` n'est pas fourni) */
+  ariaDescribedBy?: string;
 }
 
 const sizeWidthStyles: Record<DialogSize, string> = {
@@ -46,30 +51,32 @@ export function Dialog({
   className,
   bodyClassName,
   footerClassName,
+  ariaLabelledBy,
+  ariaDescribedBy,
 }: DialogProps) {
-  // Gestion de la touche Échap
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isDismissable) {
-        onClose();
-      }
-    },
-    [isDismissable, onClose]
-  );
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+
+  // A11Y-03 : focus initial, piège Tab/Maj+Tab, Échap (surface la plus haute
+  // uniquement) et restauration du focus vers le déclencheur à la fermeture.
+  useFocusTrap(panelRef, {
+    isOpen,
+    onEscape: onClose,
+    escapeEnabled: isDismissable,
+  });
 
   // Verrouillage du scroll arrière-plan
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
-      window.addEventListener("keydown", handleKeyDown);
     } else {
       document.body.style.overflow = "";
     }
     return () => {
       document.body.style.overflow = "";
-      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, handleKeyDown]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -78,6 +85,8 @@ export function Dialog({
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
+      aria-labelledby={title ? titleId : ariaLabelledBy}
+      aria-describedby={description ? descriptionId : ariaDescribedBy}
     >
       {/* Backdrop sombre avec flou doux */}
       <div
@@ -88,8 +97,10 @@ export function Dialog({
 
       {/* Conteneur de la modale */}
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className={cn(
-          "relative z-10 w-full bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200/90 overflow-hidden flex flex-col my-auto max-h-[90vh]",
+          "relative z-10 w-full bg-white focus:outline-none rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200/90 overflow-hidden flex flex-col my-auto max-h-[90vh]",
           "animate-modal-pop",
           sizeWidthStyles[size],
           className
@@ -106,15 +117,17 @@ export function Dialog({
                   </div>
                 )}
                 {typeof title === "string" ? (
-                  <h2 className="text-base sm:text-lg font-bold text-gray-950 truncate tracking-tight">
+                  <h2 id={titleId} className="text-base sm:text-lg font-bold text-gray-950 truncate tracking-tight">
                     {title}
                   </h2>
-                ) : (
-                  title
-                )}
+                ) : title ? (
+                  <div id={titleId} className="contents">
+                    {title}
+                  </div>
+                ) : null}
               </div>
               {description && (
-                <p className="text-xs sm:text-sm text-gray-500 leading-relaxed">
+                <p id={descriptionId} className="text-xs sm:text-sm text-gray-500 leading-relaxed">
                   {description}
                 </p>
               )}
@@ -200,6 +213,9 @@ export function ConfirmDialog({
     success: "bg-emerald-50",
   };
 
+  const confirmTitleId = useId();
+  const confirmDescriptionId = useId();
+
   const buttonVariant =
     variant === "destructive"
       ? "destructive"
@@ -216,6 +232,8 @@ export function ConfirmDialog({
       size="sm"
       isDismissable={!isLoading}
       showCloseButton={!isLoading}
+      ariaLabelledBy={confirmTitleId}
+      ariaDescribedBy={confirmDescriptionId}
       footer={
         <>
           <Button
@@ -247,10 +265,10 @@ export function ConfirmDialog({
           {iconMap[variant]}
         </div>
         <div className="space-y-1">
-          <h3 className="text-base font-bold text-gray-950 tracking-tight">
+          <h3 id={confirmTitleId} className="text-base font-bold text-gray-950 tracking-tight">
             {title}
           </h3>
-          <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+          <p id={confirmDescriptionId} className="text-xs sm:text-sm text-gray-600 leading-relaxed">
             {description}
           </p>
         </div>
