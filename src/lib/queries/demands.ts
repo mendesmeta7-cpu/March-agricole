@@ -211,7 +211,7 @@ export async function getResellerDemands(resellerId: string): Promise<DemandItem
 
   if (error) {
     console.error("Erreur récupération demandes revendeur:", error);
-    return [];
+    throw new Error("Lecture des demandes du revendeur impossible");
   }
 
   return (data || []).map((item: any) => ({
@@ -305,7 +305,7 @@ export async function getCompanyGeneralDemands(companyId: string): Promise<Deman
 
   if (error) {
     console.error("Erreur récupération demandes générales entreprise:", error);
-    return [];
+    throw new Error("Lecture des demandes générales impossible");
   }
 
   return (data || []).map((item: any) => {
@@ -587,7 +587,7 @@ export async function getAggregatedMarketDemands(filters?: {
 
   if (error) {
     console.error("Erreur récupération agrégats du marché:", error);
-    return [];
+    throw new Error("Lecture des agrégats du marché impossible");
   }
 
   return (data || []).map((row: any) => ({

@@ -21,6 +21,8 @@ import CompanyFinancialMetrics from "@/components/company/dashboard/CompanyFinan
 import { isConsumingReservation } from "@/lib/utils/stockRules";
 import { buildProvinceBreakdownByUnit } from "@/lib/utils/unitSeries";
 import type { ProvinceUnitRow } from "@/lib/utils/unitSeries";
+import { settleRead } from "@/lib/utils/settleRead";
+import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 
 export default async function CompanyDashboardPage() {
   const user = await getCurrentUser();
@@ -39,13 +41,19 @@ export default async function CompanyDashboardPage() {
   const supabase = await createClient();
 
   // ─── Profil entreprise ───────────────────────────────────────────────────────
-  const { data: company } = await supabase
+  const { data: company, error: companyError } = await supabase
     .from("companies")
     .select(
       "id, name, slug, description, address, city, phone, email, verification_status, logo_url, provinces(name), countries(name)"
     )
     .eq("id", resolvedCompanyId)
     .maybeSingle();
+
+  // Une panne ne doit pas s'afficher comme un compte sans société.
+  if (companyError) {
+    console.error("Erreur chargement société (dashboard):", companyError);
+    throw new Error("Lecture de la société impossible");
+  }
 
   if (!company?.id) {
     return <CompanyAccountMissing />;
@@ -71,8 +79,8 @@ export default async function CompanyDashboardPage() {
     campaignsResult,
     trendResult,
     geoResult,
-    activeDemands,
-    recentOrders,
+    activeDemandsRead,
+    recentOrdersRead,
     financialOrdersResult,
   ] = await Promise.all([
     supabase
@@ -121,8 +129,9 @@ export default async function CompanyDashboardPage() {
       .order("created_at", { ascending: false })
       .limit(500),
 
-    getCompanyGeneralDemands(companyId),
-    getCompanyOrders(companyId),
+    // Chaque bloc reste affiché si une seule lecture échoue (anti faux zéro).
+    settleRead(getCompanyGeneralDemands(companyId), []),
+    settleRead(getCompanyOrders(companyId), []),
     // Requête dédiée aux métriques financières : léger, sans limite de résultats,
     // garantit l'exhaustivité de l'historique pour les calculs CDF/USD.
     getCompanyOrdersForFinancials(companyId),
@@ -147,6 +156,9 @@ export default async function CompanyDashboardPage() {
   };
 
   // ─── Demandes ────────────────────────────────────────────────────────────────
+  const activeDemands = activeDemandsRead.data;
+  const recentOrders = recentOrdersRead.data;
+  const activityReadFailed = activeDemandsRead.failed || recentOrdersRead.failed;
   const unansweredDemands = activeDemands.filter(
     (d) => !d.my_response || d.my_response === null
   );
@@ -155,6 +167,7 @@ export default async function CompanyDashboardPage() {
     totalActive: activeDemands.length,
     needingResponse: unansweredDemands.length,
     demandedByUnit: sumByUnit(activeDemands, (d) => d.quantity, (d) => d.unit),
+    error: activeDemandsRead.failed ? "chargement des demandes impossible" : null,
   };
 
   // ─── Campagnes ───────────────────────────────────────────────────────────────
@@ -310,16 +323,28 @@ export default async function CompanyDashboardPage() {
   }
 
   // Priorité 4 — Message neutre si aucune alerte n'a été générée
+  // « Tout est à jour » serait faux si les sources de ces alertes n'ont pas pu être lues.
   if (dashboardAlerts.length === 0) {
-    dashboardAlerts.push({
-      id: "welcome",
-      type: "welcome",
-      message:
-        "Tout est à jour. Votre exploitation est opérationnelle sur Radiza.",
-    });
+    dashboardAlerts.push(
+      campaignsError || recentOrdersRead.failed
+        ? {
+            id: "partial-data",
+            type: "welcome",
+            message: "Certaines données sont temporairement indisponibles.",
+          }
+        : {
+            id: "welcome",
+            type: "welcome",
+            message:
+              "Tout est à jour. Votre exploitation est opérationnelle sur Radiza.",
+          }
+    );
   }
 
   // ─── Tendance demandes (graphique) ───────────────────────────────────────────
+  if (trendResult.error) {
+    console.error("Erreur chargement tendance des demandes (dashboard):", trendResult.error);
+  }
   const demandsTrendRaw = trendResult.data || [];
   const productsMap = new Map<string, string>();
   demandsTrendRaw.forEach((d: any) => {
@@ -344,6 +369,9 @@ export default async function CompanyDashboardPage() {
   // ─── Géographie demandes ─────────────────────────────────────────────────────
   // BR-FIN-04 : ventilation par (province, unité). Aucune addition entre unités
   // différentes, aucune conversion ; les pourcentages sont calculés dans chaque unité.
+  if (geoResult.error) {
+    console.error("Erreur chargement demandes par région (dashboard):", geoResult.error);
+  }
   const geoRaw = geoResult.data || [];
   const demandsByProvince = new Map<string, DemandItem[]>();
   const geoRows: ProvinceUnitRow[] = [];
@@ -442,6 +470,14 @@ export default async function CompanyDashboardPage() {
         alerts={dashboardAlerts}
       />
 
+      {/* Ces cartes signalent une panne sans proposer d'action : la relance est ici. */}
+      {(productionsError || campaignsError || financialOrdersResult.error) && (
+        <DataUnavailableNotice title="Certaines données sont temporairement indisponibles">
+          Les informations affichées sont à jour. Les éléments marqués comme indisponibles
+          n&apos;ont pas pu être chargés.
+        </DataUnavailableNotice>
+      )}
+
       {/* 4 cartes KPI */}
       <CompanyOverviewMetrics
         productionsStats={productionsStats}
@@ -458,21 +494,31 @@ export default async function CompanyDashboardPage() {
       />
 
       {/* Alertes métier urgentes */}
-      <CompanyPendingActions actions={pendingActions} />
+      {/* « Aucune action urgente » serait faux si les demandes ou les commandes manquent. */}
+      {(pendingActions.length > 0 || !activityReadFailed) && (
+        <CompanyPendingActions actions={pendingActions} />
+      )}
 
       {/* Graphiques côte à côte */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <CompanyDemandTrendChart
           demands={trendDemands}
           availableProducts={availableProducts}
+          unavailable={Boolean(trendResult.error)}
         />
-        <CompanyDemandGeoChart provincesData={provincesData} unitTotals={geoUnitTotals} />
+        <CompanyDemandGeoChart
+          provincesData={provincesData}
+          unitTotals={geoUnitTotals}
+          unavailable={Boolean(geoResult.error)}
+        />
       </div>
 
       {/* Activité récente */}
       <CompanyRecentActivity
         recentDemands={activeDemands.slice(0, 4)}
         recentOrders={recentOrders.slice(0, 4)}
+        demandsUnavailable={activeDemandsRead.failed}
+        ordersUnavailable={recentOrdersRead.failed}
       />
     </div>
   );

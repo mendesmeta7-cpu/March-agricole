@@ -29,6 +29,7 @@ export interface CompanyOverviewMetricsProps {
     needingResponse: number;
     /** Volumes exprimés, ventilés par unité (jamais additionnés entre unités). */
     demandedByUnit: Record<string, number>;
+    error?: string | null;
   };
   campaignsStats: {
     activeCount: number;
@@ -240,6 +241,7 @@ export default function CompanyOverviewMetrics({
             },
           ]}
           footer="Intentions d'achat des revendeurs"
+          error={demandsStats.error}
         />
 
         {/* 3. Campagnes */}

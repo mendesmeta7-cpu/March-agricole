@@ -311,7 +311,7 @@ export default function ResellerDemandsView({
           <p className="leading-relaxed">
             <strong>Cycle de vie transparent :</strong> 1. Vous publiez un besoin général ou ciblez une production.
             2. Les producteurs qualifiés vous soumettent des propositions chiffrées (quantité, prix ferme).
-            3. Vous choisissez la proposition id\u00e9ale pour passer une commande ferme avec garantie de stock.
+            3. Vous choisissez la proposition idéale pour passer une commande ferme avec garantie de stock.
           </p>
         </div>
       </div>

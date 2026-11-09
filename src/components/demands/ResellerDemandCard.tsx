@@ -174,12 +174,13 @@ export default function ResellerDemandCard({
       </div>
 
       {/* Footer Actions */}
-      <div className="p-3 sm:px-4 bg-gray-50/80 border-t border-gray-100 flex items-center justify-between gap-2 text-xs">
-        <span className="text-[11px] text-gray-400 font-medium truncate">
+      <div className="p-3 sm:px-4 bg-gray-50/80 border-t border-gray-100 flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-xs">
+        <span className="mr-auto text-[11px] text-gray-400 font-medium whitespace-nowrap">
           {formatDate(demand.created_at)}
         </span>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Les actions passent à la ligne quand la carte est étroite : rien n'est coupé */}
+        <div className="contents">
           {/* Bouton Détails */}
           <button
             type="button"

@@ -256,7 +256,7 @@ export default function ResellerProfileView({
           {/* Avatar + Identité principale */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5">
             {/* Conteneur Avatar */}
-            <div className="relative group shrink-0">
+            <div className="relative group shrink-0 w-fit">
               <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-forest-100 text-forest-800 border-2 border-forest-200/80 shadow-md flex items-center justify-center font-bold text-2xl sm:text-3xl overflow-hidden">
                 {avatarUrl ? (
                   <img
@@ -376,7 +376,7 @@ export default function ResellerProfileView({
         </div>
 
         {/* 4. Bandeau de statistiques rapides réelles (0 Mock Data) */}
-        <div className="pt-4 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <div className="pt-4 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
           <div className="p-3 rounded-2xl bg-gray-50/80 border border-gray-100/80 space-y-0.5">
             <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wider block">
               Commandes Fermes
@@ -395,22 +395,12 @@ export default function ResellerProfileView({
             </span>
           </div>
 
-          <div className="p-3 rounded-2xl bg-gray-50/80 border border-gray-100/80 space-y-0.5">
+          <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-gray-50/80 border border-gray-100/80 space-y-0.5">
             <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wider block">
-              Région Pivot
+              Région principale
             </span>
             <span className="text-sm font-bold text-gray-950 truncate block">
               {provinceName}
-            </span>
-          </div>
-
-          <div className="p-3 rounded-2xl bg-gray-50/80 border border-gray-100/80 space-y-0.5">
-            <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wider block">
-              Statut Sécurité
-            </span>
-            <span className="text-sm font-bold text-emerald-700 flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Vérifié SSR
             </span>
           </div>
         </div>
@@ -522,7 +512,7 @@ export default function ResellerProfileView({
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-gray-900 tracking-tight">
-                    Territoire d&apos;Opération Pivot
+                    Territoire principal d&apos;intervention
                   </h2>
                   <p className="text-xs text-gray-500">
                     Détermine l&apos;éligibilité territoriale aux offres de récoltes
@@ -561,7 +551,7 @@ export default function ResellerProfileView({
 
               <div className="p-3.5 rounded-2xl bg-earth-50 border border-earth-200/80 space-y-1">
                 <span className="text-[10px] text-earth-800 uppercase font-bold tracking-wider block">
-                  Province Pivot
+                  Province principale
                 </span>
                 <span className="font-black text-earth-950 block truncate">
                   {provinceName}
@@ -630,7 +620,7 @@ export default function ResellerProfileView({
 
               <div className="space-y-1 pt-1 border-t border-gray-100">
                 <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider block">
-                  Identifiant Unique (UUID)
+                  Identifiant du compte
                 </span>
                 <div className="flex items-center justify-between p-2 rounded-xl bg-gray-50 border border-gray-200/80 font-mono text-[11px] text-gray-600">
                   <span className="truncate max-w-[190px]">{user.id}</span>

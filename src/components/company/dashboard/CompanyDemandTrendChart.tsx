@@ -4,6 +4,7 @@ import { useState, useMemo, useId } from "react";
 import { TrendingUp, Calendar } from "lucide-react";
 import EmptyState from "@/components/ui/EmptyState";
 import Select from "@/components/ui/Select";
+import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import {
   buildMonthlySeriesByUnit,
   countByMonth,
@@ -24,6 +25,8 @@ export interface DemandTrendPoint {
 export interface CompanyDemandTrendChartProps {
   demands: DemandTrendPoint[];
   availableProducts: { id: string; name: string }[];
+  /** La lecture a échoué : à distinguer d'une absence réelle de demande. */
+  unavailable?: boolean;
 }
 
 /**
@@ -54,6 +57,7 @@ function monthLabel(monthKey: string): string {
 export default function CompanyDemandTrendChart({
   demands,
   availableProducts,
+  unavailable = false,
 }: CompanyDemandTrendChartProps) {
   const gradientId = useId();
   const summaryId = useId();
@@ -182,6 +186,20 @@ export default function CompanyDemandTrendChart({
     activeHoverIndex !== null && paths.length > 0
       ? Math.min(...paths.map((p) => p.pts[activeHoverIndex].y))
       : 0;
+
+  if (unavailable) {
+    return (
+      <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-7 shadow-xs space-y-5">
+        <h3 className="text-base sm:text-lg font-bold text-gray-950 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-forest-700 shrink-0" />
+          Évolution de la Demande Exprimée
+        </h3>
+        <DataUnavailableNotice title="Graphique temporairement indisponible">
+          Les demandes n&apos;ont pas pu être chargées. Cela ne signifie pas qu&apos;il n&apos;y en a aucune.
+        </DataUnavailableNotice>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-7 shadow-xs space-y-5">

@@ -62,7 +62,7 @@ export async function getUserNotifications(
 
   if (error) {
     console.error("Erreur récupération notifications utilisateur:", error);
-    return { notifications: [], unreadCount: 0, totalCount: 0 };
+    throw new Error("Lecture des notifications impossible");
   }
 
   // Comptage des non-lues

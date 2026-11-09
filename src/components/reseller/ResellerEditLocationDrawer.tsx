@@ -81,7 +81,7 @@ export default function ResellerEditLocationDrawer({
         }
 
         toast.success("Territoire d'opération mis à jour", {
-          description: `Votre région pivot est désormais : ${selectedProvince?.name || "enregistrée"}.`,
+          description: `Votre région principale est désormais : ${selectedProvince?.name || "enregistrée"}.`,
         });
 
         onClose();
@@ -96,7 +96,7 @@ export default function ResellerEditLocationDrawer({
     <Drawer
       isOpen={isOpen}
       onClose={onClose}
-      title="Modifier le Territoire Pivot"
+      title="Modifier le Territoire principal"
       description="Définissez votre région de livraison principale et vos points de chute habituels."
       icon={<MapPin className="w-5 h-5 text-earth-700" />}
       size="md"

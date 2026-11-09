@@ -145,14 +145,14 @@ export default function ResellerOrderCard({
   return (
     <div className="bg-white rounded-2xl border border-gray-200/80 hover:border-forest-300 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col justify-between group">
       {/* 1. En-tête de la carte */}
-      <div className="p-3.5 sm:p-4 border-b border-gray-100 flex items-center justify-between gap-2 bg-gray-50/60">
+      <div className="p-3.5 sm:p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2 bg-gray-50/60">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-xl bg-forest-100 text-forest-800 flex items-center justify-center font-bold shrink-0">
             <ShoppingBag className="w-4 h-4" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-mono font-extrabold text-gray-950 truncate tracking-tight">
+              <span className="text-xs font-mono font-extrabold text-gray-950 whitespace-nowrap tracking-tight">
                 {order.order_number}
               </span>
               <button
@@ -176,7 +176,7 @@ export default function ResellerOrderCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
           <button
             type="button"
             onClick={handleQRClick}
@@ -186,7 +186,7 @@ export default function ResellerOrderCard({
           >
             <QrCode className="w-4 h-4" />
           </button>
-          <OrderStatusBadge status={order.status} size="sm" />
+          <OrderStatusBadge status={order.status} size="sm" compact />
         </div>
       </div>
 

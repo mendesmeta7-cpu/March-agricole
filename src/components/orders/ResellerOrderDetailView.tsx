@@ -367,7 +367,7 @@ export default function ResellerOrderDetailView({
 
                   <div className="flex items-center justify-between sm:justify-end gap-6 text-xs sm:text-right">
                     <div>
-                      <span className="text-gray-500 block text-[11px]">Prix Unitaire (Snapshot)</span>
+                      <span className="text-gray-500 block text-[11px]">Prix au moment de la commande</span>
                       <span className="font-semibold text-gray-800">
                         {item.unit_price.toLocaleString("fr-FR")} {order.currency}/{item.unit}
                       </span>

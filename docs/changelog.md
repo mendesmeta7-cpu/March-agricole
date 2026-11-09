@@ -3,6 +3,26 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [UXUI-LOT-2A] - 2026-11-09
+### Corrections UX/UI — Lot 2A : Faux Vides en Cas de Panne (ADR-049) — Local, Non Commité
+
+- **Requêtes de listes (RET-01)** : `orders`, `campaigns`, `productions`, `products`, `demands` et `notifications` ne transforment plus une erreur de lecture en liste vide ; l'erreur remonte aux frontières `error.tsx` existantes.
+- **Réessayer** : `RouteErrorView` relance réellement les lectures du serveur (`router.refresh()` puis `reset()`) ; `global-error` recharge la page, le routeur n'y étant pas disponible.
+- **Tableau de bord Société (RET-02)** : une lecture en échec n'efface plus les autres blocs. Graphiques, carte « Demandes reçues » et activité récente indiquent leur indisponibilité ; « Tout est à jour » et « Aucune action urgente » ne s'affichent plus si leurs sources manquent. Une société illisible n'est plus présentée comme un compte sans société.
+- **Lectures secondaires** : nouveaux `settleRead` et `DataUnavailableNotice`. Sur Campagnes, Productions, détail de production, Catalogue et Demandes, une panne de formulaire ou d'analyse est signalée sans faire disparaître la liste principale.
+- **Vérifications** : `tsc` 0 erreur, 58/58 tests unitaires, `npm run build` réussi dans le dossier du projet. 186/186 scénarios réussis sur vrai serveur Next et vrai Chrome, avec une base simulée hors du dépôt : données, vrai vide et panne pour 12 écrans, pannes isolées du tableau de bord, relances. Aucun test sur compte réel.
+
+## [UXUI-LOT-1] - 2026-11-09
+### Corrections UX/UI — Lot 1 : Mobile et Lisibilité (ADR-048) — Local, Non Commité
+
+- **Cartes mobiles** : prix et devise toujours entiers sur la carte de campagne (MOB-01) ; badges de la carte de campagne sans chevauchement, sur deux lignes si la carte est étroite, logique d'éligibilité inchangée ; référence de commande entière et statut court (MOB-02) ; actions de la carte de demande sur deux lignes au plus (MOB-03).
+- **Barre revendeur (MOB-04)** : Tableau de bord, Campagnes, Demandes, Commandes, Plus. Notifications et Mon profil passent dans le tiroir Plus ; le badge de notifications reste visible sur le bouton Plus. Libellés à 11 px, plus aucun défilement.
+- **Commandes reçues (MOB-05)** : bouton flottant de scan placé sous les modales et masqué pendant le scan.
+- **Profils (PRO-01)** : bouton photo posé sur l'avatar à toutes les largeurs.
+- **Textes (TXT-01, TXT-02)** : caractère mal encodé corrigé ; Région principale, Territoire principal, Territoire principal d'intervention, Province principale, Identifiant du compte, Prix au moment de la commande, Copier l'identifiant, Identifiant public ; statuts de réservation et de demande affichés en français ; mention « en base de données » retirée. « Vérifié SSR » supprimé. « Prêt pour S4 » devient « Prêt pour une production », pour les seuls produits actifs.
+- **Accueil et administration** : boutons d'accueil sur une ligne (LAN-01) ; référence de commande sur une ligne dans le tableau admin (ADM-03).
+- **Vérifications (2026-11-09)** : `tsc` 0 erreur, 58/58 tests unitaires, `npm run build` réussi dans le dossier du projet (code 0, 48 routes). Une première tentative avait échoué le 2026-11-07 parce qu'un `next dev` tournait en même temps sur le même `.next`. Rendu mesuré de 320 à 1 280 px sur les vrais composants, avec des données de test éphémères hors du dépôt. Aucun test sur compte réel.
+
 ## [VALIDATION-SQL-LOCALE] - 2026-11-06
 ### Premier Passage Réel des Migrations et Tests SQL — PostgreSQL 17.11 Local, Hors Supabase
 

@@ -23,6 +23,7 @@ export default function GlobalError({
           reset={reset}
           backHref="/"
           backLabel="Retour à l'accueil"
+          reloadPageOnRetry
         />
       </body>
     </html>

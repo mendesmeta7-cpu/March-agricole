@@ -89,23 +89,26 @@ export default function ResellerCampaignCard({
           {/* Dégradé doux pour lisibilité */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
 
-          {/* Badges d'angle gauche : Éligibilité territoriale */}
-          <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
-            {campaign.is_eligible ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600/95 backdrop-blur-xs text-white text-[11px] font-bold shadow-xs">
-                <Sparkles className="w-3 h-3" />
-                Votre province est desservie
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-900/85 backdrop-blur-xs text-gray-200 text-[11px] font-medium shadow-xs">
-                Non desservie
-              </span>
-            )}
-          </div>
+          {/* Badges du haut : ils passent sur deux lignes quand la carte est étroite */}
+          <div className="absolute top-3 inset-x-3 flex flex-wrap items-start justify-between gap-1.5">
+            {/* Éligibilité territoriale */}
+            <div className="flex flex-col gap-1.5 items-start">
+              {campaign.is_eligible ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600/95 backdrop-blur-xs text-white text-[11px] font-bold shadow-xs">
+                  <Sparkles className="w-3 h-3" />
+                  Votre province est desservie
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-900/85 backdrop-blur-xs text-gray-200 text-[11px] font-medium shadow-xs">
+                  Non desservie
+                </span>
+              )}
+            </div>
 
-          {/* Badge statut */}
-          <div className="absolute top-3 right-3">
-            <CampaignStatusBadge status={campaign.status} size="sm" />
+            {/* Badge statut */}
+            <div className="ml-auto">
+              <CampaignStatusBadge status={campaign.status} size="sm" />
+            </div>
           </div>
 
           {/* Catégorie du produit */}
@@ -155,14 +158,14 @@ export default function ResellerCampaignCard({
           </div>
 
           {/* Bloc financier & volumique réel */}
-          <div className="grid grid-cols-2 gap-2.5 p-3 rounded-xl bg-forest-50/50 border border-forest-100/90">
+          <div className="grid grid-cols-1 gap-2.5 p-3 rounded-xl bg-forest-50/50 border border-forest-100/90">
             <div>
               <span className="text-[10px] text-forest-700 block uppercase font-bold tracking-wider">
                 Prix Unitaire
               </span>
-              <span className="text-sm sm:text-base font-extrabold text-forest-950 flex items-center gap-1 mt-0.5">
+              <span className="text-sm sm:text-base font-extrabold text-forest-950 flex flex-wrap items-center gap-1 mt-0.5">
                 <Tag className="w-3.5 h-3.5 text-forest-700 shrink-0 inline" />
-                <span className="truncate">
+                <span className="whitespace-nowrap">
                   {campaign.unit_price.toLocaleString("fr-FR")} {campaign.currency}
                 </span>
                 <span className="text-[10px] font-normal text-forest-700">/{campaign.unit}</span>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, RotateCcw } from "lucide-react";
 import BrandLogo from "./BrandLogo";
@@ -13,7 +14,7 @@ import Button from "./Button";
  * - Jamais de message brut, de pile d'appels ni de détail technique affiché ;
  * - Seul `error.digest` (identifiant opaque généré par Next.js) est journalisé
  *   et proposé comme référence au support ;
- * - Bouton « Réessayer » branché sur `reset()` + lien de retour.
+ * - Bouton « Réessayer » qui relance réellement les lectures du serveur + lien de retour.
  */
 export interface RouteErrorViewProps {
   error: Error & { digest?: string };
@@ -24,6 +25,34 @@ export interface RouteErrorViewProps {
   scopeLabel?: string;
   /** Affichage dans un shell de dashboard (pas de logo, hauteur réduite) */
   compact?: boolean;
+  /** `global-error` : le routeur n'y est pas disponible, on recharge la page. */
+  reloadPageOnRetry?: boolean;
+}
+
+const RETRY_BUTTON_CLASS = "min-h-[44px]";
+const RETRY_ICON = <RotateCcw className="w-4 h-4" />;
+
+/** `reset()` seul ne relit pas les données d'un composant serveur : il faut aussi rafraîchir. */
+function ServerRetryButton({ reset }: { reset: () => void }) {
+  const router = useRouter();
+  const [isRetrying, startRetry] = useTransition();
+
+  return (
+    <Button
+      type="button"
+      isLoading={isRetrying}
+      onClick={() =>
+        startRetry(() => {
+          router.refresh();
+          reset();
+        })
+      }
+      leftIcon={RETRY_ICON}
+      className={RETRY_BUTTON_CLASS}
+    >
+      Réessayer
+    </Button>
+  );
 }
 
 export default function RouteErrorView({
@@ -33,6 +62,7 @@ export default function RouteErrorView({
   backLabel,
   scopeLabel,
   compact = false,
+  reloadPageOnRetry = false,
 }: RouteErrorViewProps) {
   useEffect(() => {
     // Journalisation minimale : uniquement l'identifiant opaque.
@@ -74,14 +104,18 @@ export default function RouteErrorView({
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button
-            type="button"
-            onClick={() => reset()}
-            leftIcon={<RotateCcw className="w-4 h-4" />}
-            className="min-h-[44px]"
-          >
-            Réessayer
-          </Button>
+          {reloadPageOnRetry ? (
+            <Button
+              type="button"
+              onClick={() => window.location.reload()}
+              leftIcon={RETRY_ICON}
+              className={RETRY_BUTTON_CLASS}
+            >
+              Réessayer
+            </Button>
+          ) : (
+            <ServerRetryButton reset={reset} />
+          )}
           <Link
             href={backHref}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] text-sm font-medium rounded-xl border border-gray-300/90 bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-600"
