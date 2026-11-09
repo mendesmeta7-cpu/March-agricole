@@ -3,6 +3,15 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [UXUI-LOT-2A] - 2026-11-09
+### Corrections UX/UI — Lot 2A : Faux Vides en Cas de Panne (ADR-049) — Local, Non Commité
+
+- **Requêtes de listes (RET-01)** : `orders`, `campaigns`, `productions`, `products`, `demands` et `notifications` ne transforment plus une erreur de lecture en liste vide ; l'erreur remonte aux frontières `error.tsx` existantes.
+- **Réessayer** : `RouteErrorView` relance réellement les lectures du serveur (`router.refresh()` puis `reset()`) ; `global-error` recharge la page, le routeur n'y étant pas disponible.
+- **Tableau de bord Société (RET-02)** : une lecture en échec n'efface plus les autres blocs. Graphiques, carte « Demandes reçues » et activité récente indiquent leur indisponibilité ; « Tout est à jour » et « Aucune action urgente » ne s'affichent plus si leurs sources manquent. Une société illisible n'est plus présentée comme un compte sans société.
+- **Lectures secondaires** : nouveaux `settleRead` et `DataUnavailableNotice`. Sur Campagnes, Productions, détail de production, Catalogue et Demandes, une panne de formulaire ou d'analyse est signalée sans faire disparaître la liste principale.
+- **Vérifications** : `tsc` 0 erreur, 58/58 tests unitaires, `npm run build` réussi dans le dossier du projet. 186/186 scénarios réussis sur vrai serveur Next et vrai Chrome, avec une base simulée hors du dépôt : données, vrai vide et panne pour 12 écrans, pannes isolées du tableau de bord, relances. Aucun test sur compte réel.
+
 ## [UXUI-LOT-1] - 2026-11-09
 ### Corrections UX/UI — Lot 1 : Mobile et Lisibilité (ADR-048) — Local, Non Commité
 

@@ -152,7 +152,7 @@ export async function getCompanyProductions(companyId: string): Promise<Producti
 
   if (error) {
     console.error("Erreur récupération productions de l'entreprise:", error);
-    return [];
+    throw new Error("Lecture des productions de la société impossible");
   }
 
   return (data || []).map((item: any) => {

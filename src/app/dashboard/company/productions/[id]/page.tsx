@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId, getCurrentUser } from "@/lib/auth/currentCompany";
 import CompanyAccountMissing from "@/components/company/CompanyAccountMissing";
 import { redirect, notFound } from "next/navigation";
+import { settleRead } from "@/lib/utils/settleRead";
+import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import { getProductionById } from "@/lib/queries/productions";
 import { getCompanyProducts } from "@/lib/queries/products";
 import { getProductionDemandsAnalysis } from "@/lib/queries/demands";
@@ -36,9 +38,9 @@ export default async function CompanyProductionDetailPage(props: ProductionDetai
     .single();
 
   // 2. Récupération conjointe : production, produits de l'entreprise et analyse des demandes
-  const [production, companyProducts, demandsAnalysis] = await Promise.all([
+  const [production, productsRead, demandsAnalysis] = await Promise.all([
     getProductionById(params.id, companyId),
-    getCompanyProducts(companyId),
+    settleRead(getCompanyProducts(companyId), []),
     getProductionDemandsAnalysis(params.id),
   ]);
 
@@ -47,11 +49,18 @@ export default async function CompanyProductionDetailPage(props: ProductionDetai
   }
 
   return (
-    <ProductionDetailView
-      production={production}
-      companyProducts={companyProducts}
-      companyName={company?.name || "Exploitation agricole"}
-      demandsAnalysis={demandsAnalysis}
-    />
+    <>
+      {productsRead.failed && (
+        <DataUnavailableNotice className="mb-4" title="Liste de produits indisponible">
+          Vos produits n&apos;ont pas pu être chargés. Réessayez avant de modifier cette production.
+        </DataUnavailableNotice>
+      )}
+      <ProductionDetailView
+        production={production}
+        companyProducts={productsRead.data}
+        companyName={company?.name || "Exploitation agricole"}
+        demandsAnalysis={demandsAnalysis}
+      />
+    </>
   );
 }

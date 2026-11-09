@@ -48,7 +48,7 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
 
   if (error) {
     console.error("Erreur récupération catalogue produits:", error);
-    return [];
+    throw new Error("Lecture du catalogue impossible");
   }
 
   return (data || []).map((item: any) => ({
@@ -71,7 +71,7 @@ export async function getAdminCatalogProducts(): Promise<CatalogProduct[]> {
 
   if (error) {
     console.error("Erreur récupération catalogue admin:", error);
-    return [];
+    throw new Error("Lecture du catalogue d'administration impossible");
   }
 
   return (data || []).map((item: any) => ({
@@ -123,7 +123,7 @@ export async function getCompanyProducts(companyId: string): Promise<CompanyProd
 
   if (error) {
     console.error("Erreur récupération produits entreprise:", error);
-    return [];
+    throw new Error("Lecture des produits de la société impossible");
   }
 
   // Normalisation du type retourné par Supabase

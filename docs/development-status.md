@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-11-09 — Lot 1 des corrections UX/UI réalisé localement (ADR-048), non commité.*
+*Dernière mise à jour : 2026-11-09 — Lots 1 et 2A des corrections UX/UI réalisés localement (ADR-048, ADR-049), non commités.*
 
 
 ---
@@ -79,7 +79,8 @@
 | **DÉCISIONS-A3-A13** | **Intégration des décisions métier validées** | 🟡 **LOCAL VALIDÉ — MIGRATION 31 NON APPLIQUÉE** | ADR-045 ; migration 31 + tests SQL comportementaux ; règles partagées interface/base ; écrans admin (A6). À valider sur l'environnement de test avec les migrations 29 et 30. |
 | **MIGRATION-032** | **Règles D1–D7, C1–C3, stock revendeur** | 🟡 **LOCAL FINALISÉ — MIGRATION 32 NON APPLIQUÉE** | ADR-046 ; migration 32 + tests SQL S0–S21 (non exécutés ; S12–S21 = corrections de la revue ciblée et finalisation : C-2, C-3/R-4 y compris date générale dépassée, D2 à toute réouverture, C-4, C-6 atomique, cascades, arbitrage C3 du 2026-11-04) ; interfaces campagnes/productions/stock/graphiques. 2026-11-04 : tsc 0 erreur, 58/58 tests unitaires, scripts locaux 11/11 (prompt4-2 : faux échec entre 00:00 et 02:00, voir changelog), build Next.js réussi, vérification statique 030/031/032 sans anomalie. Prérequis : environnement isolé, application 029→032, tests 030 → 031 → 032 dans cet ordre. |
 | **CLÔTURE-ADR-047** | **Réouverture, clôture et opérations techniques** | 🟡 **LOCAL — MIGRATIONS 32 ET 33 NON APPLIQUÉES** | ADR-047 ; statut d'origine, administrateur refusé, journal, opérations techniques, tâche `pg_cron` inactive ; 2026-11-06 : T1–T9, R0–R7 et S0–S33 réussis sur PostgreSQL 17.11 local avec imitation de Supabase ; 18 défauts injectés sur 18 détectés. Restent non validés : PostgREST réel, vrai `pg_cron`, projet hébergé. Procédure : `test-environment-setup.md` §9 et §10. |
-| **UXUI-LOT-1** | **Corrections UX/UI : mobile et lisibilité** | 🟡 **LOCAL — NON COMMITÉ, EN ATTENTE DE VALIDATION** | ADR-048 ; MOB-01 à 05, PRO-01, TXT-01, TXT-02, LAN-01, ADM-03. 2026-11-09 : tsc 0 erreur, 58/58 tests unitaires, `npm run build` réussi dans le dossier du projet. Restent à vérifier sur compte réel : espaces connectés et tiroir Plus. |
+| **UXUI-LOT-1** | **Corrections UX/UI : mobile et lisibilité** | 🟡 **LOCAL — VÉRIFIÉ MANUELLEMENT, NON COMMITÉ** | ADR-048 ; MOB-01 à 05, PRO-01, TXT-01, TXT-02, LAN-01, ADM-03. 2026-11-09 : tsc 0 erreur, 58/58 tests unitaires, `npm run build` réussi dans le dossier du projet. Vérification manuelle locale effectuée par le porteur du projet. Recette sur compte réel non réalisée. |
+| **UXUI-LOT-2A** | **Corrections UX/UI : faux vides en cas de panne** | 🟡 **LOCAL — NON COMMITÉ, EN ATTENTE DE VALIDATION** | ADR-049 ; RET-01, RET-02. 2026-11-09 : tsc 0 erreur, 58/58 tests unitaires, `npm run build` réussi, 186/186 scénarios sur banc hors dépôt avec base simulée. Reste à vérifier avec une vraie panne et un compte réel. |
 | **AUTH-7** | **Connexion avec Apple (OAuth)** | ⏳ **PLANIFIÉ (Phase ultérieure — Post AUTH-5)** | Intégration Sign in with Apple, gestion des alias privés et nom à la première connexion. |
 
 

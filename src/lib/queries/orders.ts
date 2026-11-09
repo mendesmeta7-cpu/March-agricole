@@ -249,7 +249,7 @@ export async function getResellerOrders(
 
   if (error) {
     console.error("Erreur récupération commandes revendeur:", error);
-    return [];
+    throw new Error("Lecture des commandes du revendeur impossible");
   }
 
   return (data || []).map((item: any) => formatOrderRecord(item));
@@ -512,7 +512,7 @@ export async function getCompanyOrders(
 
   if (error) {
     console.error("Erreur récupération commandes entreprise:", error);
-    return [];
+    throw new Error("Lecture des commandes de la société impossible");
   }
 
   return (data || []).map((item: any) => formatOrderRecord(item));

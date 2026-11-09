@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
+import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import type { DemandItem } from "@/lib/queries/demands";
 import type { OrderDetail } from "@/lib/queries/orders";
@@ -19,11 +20,16 @@ import type { OrderDetail } from "@/lib/queries/orders";
 export interface CompanyRecentActivityProps {
   recentDemands: DemandItem[];
   recentOrders: OrderDetail[];
+  /** Lecture en échec : à distinguer d'une absence réelle de demande ou de commande. */
+  demandsUnavailable?: boolean;
+  ordersUnavailable?: boolean;
 }
 
 export default function CompanyRecentActivity({
   recentDemands,
   recentOrders,
+  demandsUnavailable = false,
+  ordersUnavailable = false,
 }: CompanyRecentActivityProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -59,7 +65,11 @@ export default function CompanyRecentActivity({
           </div>
 
           {/* Contenu */}
-          {recentDemands.length === 0 ? (
+          {demandsUnavailable ? (
+            <DataUnavailableNotice className="mt-4" title="Demandes récentes indisponibles">
+              Elles n&apos;ont pas pu être chargées. Cela ne signifie pas qu&apos;il n&apos;y en a aucune.
+            </DataUnavailableNotice>
+          ) : recentDemands.length === 0 ? (
             <div className="py-8">
               <EmptyState
                 title="Aucune demande récente"
@@ -126,7 +136,11 @@ export default function CompanyRecentActivity({
 
         {/* Footer carte */}
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-          <span>{recentDemands.length} opportunité(s) de marché active(s)</span>
+          <span>
+            {demandsUnavailable
+              ? "Indisponible pour le moment"
+              : `${recentDemands.length} opportunité(s) de marché active(s)`}
+          </span>
           <Link
             href="/dashboard/company/demands"
             className="font-bold text-forest-700 hover:text-forest-800 inline-flex items-center gap-1 group"
@@ -169,7 +183,11 @@ export default function CompanyRecentActivity({
           </div>
 
           {/* Contenu */}
-          {recentOrders.length === 0 ? (
+          {ordersUnavailable ? (
+            <DataUnavailableNotice className="mt-4" title="Commandes récentes indisponibles">
+              Elles n&apos;ont pas pu être chargées. Cela ne signifie pas qu&apos;il n&apos;y en a aucune.
+            </DataUnavailableNotice>
+          ) : recentOrders.length === 0 ? (
             <div className="py-8">
               <EmptyState
                 title="Aucune commande enregistrée"
@@ -234,7 +252,11 @@ export default function CompanyRecentActivity({
 
         {/* Footer carte */}
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-          <span>{recentOrders.length} commande(s) répertoriée(s)</span>
+          <span>
+            {ordersUnavailable
+              ? "Indisponible pour le moment"
+              : `${recentOrders.length} commande(s) répertoriée(s)`}
+          </span>
           <Link
             href="/dashboard/company/orders"
             className="font-bold text-forest-700 hover:text-forest-800 inline-flex items-center gap-1 group"

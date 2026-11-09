@@ -319,7 +319,7 @@ export async function getCompanyCampaigns(
 
   if (error) {
     console.error("Erreur récupération campagnes entreprise:", error);
-    return [];
+    throw new Error("Lecture des campagnes de la société impossible");
   }
 
   return (data || []).map((item: any) => {
@@ -397,7 +397,7 @@ export async function getCompanyEligibleProductions(
 
   if (error) {
     console.error("Erreur récupération productions éligibles:", error);
-    return [];
+    throw new Error("Lecture des productions éligibles impossible");
   }
 
   const productionIds = (data || []).map((item: any) => item.id as string);
@@ -689,7 +689,7 @@ export async function getResellerCampaigns(
 
   if (error) {
     console.error("Erreur récupération campagnes revendeur:", error);
-    return [];
+    throw new Error("Lecture des campagnes du revendeur impossible");
   }
 
   // Règle 6 & Phase 28 : Fin automatique des campagnes ayant atteint end_date ou dont toutes les destinations sont expirées

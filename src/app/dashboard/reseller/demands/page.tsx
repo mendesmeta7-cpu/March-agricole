@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { settleRead } from "@/lib/utils/settleRead";
+import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import { getResellerDemands } from "@/lib/queries/demands";
 import { getCatalogProducts } from "@/lib/queries/products";
 import ResellerDemandsView from "@/components/demands/ResellerDemandsView";
@@ -20,9 +22,9 @@ export default async function ResellerDemandsPage() {
     .maybeSingle();
 
   // 2. Chargement simultané des données réelles
-  const [demands, catalogProducts, countriesRes, provincesRes, companiesRes] = await Promise.all([
+  const [demands, catalogRead, countriesRes, provincesRes, companiesRes] = await Promise.all([
     getResellerDemands(user.id),
-    getCatalogProducts(),
+    settleRead(getCatalogProducts(), []),
     supabase.from("countries").select("id, code, name, currency_code").eq("is_active", true).order("name"),
     supabase.from("provinces").select("id, country_id, code, name").order("name"),
     supabase.from("companies").select("id, name").eq("is_active", true).order("name"),
@@ -33,15 +35,23 @@ export default async function ResellerDemandsPage() {
   const companies = companiesRes.data || [];
 
   return (
-    <ResellerDemandsView
-      initialDemands={demands}
-      catalogProducts={catalogProducts}
-      provinces={provinces}
-      countries={countries}
-      companies={companies}
-      resellerProvinceId={reseller?.province_id}
-      resellerCountryId={reseller?.country_id}
-      businessName={reseller?.business_name}
-    />
+    <>
+      {catalogRead.failed && (
+        <DataUnavailableNotice className="mb-4" title="Catalogue de produits indisponible">
+          Vos demandes sont affichées, mais le catalogue n&apos;a pas pu être chargé. Réessayez
+          avant de publier une nouvelle demande.
+        </DataUnavailableNotice>
+      )}
+      <ResellerDemandsView
+        initialDemands={demands}
+        catalogProducts={catalogRead.data}
+        provinces={provinces}
+        countries={countries}
+        companies={companies}
+        resellerProvinceId={reseller?.province_id}
+        resellerCountryId={reseller?.country_id}
+        businessName={reseller?.business_name}
+      />
+    </>
   );
 }

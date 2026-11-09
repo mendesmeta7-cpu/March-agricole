@@ -12,6 +12,7 @@ import Drawer from "@/components/ui/Drawer";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
+import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import { DemandItem } from "@/lib/queries/demands";
 import {
   formatQuantity,
@@ -36,6 +37,8 @@ export interface CompanyDemandGeoChartProps {
   provincesData: ProvinceDemandData[];
   /** Totaux du marché par unité (une ligne par unité, jamais additionnées). */
   unitTotals: UnitTotal[];
+  /** La lecture a échoué : à distinguer d'une absence réelle de demande. */
+  unavailable?: boolean;
 }
 
 /**
@@ -101,12 +104,27 @@ function getRankStyle(index: number) {
 export default function CompanyDemandGeoChart({
   provincesData,
   unitTotals,
+  unavailable = false,
 }: CompanyDemandGeoChartProps) {
   const [selectedProvince, setSelectedProvince] =
     useState<ProvinceDemandData | null>(null);
 
   const hasData = provincesData.length > 0;
   const isMultiUnit = unitTotals.length > 1;
+
+  if (unavailable) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-6 shadow-sm flex flex-col space-y-5">
+        <h3 className="text-base font-bold text-gray-950 flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-forest-700 shrink-0" />
+          Demandes par région
+        </h3>
+        <DataUnavailableNotice title="Graphique temporairement indisponible">
+          Les demandes n&apos;ont pas pu être chargées. Cela ne signifie pas qu&apos;il n&apos;y en a aucune.
+        </DataUnavailableNotice>
+      </div>
+    );
+  }
 
   return (
     <>

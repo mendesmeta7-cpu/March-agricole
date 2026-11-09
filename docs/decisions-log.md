@@ -740,3 +740,13 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
   - **« Vérifié SSR »** : texte fixe affiché à tout revendeur, lié à aucune donnée et absent de la documentation. Il n'apporte aucune information : la mention est supprimée, sans remplacement ;
   - **« Prêt pour S4 »** : S4 désigne la phase de développement « Productions & Récoltes Société », sans sens métier. La mention devient « Prêt pour une production », affichée pour les seuls produits actifs, car un produit archivé ne peut pas recevoir de production.
 * **Fichiers** : `src/components/reseller/ResellerBottomNav.tsx`, `src/components/demands/ResellerDemandCard.tsx`, `src/components/reseller/ResellerProfileView.tsx`, `src/components/reseller/ResellerProfileTerritoryCard.tsx`, `src/components/reseller/ResellerEditLocationDrawer.tsx`, `src/components/products/CompanyProductCard.tsx`, `src/components/orders/CompanyOrderDetailView.tsx`, `src/components/demands/CompanyDemandDetailView.tsx`.
+
+### ADR-049 : Pannes de Lecture et Faux Vides (Lot 2A UX/UI)
+* **Date** : 2026-11-09 | **Statut** : Périmètre validé par le porteur du projet — implémentation locale, non commitée
+* **Décisions** :
+  - **une panne n'est jamais une liste vide** : les lectures de listes lèvent une erreur au lieu de renvoyer `[]` ;
+  - **lecture principale en échec** : la frontière `error.tsx` existante affiche l'indisponibilité et « Réessayer » ;
+  - **lecture secondaire en échec** (formulaire, analyse, bloc du tableau de bord) : elle est isolée par `settleRead` et signalée par `DataUnavailableNotice`, la page reste utilisable ;
+  - **« Réessayer »** enchaîne `router.refresh()` et `reset()`, car `reset()` seul ne relit pas les composants serveur ;
+  - **aucune politique RLS modifiée**, aucune migration.
+* **Laissé en l'état** : `getUnreadNotificationCount` renvoie 0 en cas d'erreur, car le lever ferait tomber tout le layout pour un simple badge.
