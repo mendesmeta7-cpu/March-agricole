@@ -46,14 +46,14 @@ export default function HomePage() {
         </p>
 
         {/* Deux actions principales exclusives */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-5 max-w-md mx-auto w-full">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-5 max-w-md sm:max-w-none mx-auto w-full">
           {/* Action 1 : Se connecter */}
           <Link
             href="/login"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-forest-700 hover:bg-forest-800 active:scale-[0.99] text-white font-bold text-sm sm:text-base shadow-md shadow-forest-900/15 hover:shadow-lg transition-all min-h-[48px] focus:outline-none focus:ring-2 focus:ring-forest-600 focus:ring-offset-2"
           >
             <LogIn className="w-5 h-5 flex-shrink-0" />
-            <span>Se connecter</span>
+            <span className="whitespace-nowrap">Se connecter</span>
             <ArrowRight className="w-4 h-4 ml-0.5 opacity-80" />
           </Link>
 
@@ -63,7 +63,7 @@ export default function HomePage() {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-white hover:bg-forest-50/90 active:scale-[0.99] border-2 border-forest-600/90 hover:border-forest-700 text-forest-900 font-bold text-sm sm:text-base shadow-2xs hover:shadow-sm transition-all min-h-[48px] focus:outline-none focus:ring-2 focus:ring-forest-600 focus:ring-offset-2"
           >
             <UserPlus className="w-5 h-5 text-forest-700 flex-shrink-0" />
-            <span>Créer un compte</span>
+            <span className="whitespace-nowrap">Créer un compte</span>
             <ArrowRight className="w-4 h-4 ml-0.5 opacity-70" />
           </Link>
         </div>

@@ -728,3 +728,15 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
 * **Risque préexistant non traité** : droits d'écriture de l'administrateur sur les campagnes, voir `docs/security-rules.md` §8.
 * **Rotation du mot de passe administrateur (2026-11-06)** : effectuée, testée et confirmée par le porteur du projet ; clé temporaire révoquée.
 * **Fichiers** : migrations 32 et 33, `supabase/tests/{security_hardening_030,business_rules_032,schedule_033}_test.sql`, `src/components/feed/ResellerProductionDetailActions.tsx`.
+
+### ADR-048 : Barre Mobile Revendeur et Libellés Visibles (Lot 1 UX/UI)
+* **Date** : 2026-11-07 | **Statut** : Décisions validées par le porteur du projet — implémentation locale, non commitée
+* **Décisions** :
+  - **barre mobile revendeur** à cinq entrées : Tableau de bord, Campagnes, Demandes, Commandes, Plus. Notifications et Mon profil passent dans Plus, avec badge. L'ancienne consigne de code « aucun raccourcissement » n'avait pas d'ADR et est retirée ;
+  - **actions des cartes de demande** sur deux lignes, sans menu supplémentaire ;
+  - **libellés** : Région pivot devient Région principale ; Territoire Pivot devient Territoire principal ; Territoire d'Opération Pivot devient Territoire principal d'intervention ; Province Pivot devient Province principale ; Identifiant Unique (UUID) devient Identifiant du compte ; Snapshot devient Prix au moment de la commande ; Copier le slug devient Copier l'identifiant ; Identifiant Slug Public devient Identifiant public ;
+  - **statuts techniques** présentés en français : réservation Active, Libérée, Confirmée ; demande Convertie en commande, Annulée, Expirée.
+* **Réserves vérifiées avant décision** :
+  - **« Vérifié SSR »** : texte fixe affiché à tout revendeur, lié à aucune donnée et absent de la documentation. Il n'apporte aucune information : la mention est supprimée, sans remplacement ;
+  - **« Prêt pour S4 »** : S4 désigne la phase de développement « Productions & Récoltes Société », sans sens métier. La mention devient « Prêt pour une production », affichée pour les seuls produits actifs, car un produit archivé ne peut pas recevoir de production.
+* **Fichiers** : `src/components/reseller/ResellerBottomNav.tsx`, `src/components/demands/ResellerDemandCard.tsx`, `src/components/reseller/ResellerProfileView.tsx`, `src/components/reseller/ResellerProfileTerritoryCard.tsx`, `src/components/reseller/ResellerEditLocationDrawer.tsx`, `src/components/products/CompanyProductCard.tsx`, `src/components/orders/CompanyOrderDetailView.tsx`, `src/components/demands/CompanyDemandDetailView.tsx`.

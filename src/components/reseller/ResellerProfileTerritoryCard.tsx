@@ -33,7 +33,7 @@ export default function ResellerProfileTerritoryCard({
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
           <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
             <MapPin className="w-5 h-5 text-earth-700" />
-            Territoire d&apos;Opération Pivot (Éligibilité aux Campagnes)
+            Territoire principal d&apos;intervention (Éligibilité aux Campagnes)
           </h2>
           <button
             type="button"

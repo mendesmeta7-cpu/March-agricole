@@ -35,7 +35,7 @@ export default async function AdminOrdersPage(props: PageProps) {
       key: "number",
       header: "N° de commande",
       cell: (row) => (
-        <span className="font-semibold text-gray-950 font-mono text-xs sm:text-sm break-all">
+        <span className="font-semibold text-gray-950 font-mono text-xs sm:text-sm whitespace-nowrap">
           {row.orderNumber}
         </span>
       ),

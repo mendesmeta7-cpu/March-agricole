@@ -53,6 +53,12 @@ const STEPS: { status: OrderStatus; label: string; icon: any }[] = [
   { status: "delivered", label: "Livrée", icon: CheckCheck },
 ];
 
+const STOCK_RESERVATION_STATUS_LABELS: Record<string, string> = {
+  active: "Active",
+  released: "Libérée",
+  confirmed: "Confirmée",
+};
+
 function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -516,7 +522,7 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
                   Montant Total de la Commande
                 </span>
                 <span className="text-[11px] text-forest-700">
-                  Engagement commercial ferme enregistré en base de données
+                  Engagement commercial ferme enregistré
                 </span>
               </div>
               <span className="text-xl font-black text-forest-950 font-mono">
@@ -541,7 +547,10 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
                 </p>
                 <div className="pt-1.5 flex items-center gap-4 text-xs font-semibold text-blue-800">
                   <span>
-                    Statut : <strong>{order.stock_reservation?.status || "active"}</strong>
+                    Statut :{" "}
+                    <strong>
+                      {STOCK_RESERVATION_STATUS_LABELS[order.stock_reservation?.status || "active"]}
+                    </strong>
                   </span>
                   <span>
                     Quantité réservée :{" "}

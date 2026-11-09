@@ -3,6 +3,17 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [UXUI-LOT-1] - 2026-11-09
+### Corrections UX/UI — Lot 1 : Mobile et Lisibilité (ADR-048) — Local, Non Commité
+
+- **Cartes mobiles** : prix et devise toujours entiers sur la carte de campagne (MOB-01) ; badges de la carte de campagne sans chevauchement, sur deux lignes si la carte est étroite, logique d'éligibilité inchangée ; référence de commande entière et statut court (MOB-02) ; actions de la carte de demande sur deux lignes au plus (MOB-03).
+- **Barre revendeur (MOB-04)** : Tableau de bord, Campagnes, Demandes, Commandes, Plus. Notifications et Mon profil passent dans le tiroir Plus ; le badge de notifications reste visible sur le bouton Plus. Libellés à 11 px, plus aucun défilement.
+- **Commandes reçues (MOB-05)** : bouton flottant de scan placé sous les modales et masqué pendant le scan.
+- **Profils (PRO-01)** : bouton photo posé sur l'avatar à toutes les largeurs.
+- **Textes (TXT-01, TXT-02)** : caractère mal encodé corrigé ; Région principale, Territoire principal, Territoire principal d'intervention, Province principale, Identifiant du compte, Prix au moment de la commande, Copier l'identifiant, Identifiant public ; statuts de réservation et de demande affichés en français ; mention « en base de données » retirée. « Vérifié SSR » supprimé. « Prêt pour S4 » devient « Prêt pour une production », pour les seuls produits actifs.
+- **Accueil et administration** : boutons d'accueil sur une ligne (LAN-01) ; référence de commande sur une ligne dans le tableau admin (ADM-03).
+- **Vérifications (2026-11-09)** : `tsc` 0 erreur, 58/58 tests unitaires, `npm run build` réussi dans le dossier du projet (code 0, 48 routes). Une première tentative avait échoué le 2026-11-07 parce qu'un `next dev` tournait en même temps sur le même `.next`. Rendu mesuré de 320 à 1 280 px sur les vrais composants, avec des données de test éphémères hors du dépôt. Aucun test sur compte réel.
+
 ## [VALIDATION-SQL-LOCALE] - 2026-11-06
 ### Premier Passage Réel des Migrations et Tests SQL — PostgreSQL 17.11 Local, Hors Supabase
 

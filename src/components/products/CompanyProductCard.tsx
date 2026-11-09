@@ -168,9 +168,12 @@ export default function CompanyProductCard({
               </span>
             </div>
           ) : (
-            <div className="px-3 py-1.5 rounded-xl bg-gray-50 border border-dashed border-gray-200 text-xs flex items-center justify-between text-gray-500">
+            <div className="px-3 py-1.5 rounded-xl bg-gray-50 border border-dashed border-gray-200 text-xs flex flex-wrap items-center justify-between gap-x-2 text-gray-500">
               <span className="text-[11px]">Aucun cycle cultural rattaché</span>
-              <span className="text-[10px] text-forest-700 font-medium">Prêt pour S4</span>
+              {/* Un produit archivé ne peut pas recevoir de production (createProductionAction) */}
+              {item.is_active && (
+                <span className="text-[10px] text-forest-700 font-medium">Prêt pour une production</span>
+              )}
             </div>
           )}
 

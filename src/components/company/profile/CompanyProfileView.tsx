@@ -136,7 +136,7 @@ export default function CompanyProfileView({
       setCopiedSlug(true);
       setTimeout(() => setCopiedSlug(false), 2000);
       toast.info("Identifiant copié", {
-        description: `Slug @${company.slug} copié dans le presse-papier.`,
+        description: `Identifiant @${company.slug} copié dans le presse-papier.`,
       });
     } catch {
       // Ignorer
@@ -198,7 +198,7 @@ export default function CompanyProfileView({
           {/* Logo officiel + Identité principale */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5">
             {/* Conteneur Logo avec bouton appareil photo */}
-            <div className="relative group shrink-0">
+            <div className="relative group shrink-0 w-fit">
               <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-forest-100 text-forest-800 border-2 border-forest-200/80 shadow-md flex items-center justify-center font-bold text-2xl overflow-hidden">
                 {company.logo_url ? (
                   <img
@@ -280,7 +280,7 @@ export default function CompanyProfileView({
               onClick={handleCopySlug}
               leftIcon={copiedSlug ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
             >
-              {copiedSlug ? "Identifiant copié" : "Copier le slug"}
+              {copiedSlug ? "Identifiant copié" : "Copier l'identifiant"}
             </Button>
 
             <Button
@@ -449,7 +449,7 @@ export default function CompanyProfileView({
 
                   <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100">
                     <span className="text-xs text-gray-500 uppercase font-semibold block">
-                      Identifiant Slug Public
+                      Identifiant public
                     </span>
                     <span className="text-gray-900 font-mono text-sm font-bold mt-1 block">
                       {company.slug}

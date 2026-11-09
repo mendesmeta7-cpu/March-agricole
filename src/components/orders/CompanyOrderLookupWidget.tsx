@@ -199,6 +199,7 @@ export default function CompanyOrderLookupWidget({
 
       {/* Bouton Caméra Mobile Fixe Flottant — Rendu directement dans document.body via Portal pour garantir une fixation 100% stable au viewport sur iOS et Android, sans interférence de conteneur overflow-hidden */}
       {mounted &&
+        !isScannerOpen &&
         createPortal(
           <button
             type="button"
@@ -207,7 +208,7 @@ export default function CompanyOrderLookupWidget({
               setIsScannerOpen(true);
             }}
             aria-label="Scanner un QR code"
-            className="sm:hidden fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-50 px-4 py-3 text-xs font-bold text-forest-950 bg-emerald-400 hover:bg-emerald-300 active:scale-95 rounded-full transition-all shadow-2xl flex items-center justify-center gap-2 shrink-0 border border-emerald-300/80 ring-2 ring-forest-950/20 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            className="sm:hidden fixed right-4 bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] z-30 px-4 py-3 text-xs font-bold text-forest-950 bg-emerald-400 hover:bg-emerald-300 active:scale-95 rounded-full transition-all shadow-2xl flex items-center justify-center gap-2 shrink-0 border border-emerald-300/80 ring-2 ring-forest-950/20 focus:outline-none focus:ring-2 focus:ring-emerald-400"
           >
             <Camera className="w-4 h-4 text-forest-950 group-hover:rotate-6 transition-transform shrink-0" />
             <span className="font-bold">Scanner un QR</span>

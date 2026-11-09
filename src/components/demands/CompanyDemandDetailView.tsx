@@ -7,6 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Select from "@/components/ui/Select";
+import { DEMAND_STATUS_LABELS } from "@/components/admin/adminFormat";
 import {
   ArrowLeft,
   Send,
@@ -232,7 +233,9 @@ export default function CompanyDemandDetailView({
         description={`Expression de besoin reçue pour ${demand.quantity.toLocaleString("fr-FR")} ${demand.unit} à destination de ${demand.province?.name || "Région"}.`}
         badge={
           <Badge variant={demand.status === "active" ? "forest" : "neutral"}>
-            {demand.status === "active" ? "Demande en attente d'offres" : `Statut : ${demand.status}`}
+            {demand.status === "active"
+              ? "Demande en attente d'offres"
+              : `Statut : ${DEMAND_STATUS_LABELS[demand.status]}`}
           </Badge>
         }
       />

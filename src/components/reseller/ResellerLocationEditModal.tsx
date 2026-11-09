@@ -91,7 +91,7 @@ export default function ResellerLocationEditModal({
             <div>
               <h2 className="text-base font-bold">Modifier le Territoire d&apos;Opération</h2>
               <span className="text-xs text-earth-200">
-                Paramétrage de votre région pivot d&apos;achat
+                Paramétrage de votre région principale d&apos;achat
               </span>
             </div>
           </div>

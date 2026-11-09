@@ -361,7 +361,7 @@ export default function ResellerOrderDetailDrawer({
                 Total Contractuel Engagé
               </span>
               <span className="text-[10px] text-forest-700">
-                Snapshot immuable enregistré à la commande
+                Prix au moment de la commande
               </span>
             </div>
             <span className="text-base font-black text-forest-950">
