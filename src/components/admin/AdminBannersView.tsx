@@ -52,7 +52,8 @@ export default function AdminBannersView({ banners }: AdminBannersViewProps) {
         router.refresh();
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Erreur lors de la suppression.");
+      console.error("Erreur suppression bannière :", err);
+      setErrorMsg("Erreur lors de la suppression.");
     } finally {
       setDeletingId(null);
     }

@@ -133,7 +133,8 @@ export async function registerCompanyAction(
     if (authError.message.includes("Invalid email") || authError.message.includes("invalid email")) {
       return { error: "L'adresse email saisie n'est pas valide." };
     }
-    return { error: authError.message || "La création du compte a échoué. Veuillez vérifier vos informations et réessayer." };
+    console.error("Erreur création de compte :", authError);
+    return { error: "La création du compte a échoué. Veuillez vérifier vos informations et réessayer." };
   }
 
   if (!authData.user) {
@@ -202,7 +203,8 @@ export async function registerResellerAction(
     if (authError.message.includes("Invalid email") || authError.message.includes("invalid email")) {
       return { error: "L'adresse email saisie n'est pas valide." };
     }
-    return { error: authError.message || "La création du compte a échoué. Veuillez vérifier vos informations et réessayer." };
+    console.error("Erreur création de compte :", authError);
+    return { error: "La création du compte a échoué. Veuillez vérifier vos informations et réessayer." };
   }
 
   if (!authData.user) {
@@ -518,7 +520,13 @@ export async function completeOnboardingAction(
       if (role === "company") redirect("/dashboard/company");
       else redirect("/dashboard/reseller");
     }
-    return { error: rpcError.message || "Une erreur est survenue lors de l'enregistrement de votre profil." };
+    // Les exceptions métier (P0001) sont rédigées en français pour l'utilisateur.
+    return {
+      error:
+        rpcError.code === "P0001" && rpcError.message
+          ? rpcError.message
+          : "Une erreur est survenue lors de l'enregistrement de votre profil.",
+    };
   }
 
   // Invalidation totale du cache serveur Next.js pour reconstruire l'arbre pour ce rôle

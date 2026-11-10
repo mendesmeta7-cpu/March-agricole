@@ -96,7 +96,8 @@ export default function AdminProductsView({ initialProducts }: AdminProductsView
           setFeedback({ type: "error", text: res.error || "Erreur lors du changement de statut." });
         }
       } catch (err: any) {
-        setFeedback({ type: "error", text: err.message || "Une erreur est survenue." });
+        console.error("Erreur action produit admin :", err);
+        setFeedback({ type: "error", text: "Une erreur est survenue." });
       } finally {
         setTogglingId(null);
       }

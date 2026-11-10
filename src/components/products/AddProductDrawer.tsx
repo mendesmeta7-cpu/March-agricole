@@ -1,6 +1,11 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
+import { useFormStatus } from "react-dom";
+import {
+  compressPhotoForUpload,
+  PHOTO_COMPRESSION_ERROR_MESSAGE,
+} from "@/lib/utils/compressImage";
 import { CatalogProduct } from "@/lib/queries/products";
 import {
   associateCatalogProductAction,
@@ -29,6 +34,7 @@ import {
   AlertCircle,
   Tag,
   X,
+  Loader2,
 } from "lucide-react";
 
 interface AddProductDrawerProps {
@@ -48,6 +54,29 @@ const UNITS = [
   { value: "panier", label: "Panier" },
 ];
 
+/** Doit rester dans le formulaire : useFormStatus suit l'envoi de son formulaire parent. */
+function PhotoUploadStatus({
+  hasPhoto,
+  isPreparing,
+}: {
+  hasPhoto: boolean;
+  isPreparing: boolean;
+}) {
+  const { pending } = useFormStatus();
+  const status = isPreparing
+    ? "Préparation de la photo…"
+    : pending && hasPhoto
+      ? "Envoi de la photo…"
+      : null;
+  if (!status) return null;
+  return (
+    <p role="status" className="flex items-center gap-1.5 text-xs font-semibold text-forest-800">
+      <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+      {status}
+    </p>
+  );
+}
+
 export default function AddProductDrawer({
   isOpen,
   onClose,
@@ -64,6 +93,12 @@ export default function AddProductDrawer({
 
   // Aperçu de photo personnalisée
   const [customImagePreview, setCustomImagePreview] = useState<string | null>(null);
+  // Photo prête à l'envoi, compressée si nécessaire ; null sans nouvelle photo.
+  const [customPhoto, setCustomPhoto] = useState<File | null>(null);
+  const [isPreparingPhoto, setIsPreparingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const customPhotoInputRef = useRef<HTMLInputElement>(null);
+  const photoRequestRef = useRef(0);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,22 +126,52 @@ export default function AddProductDrawer({
     });
   }, [catalogProducts, searchCatalog, selectedCategory]);
 
+  const clearCustomPhoto = () => {
+    photoRequestRef.current += 1;
+    setCustomPhoto(null);
+    setIsPreparingPhoto(false);
+    setPhotoError(null);
+    setCustomImagePreview(null);
+    if (customPhotoInputRef.current) customPhotoInputRef.current.value = "";
+  };
+
   const handleSelectProduct = (prod: CatalogProduct) => {
     setSelectedCatalogProduct(prod);
-    setCustomImagePreview(null);
+    clearCustomPhoto();
     setErrorMsg(null);
     setStep("configure");
   };
 
-  const handleCustomImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCustomImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("La photo personnalisée ne doit pas dépasser 5 Mo.");
-        return;
-      }
-      setCustomImagePreview(URL.createObjectURL(file));
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      clearCustomPhoto();
+      toast.error("La photo personnalisée ne doit pas dépasser 5 Mo.");
+      return;
     }
+
+    setErrorMsg(null);
+    setPhotoError(null);
+    const requestId = ++photoRequestRef.current;
+    setIsPreparingPhoto(true);
+
+    let photo: File;
+    try {
+      photo = await compressPhotoForUpload(file);
+    } catch (err) {
+      console.error("Compression de la photo impossible :", err);
+      if (requestId !== photoRequestRef.current) return;
+      clearCustomPhoto();
+      setPhotoError(PHOTO_COMPRESSION_ERROR_MESSAGE);
+      return;
+    }
+    if (requestId !== photoRequestRef.current) return;
+
+    setCustomPhoto(photo);
+    setIsPreparingPhoto(false);
+    setCustomImagePreview(URL.createObjectURL(photo));
   };
 
   const resetState = () => {
@@ -114,7 +179,7 @@ export default function AddProductDrawer({
     setSearchCatalog("");
     setSelectedCategory("all");
     setSelectedCatalogProduct(null);
-    setCustomImagePreview(null);
+    clearCustomPhoto();
     setErrorMsg(null);
     setIsSubmitting(false);
   };
@@ -125,8 +190,10 @@ export default function AddProductDrawer({
   };
 
   async function handleAssociate(formData: FormData) {
+    if (isPreparingPhoto) return;
     setIsSubmitting(true);
     setErrorMsg(null);
+    if (customPhoto) formData.set("customImage", customPhoto, customPhoto.name);
     try {
       const res = await associateCatalogProductAction(null, formData);
       if (res.success) {
@@ -138,7 +205,8 @@ export default function AddProductDrawer({
         toast.error(res.error || "Erreur lors de l'association du produit.");
       }
     } catch (err: any) {
-      const msg = err.message || "Une erreur inattendue est survenue.";
+      console.error("Erreur association produit :", err);
+      const msg = "Une erreur inattendue est survenue.";
       setErrorMsg(msg);
       toast.error(msg);
     } finally {
@@ -160,7 +228,8 @@ export default function AddProductDrawer({
         toast.error(res.error || "Erreur de création du produit.");
       }
     } catch (err: any) {
-      const msg = err.message || "Une erreur inattendue est survenue.";
+      console.error("Erreur création produit :", err);
+      const msg = "Une erreur inattendue est survenue.";
       setErrorMsg(msg);
       toast.error(msg);
     } finally {
@@ -506,6 +575,7 @@ export default function AddProductDrawer({
 
                 <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
                   <input
+                    ref={customPhotoInputRef}
                     type="file"
                     name="customImage"
                     accept="image/jpeg,image/png,image/webp"
@@ -515,13 +585,19 @@ export default function AddProductDrawer({
                   {customImagePreview && (
                     <button
                       type="button"
-                      onClick={() => setCustomImagePreview(null)}
+                      onClick={clearCustomPhoto}
                       className="text-xs text-red-600 hover:underline shrink-0 ml-2 font-medium"
                     >
                       Annuler
                     </button>
                   )}
                 </div>
+                {photoError && (
+                  <p role="alert" className="text-xs font-medium text-rose-700">
+                    {photoError}
+                  </p>
+                )}
+                <PhotoUploadStatus hasPhoto={customPhoto !== null} isPreparing={isPreparingPhoto} />
               </div>
             </div>
 
@@ -538,6 +614,7 @@ export default function AddProductDrawer({
               <SubmitButton
                 className="px-5 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white text-sm font-semibold shadow-xs"
                 loadingText="Enregistrement..."
+                disabled={isPreparingPhoto}
               >
                 Enregistrer dans mon exploitation
               </SubmitButton>

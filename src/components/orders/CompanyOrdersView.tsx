@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useTransition, useEffect } from "react";
+import { useState, useMemo, useTransition, useEffect, useRef, useId } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { OrderDetail, OrderStatus } from "@/lib/queries/orders";
 import OrderStatusBadge from "./OrderStatusBadge";
 import CompanyOrderCard from "./CompanyOrderCard";
@@ -123,6 +124,14 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
     [statusModalOrder]
   );
 
+  const statusDialogRef = useRef<HTMLDivElement>(null);
+  const statusDialogTitleId = useId();
+  useFocusTrap(statusDialogRef, {
+    isOpen: !!statusModalOrder && statusOptions.length > 0,
+    onEscape: () => setStatusModalOrder(null),
+    escapeEnabled: !actionLoading,
+  });
+
   // Commandes filtrées
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -201,7 +210,8 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
         router.refresh();
       });
     } catch (err: any) {
-      toast.error("Erreur", { description: err.message || "Erreur inattendue." });
+      console.error("Erreur action commande :", err);
+      toast.error("Erreur", { description: "Erreur inattendue." });
     } finally {
       setActionLoading(false);
     }
@@ -242,7 +252,8 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
         router.refresh();
       });
     } catch (err: any) {
-      toast.error("Erreur", { description: err.message || "Erreur inattendue." });
+      console.error("Erreur action commande :", err);
+      toast.error("Erreur", { description: "Erreur inattendue." });
     } finally {
       setActionLoading(false);
     }
@@ -280,7 +291,8 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
         router.refresh();
       });
     } catch (err: any) {
-      toast.error("Erreur", { description: err.message || "Erreur inattendue." });
+      console.error("Erreur action commande :", err);
+      toast.error("Erreur", { description: "Erreur inattendue." });
     } finally {
       setActionLoading(false);
     }
@@ -786,9 +798,15 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
       {/* 9. Modal Changement Manuel de Statut */}
       {statusModalOrder && statusOptions.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-xl border border-gray-100 p-5 space-y-4">
+          <div
+            ref={statusDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={statusDialogTitleId}
+            className="relative w-full max-w-md bg-white rounded-3xl shadow-xl border border-gray-100 p-5 space-y-4"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <h3 id={statusDialogTitleId} className="text-sm font-bold text-gray-900 flex items-center gap-2">
                 <Settings className="w-4 h-4 text-forest-700" />
                 Actualiser le Statut Logistique
               </h3>

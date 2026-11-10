@@ -75,7 +75,8 @@ export async function createAdminFeedCategoryAction(
       imageUrl = uploadRes.secure_url;
       cloudinaryPublicId = uploadRes.public_id;
     } catch (err: any) {
-      return { error: `Erreur d'upload Cloudinary : ${err.message}` };
+      console.error("Erreur envoi image catégorie :", err);
+      return { error: "L'envoi de l'image a échoué. Vérifiez son format (JPG, PNG ou WebP) puis réessayez." };
     }
   }
 
@@ -173,7 +174,8 @@ export async function updateAdminFeedCategoryAction(
       newImageUrl = uploadRes.secure_url;
       newPublicId = uploadRes.public_id;
     } catch (err: any) {
-      return { error: `Erreur d'upload Cloudinary : ${err.message}` };
+      console.error("Erreur envoi image catégorie :", err);
+      return { error: "L'envoi de l'image a échoué. Vérifiez son format (JPG, PNG ou WebP) puis réessayez." };
     }
   } else if (removeImage) {
     newImageUrl = null;

@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import { useToast } from "@/components/ui/Toast";
 import { Select } from "@/components/ui/Select";
 import { ResellerCampaignItem } from "@/lib/queries/campaigns";
 import { createOrderAction } from "@/lib/actions/orders";
@@ -39,6 +41,7 @@ export default function OrderFormModal({
   defaultAddress = "",
 }: OrderFormModalProps) {
   const router = useRouter();
+  const { toast } = useToast();
 
   const [quantity, setQuantity] = useState<number | "">("");
   const [deliveryCity, setDeliveryCity] = useState(defaultCity);
@@ -97,6 +100,13 @@ export default function OrderFormModal({
       }
     }
   }, [isOpen, campaign, matchingDestination, defaultCity, defaultAddress]);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, {
+    isOpen: isOpen && !!campaign,
+    onEscape: onClose,
+    escapeEnabled: !submitting,
+  });
 
   if (!isOpen || !campaign) return null;
 
@@ -185,9 +195,12 @@ export default function OrderFormModal({
         return;
       }
 
+      toast.success("Commande enregistrée", {
+        description: "La société doit maintenant la confirmer.",
+      });
       onClose();
       if (res.data?.orderId) {
-        router.push(`/dashboard/reseller/orders/${res.data.orderId}`);
+        router.push(`/dashboard/reseller/orders/${res.data.orderId}?commande=enregistree`);
       } else {
         router.push("/dashboard/reseller/orders");
       }
@@ -201,6 +214,7 @@ export default function OrderFormModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs overflow-y-auto">
       <div
+        ref={panelRef}
         className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-8 animate-in fade-in zoom-in duration-200"
         role="dialog"
         aria-modal="true"

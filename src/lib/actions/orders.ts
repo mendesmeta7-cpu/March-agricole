@@ -143,7 +143,7 @@ export async function createOrderAction(
     console.error("Exception inattendue création commande:", err);
     return {
       success: false,
-      error: err.message || "Une erreur inattendue est survenue lors de la commande. Veuillez réessayer.",
+      error: "Une erreur inattendue est survenue lors de la commande. Veuillez réessayer.",
     };
   }
 }
@@ -193,7 +193,7 @@ export async function cancelOrderAction(
     return { success: true };
   } catch (err: any) {
     console.error("Exception inattendue annulation commande:", err);
-    return { success: false, error: err.message || "Une erreur inattendue est survenue lors de l'annulation. Veuillez réessayer." };
+    return { success: false, error: "Une erreur inattendue est survenue lors de l'annulation. Veuillez réessayer." };
   }
 }
 
@@ -416,7 +416,7 @@ export async function createOrderFromDemandResponseAction(
     console.error("Exception inattendue création commande depuis proposition:", err);
     return {
       success: false,
-      error: err.message || "Une erreur inattendue est survenue lors de la commande.",
+      error: "Une erreur inattendue est survenue lors de la commande.",
     };
   }
 }
@@ -819,7 +819,7 @@ export async function confirmOrderDeliveryAction(
     console.error("Exception inattendue confirmOrderDeliveryAction:", err);
     return {
       success: false,
-      error: err.message || "Une erreur inattendue est survenue lors de la confirmation de livraison. Veuillez réessayer.",
+      error: "Une erreur inattendue est survenue lors de la confirmation de livraison. Veuillez réessayer.",
     };
   }
 }

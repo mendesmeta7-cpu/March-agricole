@@ -207,6 +207,11 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
       setSearchQuery("");
     };
 
+    // Le champ de recherche disparaît à la fermeture : le focus revient sur la liste.
+    const focusTrigger = () => {
+      containerRef.current?.querySelector<HTMLElement>('[role="combobox"]')?.focus();
+    };
+
     // Fermeture lors d'un clic extérieur
     useEffect(() => {
       const handleClickOutside = (e: MouseEvent) => {
@@ -230,6 +235,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
           e.preventDefault();
           setIsOpen(false);
           setSearchQuery("");
+          focusTrigger();
           return;
         }
 
@@ -241,8 +247,10 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
           setHighlightedIndex((prev) => (prev - 1 >= 0 ? prev - 1 : filteredOptions.length - 1));
         } else if (e.key === "Enter") {
           e.preventDefault();
-          if (filteredOptions[highlightedIndex]) {
-            handleSelectOption(filteredOptions[highlightedIndex]);
+          const option = filteredOptions[highlightedIndex];
+          if (option && !option.disabled) {
+            handleSelectOption(option);
+            focusTrigger();
           }
         }
       };
@@ -260,8 +268,17 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
           searchInputRef.current?.focus();
         }, 50);
       }
-      setHighlightedIndex(0);
+      // Le repère part de la valeur actuelle : Entrée sans navigation ne la change pas.
+      const selectedIndex = parsedOptions.findIndex(
+        (opt) => String(opt.value) === String(currentValue)
+      );
+      setHighlightedIndex(selectedIndex >= 0 ? selectedIndex : 0);
     }, [isOpen, isSearchable]);
+
+    // Une nouvelle recherche repart du premier résultat.
+    useEffect(() => {
+      setHighlightedIndex(0);
+    }, [searchQuery]);
 
     const hasError = Boolean(error);
 
@@ -311,10 +328,13 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
             if (!disabled) setIsOpen(!isOpen);
           }}
           onKeyDown={(e) => {
-            if (!disabled && (e.key === "Enter" || e.key === " " || e.key === "ArrowDown")) {
-              e.preventDefault();
-              setIsOpen(true);
-            }
+            if (disabled || !(e.key === "Enter" || e.key === " " || e.key === "ArrowDown")) return;
+            e.preventDefault();
+            if (isOpen) return;
+            // L'écouteur global de la liste est posé pendant cette frappe : sans cet arrêt,
+            // il la recevrait aussi et Entrée sélectionnerait aussitôt une option.
+            e.stopPropagation();
+            setIsOpen(true);
           }}
           className={cn(
             "w-full bg-white border cursor-pointer transition-all duration-150 ease-out flex items-center justify-between gap-2 text-left",

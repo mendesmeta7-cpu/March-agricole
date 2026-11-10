@@ -1,6 +1,6 @@
 # ÉTAT DU DÉVELOPPEMENT ET FEUILLE DE ROUTE V1 (docs/development-status.md)
 *Memory Bank — Plateforme Agricole V1 Expérimentale*
-*Dernière mise à jour : 2026-11-09 — Lots 1 et 2A des corrections UX/UI réalisés localement (ADR-048, ADR-049), non commités.*
+*Dernière mise à jour : 2026-11-10 — Lots 1 et 2A des corrections UX/UI commités localement (ADR-048, ADR-049) ; Lots 5A, 4A et 2B réalisés localement (ADR-050, ADR-051, ADR-052), non commités.*
 
 
 ---
@@ -81,6 +81,9 @@
 | **CLÔTURE-ADR-047** | **Réouverture, clôture et opérations techniques** | 🟡 **LOCAL — MIGRATIONS 32 ET 33 NON APPLIQUÉES** | ADR-047 ; statut d'origine, administrateur refusé, journal, opérations techniques, tâche `pg_cron` inactive ; 2026-11-06 : T1–T9, R0–R7 et S0–S33 réussis sur PostgreSQL 17.11 local avec imitation de Supabase ; 18 défauts injectés sur 18 détectés. Restent non validés : PostgREST réel, vrai `pg_cron`, projet hébergé. Procédure : `test-environment-setup.md` §9 et §10. |
 | **UXUI-LOT-1** | **Corrections UX/UI : mobile et lisibilité** | 🟡 **LOCAL — VÉRIFIÉ MANUELLEMENT, NON COMMITÉ** | ADR-048 ; MOB-01 à 05, PRO-01, TXT-01, TXT-02, LAN-01, ADM-03. 2026-11-09 : tsc 0 erreur, 58/58 tests unitaires, `npm run build` réussi dans le dossier du projet. Vérification manuelle locale effectuée par le porteur du projet. Recette sur compte réel non réalisée. |
 | **UXUI-LOT-2A** | **Corrections UX/UI : faux vides en cas de panne** | 🟡 **LOCAL — NON COMMITÉ, EN ATTENTE DE VALIDATION** | ADR-049 ; RET-01, RET-02. 2026-11-09 : tsc 0 erreur, 58/58 tests unitaires, `npm run build` réussi, 186/186 scénarios sur banc hors dépôt avec base simulée. Reste à vérifier avec une vraie panne et un compte réel. |
+| **UXUI-LOT-5A** | **Corrections UX/UI : accessibilité clavier des modales** | 🟡 **LOCAL — NON COMMITÉ, EN ATTENTE DE VALIDATION** | ADR-050 ; A11-01 et correctif clavier de `Select`. 2026-11-09 : tsc 0 erreur, 58/58 tests unitaires, `npm run build` réussi, 198/198 scénarios clavier et 61/61 scénarios `Select` sur banc hors dépôt avec base et caméra simulées. Restent à vérifier : compte réel, téléphone réel, lecteur d'écran. |
+| **UXUI-LOT-4A** | **Corrections UX/UI : présentation des graphiques** | 🟡 **LOCAL — NON COMMITÉ, EN ATTENTE DE VALIDATION** | ADR-051 ; GRA-01 à GRA-10. 2026-11-10 : tsc 0 erreur, 63/63 tests unitaires, `npm run build` réussi, 5 037/5 037 contrôles sur vrai Chrome hors dépôt, de 320 à 1 920 px. Restent à vérifier : compte réel, téléphone réel, lecteur d'écran, unités réellement présentes en base. |
+| **UXUI-LOT-2B** | **Corrections UX/UI : retours d'action** | 🟡 **LOCAL — NON COMMITÉ, EN ATTENTE DE VALIDATION** | ADR-052 ; RET-03 à 06, RET-09, RET-10. 2026-11-10 : tsc 0 erreur, 73/73 tests unitaires, `npm run build` réussi ; 243/243 contrôles simulés sur vrai Chrome hors dépôt ; 49/49 sur vrai serveur Next avec base simulée. Restent à vérifier : soumissions réelles vers Supabase, compte réel, téléphone réel, lecteur d'écran. |
 | **AUTH-7** | **Connexion avec Apple (OAuth)** | ⏳ **PLANIFIÉ (Phase ultérieure — Post AUTH-5)** | Intégration Sign in with Apple, gestion des alias privés et nom à la première connexion. |
 
 

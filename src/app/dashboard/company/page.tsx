@@ -500,7 +500,7 @@ export default async function CompanyDashboardPage() {
       )}
 
       {/* Graphiques côte à côte */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         <CompanyDemandTrendChart
           demands={trendDemands}
           availableProducts={availableProducts}

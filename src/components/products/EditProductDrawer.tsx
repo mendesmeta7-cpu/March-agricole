@@ -113,7 +113,8 @@ export default function EditProductDrawer({
         toast.error(res.error || "Erreur de mise à jour.");
       }
     } catch (err: any) {
-      const msg = err.message || "Une erreur inattendue est survenue.";
+      console.error("Erreur modification produit :", err);
+      const msg = "Une erreur inattendue est survenue.";
       setErrorMsg(msg);
       toast.error(msg);
     } finally {

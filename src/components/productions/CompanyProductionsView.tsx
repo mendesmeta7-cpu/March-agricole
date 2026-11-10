@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ProductionItem } from "@/lib/queries/productions";
 import { CompanyProductItem } from "@/lib/queries/products";
 import {
@@ -46,6 +47,7 @@ export default function CompanyProductionsView({
 }: CompanyProductionsViewProps) {
   const { toast } = useToast();
 
+  const router = useRouter();
   const [productions, setProductions] = useState<ProductionItem[]>(initialProductions);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -470,10 +472,7 @@ export default function CompanyProductionsView({
         onClose={() => setIsDrawerOpen(false)}
         companyProducts={companyProducts}
         editingProduction={editingProduction}
-        onSuccess={() => {
-          // Rechargement doux
-          window.location.reload();
-        }}
+        onSuccess={() => router.refresh()}
       />
 
       {/* Dialogue de Confirmation de Suppression Sécurisée */}

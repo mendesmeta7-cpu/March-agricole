@@ -54,7 +54,8 @@ export default function ResellerAvatarSection({
         setMessage({ type: "error", text: res.error || "Erreur lors de l'upload." });
       }
     } catch (err: any) {
-      setMessage({ type: "error", text: err.message || "Erreur de connexion." });
+      console.error("Erreur photo de profil :", err);
+      setMessage({ type: "error", text: "Erreur de connexion." });
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -81,7 +82,8 @@ export default function ResellerAvatarSection({
         setMessage({ type: "error", text: res.error || "Erreur lors de la suppression." });
       }
     } catch (err: any) {
-      setMessage({ type: "error", text: err.message || "Erreur de connexion." });
+      console.error("Erreur photo de profil :", err);
+      setMessage({ type: "error", text: "Erreur de connexion." });
     } finally {
       setIsDeleting(false);
     }

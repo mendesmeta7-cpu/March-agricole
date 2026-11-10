@@ -268,6 +268,70 @@ export interface ProvinceBreakdownResult {
 }
 
 /**
+ * Classe les provinces qui portent `unitKey` par quantité décroissante DANS cette unité,
+ * puis par nombre d'enregistrements, puis par nom. Les autres provinces sont écartées :
+ * aucune quantité d'une autre unité n'intervient.
+ */
+export function rankProvincesByUnit<
+  T extends { provinceName: string; quantitiesByUnit: readonly ProvinceUnitShare[] },
+>(
+  provinces: readonly T[],
+  unitKey: string
+): { province: T; share: ProvinceUnitShare }[] {
+  return provinces
+    .flatMap((province) => {
+      const share = province.quantitiesByUnit.find((u) => u.unitKey === unitKey);
+      return share ? [{ province, share }] : [];
+    })
+    .sort(
+      (a, b) =>
+        b.share.quantity - a.share.quantity ||
+        b.share.demandsCount - a.share.demandsCount ||
+        compareLabels(a.province.provinceName, b.province.provinceName)
+    );
+}
+
+// ─── Présentation d'une unité à la fois ──────────────────────────────────────
+
+/**
+ * Unité affichée : celle choisie si elle existe encore (un filtre peut l'avoir retirée),
+ * sinon la première de la liste. La clé vide est une vraie valeur (unité non précisée).
+ */
+export function resolveSelectedUnit<T extends { unitKey: string }>(
+  units: readonly T[],
+  selectedKey: string | null
+): T | null {
+  return units.find((u) => u.unitKey === selectedKey) ?? units[0] ?? null;
+}
+
+export interface AxisScale {
+  /** Graduations croissantes, 0 inclus : 4 ou 5 valeurs rondes. */
+  ticks: number[];
+  /** Haut de l'axe (dernière graduation). */
+  max: number;
+}
+
+/**
+ * Échelle à graduations rondes (1, 2 ou 5 × 10^n) pour UNE série, donc une seule unité.
+ * `integerOnly` interdit les graduations fractionnaires (décompte de demandes).
+ * Le pas minimal de 0,01 garde des libellés distincts au format à 2 décimales.
+ */
+export function niceAxisScale(
+  maxValue: number,
+  options: { integerOnly?: boolean } = {}
+): AxisScale {
+  const safeMax = Number.isFinite(maxValue) && maxValue > 0 ? maxValue : 0;
+  const minStep = options.integerOnly || safeMax === 0 ? 1 : 0.01;
+  const rough = Math.max(safeMax / 4, minStep);
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const multiplier = [1, 2, 5, 10].find((m) => m * magnitude >= rough) ?? 10;
+  const step = multiplier * magnitude;
+  const segments = Math.max(3, Math.ceil(safeMax / step - 1e-9));
+  const ticks = Array.from({ length: segments + 1 }, (_, i) => Number((i * step).toFixed(2)));
+  return { ticks, max: ticks[ticks.length - 1] };
+}
+
+/**
  * Ventile des enregistrements par (province, unité). Les pourcentages sont calculés
  * à l'intérieur de chaque unité. Les provinces sont classées par nombre
  * d'enregistrements décroissant (critère indépendant des unités), puis par nom.

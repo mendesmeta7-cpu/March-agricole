@@ -1,4 +1,5 @@
-import { useState, useRef, useTransition, useEffect, useMemo } from "react";
+import { useState, useRef, useTransition, useEffect, useMemo, useId } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { DemandItem } from "@/lib/queries/demands";
 import { CatalogProduct } from "@/lib/queries/products";
 import { Province, Country } from "@/lib/queries/geography";
@@ -172,14 +173,24 @@ export default function DemandFormModal({
     });
   };
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useFocusTrap(panelRef, {
+    isOpen: isOpen,
+    onEscape: onClose,
+    escapeEnabled: !isPending,
+  });
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
       <div
+        ref={panelRef}
         className="relative w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 mt-auto sm:mt-0"
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
       >
         {/* Header */}
         <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between bg-earth-900/5">
@@ -188,7 +199,7 @@ export default function DemandFormModal({
               <TrendingUp className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-900">
+              <h2 id={titleId} className="text-base sm:text-lg font-bold text-gray-900">
                 {isEditing ? "Modifier mon expression de besoin" : "Exprimer un besoin d'approvisionnement"}
               </h2>
               <p className="text-xs text-gray-500">

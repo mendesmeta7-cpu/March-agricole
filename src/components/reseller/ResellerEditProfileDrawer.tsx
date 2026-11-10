@@ -88,7 +88,8 @@ export default function ResellerEditProfileDrawer({
       onClose();
       router.refresh();
     } catch (err: any) {
-      setErrorMessage(err.message || "Erreur de connexion.");
+      console.error("Erreur modification profil revendeur :", err);
+      setErrorMessage("Erreur de connexion.");
     } finally {
       setIsLoading(false);
     }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useRef } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { LookupDeliveryOrderResult, confirmOrderDeliveryAction } from "@/lib/actions/orders";
 import OrderStatusBadge from "./OrderStatusBadge";
 import { canConfirmDelivery } from "@/lib/utils/orderRules";
@@ -51,6 +52,13 @@ export default function DeliveryConfirmationModal({
     setSuccessData(null);
   }, [currentOrderId]);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, {
+    isOpen: isOpen && !!order,
+    onEscape: onClose,
+    escapeEnabled: !isPending,
+  });
+
   if (!isOpen || !order) return null;
 
   const isAlreadyDelivered = order.status === "delivered";
@@ -98,9 +106,11 @@ export default function DeliveryConfirmationModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div
+        ref={panelRef}
         className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
+        aria-label={`Confirmation de livraison de la commande ${order.order_number}`}
       >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-forest-900/5">

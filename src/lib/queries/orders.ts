@@ -876,7 +876,7 @@ export async function getCompanyOrdersForFinancials(
         );
         return {
           orders: [],
-          error: `Erreur base de données (${error.message || "Requête interrompue"})`,
+          error: "chargement des commandes impossible",
           totalFetched: 0,
         };
       }
@@ -919,7 +919,7 @@ export async function getCompanyOrdersForFinancials(
     console.error("Exception inattendue dans getCompanyOrdersForFinancials:", err);
     return {
       orders: [],
-      error: err?.message || "Erreur de communication avec le serveur",
+      error: "chargement des commandes impossible",
       totalFetched: 0,
     };
   }

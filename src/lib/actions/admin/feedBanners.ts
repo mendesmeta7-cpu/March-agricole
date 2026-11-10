@@ -87,7 +87,8 @@ export async function createAdminFeedBannerAction(
     imageUrl = uploadRes.secure_url;
     cloudinaryPublicId = uploadRes.public_id;
   } catch (err: any) {
-    return { error: `Erreur d'upload Cloudinary : ${err.message}` };
+    console.error("Erreur envoi image bannière :", err);
+    return { error: "L'envoi de l'image a échoué. Vérifiez son format (JPG, PNG ou WebP) puis réessayez." };
   }
 
   const sortOrder = sortOrderStr ? parseInt(sortOrderStr, 10) : 0;
@@ -193,7 +194,8 @@ export async function updateAdminFeedBannerAction(
       newImageUrl = uploadRes.secure_url;
       newPublicId = uploadRes.public_id;
     } catch (err: any) {
-      return { error: `Erreur d'upload Cloudinary : ${err.message}` };
+      console.error("Erreur envoi image bannière :", err);
+      return { error: "L'envoi de l'image a échoué. Vérifiez son format (JPG, PNG ou WebP) puis réessayez." };
     }
   }
 

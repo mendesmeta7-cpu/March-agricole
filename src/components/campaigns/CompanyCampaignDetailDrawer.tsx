@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useId } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { useRouter } from "next/navigation";
 import {
   CompanyCampaignItem,
@@ -72,6 +73,14 @@ export default function CompanyCampaignDetailDrawer({
   const [isUpdatingDate, setIsUpdatingDate] = useState(false);
   const [updateDateError, setUpdateDateError] = useState<string | null>(null);
   const [isReopenOpen, setIsReopenOpen] = useState(false);
+
+  const dateDialogRef = useRef<HTMLDivElement>(null);
+  const dateDialogTitleId = useId();
+  useFocusTrap(dateDialogRef, {
+    isOpen: !!editingDest,
+    onEscape: () => setEditingDest(null),
+    escapeEnabled: !isUpdatingDate,
+  });
 
   if (!campaign) return null;
 
@@ -591,11 +600,17 @@ export default function CompanyCampaignDetailDrawer({
       {/* Modal report de date */}
       {editingDest && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs">
-          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+          <div
+            ref={dateDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={dateDialogTitleId}
+            className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden"
+          >
             <div className="px-6 py-4 bg-forest-900 text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-sm font-bold">Reporter la date d&apos;arrivée</h3>
+                <h3 id={dateDialogTitleId} className="text-sm font-bold">Reporter la date d&apos;arrivée</h3>
               </div>
               <button
                 type="button"

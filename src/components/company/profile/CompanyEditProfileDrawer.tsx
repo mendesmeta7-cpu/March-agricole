@@ -146,7 +146,8 @@ export default function CompanyEditProfileDrawer({
       onClose();
       router.refresh();
     } catch (err: any) {
-      setErrorMessage(err?.message || "Une erreur est survenue lors de la sauvegarde.");
+      console.error("Erreur sauvegarde profil société :", err);
+      setErrorMessage("Une erreur est survenue lors de la sauvegarde.");
     } finally {
       setIsSubmitting(false);
     }

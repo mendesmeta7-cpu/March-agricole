@@ -3,6 +3,39 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [UXUI-LOT-2B] - 2026-11-10
+### Corrections UX/UI — Lot 2B : Retours d'Action (ADR-052) — Local, Non Commité
+
+- **Production (RET-03)** : `router.refresh()` remplace le rechargement complet ; le message de succès reste visible et le détail se resynchronise sur les données du serveur.
+- **Navigation (RET-04)** : 6 `loading.tsx` ajoutés et fine barre de progression `NavigationProgress` dès le clic sur un lien interne.
+- **Messages (RET-05)** : les exceptions n'affichent plus leur texte brut (13 lignes côté serveur, 23 lignes dans 15 vues). Les messages de repli et les erreurs métier sont conservés, le détail reste dans les journaux.
+- **Photos (RET-06)** : compression avant envoi, 900 Ko au plus, dans `ProductionDrawer` et `AddProductDrawer` ; « Envoi de la photo… » pendant l'envoi ; message explicite sous le champ si la photo ne peut pas être préparée.
+- **Commande (RET-09)** : notification « Commande enregistrée » puis encadré sur le détail, avec l'étape suivante.
+- **Fil revendeur (RET-10)** : pendant une mise à jour, les cartes restent affichées, atténuées, avec l'indicateur « Mise à jour… ».
+- **Tests exécutés** : `tsc` 0 erreur, 73/73 tests unitaires, `npm run build` réussi (48 routes, 10 pages statiques inchangées).
+- **Scénarios simulés** : 243/243 contrôles dans un vrai Chrome, hors du dépôt, sur les vrais composants et de vraies images, avec actions serveur et routeur simulés. 49/49 contrôles sur un vrai serveur Next de production, avec vrais liens et vraies actions serveur, dans une copie isolée dont la base est simulée.
+- **Non vérifié** : aucune soumission réelle vers Supabase (création, commande, envoi de photo), compte réel, téléphone réel, lecteur d'écran.
+
+## [UXUI-LOT-4A] - 2026-11-10
+### Corrections UX/UI — Lot 4A : Présentation des Graphiques (ADR-051) — Local, Non Commité
+
+- **Courbe sans déformation (GRA-01)** : dessin à la largeur réelle de la carte, points ronds et textes à taille fixe à toutes les largeurs.
+- **Cartes (GRA-02, GRA-03, GRA-10)** : grille en `items-start`, en-tête commun `DashboardChartCard`, filtres sous le titre, mêmes rayon, marges, taille de titre et casse sur les deux cartes.
+- **Axes (GRA-04)** : 4 ou 5 graduations rondes, unité affichée, texte de 11 px en `gray-600`.
+- **Une unité à la fois (GRA-05)** : sélecteur et échelle propre, sans conversion ; « Nb demandes » reste la seule vue toutes unités.
+- **Infobulle et accès (GRA-06, GRA-07)** : contenue dans la carte, au-dessus du point ; un bouton par mois pour la souris, le toucher et le clavier ; consigne « Touchez ou survolez un mois ».
+- **Régions (GRA-08, GRA-09)** : une seule teinte `forest` décroissante, classement par quantité dans l'unité choisie, 5 premières régions et « Voir tout » déplié dans la carte.
+- **Vérifications** : `tsc` 0 erreur, 63/63 tests unitaires. 5 037/5 037 contrôles dans un vrai Chrome, hors du dépôt, sur les vrais composants et la vraie feuille de style : 12 largeurs de 320 à 1 920 px, 1 et 3 unités, 1 et 7 régions, données vides, indisponibles et valeurs extrêmes, souris, toucher et clavier. Sur l'ancienne version, le même banc mesure une échelle de 0,42 à 1,45. `npm run build` réussi (48 routes). Aucun test sur compte réel, téléphone réel ou lecteur d'écran.
+
+## [UXUI-LOT-5A] - 2026-11-09
+### Corrections UX/UI — Lot 5A : Accessibilité Clavier des Modales (ADR-050) — Local, Non Commité
+
+- **Piège de focus (A11-01)** : `useFocusTrap` branché sur 13 modales, 3 surcouches et le menu mobile de l'administration : focus retenu, Échap, retour au déclencheur. Aucune classe CSS modifiée.
+- **Rôles et noms** : `role="dialog"`, `aria-modal` et nom accessible sur ces 17 surfaces ; bouton de fermeture nommé sur `ProductionDemandModal`.
+- **Échap** : ferme d'abord une liste déroulante ouverte ; bloqué pendant un envoi, y compris sur les trois formulaires d'administration.
+- **Vérifications** : `tsc` 0 erreur, 58/58 tests unitaires, `npm run build` réussi. 198/198 scénarios en vraies frappes clavier sur serveur Next et Chrome réels, avec base et caméra simulées, hors du dépôt. Aucun test sur compte réel, téléphone réel ou lecteur d'écran.
+- **`Select` (correctif autorisé séparément)** : Entrée sur une liste fermée l'ouvrait puis la refermait en remplaçant la valeur par la première option, car l'écouteur global, posé pendant la frappe, la recevait aussi. Entrée ouvre désormais la liste sans changer la valeur ; le repère part de la valeur actuelle ; le focus revient sur la liste après Échap ou une sélection au clavier. Vérifié après ce correctif : 94/94 scénarios sur les vrais `Select`, `Dialog` et `Drawer`, 61/61 sur les formulaires de l'application et de nouveau 198/198 pour la suite clavier ; `tsc` 0 erreur, 58/58 tests unitaires, `npm run build` réussi.
+
 ## [UXUI-LOT-2A] - 2026-11-09
 ### Corrections UX/UI — Lot 2A : Faux Vides en Cas de Panne (ADR-049) — Local, Non Commité
 

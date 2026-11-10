@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useId } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { FeedBannerItem } from "@/lib/queries/feedBanners";
 import {
   createAdminFeedBannerAction,
@@ -26,6 +27,15 @@ export default function AdminBannerModal({
   const [previewUrl, setPreviewUrl] = useState<string | null>(banner?.image_url || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  useFocusTrap(panelRef, {
+    isOpen: isOpen,
+    onEscape: onClose,
+    escapeEnabled: !isSubmitting,
+  });
+
   if (!isOpen) return null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,6 +58,7 @@ export default function AdminBannerModal({
     }
 
     setFormState(res);
+    setIsSubmitting(false);
     if (res.success) {
       setTimeout(() => {
         onClose();
@@ -57,11 +68,17 @@ export default function AdminBannerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-150">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-150"
+      >
         {/* Header */}
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">
+            <h2 id={titleId} className="text-lg font-bold text-gray-900">
               {isEditing ? `Modifier la bannière` : `Ajouter une bannière`}
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -79,7 +96,7 @@ export default function AdminBannerModal({
         </div>
 
         {/* Formulaire */}
-        <form action={handleSubmit} className="p-6 space-y-4">
+        <form action={handleSubmit} onSubmit={() => setIsSubmitting(true)} className="p-6 space-y-4">
           {formState?.error && (
             <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />

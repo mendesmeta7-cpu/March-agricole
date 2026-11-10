@@ -750,3 +750,33 @@ Ce document recense l'intégralité des décisions d'architecture, de conception
   - **« Réessayer »** enchaîne `router.refresh()` et `reset()`, car `reset()` seul ne relit pas les composants serveur ;
   - **aucune politique RLS modifiée**, aucune migration.
 * **Laissé en l'état** : `getUnreadNotificationCount` renvoie 0 en cas d'erreur, car le lever ferait tomber tout le layout pour un simple badge.
+
+### ADR-050 : Accessibilité Clavier des Modales (Lot 5A UX/UI)
+* **Date** : 2026-11-09 | **Statut** : Périmètre validé par le porteur du projet — implémentation locale, non commitée
+* **Décisions** :
+  - **modales existantes conservées** : le comportement clavier est ajouté avec `useFocusTrap`, sans migration vers `Dialog` ou `Drawer` ni changement d'apparence ; la migration reste au Lot 5B ;
+  - **Échap suit la logique de la modale** : bloqué pendant un envoi, comme le bouton Annuler ;
+  - **formulaires d'administration** : l'envoi est signalé sur l'événement `submit`, car React diffère les mises à jour d'état effectuées dans une action de formulaire ;
+  - **liste déroulante ouverte** : Échap la ferme seule, la modale reste ouverte ; règle appliquée dans `useFocusTrap`, donc aussi à `Dialog` et `Drawer`.
+* **Non traité** : `EditCompanyProfileModal`, non importé. `ResellerLocationEditModal` est corrigé mais n'est atteignable depuis aucun écran.
+
+### ADR-051 : Présentation des Graphiques du Tableau de Bord Société (Lot 4A UX/UI)
+* **Date** : 2026-11-10 | **Statut** : Périmètre et décisions validés par le porteur du projet — implémentation locale, non commitée
+* **Décisions** :
+  - **une unité à la fois** : un sélecteur affiche une seule unité avec sa propre échelle, sans conversion (BR-FIN-04). Remplace les courbes superposées issues d'ADR-046, dont le principe « une série par unité » reste respecté ; « Nb demandes » reste la seule vue toutes unités ;
+  - **classement des régions** : par quantité dans l'unité sélectionnée, puis nombre de demandes, puis nom ;
+  - **« Voir tout »** : au-delà de 5 régions, un bouton déplie la liste dans la carte, sans nouvelle route ;
+  - **unités distinctes** : seules la casse et les espaces sont normalisés, comme avant ; « tonne » et « tonnes » restent deux unités ;
+  - **survol réservé à la souris** : le `mouseleave` émis après un toucher refermerait l'infobulle ; le toucher et le clavier passent par le clic et le focus.
+* **Inchangé** : requêtes, RLS, migrations et dépendances npm ; badge « Données réelles », sens de la courbe et limite de 500 demandes (Lot 4B) ; graphiques de la page d'accueil.
+
+### ADR-052 : Retours d'Action (Lot 2B UX/UI)
+* **Date** : 2026-11-10 | **Statut** : Périmètre et décisions validés par le porteur du projet — implémentation locale, non commitée
+* **Décisions** :
+  - **messages d'erreur** : une exception n'affiche jamais son texte brut, seulement son message de repli ; le détail reste dans les journaux. Les erreurs métier (`P0001` et traductions existantes) restent affichées telles quelles ;
+  - **photos** : compression dans le navigateur, 900 Ko au plus, limitée à `ProductionDrawer` et `AddProductDrawer`. `next.config` n'est pas modifié : Next limite par défaut les actions serveur à 1 Mo ;
+  - **pas de pourcentage d'envoi** : la photo part avec le formulaire, aucune progression n'est disponible ; l'interface indique « Envoi de la photo… » ;
+  - **échec de compression** : message sous le champ photo, pas de notification, car elle recouvrirait le bouton d'envoi du tiroir ;
+  - **confirmation de commande** : notification puis encadré sur le détail ; le paramètre d'URL `commande=enregistree` est retiré à l'arrivée ;
+  - **fil revendeur** : le squelette ne s'affiche que s'il n'y a aucune carte à conserver.
+* **Non traité** : les cinq extensions du Lot 2C ; les autres formulaires photo (`EditProductDrawer`, profils, administration) ; `EditCompanyProfileModal`, non importé.
