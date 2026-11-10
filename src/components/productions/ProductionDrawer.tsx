@@ -16,6 +16,11 @@ import Alert from "@/components/ui/Alert";
 import { useToast } from "@/components/ui/Toast";
 import { PRODUCTION_LOCK_MESSAGES } from "@/lib/utils/productionRules";
 import {
+  compressPhotoForUpload,
+  PHOTO_COMPRESSION_ERROR_MESSAGE,
+} from "@/lib/utils/compressImage";
+import {
+  Loader2,
   Tractor,
   Upload,
   Calendar,
@@ -80,6 +85,11 @@ export default function ProductionDrawer({
   // Gestion de la photo (Supabase Storage public-assets/productions)
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Photo prête à l'envoi, compressée si nécessaire ; null sans nouvelle photo.
+  const [preparedPhoto, setPreparedPhoto] = useState<File | null>(null);
+  const [isPreparingPhoto, setIsPreparingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const photoRequestRef = useRef(0);
 
   const activeCompanyProducts = companyProducts.filter((p) => p.is_active);
 
@@ -129,6 +139,7 @@ export default function ProductionDrawer({
 
   // Synchronisation lors de l'ouverture ou du changement d'enregistrement
   useEffect(() => {
+    clearChosenPhoto();
     if (!isOpen) {
       setErrorMessage(null);
       return;
@@ -183,34 +194,65 @@ export default function ProductionDrawer({
     }
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  function clearChosenPhoto() {
+    photoRequestRef.current += 1;
+    setPreparedPhoto(null);
+    setIsPreparingPhoto(false);
+    setPhotoError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
+      clearChosenPhoto();
       setErrorMessage("La taille de l'image ne doit pas dépasser 5 Mo.");
       return;
     }
 
     const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
+      clearChosenPhoto();
       setErrorMessage("Format non supporté (utilisez JPG, PNG ou WebP).");
       return;
     }
+
+    setErrorMessage(null);
+    setPhotoError(null);
+    const requestId = ++photoRequestRef.current;
+    setIsPreparingPhoto(true);
+
+    let photo: File;
+    try {
+      photo = await compressPhotoForUpload(file);
+    } catch (err) {
+      console.error("Compression de la photo impossible :", err);
+      if (requestId !== photoRequestRef.current) return;
+      clearChosenPhoto();
+      setPhotoError(PHOTO_COMPRESSION_ERROR_MESSAGE);
+      return;
+    }
+    if (requestId !== photoRequestRef.current) return;
+
+    setPreparedPhoto(photo);
+    setIsPreparingPhoto(false);
 
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result as string);
     };
-    reader.readAsDataURL(file);
-    setErrorMessage(null);
+    reader.readAsDataURL(photo);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPreparingPhoto) return;
     setErrorMessage(null);
 
     const formData = new FormData(formRef.current || undefined);
+    if (preparedPhoto) formData.set("image", preparedPhoto, preparedPhoto.name);
 
     startTransition(async () => {
       let res;
@@ -232,6 +274,12 @@ export default function ProductionDrawer({
       }
     });
   };
+
+  const photoStatus = isPreparingPhoto
+    ? "Préparation de la photo…"
+    : isPending && preparedPhoto
+      ? "Envoi de la photo…"
+      : null;
 
   // Aperçus dynamiques de saisons
   const plantingPreview = formatSeasonalPeriod(
@@ -267,7 +315,7 @@ export default function ProductionDrawer({
             variant="primary"
             isLoading={isPending}
             loadingText="Enregistrement..."
-            disabled={isPending || activeCompanyProducts.length === 0}
+            disabled={isPending || isPreparingPhoto || activeCompanyProducts.length === 0}
             onClick={() => formRef.current?.requestSubmit()}
           >
             {isEditing ? "Enregistrer les modifications" : "Créer la production"}
@@ -596,6 +644,11 @@ export default function ProductionDrawer({
               ) : (
                 <ImageIcon className="w-7 h-7 text-gray-400" />
               )}
+              {photoStatus && (
+                <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 text-forest-700 animate-spin" aria-hidden="true" />
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5 flex-1">
@@ -613,13 +666,24 @@ export default function ProductionDrawer({
                 variant="outline"
                 size="sm"
                 leftIcon={<Upload className="w-3.5 h-3.5" />}
+                disabled={isPending || isPreparingPhoto}
                 onClick={() => fileInputRef.current?.click()}
               >
                 {imagePreview ? "Changer la photographie" : "Sélectionner une photo"}
               </Button>
-              <p className="text-[11px] text-gray-500">
-                Format JPG, PNG ou WebP. Max 5 Mo.
-              </p>
+              {photoError ? (
+                <p role="alert" className="text-xs font-medium text-rose-700">
+                  {photoError}
+                </p>
+              ) : photoStatus ? (
+                <p role="status" className="text-[11px] font-semibold text-forest-800">
+                  {photoStatus}
+                </p>
+              ) : (
+                <p className="text-[11px] text-gray-500">
+                  Format JPG, PNG ou WebP. Max 5 Mo.
+                </p>
+              )}
             </div>
           </div>
         </div>

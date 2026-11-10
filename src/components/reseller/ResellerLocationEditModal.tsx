@@ -1,4 +1,5 @@
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useRef, useId } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { Province } from "@/lib/queries/geography";
 import { updateResellerLocationAction } from "@/lib/actions/resellers";
 import { Select } from "@/components/ui/Select";
@@ -37,6 +38,14 @@ export default function ResellerLocationEditModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useFocusTrap(panelRef, {
+    isOpen: isOpen,
+    onEscape: onClose,
+    escapeEnabled: !isPending,
+  });
+
   if (!isOpen) return null;
 
   const selectedProvince = provinces.find((p) => p.id === provinceId);
@@ -74,14 +83,21 @@ export default function ResellerLocationEditModal({
           onClose();
         }, 1500);
       } catch (err: any) {
-        setErrorMessage(err.message || "Erreur de connexion.");
+        console.error("Erreur modification localisation :", err);
+        setErrorMessage("Erreur de connexion.");
       }
     });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-8 animate-in fade-in zoom-in duration-200"
+      >
         {/* En-tête */}
         <div className="px-6 py-5 bg-gradient-to-r from-earth-900 to-earth-800 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -89,7 +105,7 @@ export default function ResellerLocationEditModal({
               <MapPin className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold">Modifier le Territoire d&apos;Opération</h2>
+              <h2 id={titleId} className="text-base font-bold">Modifier le Territoire d&apos;Opération</h2>
               <span className="text-xs text-earth-200">
                 Paramétrage de votre région principale d&apos;achat
               </span>

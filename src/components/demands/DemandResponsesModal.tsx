@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useRef } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { DemandItem, DemandResponseItem } from "@/lib/queries/demands";
 import { Province } from "@/lib/queries/geography";
 import { createOrderFromDemandResponseAction } from "@/lib/actions/orders";
@@ -61,6 +62,13 @@ export default function DemandResponsesModal({
     [provinces]
   );
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, {
+    isOpen: isOpen && !!demand,
+    onEscape: onClose,
+    escapeEnabled: !isPending,
+  });
+
   if (!isOpen || !demand) return null;
 
   const responses = demand.responses || [];
@@ -112,6 +120,7 @@ export default function DemandResponsesModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
       <div
+        ref={panelRef}
         className="relative w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 mt-auto sm:mt-0"
         role="dialog"
         aria-modal="true"

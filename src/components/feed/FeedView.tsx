@@ -259,9 +259,9 @@ export default function FeedView({
       </div>
 
       {/* 6. Grille des cartes de production compactes */}
-      {isBusy ? (
+      {isBusy && items.length === 0 ? (
         <FeedSkeleton count={6} />
-      ) : loadError ? (
+      ) : loadError && !isBusy ? (
         <EmptyState
           title="Impossible de charger les productions"
           description="Le flux n'a pas pu être récupéré. Vérifiez votre connexion puis réessayez."
@@ -278,14 +278,30 @@ export default function FeedView({
         />
       ) : items.length > 0 ? (
         <div className="space-y-5">
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
-            {items.map((production, index) => (
-              <FeedProductionCard
-                key={production.id}
-                production={production}
-                index={index}
-              />
-            ))}
+          {/* Pendant une mise à jour, les cartes restent en place, atténuées. */}
+          <div className="relative" aria-busy={isBusy}>
+            {isBusy && (
+              <div
+                role="status"
+                className="absolute top-2 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-semibold text-gray-700 shadow-sm whitespace-nowrap"
+              >
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-forest-700" aria-hidden="true" />
+                Mise à jour…
+              </div>
+            )}
+            <div
+              className={`grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5 transition-opacity duration-200 ${
+                isBusy ? "opacity-50 pointer-events-none" : ""
+              }`}
+            >
+              {items.map((production, index) => (
+                <FeedProductionCard
+                  key={production.id}
+                  production={production}
+                  index={index}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Chargement progressif (FUN-06) */}

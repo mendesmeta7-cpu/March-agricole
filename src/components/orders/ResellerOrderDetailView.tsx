@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { OrderDetail, OrderStatus } from "@/lib/queries/orders";
+import Alert from "@/components/ui/Alert";
 import OrderStatusBadge from "./OrderStatusBadge";
 import QRCodeModal from "./QRCodeModal";
 import { cancelOrderAction } from "@/lib/actions/orders";
@@ -36,6 +37,8 @@ import {
 
 interface ResellerOrderDetailViewProps {
   order: OrderDetail;
+  /** Le revendeur arrive directement de la validation de sa commande. */
+  justCreated?: boolean;
 }
 
 const STEPS: { status: OrderStatus; label: string; icon: any }[] = [
@@ -48,9 +51,15 @@ const STEPS: { status: OrderStatus; label: string; icon: any }[] = [
 
 export default function ResellerOrderDetailView({
   order,
+  justCreated = false,
 }: ResellerOrderDetailViewProps) {
   const router = useRouter();
   const { toast } = useToast();
+
+  // Le paramètre ne sert qu'à l'arrivée : un rechargement n'affiche plus l'encadré.
+  useEffect(() => {
+    if (justCreated) window.history.replaceState(null, "", window.location.pathname);
+  }, [justCreated]);
 
   const [showQRModal, setShowQRModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -156,6 +165,13 @@ export default function ResellerOrderDetailView({
         <span>/</span>
         <span className="text-gray-900 font-semibold font-mono">{order.order_number}</span>
       </div>
+
+      {justCreated && order.status === "pending" && (
+        <Alert variant="success" title="Commande enregistrée">
+          Le stock correspondant est réservé. La société doit maintenant confirmer votre commande ;
+          vous suivrez son avancement sur cette page.
+        </Alert>
+      )}
 
       {/* 2. En-tête principal */}
       <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-7 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useId } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { FeedCategoryItem } from "@/lib/queries/feedCategories";
 import {
   createAdminFeedCategoryAction,
@@ -26,6 +27,15 @@ export default function AdminCategoryModal({
   const [previewUrl, setPreviewUrl] = useState<string | null>(category?.image_url || null);
   const [removeImage, setRemoveImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  useFocusTrap(panelRef, {
+    isOpen: isOpen,
+    onEscape: onClose,
+    escapeEnabled: !isSubmitting,
+  });
 
   if (!isOpen) return null;
 
@@ -61,6 +71,7 @@ export default function AdminCategoryModal({
     }
 
     setFormState(res);
+    setIsSubmitting(false);
     if (res.success) {
       setTimeout(() => {
         onClose();
@@ -70,11 +81,17 @@ export default function AdminCategoryModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-150">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-150"
+      >
         {/* Header */}
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">
+            <h2 id={titleId} className="text-lg font-bold text-gray-900">
               {isEditing ? `Modifier la catégorie` : `Ajouter une catégorie`}
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -92,7 +109,7 @@ export default function AdminCategoryModal({
         </div>
 
         {/* Formulaire */}
-        <form action={handleSubmit} className="p-6 space-y-5">
+        <form action={handleSubmit} onSubmit={() => setIsSubmitting(true)} className="p-6 space-y-5">
           {formState?.error && (
             <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />

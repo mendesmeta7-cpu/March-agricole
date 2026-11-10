@@ -1,4 +1,5 @@
-import { useState, useRef, useTransition, useMemo } from "react";
+import { useState, useRef, useTransition, useMemo, useId } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { Province } from "@/lib/queries/geography";
 import { createProductionDemandAction } from "@/lib/actions/demands";
 import Select from "@/components/ui/Select";
@@ -60,6 +61,14 @@ export default function ProductionDemandModal({
     }));
   }, [provinces]);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useFocusTrap(panelRef, {
+    isOpen: isOpen,
+    onEscape: onClose,
+    escapeEnabled: !isPending,
+  });
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -98,9 +107,11 @@ export default function ProductionDemandModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
       <div
+        ref={panelRef}
         className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 mt-auto sm:mt-0"
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
       >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-earth-900/5">
@@ -109,7 +120,7 @@ export default function ProductionDemandModal({
               <TrendingUp className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-900">
+              <h2 id={titleId} className="text-base sm:text-lg font-bold text-gray-900">
                 Faire une demande sur cette production
               </h2>
               <p className="text-xs text-gray-500">
@@ -119,6 +130,7 @@ export default function ProductionDemandModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Fermer le formulaire de demande"
             className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-white/80 transition-colors"
           >
             <X className="w-5 h-5" />

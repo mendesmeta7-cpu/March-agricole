@@ -13,9 +13,12 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
+import DashboardChartCard, { ChartUnitSelect } from "./DashboardChartCard";
 import { DemandItem } from "@/lib/queries/demands";
 import {
   formatQuantity,
+  rankProvincesByUnit,
+  resolveSelectedUnit,
   type ProvinceUnitShare,
   type UnitTotal,
 } from "@/lib/utils/unitSeries";
@@ -41,64 +44,24 @@ export interface CompanyDemandGeoChartProps {
   unavailable?: boolean;
 }
 
-/**
- * Palette de couleurs selon le rang (classement des demandes décroissant).
- * La couleur est attachée au RANG, pas à la région.
- */
-const RANK_PALETTE = [
-  {
-    bar: "bg-emerald-500",
-    bg: "bg-emerald-50",
-    border: "border-emerald-200",
-    text: "text-emerald-800",
-    label: "1er",
-  },
-  {
-    bar: "bg-amber-400",
-    bg: "bg-amber-50",
-    border: "border-amber-200",
-    text: "text-amber-800",
-    label: "2e",
-  },
-  {
-    bar: "bg-yellow-400",
-    bg: "bg-yellow-50",
-    border: "border-yellow-200",
-    text: "text-yellow-800",
-    label: "3e",
-  },
-  {
-    bar: "bg-rose-400",
-    bg: "bg-rose-50",
-    border: "border-rose-200",
-    text: "text-rose-800",
-    label: "4e",
-  },
-  {
-    bar: "bg-purple-400",
-    bg: "bg-purple-50",
-    border: "border-purple-200",
-    text: "text-purple-800",
-    label: "5e",
-  },
-  {
-    bar: "bg-sky-400",
-    bg: "bg-sky-50",
-    border: "border-sky-200",
-    text: "text-sky-800",
-    label: "6e",
-  },
-  {
-    bar: "bg-slate-400",
-    bg: "bg-slate-50",
-    border: "border-slate-200",
-    text: "text-slate-700",
-    label: "+",
-  },
+/** Une seule teinte, plus claire à chaque rang : la couleur ne désigne que le rang. */
+const RANK_BARS = [
+  "bg-forest-900",
+  "bg-forest-800",
+  "bg-forest-700",
+  "bg-forest-600",
+  "bg-forest-500",
 ];
 
-function getRankStyle(index: number) {
-  return RANK_PALETTE[Math.min(index, RANK_PALETTE.length - 1)];
+const COLLAPSED_REGIONS = 5;
+const TITLE = "Demandes par région";
+
+function getRankBar(index: number): string {
+  return RANK_BARS[Math.min(index, RANK_BARS.length - 1)];
+}
+
+function getRankLabel(index: number): string {
+  return index === 0 ? "1er" : `${index + 1}e`;
 }
 
 export default function CompanyDemandGeoChart({
@@ -108,48 +71,57 @@ export default function CompanyDemandGeoChart({
 }: CompanyDemandGeoChartProps) {
   const [selectedProvince, setSelectedProvince] =
     useState<ProvinceDemandData | null>(null);
+  const [selectedUnitKey, setSelectedUnitKey] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
-  const hasData = provincesData.length > 0;
   const isMultiUnit = unitTotals.length > 1;
+  const selectedUnit = resolveSelectedUnit(unitTotals, selectedUnitKey);
+  const ranking = selectedUnit
+    ? rankProvincesByUnit(provincesData, selectedUnit.unitKey)
+    : [];
+  const hasData = ranking.length > 0;
+  const visibleRanking = showAll ? ranking : ranking.slice(0, COLLAPSED_REGIONS);
 
   if (unavailable) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-6 shadow-sm flex flex-col space-y-5">
-        <h3 className="text-base font-bold text-gray-950 flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-forest-700 shrink-0" />
-          Demandes par région
-        </h3>
+      <DashboardChartCard icon={MapPin} title={TITLE}>
         <DataUnavailableNotice title="Graphique temporairement indisponible">
           Les demandes n&apos;ont pas pu être chargées. Cela ne signifie pas qu&apos;il n&apos;y en a aucune.
         </DataUnavailableNotice>
-      </div>
+      </DashboardChartCard>
     );
   }
 
   return (
     <>
-      <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-6 shadow-sm flex flex-col space-y-5">
-        {/* En-tête */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-gray-100">
-          <div>
-            <h3 className="text-base font-bold text-gray-950 flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-forest-700 shrink-0" />
-              Demandes par région
-            </h3>
-            <p className="text-xs text-gray-500 mt-1">
-              Volume d&apos;achat exprimé selon les bassins de consommation
-              {isMultiUnit && " — part calculée dans chaque unité, sans conversion"}
-            </p>
-          </div>
-          {hasData && (
-            <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg self-start sm:self-auto shrink-0">
-              {provincesData.length} région{provincesData.length > 1 ? "s" : ""}
+      <DashboardChartCard
+        icon={MapPin}
+        title={TITLE}
+        description={
+          <>
+            Volume d&apos;achat exprimé selon les bassins de consommation
+            {isMultiUnit && " — classement et part dans l'unité choisie, sans conversion"}
+          </>
+        }
+        aside={
+          hasData ? (
+            <span className="block text-xs font-semibold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg">
+              {ranking.length} région{ranking.length > 1 ? "s" : ""}
             </span>
-          )}
-        </div>
-
+          ) : undefined
+        }
+        filters={
+          isMultiUnit && selectedUnit ? (
+            <ChartUnitSelect
+              units={unitTotals}
+              value={selectedUnit.unitKey}
+              onChange={setSelectedUnitKey}
+            />
+          ) : undefined
+        }
+      >
         {/* Liste ou état vide */}
-        {!hasData ? (
+        {!hasData || !selectedUnit ? (
           <EmptyState
             title="Aucune demande localisée"
             description="Les besoins déclarés par les acheteurs apparaîtront ici ventilés par région."
@@ -157,9 +129,8 @@ export default function CompanyDemandGeoChart({
             className="py-10"
           />
         ) : (
-          <div className="space-y-3 flex-1">
-            {provincesData.map((item, index) => {
-              const rank = getRankStyle(index);
+          <div className="space-y-3">
+            {visibleRanking.map(({ province: item, share }, index) => {
               return (
                 <div
                   key={item.provinceId}
@@ -176,10 +147,8 @@ export default function CompanyDemandGeoChart({
                   <div className="flex items-center justify-between gap-3 mb-2.5">
                     <div className="flex items-center gap-2 min-w-0">
                       {/* Indicateur de rang */}
-                      <span
-                        className={`text-[10px] font-black px-1.5 py-0.5 rounded ${rank.bg} ${rank.text} ${rank.border} border shrink-0`}
-                      >
-                        {rank.label}
+                      <span className="text-[11px] font-black px-1.5 py-0.5 rounded bg-forest-50 text-forest-900 border-forest-200 border shrink-0">
+                        {getRankLabel(index)}
                       </span>
                       <span className="font-bold text-sm text-gray-950 truncate group-hover:text-forest-900 transition-colors">
                         {item.provinceName}
@@ -189,73 +158,66 @@ export default function CompanyDemandGeoChart({
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="text-right">
                         <span className="text-sm font-extrabold text-gray-950">
-                          {item.demandsCount}
+                          {share.demandsCount}
                         </span>
                         <span className="text-xs text-gray-400 ml-1">
-                          demande{item.demandsCount > 1 ? "s" : ""}
+                          demande{share.demandsCount > 1 ? "s" : ""}
                         </span>
                       </div>
                       <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-forest-600 group-hover:translate-x-0.5 transition-all" />
                     </div>
                   </div>
 
-                  {/* Une barre par unité : part de la province dans le total de CETTE unité */}
-                  <div className={isMultiUnit ? "space-y-2" : undefined}>
-                    {item.quantitiesByUnit.map((share) => (
-                      <div key={share.unitKey}>
-                        <div
-                          className="w-full bg-gray-200/60 h-1.5 rounded-full overflow-hidden"
-                          role="img"
-                          aria-label={`${item.provinceName} : ${formatQuantity(share.quantity)} ${share.unitLabel}, soit ${share.percentage} % du total exprimé en ${share.unitLabel}`}
-                        >
-                          <div
-                            className={`${rank.bar} h-full rounded-full transition-all duration-700 ease-out motion-safe:animate-none`}
-                            style={{
-                              width: `${Math.max(4, Math.min(100, share.percentage))}%`,
-                            }}
-                          />
-                        </div>
+                  {/* Part de la province dans le total de l'unité affichée */}
+                  <div>
+                    <div
+                      className="w-full bg-gray-200/60 h-1.5 rounded-full overflow-hidden"
+                      role="img"
+                      aria-label={`${item.provinceName} : ${formatQuantity(share.quantity)} ${share.unitLabel}, soit ${share.percentage} % du total exprimé en ${share.unitLabel}`}
+                    >
+                      <div
+                        className={`${getRankBar(index)} h-full rounded-full transition-all duration-700 ease-out motion-safe:animate-none`}
+                        style={{
+                          width: `${Math.max(4, Math.min(100, share.percentage))}%`,
+                        }}
+                      />
+                    </div>
 
-                        {/* Volume et % (dans l'unité) */}
-                        <div className="flex items-center justify-between mt-1.5 text-[11px] text-gray-400">
-                          <span>
-                            {formatQuantity(share.quantity)} {share.unitLabel}
-                          </span>
-                          <span className="font-semibold">
-                            {isMultiUnit
-                              ? `${share.percentage}% du total en ${share.unitLabel}`
-                              : `${share.percentage}% du total`}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                    {/* Volume et % (dans l'unité) */}
+                    <div className="flex items-center justify-between gap-3 mt-1.5 text-[11px] text-gray-400">
+                      <span className="min-w-0 break-words">
+                        {formatQuantity(share.quantity)} {share.unitLabel}
+                      </span>
+                      <span className="font-semibold shrink-0">{share.percentage}% du total</span>
+                    </div>
                   </div>
                 </div>
               );
             })}
 
-            {/* Total du marché : une valeur par unité, jamais additionnées entre elles */}
+            {/* Liste complète, dépliée dans la carte */}
+            {ranking.length > COLLAPSED_REGIONS && (
+              <Button
+                variant="outline"
+                size="sm"
+                fullWidth
+                aria-expanded={showAll}
+                onClick={() => setShowAll((value) => !value)}
+              >
+                {showAll ? "Réduire" : `Voir tout (${ranking.length})`}
+              </Button>
+            )}
+
+            {/* Total du marché dans l'unité affichée : jamais d'addition entre unités */}
             <div className="flex items-start justify-between gap-3 pt-2 border-t border-gray-100 text-xs text-gray-500">
               <span className="shrink-0">Total marché exprimé</span>
-              <ul
-                className="flex flex-wrap justify-end gap-x-1.5 gap-y-0.5 font-bold text-gray-900 text-right"
-                aria-label="Total du marché exprimé par unité"
-              >
-                {unitTotals.map((u, i) => (
-                  <li key={u.unitKey}>
-                    {i > 0 && (
-                      <span className="text-gray-300 font-normal mr-1.5" aria-hidden="true">
-                        ·
-                      </span>
-                    )}
-                    {formatQuantity(u.total)} {u.unitLabel}
-                  </li>
-                ))}
-              </ul>
+              <span className="min-w-0 break-words font-bold text-gray-900 text-right">
+                {formatQuantity(selectedUnit.total)} {selectedUnit.unitLabel}
+              </span>
             </div>
           </div>
         )}
-      </div>
+      </DashboardChartCard>
 
       {/* Tiroir de détail par province (Drawer R1) */}
       <Drawer

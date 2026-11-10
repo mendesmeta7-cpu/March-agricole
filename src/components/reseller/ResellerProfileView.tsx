@@ -186,8 +186,9 @@ export default function ResellerProfileView({
         });
       }
     } catch (err: any) {
+      console.error("Erreur profil revendeur :", err);
       toast.error("Problème de connexion", {
-        description: err.message || "Une erreur est survenue. Veuillez réessayer.",
+        description: "Une erreur est survenue. Veuillez réessayer.",
       });
     } finally {
       setIsUploadingAvatar(false);
@@ -215,8 +216,9 @@ export default function ResellerProfileView({
         });
       }
     } catch (err: any) {
+      console.error("Erreur profil revendeur :", err);
       toast.error("Erreur de connexion", {
-        description: err.message || "Une erreur est survenue.",
+        description: "Une erreur est survenue.",
       });
     } finally {
       setIsDeletingAvatar(false);

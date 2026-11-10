@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useId } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { Html5Qrcode } from "html5-qrcode";
 import { X, Camera, AlertCircle, RefreshCw, Keyboard, Sparkles } from "lucide-react";
 
@@ -102,14 +103,24 @@ export default function QRScannerModal({
     };
   }, [isOpen, onScanSuccess]);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useFocusTrap(panelRef, {
+    isOpen: isOpen,
+    onEscape: onClose,
+    escapeEnabled: true,
+  });
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
       <div
+        ref={panelRef}
         className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
       >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-forest-900/5">
@@ -118,7 +129,7 @@ export default function QRScannerModal({
               <Camera className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-gray-900">Scanner le QR Code</h3>
+              <h3 id={titleId} className="text-sm font-bold text-gray-900">Scanner le QR Code</h3>
               <p className="text-[11px] text-gray-500">Pointez l&apos;objectif vers le QR du revendeur</p>
             </div>
           </div>

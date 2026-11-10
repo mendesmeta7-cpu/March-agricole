@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useId } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { CatalogProduct } from "@/lib/queries/products";
 import {
   createAdminCatalogProductAction,
@@ -73,6 +74,15 @@ export default function AdminProductModal({
 
   const unitOptions = useMemo(() => DEFAULT_UNITS, []);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  useFocusTrap(panelRef, {
+    isOpen: isOpen,
+    onEscape: onClose,
+    escapeEnabled: !isSubmitting,
+  });
+
   if (!isOpen) return null;
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,6 +113,7 @@ export default function AdminProductModal({
       formData.set("removeImage", removeImage.toString());
       const res = await updateAdminCatalogProductAction(null, formData);
       setState(res);
+      setIsSubmitting(false);
       if (res.success) {
         setTimeout(() => {
           onClose();
@@ -112,6 +123,7 @@ export default function AdminProductModal({
     } else {
       const res = await createAdminCatalogProductAction(null, formData);
       setState(res);
+      setIsSubmitting(false);
       if (res.success) {
         setTimeout(() => {
           onClose();
@@ -123,11 +135,17 @@ export default function AdminProductModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+      >
         {/* En-tête */}
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/70">
           <div>
-            <h2 className="text-lg font-bold text-gray-950">
+            <h2 id={titleId} className="text-lg font-bold text-gray-950">
               {isEditing ? "Modifier une référence officielle" : "Ajouter un produit au catalogue"}
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -160,7 +178,7 @@ export default function AdminProductModal({
         )}
 
         {/* Formulaire */}
-        <form action={handleSubmit} className="p-6 overflow-y-auto space-y-4 flex-1">
+        <form action={handleSubmit} onSubmit={() => setIsSubmitting(true)} className="p-6 overflow-y-auto space-y-4 flex-1">
           {/* Nom du produit */}
           <div>
             <label htmlFor="admin-product-name" className="block text-xs font-semibold text-gray-700 mb-1">

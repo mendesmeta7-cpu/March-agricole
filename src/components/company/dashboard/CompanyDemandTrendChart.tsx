@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useMemo, useId } from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { TrendingUp, Calendar } from "lucide-react";
 import EmptyState from "@/components/ui/EmptyState";
 import Select from "@/components/ui/Select";
 import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
+import DashboardChartCard, { ChartUnitSelect } from "./DashboardChartCard";
 import {
   buildMonthlySeriesByUnit,
   countByMonth,
   formatQuantity,
   formatUnitTotals,
-  groupQuantitiesByUnit,
   lastMonthKeys,
+  niceAxisScale,
+  resolveSelectedUnit,
 } from "@/lib/utils/unitSeries";
 
 export interface DemandTrendPoint {
@@ -29,29 +31,73 @@ export interface CompanyDemandTrendChartProps {
   unavailable?: boolean;
 }
 
-/**
- * Palette des séries (une par unité de mesure), issue de l'identité Radiza :
- * forêt en premier (rendu identique à l'ancien graphique mono-unité), puis terre,
- * puis teintes déjà utilisées sur le tableau de bord. Chaque série a aussi son
- * propre motif de trait pour rester distinguable sans la couleur.
- */
-const SERIES_STYLES = [
-  { stroke: "#2f563d", activeFill: "#22392b", dash: undefined },
-  { stroke: "#9e6f40", activeFill: "#674530", dash: "7 4" },
-  { stroke: "#0369a1", activeFill: "#0c4a6e", dash: "2 4" },
-  { stroke: "#be123c", activeFill: "#881337", dash: "10 4 2 4" },
-  { stroke: "#7e22ce", activeFill: "#581c87", dash: "4 3" },
-  { stroke: "#475569", activeFill: "#1e293b", dash: "1 3" },
-] as const;
+const LINE_COLOR = "#2f563d"; // forest-700
+const ACTIVE_POINT_COLOR = "#22392b"; // forest-900
+const AXIS_TEXT_COLOR = "#4b5563"; // gray-600
+const ACTIVE_AXIS_TEXT_COLOR = "#111827"; // gray-900
 
 const MONTHS_WINDOW = 6;
+const CHART_HEIGHT = 220;
+const PADDING_TOP = 30;
+const PADDING_RIGHT = 18;
+const PADDING_BOTTOM = 28;
+const AXIS_FONT_SIZE = 11;
+const TOOLTIP_GAP = 12;
+const TOOLTIP_MARGIN = 4;
 
-function monthLabel(monthKey: string): string {
+const TITLE = "Évolution de la demande exprimée";
+
+function monthLabel(monthKey: string, format: "short" | "long" = "short"): string {
   const [year, month] = monthKey.split("-").map(Number);
-  const label = new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(
+  const label = new Intl.DateTimeFormat("fr-FR", { month: format }).format(
     new Date(year, month - 1, 1)
   );
   return label.charAt(0).toUpperCase() + label.slice(1).replace(".", "");
+}
+
+function plural(count: number, word: string): string {
+  return `${count} ${word}${count > 1 ? "s" : ""}`;
+}
+
+/** Largeur de la carte en pixels réels, pour dessiner sans aucune déformation. */
+function useElementWidth() {
+  const [width, setWidth] = useState<number | null>(null);
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
+    if (!node) return;
+    const measure = () => setWidth(node.clientWidth);
+    measure();
+    if (typeof ResizeObserver !== "undefined") {
+      observerRef.current = new ResizeObserver(measure);
+      observerRef.current.observe(node);
+    }
+  }, []);
+
+  return [ref, width] as const;
+}
+
+/** Place l'infobulle au-dessus du point, entière dans le graphique et dans la carte. */
+function placeTooltip(node: HTMLDivElement, pointX: number, pointY: number, chartWidth: number) {
+  const { offsetWidth: tooltipWidth, offsetHeight: tooltipHeight } = node;
+  const left = Math.min(
+    Math.max(TOOLTIP_MARGIN, pointX - tooltipWidth / 2),
+    chartWidth - tooltipWidth - TOOLTIP_MARGIN
+  );
+
+  const card = node.closest("[data-chart-card]");
+  const chart = node.parentElement;
+  const spaceAbove =
+    card && chart
+      ? chart.getBoundingClientRect().top - card.getBoundingClientRect().top
+      : 0;
+  const above = pointY - tooltipHeight - TOOLTIP_GAP;
+  const top = above >= TOOLTIP_MARGIN - spaceAbove ? above : pointY + TOOLTIP_GAP;
+
+  node.style.left = `${left}px`;
+  node.style.top = `${top}px`;
 }
 
 export default function CompanyDemandTrendChart({
@@ -61,10 +107,11 @@ export default function CompanyDemandTrendChart({
 }: CompanyDemandTrendChartProps) {
   const gradientId = useId();
   const summaryId = useId();
+  const [chartRef, chartWidth] = useElementWidth();
   const [selectedProductId, setSelectedProductId] = useState<string>("all");
   const [displayMode, setDisplayMode] = useState<"volume" | "count">("volume");
-  const [activeHoverIndex, setActiveHoverIndex] = useState<number | null>(null);
-  const [hiddenUnits, setHiddenUnits] = useState<string[]>([]);
+  const [selectedUnitKey, setSelectedUnitKey] = useState<string | null>(null);
+  const [activeMonth, setActiveMonth] = useState<number | null>(null);
 
   const productOptions = useMemo(
     () => [
@@ -74,15 +121,6 @@ export default function CompanyDemandTrendChart({
     [availableProducts]
   );
 
-  // Couleur stable par unité (calculée sur toutes les demandes, indépendamment du filtre)
-  const styleByUnit = useMemo(() => {
-    const map = new Map<string, (typeof SERIES_STYLES)[number]>();
-    groupQuantitiesByUnit(demands, (d) => d.quantity, (d) => d.unit).forEach((u, i) => {
-      map.set(u.unitKey, SERIES_STYLES[i % SERIES_STYLES.length]);
-    });
-    return map;
-  }, [demands]);
-
   // 1. Filtrage selon le produit sélectionné
   const filteredDemands = useMemo(() => {
     if (selectedProductId === "all") return demands;
@@ -91,7 +129,11 @@ export default function CompanyDemandTrendChart({
 
   // 2. Les 6 derniers mois calendaires (axe X)
   const monthKeys = useMemo(() => lastMonthKeys(new Date(), MONTHS_WINDOW), []);
-  const monthLabels = useMemo(() => monthKeys.map(monthLabel), [monthKeys]);
+  const monthLabels = useMemo(() => monthKeys.map((key) => monthLabel(key)), [monthKeys]);
+  const monthLongLabels = useMemo(
+    () => monthKeys.map((key) => monthLabel(key, "long")),
+    [monthKeys]
+  );
 
   // 3. Une série par unité (BR-FIN-04 : aucune conversion, aucune addition entre unités)
   const unitSeries = useMemo(
@@ -103,125 +145,71 @@ export default function CompanyDemandTrendChart({
     [filteredDemands, monthKeys]
   );
 
-  // Séries affichées ; si un changement de filtre masquerait tout, on réaffiche tout.
-  const visibleSeries = useMemo(() => {
-    const visible = unitSeries.filter((s) => !hiddenUnits.includes(s.unitKey));
-    return visible.length > 0 ? visible : unitSeries;
-  }, [unitSeries, hiddenUnits]);
+  // Une seule unité à la fois, sur sa propre échelle. Si le filtre retire l'unité
+  // choisie, on affiche la première sans oublier le choix de l'utilisateur.
+  const selectedSeries = resolveSelectedUnit(unitSeries, selectedUnitKey);
   const isMultiUnit = unitSeries.length > 1;
+  const volumeSeries = displayMode === "volume" ? selectedSeries : null;
+  const values = volumeSeries ? volumeSeries.values : monthlyCounts;
 
-  // Séries tracées : une par unité visible (volume) ou le décompte des demandes (count)
-  const plotted = useMemo(() => {
-    if (displayMode === "count") {
-      return [
-        {
-          key: "__count__",
-          label: "demande(s)",
-          values: monthlyCounts,
-          style: SERIES_STYLES[0],
-        },
-      ];
-    }
-    return visibleSeries.map((s) => ({
-      key: s.unitKey,
-      label: s.unitLabel,
-      values: s.values,
-      style: styleByUnit.get(s.unitKey) ?? SERIES_STYLES[0],
-    }));
-  }, [displayMode, monthlyCounts, visibleSeries, styleByUnit]);
-
-  const maxVal = useMemo(() => {
-    const max = Math.max(0, ...plotted.flatMap((s) => s.values));
-    return max === 0 ? (displayMode === "volume" ? 10 : 5) : Math.ceil(max * 1.25);
-  }, [plotted, displayMode]);
+  const scale = useMemo(
+    () => niceAxisScale(Math.max(0, ...values), { integerOnly: volumeSeries === null }),
+    [values, volumeSeries]
+  );
+  const tickLabels = scale.ticks.map(formatQuantity);
 
   const totalCount = monthlyCounts.reduce((acc, c) => acc + c, 0);
   const hasData = totalCount > 0;
 
-  // Dimensions SVG adaptatives
-  const width = 600;
-  const height = 220;
-  const paddingX = 40;
-  const paddingY = 30;
-  const innerWidth = width - paddingX * 2;
-  const innerHeight = height - paddingY * 2;
-  const step = innerWidth / (monthKeys.length - 1);
-  const bottomY = paddingY + innerHeight;
+  // Géométrie en pixels réels : une unité du dessin vaut un pixel à l'écran.
+  const width = chartWidth ?? 0;
+  const longestTick = Math.max(...tickLabels.map((label) => label.length));
+  const paddingLeft = Math.min(84, Math.max(34, Math.ceil(longestTick * 6.6) + 12));
+  const innerHeight = CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
+  const bottomY = PADDING_TOP + innerHeight;
+  const step = (width - paddingLeft - PADDING_RIGHT) / (monthKeys.length - 1);
 
-  const xAt = (i: number) => paddingX + i * step;
-  const yAt = (val: number) => paddingY + innerHeight - (val / maxVal) * innerHeight;
+  const xAt = (i: number) => paddingLeft + i * step;
+  const yAt = (val: number) => bottomY - (val / scale.max) * innerHeight;
 
-  // Chemins SVG lissés, un par série tracée
-  const paths = plotted.map((s) => {
-    const pts = s.values.map((v, i) => ({ x: xAt(i), y: yAt(v) }));
-    let d = `M ${pts[0].x} ${pts[0].y}`;
-    for (let i = 1; i < pts.length; i++) {
-      const prev = pts[i - 1];
-      const curr = pts[i];
-      const cx = (prev.x + curr.x) / 2;
-      d += ` C ${cx} ${prev.y}, ${cx} ${curr.y}, ${curr.x} ${curr.y}`;
-    }
-    const area = `${d} L ${pts[pts.length - 1].x} ${bottomY} L ${pts[0].x} ${bottomY} Z`;
-    return { ...s, pts, d, area };
-  });
+  // Courbe lissée
+  const points = values.map((v, i) => ({ x: xAt(i), y: yAt(v) }));
+  let linePath = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const cx = (prev.x + curr.x) / 2;
+    linePath += ` C ${cx} ${prev.y}, ${cx} ${curr.y}, ${curr.x} ${curr.y}`;
+  }
+  const areaPath = `${linePath} L ${points[points.length - 1].x} ${bottomY} L ${points[0].x} ${bottomY} Z`;
 
-  // Le dégradé n'est conservé que pour une série unique (rendu identique à l'existant)
-  const singlePath = paths.length === 1 ? paths[0] : null;
-
-  const volumeTotalsLabel = formatUnitTotals(
-    visibleSeries.map((s) => ({ unitLabel: s.unitLabel, total: s.total }))
-  );
-
-  const toggleUnit = (unitKey: string) => {
-    setHiddenUnits((prev) => {
-      if (prev.includes(unitKey)) return prev.filter((u) => u !== unitKey);
-      // Au moins une série reste visible
-      const visibleCount = unitSeries.filter((s) => !prev.includes(s.unitKey)).length;
-      if (visibleCount <= 1) return prev;
-      return [...prev, unitKey];
-    });
-  };
-
-  const hoverTopY =
-    activeHoverIndex !== null && paths.length > 0
-      ? Math.min(...paths.map((p) => p.pts[activeHoverIndex].y))
-      : 0;
+  const describeMonth = (i: number) =>
+    volumeSeries
+      ? `${monthLongLabels[i]} : ${formatQuantity(volumeSeries.values[i])} ${volumeSeries.unitLabel}, ${plural(volumeSeries.counts[i], "demande")}`
+      : `${monthLongLabels[i]} : ${plural(monthlyCounts[i], "demande")}`;
 
   if (unavailable) {
     return (
-      <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-7 shadow-xs space-y-5">
-        <h3 className="text-base sm:text-lg font-bold text-gray-950 flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-forest-700 shrink-0" />
-          Évolution de la Demande Exprimée
-        </h3>
+      <DashboardChartCard icon={TrendingUp} title={TITLE}>
         <DataUnavailableNotice title="Graphique temporairement indisponible">
           Les demandes n&apos;ont pas pu être chargées. Cela ne signifie pas qu&apos;il n&apos;y en a aucune.
         </DataUnavailableNotice>
-      </div>
+      </DashboardChartCard>
     );
   }
 
   return (
-    <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-7 shadow-xs space-y-5">
-      {/* En-tête du graphique avec titre, métriques et filtres réels */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-base sm:text-lg font-bold text-gray-950 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-forest-700" />
-              Évolution de la Demande Exprimée
-            </h3>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-forest-100 text-forest-900 border border-forest-200">
-              Données réelles
-            </span>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">
-            Tendances d&apos;achat exprimées par les revendeurs sur les 6 derniers mois.
-          </p>
-        </div>
-
-        {/* Sélecteurs dynamiques (Mode & Produit) */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+    <DashboardChartCard
+      icon={TrendingUp}
+      title={TITLE}
+      badge={
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-forest-100 text-forest-900 border border-forest-200">
+          Données réelles
+        </span>
+      }
+      description="Tendances d'achat exprimées par les revendeurs sur les 6 derniers mois."
+      filters={
+        <>
           {/* Bascule Volume / Nombre */}
           <div className="inline-flex rounded-xl p-1 bg-gray-100 border border-gray-200/70 text-xs">
             <button
@@ -234,7 +222,7 @@ export default function CompanyDemandTrendChart({
                   : "text-gray-600 hover:text-gray-900"
               }`}
             >
-              {unitSeries.length === 1 ? `Volume (${unitSeries[0].unitLabel})` : "Volume"}
+              Volume
             </button>
             <button
               type="button"
@@ -250,9 +238,18 @@ export default function CompanyDemandTrendChart({
             </button>
           </div>
 
+          {/* Une unité à la fois (la vue « Nb demandes » reste toutes unités) */}
+          {volumeSeries && isMultiUnit && (
+            <ChartUnitSelect
+              units={unitSeries}
+              value={volumeSeries.unitKey}
+              onChange={setSelectedUnitKey}
+            />
+          )}
+
           {/* Sélecteur de produit réel */}
           {availableProducts.length > 0 && (
-            <div className="w-48">
+            <div className="min-w-[9rem] flex-1 sm:flex-none sm:w-48">
               <Select
                 value={selectedProductId}
                 onChange={(e) => setSelectedProductId(e.target.value)}
@@ -262,9 +259,9 @@ export default function CompanyDemandTrendChart({
               />
             </div>
           )}
-        </div>
-      </div>
-
+        </>
+      }
+    >
       {/* Affichage du graphique ou de l'état vide */}
       {!hasData ? (
         <EmptyState
@@ -274,206 +271,167 @@ export default function CompanyDemandTrendChart({
           className="py-10 bg-forest-50/20"
         />
       ) : (
-        <div className="relative">
-          {/* Légende : une entrée par unité (aucune conversion entre unités) */}
-          {displayMode === "volume" && isMultiUnit && (
-            <div className="mb-3 space-y-1.5">
-              <ul className="flex flex-wrap gap-2" aria-label="Séries par unité de mesure">
-                {unitSeries.map((s) => {
-                  const style = styleByUnit.get(s.unitKey) ?? SERIES_STYLES[0];
-                  const isVisible = visibleSeries.some((v) => v.unitKey === s.unitKey);
-                  return (
-                    <li key={s.unitKey}>
-                      <button
-                        type="button"
-                        onClick={() => toggleUnit(s.unitKey)}
-                        aria-pressed={isVisible}
-                        aria-label={`Série ${s.unitLabel} : ${formatQuantity(s.total)} ${s.unitLabel} sur 6 mois. ${isVisible ? "Masquer" : "Afficher"} la série`}
-                        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] font-semibold transition-all ${
-                          isVisible
-                            ? "bg-white border-gray-200 text-gray-800"
-                            : "bg-gray-50 border-gray-100 text-gray-400 line-through"
-                        }`}
+        <div>
+          {volumeSeries && isMultiUnit && (
+            <p className="mb-3 text-[11px] text-gray-500">
+              Une unité à la fois : les quantités ne sont ni converties ni additionnées entre unités.
+            </p>
+          )}
+
+          <div ref={chartRef} className="relative w-full" style={{ height: CHART_HEIGHT }}>
+            {chartWidth !== null && (
+              <>
+                <svg
+                  viewBox={`0 0 ${width} ${CHART_HEIGHT}`}
+                  height={CHART_HEIGHT}
+                  className="block w-full select-none"
+                  role="img"
+                  aria-describedby={summaryId}
+                >
+                  <defs>
+                    <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={LINE_COLOR} stopOpacity="0.32" />
+                      <stop offset="100%" stopColor={LINE_COLOR} stopOpacity="0.0" />
+                    </linearGradient>
+                  </defs>
+
+                  {/* Unité de l'axe */}
+                  <text x={0} y={12} fontSize={AXIS_FONT_SIZE} fill={AXIS_TEXT_COLOR} fontWeight="600">
+                    {volumeSeries ? `En ${volumeSeries.unitLabel}` : "Nombre de demandes"}
+                  </text>
+
+                  {/* Graduations horizontales */}
+                  {scale.ticks.map((tick, idx) => (
+                    <g key={tick}>
+                      <line
+                        x1={paddingLeft}
+                        y1={yAt(tick)}
+                        x2={width - PADDING_RIGHT}
+                        y2={yAt(tick)}
+                        stroke="#f3f4f6"
+                        strokeWidth="1"
+                        strokeDasharray="4 4"
+                      />
+                      <text
+                        x={paddingLeft - 8}
+                        y={yAt(tick) + 4}
+                        textAnchor="end"
+                        fontSize={AXIS_FONT_SIZE}
+                        fill={AXIS_TEXT_COLOR}
+                        fontWeight="600"
                       >
-                        <svg width="18" height="6" aria-hidden="true">
-                          <line
-                            x1="1"
-                            y1="3"
-                            x2="17"
-                            y2="3"
-                            stroke={isVisible ? style.stroke : "#d1d5db"}
-                            strokeWidth="2.5"
-                            strokeDasharray={style.dash}
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                        {s.unitLabel}
-                      </button>
-                    </li>
+                        {tickLabels[idx]}
+                      </text>
+                    </g>
+                  ))}
+
+                  {/* Remplissage dégradé sous la courbe */}
+                  <path d={areaPath} fill={`url(#${gradientId})`} />
+
+                  {/* Ligne de tendance */}
+                  <path
+                    d={linePath}
+                    fill="none"
+                    stroke={LINE_COLOR}
+                    strokeWidth="2.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  {/* Points et mois */}
+                  {points.map((pt, i) => (
+                    <g key={monthKeys[i]}>
+                      <circle
+                        cx={pt.x}
+                        cy={pt.y}
+                        r={activeMonth === i ? 6 : 4}
+                        fill={activeMonth === i ? ACTIVE_POINT_COLOR : "#ffffff"}
+                        stroke={LINE_COLOR}
+                        strokeWidth="2.5"
+                      />
+                      <text
+                        x={pt.x}
+                        y={CHART_HEIGHT - 8}
+                        textAnchor="middle"
+                        fontSize={AXIS_FONT_SIZE}
+                        fill={activeMonth === i ? ACTIVE_AXIS_TEXT_COLOR : AXIS_TEXT_COLOR}
+                        fontWeight={activeMonth === i ? "bold" : "600"}
+                      >
+                        {monthLabels[i]}
+                      </text>
+                    </g>
+                  ))}
+                </svg>
+
+                {/* Un bouton par mois : souris, toucher et clavier */}
+                {points.map((pt, i) => {
+                  const zoneLeft = i === 0 ? 0 : pt.x - step / 2;
+                  const zoneRight = i === points.length - 1 ? width : pt.x + step / 2;
+                  return (
+                    <button
+                      key={monthKeys[i]}
+                      type="button"
+                      aria-label={describeMonth(i)}
+                      className="absolute top-0 bottom-0 z-10 cursor-pointer rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-forest-600"
+                      style={{ left: zoneLeft, width: zoneRight - zoneLeft }}
+                      onPointerEnter={(e) => {
+                        if (e.pointerType === "mouse") setActiveMonth(i);
+                      }}
+                      onPointerLeave={(e) => {
+                        if (e.pointerType === "mouse") setActiveMonth(null);
+                      }}
+                      onFocus={() => setActiveMonth(i)}
+                      onBlur={() => setActiveMonth(null)}
+                      onClick={() => setActiveMonth(i)}
+                    />
                   );
                 })}
-              </ul>
-              <p className="text-[10px] text-gray-400">
-                Une courbe par unité de mesure — les quantités ne sont ni converties ni additionnées entre unités.
-              </p>
-            </div>
-          )}
 
-          {/* Tooltip flottant au survol */}
-          {activeHoverIndex !== null && paths.length > 0 && (
-            <div
-              className="absolute z-20 pointer-events-none transform -translate-x-1/2 bg-gray-950 text-white rounded-xl px-3 py-2 text-xs shadow-xl transition-all"
-              style={{
-                left: `${(xAt(activeHoverIndex) / width) * 100}%`,
-                top: `${(hoverTopY / height) * 100 - 32}%`,
-              }}
-            >
-              <p className="font-extrabold text-[11px] text-forest-200">
-                {monthLabels[activeHoverIndex]}
-              </p>
-              {displayMode === "volume" ? (
-                <>
-                  {visibleSeries.map((s) => (
-                    <p key={s.unitKey} className="font-bold text-sm whitespace-nowrap">
-                      {formatQuantity(s.values[activeHoverIndex])} {s.unitLabel}
-                    </p>
-                  ))}
-                  <p className="text-[10px] text-gray-400">
-                    {monthlyCounts[activeHoverIndex]} demande(s) enregistrée(s)
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="font-bold text-sm">
-                    {monthlyCounts[activeHoverIndex]} demande(s)
-                  </p>
-                  {visibleSeries.map((s) => (
-                    <p key={s.unitKey} className="text-[10px] text-gray-400 whitespace-nowrap">
-                      {formatQuantity(s.values[activeHoverIndex])} {s.unitLabel} demandé(s)
-                    </p>
-                  ))}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Canevas SVG responsive */}
-          <div className="w-full overflow-hidden">
-            <svg
-              viewBox={`0 0 ${width} ${height}`}
-              className="w-full h-48 sm:h-56 select-none"
-              preserveAspectRatio="none"
-              role="img"
-              aria-describedby={summaryId}
-            >
-              <defs>
-                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={singlePath?.style.stroke ?? "#3b6d4b"} stopOpacity="0.32" />
-                  <stop offset="100%" stopColor={singlePath?.style.stroke ?? "#3b6d4b"} stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-
-              {/* Lignes de grille horizontales */}
-              {[0, 0.5, 1].map((pct, idx) => {
-                const y = paddingY + innerHeight * (1 - pct);
-                const labelVal = Math.round(maxVal * pct);
-                return (
-                  <g key={idx}>
-                    <line
-                      x1={paddingX}
-                      y1={y}
-                      x2={width - paddingX}
-                      y2={y}
-                      stroke="#f3f4f6"
-                      strokeWidth="1"
-                      strokeDasharray="4 4"
-                    />
-                    <text
-                      x={paddingX - 8}
-                      y={y + 3}
-                      textAnchor="end"
-                      fontSize="9"
-                      fill="#9ca3af"
-                      fontWeight="600"
-                    >
-                      {labelVal}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* Remplissage dégradé sous la courbe (série unique uniquement) */}
-              {singlePath && <path d={singlePath.area} fill={`url(#${gradientId})`} />}
-
-              {/* Une ligne de tendance par série */}
-              {paths.map((p) => (
-                <path
-                  key={p.key}
-                  d={p.d}
-                  fill="none"
-                  stroke={p.style.stroke}
-                  strokeWidth="2.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeDasharray={p.style.dash}
-                />
-              ))}
-
-              {/* Points de chaque série */}
-              {paths.map((p) =>
-                p.pts.map((pt, i) => (
-                  <circle
-                    key={`${p.key}-${i}`}
-                    cx={pt.x}
-                    cy={pt.y}
-                    r={activeHoverIndex === i ? 6 : 4}
-                    fill={activeHoverIndex === i ? p.style.activeFill : "#ffffff"}
-                    stroke={p.style.stroke}
-                    strokeWidth="2.5"
-                    className="transition-all duration-150 pointer-events-none"
-                  />
-                ))
-              )}
-
-              {/* Zones de survol par mois + labels de l'axe X */}
-              {monthKeys.map((key, i) => (
-                <g key={key}>
-                  <rect
-                    x={xAt(i) - step / 2}
-                    y={paddingY - 10}
-                    width={step}
-                    height={innerHeight + 20}
-                    fill="transparent"
-                    className="cursor-pointer"
-                    onMouseEnter={() => setActiveHoverIndex(i)}
-                    onMouseLeave={() => setActiveHoverIndex(null)}
-                  />
-                  <text
-                    x={xAt(i)}
-                    y={height - 8}
-                    textAnchor="middle"
-                    fontSize="10"
-                    fill={activeHoverIndex === i ? "#111827" : "#6b7280"}
-                    fontWeight={activeHoverIndex === i ? "bold" : "600"}
+                {/* Infobulle */}
+                {activeMonth !== null && (
+                  <div
+                    ref={(node) => {
+                      if (node) placeTooltip(node, points[activeMonth].x, points[activeMonth].y, width);
+                    }}
+                    className="absolute left-0 top-0 z-20 pointer-events-none w-max bg-gray-950 text-white rounded-xl px-3 py-2 text-xs shadow-xl"
+                    style={{ maxWidth: width - TOOLTIP_MARGIN * 2 }}
                   >
-                    {monthLabels[i]}
-                  </text>
-                </g>
-              ))}
-            </svg>
+                    <p className="font-extrabold text-[11px] text-forest-200">
+                      {monthLabels[activeMonth]}
+                    </p>
+                    {volumeSeries ? (
+                      <>
+                        <p className="font-bold text-sm">
+                          {formatQuantity(volumeSeries.values[activeMonth])} {volumeSeries.unitLabel}
+                        </p>
+                        <p className="text-[11px] text-gray-400">
+                          {volumeSeries.counts[activeMonth]} demande(s) enregistrée(s)
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-bold text-sm">{monthlyCounts[activeMonth]} demande(s)</p>
+                        {unitSeries
+                          .filter((s) => s.counts[activeMonth] > 0)
+                          .map((s) => (
+                            <p key={s.unitKey} className="text-[11px] text-gray-400">
+                              {formatQuantity(s.values[activeMonth])} {s.unitLabel} demandé(s)
+                            </p>
+                          ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
-          {/* Résumé accessible des séries (lecteurs d'écran) */}
+          {/* Résumé accessible (lecteurs d'écran) */}
           <div id={summaryId} className="sr-only">
-            {displayMode === "volume"
-              ? visibleSeries
-                  .map(
-                    (s) =>
-                      `Série ${s.unitLabel} : ${monthKeys
-                        .map((_, i) => `${monthLabels[i]} ${formatQuantity(s.values[i])} ${s.unitLabel}`)
-                        .join(", ")}.`
-                  )
-                  .join(" ")
+            {volumeSeries
+              ? `Série ${volumeSeries.unitLabel} : ${monthKeys
+                  .map((_, i) => `${monthLabels[i]} ${formatQuantity(volumeSeries.values[i])} ${volumeSeries.unitLabel}`)
+                  .join(", ")}.`
               : `Nombre de demandes : ${monthKeys
                   .map((_, i) => `${monthLabels[i]} ${monthlyCounts[i]}`)
                   .join(", ")}.`}
@@ -484,17 +442,17 @@ export default function CompanyDemandTrendChart({
             <span>
               Total cumulé sur 6 mois :{" "}
               <strong className="text-gray-900 font-bold">
-                {displayMode === "volume"
-                  ? volumeTotalsLabel || "0"
+                {volumeSeries
+                  ? formatUnitTotals([volumeSeries]) || "0"
                   : `${totalCount} demandes`}
               </strong>
             </span>
             <span className="italic text-[11px] text-gray-400">
-              Survolez le graphique pour consulter le détail mensuel
+              Touchez ou survolez un mois pour voir le détail
             </span>
           </div>
         </div>
       )}
-    </div>
+    </DashboardChartCard>
   );
 }

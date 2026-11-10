@@ -148,7 +148,8 @@ export default function CompanyProductsView({
           toast.error(res.error || "Impossible de mettre à jour le statut du produit.");
         }
       } catch (err: any) {
-        toast.error(err.message || "Une erreur est survenue lors de l'archivage.");
+        console.error("Erreur archivage produit :", err);
+        toast.error("Une erreur est survenue lors de l'archivage.");
       } finally {
         setTogglingId(null);
       }
@@ -178,7 +179,8 @@ export default function CompanyProductsView({
         toast.error(res.error || "Impossible de supprimer ce produit.");
       }
     } catch (err: any) {
-      toast.error(err.message || "Une erreur inattendue est survenue lors de la suppression.");
+      console.error("Erreur suppression produit :", err);
+      toast.error("Une erreur inattendue est survenue lors de la suppression.");
     } finally {
       setIsDeleteLoading(false);
     }

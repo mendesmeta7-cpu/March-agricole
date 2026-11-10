@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import AppSidebar from "@/components/dashboard/AppSidebar";
 import AppHeader from "@/components/dashboard/AppHeader";
 import { X } from "lucide-react";
@@ -40,16 +41,12 @@ export default function DashboardLayout({
     };
   }, [mobileMenuOpen]);
 
-  // Fermeture du menu avec la touche Échap
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && mobileMenuOpen) {
-        setMobileMenuOpen(false);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mobileMenuOpen]);
+  // Focus retenu dans le menu mobile, Échap et retour au bouton d'ouverture
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(mobileMenuRef, {
+    isOpen: mobileMenuOpen,
+    onEscape: () => setMobileMenuOpen(false),
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row antialiased">
@@ -76,7 +73,13 @@ export default function DashboardLayout({
           />
 
           {/* Tiroir coulissant */}
-          <div className="relative flex-1 flex flex-col max-w-[280px] xs:max-w-xs w-full bg-white shadow-2xl z-10 animate-in slide-in-from-left duration-200 h-full">
+          <div
+            ref={mobileMenuRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu de navigation"
+            className="relative flex-1 flex flex-col max-w-[280px] xs:max-w-xs w-full bg-white shadow-2xl z-10 animate-in slide-in-from-left duration-200 h-full"
+          >
             <button
               type="button"
               onClick={() => setMobileMenuOpen(false)}

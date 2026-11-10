@@ -87,7 +87,8 @@ export default function ResellerEditLocationDrawer({
         onClose();
         router.refresh();
       } catch (err: any) {
-        setErrorMessage(err.message || "Erreur de connexion.");
+        console.error("Erreur modification localisation :", err);
+        setErrorMessage("Erreur de connexion.");
       }
     });
   };

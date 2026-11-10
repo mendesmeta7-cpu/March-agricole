@@ -65,6 +65,12 @@ export default function ProductionDetailView({
   const { toast } = useToast();
 
   const [production, setProduction] = useState<ProductionItem>(initialProduction);
+  // Après router.refresh(), les données du serveur remplacent la copie locale.
+  const [lastServerProduction, setLastServerProduction] = useState(initialProduction);
+  if (initialProduction !== lastServerProduction) {
+    setLastServerProduction(initialProduction);
+    setProduction(initialProduction);
+  }
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
@@ -505,10 +511,7 @@ export default function ProductionDetailView({
         onClose={() => setIsEditDrawerOpen(false)}
         companyProducts={companyProducts}
         editingProduction={production}
-        onSuccess={() => {
-          // Rechargement doux
-          window.location.reload();
-        }}
+        onSuccess={() => router.refresh()}
       />
 
       {/* Dialogue de Confirmation de Suppression Sécurisée (R1) */}

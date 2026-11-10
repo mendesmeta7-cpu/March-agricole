@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useTransition, useMemo, useRef } from "react";
+import { useState, useEffect, useTransition, useMemo, useRef, useId } from "react";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -247,6 +248,14 @@ export default function CampaignFormModal({
     }
     setErrorMessage(null);
   }, [campaignToEdit, eligibleProductions, isOpen, defaultProductionId, provinces]);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useFocusTrap(panelRef, {
+    isOpen: isOpen,
+    onEscape: onClose,
+    escapeEnabled: !isPending,
+  });
 
   if (!isOpen) return null;
 
@@ -586,18 +595,25 @@ export default function CampaignFormModal({
           setErrorMessage(res.error || "Une erreur est survenue.");
         }
       } catch (err: any) {
-        setErrorMessage(err.message || "Erreur de connexion.");
+        console.error("Erreur enregistrement campagne :", err);
+        setErrorMessage("Erreur de connexion.");
       }
     });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-black/50 backdrop-blur-xs">
-      <div className="bg-white rounded-3xl border border-gray-200 shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-white rounded-3xl border border-gray-200 shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      >
         {/* En-tête de la modale */}
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+            <h2 id={titleId} className="text-lg sm:text-xl font-bold text-gray-900">
               {isEditing ? "Modifier l'Offre Commerciale" : "Nouvelle Campagne Commerciale"}
             </h2>
             <p className="text-xs text-gray-500">

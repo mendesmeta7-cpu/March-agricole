@@ -7,6 +7,9 @@ interface ResellerOrderDetailPageProps {
   params: Promise<{
     id: string;
   }>;
+  searchParams: Promise<{
+    commande?: string;
+  }>;
 }
 
 export default async function ResellerOrderDetailPage(props: ResellerOrderDetailPageProps) {
@@ -26,5 +29,7 @@ export default async function ResellerOrderDetailPage(props: ResellerOrderDetail
     notFound();
   }
 
-  return <ResellerOrderDetailView order={order} />;
+  const { commande } = await props.searchParams;
+
+  return <ResellerOrderDetailView order={order} justCreated={commande === "enregistree"} />;
 }

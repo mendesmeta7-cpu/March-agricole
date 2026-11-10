@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
+import NavigationProgress from "@/components/ui/NavigationProgress";
 import { getAppUrl } from "@/lib/utils/url";
 
 const baseUrl = getAppUrl();
@@ -19,6 +21,10 @@ export default function RootLayout({
   return (
     <html lang="fr" className="h-full">
       <body className="antialiased font-sans flex flex-col min-h-screen text-gray-900 bg-gray-50 overflow-x-hidden">
+        {/* Suspense : garde les pages statiques statiques malgré useSearchParams. */}
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

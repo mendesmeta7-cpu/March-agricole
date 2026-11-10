@@ -88,6 +88,8 @@ export function useFocusTrap<T extends HTMLElement>(
       if (!container) return;
 
       if (e.key === "Escape") {
+        // Une liste déroulante ouverte se ferme d'abord : la surface reste ouverte.
+        if (container.querySelector('[aria-haspopup="listbox"][aria-expanded="true"]')) return;
         if (escapeEnabledRef.current && onEscapeRef.current) {
           e.stopPropagation();
           onEscapeRef.current();
@@ -99,6 +101,8 @@ export function useFocusTrap<T extends HTMLElement>(
 
       const focusables = getFocusableElements(container);
       if (focusables.length === 0) {
+        // Surface masquée (ex. menu mobile sur grand écran) : ne pas retenir le focus.
+        if (container.getClientRects().length === 0) return;
         e.preventDefault();
         container.focus({ preventScroll: true });
         return;
