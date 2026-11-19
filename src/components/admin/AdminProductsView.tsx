@@ -111,8 +111,8 @@ export default function AdminProductsView({ initialProducts }: AdminProductsView
     <div className="space-y-6">
       {/* En-tête de page */}
       <PageHeader
-        title="Catalogue Officiel des Produits"
-        description="Gérez le référentiel centralisé des denrées agricoles mis à disposition des exploitations pour leurs cultures."
+        title="Catalogue produits"
+        description="Gérez le référentiel centralisé des produits agricoles mis à disposition des sociétés pour leurs productions."
         badge={
           <Badge variant="neutral">
             {products.length} {products.length > 1 ? "références officielles" : "référence officielle"}
@@ -167,6 +167,7 @@ export default function AdminProductsView({ initialProducts }: AdminProductsView
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
+              aria-label="Rechercher une référence par nom, catégorie"
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -301,7 +302,7 @@ export default function AdminProductsView({ initialProducts }: AdminProductsView
                           {product.category}
                         </span>
                         <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                          className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
                             product.is_active
                               ? "bg-emerald-100 text-emerald-800"
                               : "bg-gray-200 text-gray-600"
@@ -313,7 +314,7 @@ export default function AdminProductsView({ initialProducts }: AdminProductsView
                       <h3 className="text-base font-bold text-gray-950 mt-1 truncate">
                         {product.name}
                       </h3>
-                      <p className="text-[11px] text-gray-500 truncate">
+                      <p className="text-xs text-gray-500 truncate">
                         Unité par défaut : <span className="font-medium">{product.default_unit}</span>
                       </p>
                     </div>

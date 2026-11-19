@@ -4,6 +4,8 @@ import { ResellerCampaignItem } from "@/lib/queries/campaigns";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import CampaignStatusBadge from "./CampaignStatusBadge";
+import CampaignShareActions from "./CampaignShareActions";
+import { publicCampaignPath } from "@/lib/utils/publicCampaign";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -23,6 +25,7 @@ import {
   Clock,
   ShieldCheck,
 } from "lucide-react";
+import { formatAmount, formatQuantity } from "@/lib/utils/numberFormat";
 
 interface ResellerCampaignDetailDrawerProps {
   isOpen: boolean;
@@ -77,7 +80,7 @@ export default function ResellerCampaignDetailDrawer({
       }
       description={
         <span>
-          Offre commerciale publiée par <strong>{campaign.company.name}</strong>
+          Campagne publiée par <strong>{campaign.company.name}</strong>
         </span>
       }
       footer={
@@ -96,7 +99,7 @@ export default function ResellerCampaignDetailDrawer({
             ) : (
               <span className="text-amber-800 font-medium flex items-center gap-1.5">
                 <AlertCircle className="w-4 h-4 shrink-0" />
-                Offre hors de votre zone de livraison
+                Campagne hors de votre zone de livraison
               </span>
             )}
           </div>
@@ -129,7 +132,7 @@ export default function ResellerCampaignDetailDrawer({
             ) : (
               <Link
                 href="/dashboard/reseller/demands"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-earth-600 hover:bg-earth-700 text-white text-xs font-semibold shadow-xs transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-earth-700 hover:bg-earth-800 text-white text-xs font-semibold shadow-xs transition-colors"
               >
                 <TrendingUp className="w-4 h-4" />
                 Exprimer une demande
@@ -163,7 +166,7 @@ export default function ResellerCampaignDetailDrawer({
           {/* Badges superposés */}
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
             {campaign.is_eligible ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600/95 backdrop-blur-xs text-white text-xs font-bold shadow-xs">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-700 backdrop-blur-xs text-white text-xs font-bold shadow-xs">
                 <Sparkles className="w-3.5 h-3.5" />
                 Province desservie
               </span>
@@ -182,7 +185,7 @@ export default function ResellerCampaignDetailDrawer({
           </div>
 
           <div className="absolute bottom-3 left-3 right-3 text-white">
-            <p className="text-xs font-medium text-forest-200">Culture de référence</p>
+            <p className="text-xs font-medium text-forest-200">Produit de référence</p>
             <h3 className="text-lg font-bold truncate leading-tight">
               {campaign.product.name}
             </h3>
@@ -227,6 +230,17 @@ export default function ResellerCampaignDetailDrawer({
           </Link>
         </div>
 
+        {/* Lot UX/UI 5B : partage de la page publique de la campagne */}
+        <div className="flex flex-wrap items-center gap-2">
+          <CampaignShareActions campaignId={campaign.id} title={campaign.title} size="sm" />
+          <Link
+            href={publicCampaignPath(campaign.id)}
+            className="inline-flex items-center justify-center min-h-[44px] px-3 rounded-xl text-sm font-semibold text-forest-800 hover:bg-forest-50 transition-colors"
+          >
+            Voir la page publique
+          </Link>
+        </div>
+
         {/* 3. Chiffres clés : Prix & Volumes */}
         <div className="grid grid-cols-2 gap-3">
           <div className="p-4 rounded-2xl bg-forest-50/70 border border-forest-100">
@@ -235,7 +249,7 @@ export default function ResellerCampaignDetailDrawer({
             </span>
             <div className="text-xl sm:text-2xl font-extrabold text-forest-950 mt-1 flex items-baseline gap-1">
               <Tag className="w-5 h-5 text-forest-700 shrink-0 inline" />
-              <span>{campaign.unit_price.toLocaleString("fr-FR")}</span>
+              <span>{formatAmount(campaign.unit_price)}</span>
               <span className="text-xs font-bold text-forest-800 uppercase">
                 {campaign.currency} / {campaign.unit}
               </span>
@@ -254,14 +268,14 @@ export default function ResellerCampaignDetailDrawer({
             ) : (
               <div className="text-xl sm:text-2xl font-extrabold text-earth-950 mt-1 flex items-baseline gap-1">
                 <Layers className="w-5 h-5 text-earth-700 shrink-0 inline" />
-                <span>{(availableQty ?? 0).toLocaleString("fr-FR")}</span>
+                <span>{formatQuantity((availableQty ?? 0))}</span>
                 <span className="text-xs font-bold text-earth-800 uppercase">
                   {campaign.unit}
                 </span>
               </div>
             )}
             {campaign.min_order_quantity > 1 && (
-              <span className="text-[10px] text-earth-700 block mt-1">
+              <span className="text-xs text-earth-700 block mt-1">
                 Minimum par commande : {campaign.min_order_quantity} {campaign.unit}
               </span>
             )}
@@ -272,7 +286,7 @@ export default function ResellerCampaignDetailDrawer({
         {campaign.description && (
           <div className="space-y-1.5">
             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500">
-              Conditions et détails de l&apos;offre
+              Conditions et détails de la campagne
             </h4>
             <p className="text-sm text-gray-700 leading-relaxed bg-gray-50/50 p-3.5 rounded-xl border border-gray-100">
               {campaign.description}
@@ -322,7 +336,7 @@ export default function ResellerCampaignDetailDrawer({
 
                   {dest.depots && dest.depots.length > 0 && (
                     <div className="pt-1 space-y-1">
-                      <span className="text-[10px] text-gray-500 font-semibold block uppercase">
+                      <span className="text-[11px] text-gray-500 font-semibold block uppercase">
                         Points de retrait :
                       </span>
                       {dest.depots.map((dep) => (
@@ -350,7 +364,7 @@ export default function ResellerCampaignDetailDrawer({
           <div className="space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
               <MapPin className="w-4 h-4 text-forest-700" />
-              Provinces desservies par l&apos;exploitation
+              Provinces desservies par la société
             </h4>
             <div className="flex flex-wrap gap-1.5">
               {campaign.delivery_zones.map((zone) => (

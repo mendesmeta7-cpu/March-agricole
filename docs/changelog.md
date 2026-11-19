@@ -3,6 +3,237 @@
 
 Toutes les modifications notables apportées à ce projet sont consignées dans ce document de manière chronologique.
 
+## [UXUI-SUITE-NAV06-LOT7] - 2026-11-19
+### Corrections UX/UI — Suite des Lots 6B et 7 : Premier Élément des Listes dans le Premier Écran (NAV-06), Faux Zéros des Profils, Hooks Conditionnels (ADR-066) — Terminé Techniquement, Vérifié Localement, en Attente de Validation Finale (Local, Non Commité)
+
+- **NAV-06** : le premier élément des 9 listes des espaces Société et Revendeur est visible dès le premier écran. Sa première ligne garde au moins 16 px de marge avant la barre basse, à 320, 360 et 390 px ; le critère n'a pas été assoupli.
+  - Compteurs en double retirés. Le sens de leurs légendes est repris dans les puces : « exprimées par les revendeurs » et « passées par les revendeurs », et sous le filtre « Actifs : utilisables pour déclarer une production ».
+  - Compteurs plus bas sous 640 px.
+  - Recherche et filtres sur une ligne, les critères choisis restant visibles et retirables (nouveau composant `FiltresActifs`).
+  - Explications repliées placées après la liste, sur cinq pages.
+  - Bloc QR des commandes avec un bouton « Aide » qui déplie le texte d'aide inchangé.
+  - Titre des cartes produits avant la photo.
+  - Cartes de demande sans double marge ; 16 px entre les sections de « Mes commandes » sous 640 px.
+- **Faux zéros (Lot 7)** :
+  - sur les deux profils, un compteur dont la lecture échoue affiche « Indisponible », jamais 0, avec un avis et « Réessayer » ;
+  - le badge « Activité » de la société n'apparaît que si ses trois comptes sont connus ;
+  - une panne de lecture de la société affiche l'écran d'erreur avec « Réessayer », et non plus « Exploitation introuvable ».
+- **Hooks** :
+  - « Mes demandes » ne risque plus de tomber quand la liste passe de vide à non vide ;
+  - « Demandes du marché » ne tombe plus à l'ouverture de « Filtres ».
+- **Inchangé** : requêtes, règles métier, RLS, droits, authentification, noms des rubriques.
+- **Tests exécutés** :
+  - typecheck sans erreur ; 128/128 tests unitaires ;
+  - positions réelles des 9 listes avant et après : 27/27 conformes, marge la plus faible 17 px (tableau dans l'ADR-066) ;
+  - banc 6B v5 959/959 ; sonde « suite » 69/69 ; sonde des filtres 2/2 ; banc 7 v4 393/393 ; sondes du Lot 7 45/45 et 45/45, relevé 37/37 ;
+  - rejeux 6A-1, 3A, 5B, 5A, 2D et P identiques aux références (détail dans l'ADR-066).
+- **Non vérifié** :
+  - build officiel du projet non lancé, faute d'espace sur C: (2 282 Mo libres) ; la copie isolée compile, avec 4 builds complets ;
+  - vraie base, téléphone réel, Safari et iPhone, lecteur d'écran.
+
+## [UXUI-REGULARISATION-D8] - 2026-11-19
+### Documentation — Régularisation des Statuts des Lots UX/UI Antérieurs (ADR-065, Décision D8)
+
+- **Lots 1 et 2A** : validés le 2026-11-09, commités localement (`d51639f` et `7031bc7`). Leur présence sur le dépôt distant n'a pas été vérifiée.
+- **Lots 4A et 2B** : validés le 2026-11-10. Leur état de commit n'a pas été vérifié.
+- **Lot 6A-2** : validé le 2026-11-15 ; local, non commité.
+- **Lots 5A et 2C** : validés le 2026-11-14, validations confirmées par le porteur du projet le 2026-11-19. Leur état de commit n'a pas été vérifié.
+- **En-tête de `development-status.md`** : le Lot 6A-2 y est désormais indiqué validé le 2026-11-15, comme dans sa ligne du tableau.
+- **Commit local `439c262`** (« 10 Nov ») : contenu non examiné, faute de commande Git autorisée ; aucun lot ne lui est attribué.
+- **Méthode** : seules les cellules « Statut » du tableau de `development-status.md` changent. Les ADR et les entrées de changelog antérieurs ne sont pas réécrits.
+
+## [UXUI-LOT-7] - 2026-11-19
+### Corrections UX/UI — Lot 7 : Profils Société et Revendeur sur un Modèle Commun, Vocabulaire des Rôles (ADR-064) — Terminé Techniquement, Vérifié Localement, en Attente de Validation Finale (Local, Non Commité)
+
+- **Modèle commun (D6, PRO-02, PRO-03)** : les deux profils ont quatre sections, « Identité », « Coordonnées », « Activité » et « Sécurité et session ». Sous 640 px, les onglets tiennent sur deux lignes, sans onglet caché ni coupé ; la sécurité est donc visible dès l'arrivée sur mobile. Le profil Revendeur, auparavant une longue page, adopte ces sections ; son mot de passe reste dans « Compte Utilisateur ».
+- **Vocabulaire (D7, PRO-05)** : sont introduits « Inscrite sur Radiza depuis le », « Informations de la société », « Responsable du compte », « Rôle », « Propriétaire du compte », « Revendeur », « Société » et « Gestion des productions et des campagnes ». « Raison Sociale Officielle » devient « Nom de la société ». Rôles, droits et règles d'inscription inchangés.
+- **Actions (PRO-06)** : « Modifier le profil » passe en premier. La carte « Règle d'or Radiza » est retirée. Les tiroirs de modification et la déconnexion sont inchangés.
+- **Correctif après contrôle** : l'onglet « Activité » du profil Revendeur ne porte plus de compteur. Il additionnait une valeur réelle et une valeur indisponible quand une lecture échouait. Les deux nombres restent affichés séparément.
+- **Tests exécutés** : voir l'ADR-064.
+  - typecheck sans erreur ; 128/128 tests unitaires ;
+  - banc 7 sur vrai serveur Next avec base simulée : 374/374 (onglets 156, clavier 20, terminologie 44, ordre 8, statuts 20, modifications et sécurité 48, indisponibilité 66, inscription 12) ;
+  - profils Société et Revendeur testés à 320, 390, 768 et 1 280 px ; statuts `pending`, `verified` et `rejected` testés ;
+  - fenêtres de modification identiques au relevé d'avant le lot ;
+  - aucune donnée ni aucun message perdus en panne de lecture, hors 28 libellés renommés justifiés un à un ;
+  - build officiel réussi (53 routes, 10 pages statiques).
+- **Non vérifié** : vraie base, compte réel, téléphone réel, lecteur d'écran.
+
+## [UXUI-LOT-6B] - 2026-11-19
+### Corrections UX/UI — Lot 6B : Navigation, En-têtes, Repères et Cibles Tactiles des Espaces Connectés (ADR-063) — Terminé Techniquement, Vérifié Localement, en Attente de Validation Finale (Local, Non Commité) ; Un Écart à Arbitrer (NAV-06)
+
+- **Navigation (D1, NAV-01)** :
+  - plus de menu tiroir sous 768 px dans les espaces Société et Revendeur ; la barre basse et « Plus » mènent partout ;
+  - le tiroir reste de 768 à 1 023 px, à la bonne largeur (MOB-10) ;
+  - barres et menus en 12 px, pastilles en 11 px ;
+  - « Commandes » entier à 320 px.
+- **Tableau de bord Société (D2, D3, NAV-05, NAV-07, A11-09)** :
+  - « Premiers pas » en trois étapes calculées depuis les vraies lectures ; une lecture en échec donne « indisponible » ;
+  - plus de faux « Tout est à jour » ;
+  - un graphique n'est masqué que s'il a été lu et ne contient rien ;
+  - alertes en liste fixe, trois visibles, sans rotation ;
+  - bandeau compact sur mobile ; ordre revu.
+- **En-têtes et repères** :
+  - en-tête commun avec fil d'Ariane (NAV-02) ;
+  - un seul `h1` par page (A11-04) ;
+  - rubrique ouverte affichée dans l'en-tête dès 1 024 px (NAV-08) ;
+  - titre d'onglet propre à chaque page (NAV-04) ;
+  - lien « Aller au contenu principal » et `<main>` sur les pages publiques et d'authentification (D4, A11-07) et dans les trois espaces connectés ;
+  - onglets accessibles au clavier (A11-08).
+- **Mobile (D9, MOB-06, MOB-07, MOB-11)** :
+  - cibles de 44 px sous 640 px, dimensions d'ordinateur inchangées ;
+  - compteurs « Mes demandes » et « Total exprimé » lisibles en entier ;
+  - étapes du suivi de commande empilées sous 400 px.
+- **Lecture (NAV-06, TXT-04)** : compteurs en double retirés ; explications générales repliées par défaut sur sept écrans, au texte inchangé.
+- **Inchangé** :
+  - administration (aucune barre basse, menu tiroir conservé) ;
+  - onglets de l'accueil (Lot 8) ;
+  - travail des Lots 1 et 6A ;
+  - statut `rejected`, déjà neutre (D5).
+- **Tests exécutés** :
+  - typecheck sans erreur ; 128/128 tests unitaires ;
+  - banc 6B à 320, 360, 390, 768, 1 024 et 1 280 px : 930/939 ;
+  - sondes de 45 pages : à 390 px, cibles trop petites de 551 à 397 et `h1` de 2 à 1 ; à 1 280 px, aucune différence restante.
+
+  Rejeux : voir l'ADR-063. Build officiel réussi (53 routes, 10 pages statiques, aucun avertissement).
+- **Écart à arbitrer (NAV-06)** :
+  - à 390 px, le premier élément de 9 listes reste sous le premier écran, entre 691 et 1 014 px pour une limite de 675 px ;
+  - le critère n'a pas été assoupli ;
+  - pistes proposées dans l'ADR-063.
+- **Non vérifié** : vraie base, compte réel, Safari et iPhone, téléphone réel, lecteur d'écran.
+
+## [UXUI-SOUS-LOT-P] - 2026-11-19
+### Corrections UX/UI — Sous-lot P : Accessibilité des Quatre Contrôles de Téléversement Photo (ADR-062) — Terminé Techniquement, Vérifié Localement, en Attente de Validation Finale (Local, Non Commité)
+
+- **Correction de la réserve 4 du Lot 2D** : les champs photo de la bannière, de la catégorie, du logo de la société et de la photo du revendeur s'ouvrent désormais par un vrai bouton, atteignable au clavier et nommé. Le `label` non focalisable est remplacé. La préparation et l'envoi des photos sont inchangés.
+- **Tests exécutés** :
+  - typecheck sans erreur ; 128/128 tests unitaires ;
+  - banc des formulaires 2D 270/270 ;
+  - banc P sur vrai serveur Next et vrai Chrome, à 390 et 1 280 px : 126/126, ouverture du sélecteur natif par Entrée, Espace et toucher (détail dans l'ADR-062) ;
+  - rejoué après les Lots 6B et 7 : 126/126 ;
+  - build officiel réussi (53 routes, 10 pages statiques).
+- **Non vérifié** : sélecteur de fichiers réel sur appareil (intercepté par le banc), envois réels, lecteur d'écran.
+
+## [UXUI-LOT-5B] - 2026-11-19
+### Corrections UX/UI — Lot 5B : Formulaires, Fenêtres, Défilement et Page Publique des Campagnes (ADR-061) — Terminé Techniquement, Vérifié Localement, Validé le 2026-11-19 (Local, Non Commité) ; Migration des Dépôts Préparée, Non Appliquée
+
+- **Défilement** : verrou compté partagé par `Dialog`, `Drawer` et le menu mobile ; une fenêtre imbriquée qui se ferme ne libère plus la page ; `overscroll-behavior: contain` sur les zones défilantes des fenêtres.
+- **Fenêtres** : les 14 modales maison passent sur les composants partagés : grands `Drawer` (commande avec total et validation dans le pied fixe, demande générale, proposition, demande sur production, propositions reçues, bannière et produit du catalogue), `Dialog` (catégorie, QR code, scanner plein écran sur mobile, confirmation de livraison, statuts de commande, report de date). Aucun champ, aucune validation ni action serveur modifiés.
+- **Pages dédiées** : création de campagne en assistant de cinq étapes (`/dashboard/company/campaigns/new`), modification à sections (`/dashboard/company/campaigns/[id]/edit`) ; création et modification de production (`/dashboard/company/productions/new`, `/dashboard/company/productions/[id]/edit`) ; ancienne adresse `/dashboard/company/campaigns/[id]` redirigée vers la liste, tiroir de la campagne ouvert ; anciens paramètres `?new=true` et `?production_id=` conservés ; confirmation avant de quitter une page modifiée ; focus sur le titre à l'arrivée et sur le titre de l'étape.
+- **Page publique `/campaigns/[id]`** : consultable sans connexion pour les seules campagnes actives (sinon « Campagne indisponible »), informations d'offre, société, villes et dates, jamais d'adresse de dépôt ni de stock restant ; commande réservée au revendeur connecté et éligible (mêmes règles que son espace) ; aperçu de lien (titre, description, image publique ou logo Radiza), non indexée ; boutons « Partager » (partage natif) et « Copier le lien », aussi dans les tiroirs de détail Société (campagnes ouvertes) et Revendeur ; retour à la campagne après connexion.
+- **Corrections de l'audit** : MOB-08 (liste ouverte vers le haut quand la place manque), MOB-09, MOB-12 (montants d'un seul tenant), A11-05 (libellés reliés, champs de recherche nommés), A11-06 (erreurs et aides reliées aux champs), A11-10 (plus de lien contenant un bouton), RET-07 (`ConfirmDialog` au lieu de `confirm()`), AUT-01 (mot de passe affichable sur la connexion et les inscriptions).
+- **Sécurité des dépôts** : migration `supabase/pending/20261118000034_revoke_anon_select_campaign_depots.sql` (`REVOKE SELECT ON public.campaign_depots FROM anon;`) et test `supabase/tests/campaign_depots_anon_test.sql` préparés, **non appliqués** (autorisation requise ; procédure dans l'ADR-061). Tant qu'elle n'est pas appliquée et vérifiée, les adresses des dépôts des campagnes actives restent lisibles par l'API avec la clé publique, même si la page publique ne les affiche pas.
+- **Tests exécutés (état final, 2026-11-19)** : typecheck sans erreur ; 128/128 tests unitaires (27 nouveaux : verrou de défilement, protection des saisies, page publique, placement des listes, cohérence de la migration des dépôts) ; banc 5B sur vrai serveur Next avec base simulée : 232/232 (assistant 29, modification 11, routes 5, productions 10, page publique 38, partage 10, défilement imbriqué 13, commande et MOB-08 15, accessibilité 18, pannes 8, largeurs 320 à 1 280 px 75) ; mesure des fenêtres : 0 fuite de défilement sur 66 mesures (jusqu'à 4 235 px avant le lot), bouton d'envoi hors écran 20 → 3 ; banc 3A adapté 100/100 ; banc clavier 5A adapté 198/198 ; rejeux identiques à la référence : 6A-1 original 183/183 (périmètre 178/178, différés 5/5) et copie 183/183, 6A-2 359/359, 2C 154/160 et copie 160/160, 2D rejet 18/18, composants 6A-1 520/521, composants 2D copie 270/270 ; écarts attendus, tous dus aux décisions du lot (formulaires devenus des pages) : 2A original, titre et copie −5 chacun, 2B serveur 48/49, 3A non adapté 93/100, 5A original 163/170 (ses 4 échecs de référence et 3 contrôles visant la modale de campagne et le tiroir de production), 5A copie 183/186 (les 3 mêmes), composants 2B arrêtés plus tôt (détail dans l'ADR-061) ; `npm run build` officiel réussi le 2026-11-19 (53 routes, 10 pages statiques, aucun avertissement).
+- **Vérification finale** : interrompue une première fois le 2026-11-19 par la garde disque, puis exécutée entièrement le même jour après libération de C: (4,5 Go libres au départ ; garde à 1 000 Mo jamais déclenchée, minimum observé 1 459 Mo pendant le build officiel).
+- **Examens complémentaires** : bouton « Précédent » du navigateur mesuré sur la création de production et l'assistant de campagne. Après une arrivée par un bouton de l'application (cas courant), la page est quittée sans confirmation et la saisie est perdue ; « Suivant » rouvre un formulaire vierge. Après une arrivée par chargement complet (lien ouvert directement, rechargement), l'alerte native s'affiche et, refusée, conserve la saisie. Écart à la décision 4 de l'ADR-058 limité à ce geste, non corrigé (voir ADR-061). « Modifier la configuration du produit » (`EditProductDrawer`, hors classement de l'ADR-058) : bouton « Enregistrer » hors écran à l'ouverture à 390, 768 et 1 280 px, comme avant le lot ; il est atteint en faisant défiler le tiroir, jamais masqué, joignable au clavier, page arrière immobile (15/15) ; non modifié.
+- **Validation (2026-11-19)** : lot validé par le porteur du projet sur la base des résultats finaux. Bouton « Précédent » : limite acceptée provisoirement, conservée comme point connu, à traiter ultérieurement avec des tests dédiés. `EditProductDrawer` : aucune modification dans ce lot. Migration des dépôts : toujours en attente, aucune intervention sur Supabase sans autorisation distincte et vérification préalable des privilèges PostgreSQL, des politiques RLS et des accès légitimes. Aucun commit, push, merge ni déploiement autorisé à cette date.
+- **Hors périmètre, constaté le 2026-11-19** : la réserve 4 du Lot 2D (« champs photo masqués à corriger au Lot 5B ») ne figurait pas dans les décisions de l'ADR-058 et n'a pas été traitée. D'après le code, le champ fichier reste masqué (`display: none`) et son déclencheur est un `label` non focalisable, donc inatteignable au clavier, pour la bannière et la catégorie (administration), le logo de la société (`CompanyEditProfileDrawer`) et la photo du revendeur (`ResellerProfileView`). Le formulaire de production utilise un vrai bouton.
+- **Non vérifié** : vraie base Supabase, compte réel, enregistrements réels (campagne, production, commande), Safari et iPhone, Firefox, téléphone réel (dont le geste de retour), lecteur d'écran, aperçu réel sur WhatsApp ou Facebook (le partage natif est simulé dans Chrome).
+- **Reste à faire, sur autorisation** : appliquer puis vérifier en production la migration de protection des dépôts (procédure de l'ADR-061) ; tant que ce n'est pas fait, la protection des dépôts n'est pas garantie en production.
+
+## [UXUI-LOT-3C] - 2026-11-17
+### Corrections UX/UI — Lot 3C : Valeurs de Base et Formats des Nombres (ADR-060) — Terminé Techniquement, Vérifié Localement, Validé le 2026-11-17 (Local, Non Commité)
+
+- **Valeurs de base (SYS-04, composants partagés)** : échelle constatée et documentée (rayons `lg`, `xl`, `2xl`, `3xl`, `full` selon la taille du composant ; titres en gras, sous-titres en demi-gras) ; un seul gris neutre : `gray` au lieu de `slate` dans la variante `neutral` de `Badge` et la variante `secondary` de `Button`. `Dialog`, `Drawer` et `Toast` inchangés (Lot 5B).
+- **Formats (SYS-05)** : nouveau module `src/lib/utils/numberFormat.ts` (`formatAmount`, `formatMoney`, `formatQuantity`, `unitLabel`, `formatQuantityWithUnit`). Montants : deux décimales et code devise après le montant (« 2 400 000,00 USD », « 8 400 000,00 CDF »), plus de « $US » ni de prix sans séparateur (« 450000 CDF »). Quantités : au plus deux décimales, sans perte de précision (stockage `NUMERIC(12,2)`). Pluriel des unités connues à partir de 2 (« 12 tonnes », « 1,5 tonne », « 40 kg ») ; aucune conversion. Valeur absente affichée « — ».
+- **Application** : 110 appels remplacés dans les écrans Société, Revendeur et administration ; `adminFormat` délègue aux formats communs. Inchangés : compteurs et pagination, messages des actions serveur, graphiques du Lot 4A.
+- **Tests exécutés** (vérification combinée 3B et 3C) : typecheck sans erreur ; 101/101 tests unitaires, dont 6 nouveaux tests de formats ; garde de catégories conforme (101 fichiers modifiés, 2 créés) ; banc 3A 100/100 ; 12 rejeux serveur et bancs de composants identiques à la référence ; `npm run build` réussi le 2026-11-17 (48 routes, 10 pages statiques, aucun avertissement).
+- **Non vérifié** : vraie base Supabase, compte réel, Safari, Firefox, téléphone réel, lecteur d'écran.
+
+## [UXUI-LOT-3B] - 2026-11-17
+### Corrections UX/UI — Lot 3B : Lisibilité, Contrastes et Tailles de Texte (ADR-059) — Terminé Techniquement, Vérifié Localement, Validé le 2026-11-17 (Local, Non Commité)
+
+- **Contrastes (A11-02), mesurés selon WCAG avant et après** sur la copie isolée instrumentée (9 307 textes, 40 pages, 16 fenêtres, 390 et 1 280 px) : 965 échecs (10,4 %) avant, 122 (1,3 %) après, tous exemptés (séparateurs décoratifs, emoji) ou non mesurables (texte sur photo). 118 corrections ciblées sur la balise exacte de chaque échec mesuré et 25 corrections manuelles mesurées ou calculées ; règle de base pour le texte d'exemple des champs (`gray-500`, 4,8:1). Défaut préexistant corrigé : boutons « En préparation » en blanc sur fond gris clair (1,1:1).
+- **Tailles (A11-03)** : 316 textes courants passent à 12 px, 127 badges, compteurs et étiquettes en capitales à 11 px (101 déjà à 11 px), dans 85 fichiers ; barres de navigation laissées au Lot 6B. Caractères sous 12 px à 390 px : 27,8 % avant, 8,9 % après.
+- **Inchangé** : textes, logique, palette, structures des modales ; bordures des champs (critère 1.4.11) laissées en l'état, à décider séparément.
+- **Tests exécutés** : voir l'entrée UXUI-LOT-3C (vérification combinée).
+- **Non vérifié** : vraie base, Safari, Firefox, téléphone réel en plein soleil, lecteur d'écran ; textes sur photos.
+
+## [UXUI-LOT-3A] - 2026-11-16
+### Corrections UX/UI — Lot 3A : Réactivation du Socle Visuel (ADR-057) — Terminé Techniquement, Vérifié Localement, Validé le 2026-11-16 (Local, Non Commité)
+
+- **Objet** : fiches SYS-01, SYS-03, RET-08 et LAN-04 de l'audit. Environ 590 usages de classes Tailwind sans effet (syntaxe de Tailwind 4 ou d'une extension d'animation non installée) avant le lot ; aucun après, hors exceptions documentées.
+- **Configuration** (`tailwind.config.ts`) : point de rupture `xs` à 480 px, points de rupture Tailwind inchangés ; ombres `shadow-xs` et `shadow-2xs`, `drop-shadow-xs` et flou `blur-xs` aux valeurs de Tailwind 4 ; `font-display` sur la police système (aucun changement visible) ; greffon local d'animations d'entrée (`animate-in`, `fade-in`, `zoom-in`, `slide-in-from-*`), sans dépendance npm, à la durée de la classe `duration-*` de l'élément (150 ms par défaut). Palette inchangée.
+- **Remplacements de classes** : 85 dans 36 fichiers, classes seulement : `outline-hidden` → `outline-none` (44, dont 5 champs des dépôts de la modale de campagne qui reçoivent l'anneau de focus de leurs voisins) ; proportions fixes des photos `aspect-[16/10]`, `aspect-[16/9]`, `aspect-[21/9]` (4) ; `bg-gradient-to-*` (4) ; `no-scrollbar` (3) ; valeurs inexistantes remplacées par la plus proche (27) ; `bg-sand-50/40` retiré, sans effet (1) ; copyright du pied de page d'accueil visible dès 320 px (2).
+- **Contrôle automatique** : nouveau test `tests/unit/tailwindClasses.test.ts` (5 tests) qui refuse toute classe Tailwind sans effet dans `src`, hors 9 composants inutilisés (Lot 8) et exceptions justifiées ; vérifié en réintroduisant trois classes sans effet dans une copie du code (3/3 détectées).
+- **Exceptions conservées** : `sm:animate-slide-in-down` (`Toast`, Lot 5B) ; `prose prose-sm` (`CompanyProfileView`) et `preserve-3d` (`src/app/page.tsx`), trouvées par le contrôle, conservées sans correction (décision du 2026-11-16) ; `backdrop-blur-2xs` dans `ResellerAvatarSection`, composant inutilisé (Lot 8).
+- **Non modifiés** : `Dialog`, `Drawer`, `Toast`, structures des modales maison (Lot 5B), `globals.css`, textes, requêtes, actions serveur, RLS, migrations, dépendances npm. Les animations des modales maison, du menu mobile, de la liste `Select` et des encadrés deviennent effectives par la configuration ; propositions compatibles pour le Lot 5B dans ADR-057.
+- **Tests exécutés** : garde « classes seules » 36/36, aucun autre fichier de `src` modifié ; typecheck sans erreur ; 95/95 tests unitaires ; feuille CSS complète sans règle supprimée (48 ajoutées, 6 règles `duration-*` complétées d'une variable) ; `npm run build` réussi le 2026-11-16 (48 routes, 10 pages statiques, 15 pages générées, aucun avertissement).
+- **Banc 3A sur vrai serveur Next avec base simulée** : 100/100 (réactivation 35/35 : copyright à 5 largeurs, en-tête à 480 px, ombres, flou, animations et mouvement réduit, focus, proportions des photos, dégradé, pastilles, défilements ; non-régression 65/65 : débordements horizontaux, tiroir partagé, barre basse revendeur). Première passe à 94/100 due au sélecteur des cadres photo du banc, corrigé.
+- **Non-régression** : rejeux identiques à la référence relevée avant le lot, mêmes contrôles en échec : 6A-1 183/183, 6A-2 359/359, 2C 154/160 et copie 160/160, 2A 180/186, 182/186 et copie 186/186, 2B 49/49, 2D 18/18, 5A 178/182 et copie 198/198, composants 520/521, 243/243 et 270/270.
+- **Constaté pendant les contrôles** : le 2026-11-15, deux builds de la copie isolée arrêtés par la garde disque (C: à 944 puis 363 Mo) ; tout a réussi après redémarrage du poste, une opération lourde à la fois.
+- **Observé hors périmètre** : en-tête Société au-dessus du voile de la modale de campagne, déjà avant le lot (Lot 5B) ; « Commandes » à 320 px dans la barre basse revendeur, inchangé (Lot 6B).
+- **Non vérifié** : vraie base Supabase, compte réel, Safari, Firefox et téléphone réel (sans propriétés `translate` et `scale` individuelles, seul le fondu s'affiche), coût du flou sur téléphone d'entrée de gamme, lecteur d'écran.
+
+## [UXUI-LOT-6A-2] - 2026-11-15
+### Corrections UX/UI — Lot 6A-2 : Vocabulaire des Textes d'Écran (ADR-056) — Terminé Techniquement, Vérifié Localement, en Attente de Validation Finale (Local, Non Commité)
+
+- **Mission 1, contrôles différés et espace Société** : 35 fichiers, 192 remplacements (tableau de bord, catalogue, productions, campagnes, demandes du marché, commandes, notifications, profil, tableau de bord d'administration). Les cinq contrôles différés du Lot 6A-1 passent à 5/5.
+- **Mission 2, espace Revendeur, fiches publiques, inscription et administration restante** : 42 fichiers examinés, 41 modifiés, 187 remplacements, plus un complément C7 de 2 remplacements dans `CompanyDemandDetailView` (fichier compté dans la mission 1). Total des deux missions : 381 remplacements, 386 textes modifiés, 76 fichiers de code distincts.
+- **Arbitrages appliqués** : lexique (C1 à C11) et formulations F1 à F10 (demandes du marché, replis, réservation du stock et QR code, prix et volumes, statuts de vérification, définition d'une campagne, production privée, onboarding). Détail dans ADR-056.
+- **Ne change que des textes** : garde « texte seul » (arbre syntaxique TypeScript comparé avant et après) conforme sur 35/35 et 42/42 fichiers, plus le complément ; 386 textes modifiés, tous dans des contextes d'affichage. Fins de ligne conservées, y compris dans 2 fichiers qui les mélangeaient déjà.
+- **Tests exécutés** : typecheck sans erreur et 90/90 tests unitaires après chaque mission ; build de la copie isolée réussi après chaque mission ; `npm run build` réussi le 2026-11-15 (48 routes, 10 pages statiques, aucun avertissement).
+- **Banc 6A-2 sur vrai serveur Next avec base simulée** : 359/359 (mission 1 : 159/159 ; mission 2 : 200/200), avec nouveaux textes présents, anciens absents, cinq statuts de vérification (F6, F7) sur le tableau de bord, le profil et la fiche publique, aucun défilement horizontal à 320, 390 et 1 280 px, libellés neutres non coupés. Trois corrections du banc lui-même en cours de route (onglet « Analyse territoriale » à ouvrir, bandeau de repli à tester sans bannière, mesure d'un badge avec icône) ; aucune assertion retirée.
+- **Banc 6A-1** : 183/183, périmètre strict 178/178, contrôles différés 5/5 (original et copie adaptée).
+- **Non-régression, bancs originaux et copies adaptées (décision C11)** : 2C 154/160, dont 6 échecs de texte attendus, copie 160/160 ; 2A 180/186 (2 échecs historiques du Lot 4A et 4 échecs de texte), copie 186/186 ; 2B sur vrai serveur 49/49 ; 2D 18/18 coupures et 7 champs photo envoyés en 4 Ko et 2,1 Mo ; 5A 178/182 (deux fenêtres ouvertes par un texte changé), copie 198/198 ; bancs de composants 2B et 2D : originaux arrêtés sur le bouton renommé « Enregistrer dans ma société », copies 243/243 et 270/270. Bancs originaux inchangés (empreintes vérifiées).
+- **Lexique global** : 556 occurrences de termes écartés avant le lot, 222 après ; dans les écrans du périmètre, il ne reste que les 64 exceptions documentées, les autres étant dans des zones exclues (`src/lib`, accueil public, pages légales, code non importé).
+- **Base simulée du banc** (hors dépôt) : colonne `total_demands_count` ajoutée aux agrégats simulés pour reproduire la vraie vue SQL.
+- **Constaté pendant les contrôles** : deux échecs du contrôle RET-10 (2B) quand le poste saturait sa mémoire ; 49/49 une fois relancé seul, le code de l'indicateur étant inchangé.
+- **Non vérifié** : vraie base Supabase, compte réel, téléphone réel avec sa propre police, lecteur d'écran ; la page d'onboarding et le repli « Production : non précisée » ne sont vérifiés que par la garde et l'analyse du code ; notifications rédigées en SQL hors périmètre.
+- **Complément de clôture (2026-11-15)** : 64 remplacements dans 31 fichiers, dont 2 nouveaux (`CompanyCampaignDetailDrawer`, `FeedProductionCard`) : 8 « commande ferme » reformulés ; « SYNAPTA Identity » → « Plateforme éditée par » / « Synapta SARL » ; 42 « offre » au sens de campagne → « campagne », avec accords ; valeur par défaut « Voir les campagnes » pour les nouvelles bannières ; libellés du refus d'une demande par une société harmonisés (« Refuser cette demande », « Demande refusée », « Vous avez refusé cette demande »). Garde « texte seul » 31/31 et gardes cumulées 35/35 et 42/42 conformes ; typecheck sans erreur ; 90/90 tests unitaires. Lot entier : 445 remplacements, 450 modifications de textes portant sur 447 textes distincts (3 textes modifiés lors de deux phases), 78 fichiers de code distincts. **Build officiel réussi** après redémarrage du poste (une première tentative avait été arrêtée par la garde disque pendant la vérification des types) : code de sortie 0, `BUILD_ID` présent, 48 routes générées dont 10 statiques et 38 dynamiques, aucun avertissement ni erreur, 3 013 Mo libres sur C: après le build. Bancs serveur non rejoués après ce complément, qui ne modifie que des textes.
+- **Flux de refus, constats** : le refus d'une demande par une société (statut `refused`) n'est notifié à personne ; le refus d'une proposition par un revendeur n'existe pas dans le code ; les notifications `DEMANDE_ACCEPTEE` et `DEMANDE_REFUSEE` ne sont jamais créées, leurs libellés sont laissés en l'état.
+- **Non résolu (logique ou décision nécessaire)** : libellés des notifications `DEMANDE_ACCEPTEE` et `DEMANDE_REFUSEE` ; refus compté et affiché avec les propositions côté revendeur ; absence de notification du refus ; flux de refus d'une proposition à concevoir s'il est souhaité. Conservés : « calibrer son offre », carte de rôle (Lot 7), `NotificationsView` (Lot 8).
+
+## [UXUI-LOT-6A-1] - 2026-11-14
+### Corrections UX/UI — Lot 6A-1 : Menus, Titres et Repères de Navigation (ADR-055) — Terminé Techniquement, Validé le 2026-11-14 (Local, Non Commité)
+
+- **A. Menus actifs** Société, Revendeur et Administration (barres latérales, barres basses, en-têtes) : un nom par rubrique, selon le lexique (Société, Revendeur, Campagne, Demande, Produit, Tableau de bord, Vérifiée, Proposition) et la décision D1. Routes et identifiants inchangés.
+- **B. Repères** : titres des pages principales identiques aux menus, sur-titres réduits au nom de l'espace, liens de retour « Retour au tableau de bord » et « Retour aux demandes du marché ». Décisions complémentaires : fils d'Ariane, raccourcis du profil revendeur et cartes-liens du profil Société et du tableau de bord d'administration (intitulés seulement).
+- **D. Badge de vérification** (décision D2) : la fiche production revendeur n'affirme plus « Producteur vérifié sur la plateforme » pour toute société. « Société vérifiée » seulement pour le statut `verified`, sinon « Société inscrite sur la plateforme ». Champ `verification_status` ajouté à la seule lecture `getPublicProductionDetail`, sans changement de RLS.
+- **Textes du Lot 2C** reformulés selon le lexique, dont « Offre commerciale non vérifiée » → « Campagne non vérifiée ». Casse des menus et des titres harmonisée.
+- **Mise en page** : « Tableau de bord » passe sur deux lignes dans la barre mobile Société au lieu d'être tronqué.
+- **Fichiers** : 38 fichiers modifiés, dont 10 dans `src/app/dashboard/admin` (pages et layout), 3 dans `src/app/dashboard/reseller` (deux pages et l'écran d'erreur), les menus (`CompanySidebar`, `CompanyBottomNav`, `CompanyHeader`, `ResellerSidebar`, `AppSidebar`), 19 autres composants et `src/lib/queries/feed.ts`. Aucun fichier créé.
+- **Tests exécutés** : typecheck sans erreur ; 90/90 tests unitaires ; `npm run build` réussi le 2026-11-14 (48 routes, 10 pages statiques, inchangé) ; build de la copie isolée réussi.
+- **Scénarios simulés** : banc de composants (vrais menus dans Chrome à 320, 390 et 1 280 px) 520/521 ; banc 6A-1 sur vrai serveur Next avec base simulée : **résultat brut 178/183** ; **périmètre strict du Lot 6A-1 178/178** (titres 10/10, fils d'Ariane 12/12, raccourcis et cartes-liens 20/20, liens de retour 5/5, badge D2 19/19 pour `verified`, `pending`, `rejected`, absent et inconnu, textes 2C 6/6, aucun défilement horizontal) ; **5 contrôles différés au Lot 6A-2**, en attente : anciens termes encore présents dans des textes d'écran réservés au Lot 6A-2 (« Dernières Commandes Reçues », filtre « Commandes Reçues » des notifications Société, phrase « module Productions & Récoltes » du profil Société, indicateurs « Catalogue Produits » et « Entreprises Agricoles » de l'administration).
+- **Non-régression** : Lot 2C 159/160 (seul échec : le banc cherche encore le texte remplacé « Offre commerciale non vérifiée ») ; Lot 2A 186/186 (184/186 avec le script d'origine, titre modifié au Lot 4A) ; Lot 2B 49/49 ; Lot 2D 18/18 coupures et 7 champs photo envoyés en 4 Ko et 2,1 Mo (pour les deux champs produit à 2,1 Mo, le témoin clique au bout de 0,5 s, pendant la préparation de la photo, et ne voit aucun envoi ; une sonde qui attend la réactivation du bouton, après 0,8 à 1,1 s, constate l'envoi à chaque essai) ; Lot 5A 198/198.
+- **Banc 6A-1 modifié** (autorisé) : lecture du titre dans `<main>` au lieu de l'en-tête, ajout des contrôles des fils d'Ariane, des raccourcis et des cartes-liens ; à la clôture, les 5 contrôles portant sur des textes du Lot 6A-2 sont classés « différés 6A-2 » avec leur exigence inchangée (ancien texte absent de la page), enregistrés à chaque passage et non différables si le texte apparaît dans un menu, l'en-tête ou un titre. Le banc affiche le total brut, le périmètre 6A-1 et les contrôles différés ; aucun contrôle supprimé, aucun texte de l'application modifié, aucun build relancé.
+- **Non vérifié** : compte réel, vraie base Supabase, téléphone réel avec sa propre police, lecteur d'écran.
+
+## [UXUI-LOT-2C] - 2026-11-12
+### Corrections UX/UI — Lot 2C : Pannes de Lecture des Détails et des Formulaires (ADR-054) — Local, Non Commité, en Attente de Validation
+
+- **A. Pages de détail** : production (Société et revendeur), demande, commande (Société et revendeur), fiche de société (publique et revendeur). Une panne affiche l'écran d'erreur avec « Réessayer » au lieu de « Page introuvable » ; une ligne absente ou un identifiant mal formé restent « introuvable ».
+- **B. Société courante** : `getCurrentCompanyId` lève une erreur en cas de panne au lieu du faux « Aucune exploitation n'est rattachée à votre compte ». Le membre de plusieurs sociétés garde son repli actuel.
+- **C. Analyse des demandes d'une production** : encadré « Analyse des demandes indisponible » au lieu de « 0 demande ».
+- **D. Fiche de société** : encadré « Productions indisponibles » au lieu de « Aucune production publique disponible » et du compteur.
+- **E. Administration** : une panne des listes de bannières ou de catégories affiche l'écran d'erreur au lieu de « Aucune bannière configurée » ou « Aucune catégorie configurée » ; un comptage de produits illisible n'affiche plus « 0 produit ».
+- **F. Listes des formulaires** : provinces, pays, exploitations et productions de la société, sur les pages Demandes Société et revendeur, le détail de demande et la fiche production revendeur. Un encadré signale la liste manquante ; dans les demandes Société, « Répondre » est désactivé tant que les productions sont illisibles.
+- **G. Campagne active** : encadré « Offre commerciale non vérifiée » au lieu de « Expression de besoin directe ».
+- **H. Proposition existante** (lecture `demand_responses` de `dashboard/company/demands/[id]/page.tsx`, affichée par `CompanyDemandDetailView`) : message « Proposition existante non vérifiée » et formulaire bloqué, au lieu d'un formulaire de nouvelle proposition.
+- **Fichiers** : `src/lib/utils/readErrors.ts` (nouveau), `src/lib/auth/currentCompany.ts`, 8 fichiers de `src/lib/queries/`, 7 pages, 4 composants (`ProductionDetailView`, `CompanyPublicProfileView`, `MarketDemandsAnalysisView`, `CompanyDemandDetailView`), `tests/unit/readErrors.test.ts` (nouveau).
+- **Tests exécutés** : typecheck sans erreur ; 90/90 tests unitaires, dont 10 nouveaux qui passent par la vraie bibliothèque postgrest-js du projet avec des réponses HTTP simulées ; `npm run build` réussi (48 routes, 10 pages statiques, inchangé).
+- **Scénarios simulés sur vrai serveur Next avec base simulée** : 160/160 contrôles du Lot 2C, avec pannes ciblées par table (A 49, B 22 dont 7 « plusieurs sociétés », C 9, D 16, E 18, F 16, G 9, H 14, panne générale 7), pour chaque point : panne, absence réelle, nouvelle tentative effective et page utilisable.
+- **Non-régression** : Lot 2A, 186/186. Le script d'origine donne 184/186, car deux contrôles cherchent l'ancien titre « Évolution de la Demande Exprimée », mis en minuscules au Lot 4A (GRA-10) ; ils passent avec le titre actuel. Lot 2B, 243/243 contrôles de composants et 49/49 sur vrai serveur. Lot 2D, 270/270 tests des formulaires, 18/18 tests de coupure et photos de 2,1 Mo acceptées sur les 7 champs.
+- **Non vérifié** : aucune vraie panne Supabase, toutes les pannes sont simulées ; codes `PGRST116` et `22P02` vérifiés avec postgrest-js et des réponses simulées, pas avec un vrai PostgREST ; compte réel, membre réel de plusieurs sociétés, téléphone réel, lecteur d'écran.
+
+## [UXUI-LOT-2D] - 2026-11-12
+### Corrections UX/UI — Lot 2D : Envoi des Photos (ADR-053) — Terminé Techniquement, Validé le 2026-11-12
+
+- **Cause** : les actions serveur de Next refusent un corps de plus de 1 Mo. Sur 7 champs photo, une image d'environ 1 Mo ou plus échouait (erreur 500), alors que l'interface annonçait 5 ou 8 Mo.
+- **Préparation commune** : `usePhotoForUpload` et `compressImage` contrôlent le format (JPG, PNG, WebP) et la taille de l'image choisie (8 Mo pour une bannière, 5 Mo ailleurs), puis envoient une photo de 900 Ko au plus. L'original n'est jamais envoyé.
+- **Transparence** : conservée pour le logo, la catégorie et le produit du catalogue, en WebP, ou en PNG réduit si le navigateur ne produit pas de WebP.
+- **Formulaires** : bannière, catégorie, produit du catalogue, logo de société, modification d'un produit, produit personnalisé (second champ d'`AddProductDrawer`, que le Lot 2B n'avait pas branché) et photo du revendeur, qui garde sa notification.
+- **Échecs d'envoi** : les trois modales d'administration et `ProductionDrawer` interceptent une action rejetée ; la fenêtre affiche un message et se débloque.
+- **Messages** : sous le champ concerné, reliés par `aria-describedby`.
+- **Statut** : terminé techniquement, validé par le porteur du projet le 2026-11-12.
+- **Tests exécutés** : typecheck sans erreur, 80/80 tests unitaires, `npm run build` réussi (48 routes, 10 pages statiques).
+- **Scénarios simulés** : 270/270 tests des formulaires (vrais composants, vraies images, actions serveur simulées) ; 243/243 contrôles de composants du Lot 2B. Sur vrai serveur Next avec base simulée : 49/49 contrôles serveur du Lot 2B, 18/18 tests de coupure des actions serveur, et une photo de 2,1 Mo acceptée sur les 7 champs (statut 200 au lieu de 500).
+- **Réserves maintenues, non résolues** :
+  1. les envois réels vers Cloudinary et Supabase n'ont pas été testés ;
+  2. l'enregistrement du logo présente toujours une erreur métier préexistante dans la base simulée, indépendante de la photo ;
+  3. Safari sur iPhone et lecteur d'écran non testés ;
+  4. les champs photo masqués restent à corriger au Lot 5B ;
+  5. les performances sur téléphones modestes avec des images source de 8 Mo restent à vérifier.
+
 ## [UXUI-LOT-2B] - 2026-11-10
 ### Corrections UX/UI — Lot 2B : Retours d'Action (ADR-052) — Local, Non Commité
 

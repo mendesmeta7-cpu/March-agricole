@@ -1,21 +1,11 @@
-import { useState, useRef, useTransition, useMemo, useId } from "react";
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import { useState, useRef, useTransition, useMemo } from "react";
+import { Drawer } from "@/components/ui/Drawer";
 import { Province } from "@/lib/queries/geography";
 import { createProductionDemandAction } from "@/lib/actions/demands";
 import Select from "@/components/ui/Select";
-import {
-  X,
-  TrendingUp,
-  AlertCircle,
-  MapPin,
-  Scale,
-  Calendar,
-  Building2,
-  FileText,
-  Info,
-  CheckCircle2,
-} from "lucide-react";
+import { TrendingUp, AlertCircle, MapPin, Scale, Calendar, Building2, FileText, Info, CheckCircle2 } from "lucide-react";
 import Image from "next/image";
+import { formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 interface ProductionDemandModalProps {
   isOpen: boolean;
@@ -61,13 +51,6 @@ export default function ProductionDemandModal({
     }));
   }, [provinces]);
 
-  const panelRef = useRef<HTMLDivElement>(null);
-  const titleId = useId();
-  useFocusTrap(panelRef, {
-    isOpen: isOpen,
-    onEscape: onClose,
-    escapeEnabled: !isPending,
-  });
 
   if (!isOpen) return null;
 
@@ -85,7 +68,7 @@ export default function ProductionDemandModal({
       if (res.error) {
         setErrorMessage(res.error);
       } else {
-        setSuccessMessage("Votre demande d'approvisionnement a été transmise au producteur avec succès !");
+        setSuccessMessage("Votre demande d'approvisionnement a été transmise à la société avec succès !");
         onSuccess?.(res.message || "Demande transmise avec succès !");
         setTimeout(() => {
           onClose();
@@ -104,41 +87,50 @@ export default function ProductionDemandModal({
     bg: "bg-gray-50 text-gray-700 border-gray-200",
   };
 
+  // Lot UX/UI 5B : surface partagée Drawer (focus, Échap, verrouillage compté du défilement).
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
-      <div
-        ref={panelRef}
-        className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 mt-auto sm:mt-0"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-earth-900/5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-xs">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 id={titleId} className="text-base sm:text-lg font-bold text-gray-900">
-                Faire une demande sur cette production
-              </h2>
-              <p className="text-xs text-gray-500">
-                Signalez au producteur votre intention d&apos;achat sur cette récolte.
-              </p>
-            </div>
-          </div>
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      size="lg"
+      isDismissable={!isPending}
+      showCloseButton={!isPending}
+      icon={<TrendingUp className="w-5 h-5" />}
+      title={"Faire une demande sur cette production"}
+      description={"Signalez à la société votre intention d'achat sur cette récolte."}
+      footer={
+        <>
           <button
+            type="button"
             onClick={onClose}
-            aria-label="Fermer le formulaire de demande"
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-white/80 transition-colors"
+            disabled={isPending}
+            className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-800 rounded-xl hover:bg-gray-100 transition-all"
           >
-            <X className="w-5 h-5" />
+            Annuler
           </button>
-        </div>
-
+          <button
+            type="submit"
+            form="production-demand-form"
+            disabled={isPending || !quantity}
+            className="px-5 py-2 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 active:scale-95 disabled:opacity-50 disabled:pointer-events-none rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+          >
+            {isPending ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Transmission...
+              </>
+            ) : (
+              <>
+                <TrendingUp className="w-3.5 h-3.5" />
+                Envoyer ma demande
+              </>
+            )}
+          </button>
+        </>
+      }
+    >
         {/* Info Production */}
-        <div className="px-5 py-3.5 bg-gray-50/80 border-b border-gray-100 flex items-center gap-3.5">
+        <div className="px-4 py-3.5 rounded-2xl bg-gray-50/80 border border-gray-100 flex items-center gap-3.5">
           {production.main_image_url ? (
             <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-gray-200">
               <Image
@@ -156,24 +148,24 @@ export default function ProductionDemandModal({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="text-xs font-bold text-gray-900 truncate">{production.title}</h3>
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${currentStatusBadge.bg}`}>
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${currentStatusBadge.bg}`}>
                 {currentStatusBadge.label}
               </span>
             </div>
-            <p className="text-[11px] text-gray-500 flex items-center gap-2 mt-0.5">
+            <p className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
               {production.company_name && (
                 <span className="flex items-center gap-1 truncate">
                   <Building2 className="w-3 h-3 text-gray-400" /> {production.company_name}
                 </span>
               )}
               <span>•</span>
-              <span>Volume total : {production.expected_quantity.toLocaleString("fr-FR")} {production.unit}</span>
+              <span>Volume total : {formatQuantityWithUnit(production.expected_quantity, production.unit)}</span>
             </p>
           </div>
         </div>
 
         {/* Form Body */}
-        <form ref={formRef} onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+        <form id="production-demand-form" ref={formRef} onSubmit={handleSubmit} className="space-y-4">
           {errorMessage && (
             <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
@@ -191,7 +183,7 @@ export default function ProductionDemandModal({
           <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 text-amber-900 text-[11px] flex items-start gap-2">
             <Info className="w-4 h-4 shrink-0 text-amber-700 mt-0.5" />
             <div className="leading-relaxed">
-              Votre demande sera transmise à l&apos;exploitation agricole pour l&apos;aider à planifier sa logistique et ses futures campagnes commerciales.
+              Votre demande sera transmise à la société pour l&apos;aider à planifier sa logistique et ses futures campagnes commerciales.
             </div>
           </div>
 
@@ -272,7 +264,7 @@ export default function ProductionDemandModal({
           {/* Notes / Précisions */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-gray-800">
-              Notes ou spécifications pour le producteur (optionnel)
+              Notes ou spécifications pour la société (optionnel)
             </label>
             <div className="relative">
               <textarea
@@ -286,37 +278,7 @@ export default function ProductionDemandModal({
               <FileText className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
             </div>
           </div>
-
-          {/* Footer actions */}
-          <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2.5">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isPending}
-              className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-800 rounded-xl hover:bg-gray-100 transition-all"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={isPending || !quantity}
-              className="px-5 py-2 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 active:scale-95 disabled:opacity-50 disabled:pointer-events-none rounded-xl shadow-sm transition-all flex items-center gap-1.5"
-            >
-              {isPending ? (
-                <>
-                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Transmission...
-                </>
-              ) : (
-                <>
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  Envoyer ma demande
-                </>
-              )}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+    </Drawer>
   );
 }

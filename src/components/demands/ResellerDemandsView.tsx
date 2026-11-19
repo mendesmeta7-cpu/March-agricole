@@ -11,6 +11,9 @@ import ResellerDemandDetailDrawer from "./ResellerDemandDetailDrawer";
 import DemandFormModal from "./DemandFormModal";
 import DemandResponsesModal from "./DemandResponsesModal";
 import Button from "@/components/ui/Button";
+import PageHeader from "@/components/ui/PageHeader";
+import InfoRepliable from "@/components/ui/InfoRepliable";
+import FiltresActifs, { type CritereActif } from "@/components/ui/FiltresActifs";
 import { Drawer } from "@/components/ui/Drawer";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/Toast";
@@ -20,7 +23,6 @@ import {
   Plus,
   Search,
   Filter,
-  ArrowLeft,
   CheckCircle2,
   Clock,
   XCircle,
@@ -28,11 +30,9 @@ import {
   Package,
   Layers,
   X,
-  Info,
   RotateCcw,
   Sparkles,
 } from "lucide-react";
-import Link from "next/link";
 
 interface ResellerDemandsViewProps {
   initialDemands: DemandItem[];
@@ -119,6 +119,17 @@ export default function ResellerDemandsView({
     return { total, active, converted, totalResponses };
   }, [demands]);
 
+  // Options du filtre Produit, partagées par les filtres d'ordinateur et le tiroir. Calculées ici, au niveau
+  // du composant : un useMemo placé dans un bloc conditionnel ({demands.length > 0 && …}) changeait le
+  // nombre de hooks quand la liste passait de vide à non vide sans rechargement (Lot 7, règle des hooks).
+  const productOptions = useMemo(
+    () => [
+      { value: "all", label: "Tous les produits" },
+      ...catalogProducts.map((p) => ({ value: p.id, label: p.name })),
+    ],
+    [catalogProducts]
+  );
+
   // Nombre de filtres actifs
   const activeFiltersCount =
     (statusFilter !== "all" ? 1 : 0) +
@@ -126,6 +137,24 @@ export default function ResellerDemandsView({
     (productFilter !== "all" ? 1 : 0) +
     (onlyWithResponses ? 1 : 0) +
     (searchQuery.trim().length > 0 ? 1 : 0);
+
+  // Critères du tiroir de filtres rappelés sous 1 024 px (NAV-06, arbitrage C), mêmes libellés que les filtres
+  const LIBELLES_TYPE: Record<string, string> = { general: "Demandes générales", production: "Demandes sur production" };
+  const LIBELLES_STATUT: Record<string, string> = { active: "Active", converted: "Convertie en commande", cancelled: "Annulée", expired: "Expirée" };
+  const filtresActifs: CritereActif[] = [
+    ...(typeFilter !== "all"
+      ? [{ cle: "type", libelle: "Type", valeur: LIBELLES_TYPE[typeFilter] ?? typeFilter, retirer: () => setTypeFilter("all") }]
+      : []),
+    ...(statusFilter !== "all"
+      ? [{ cle: "statut", libelle: "Statut", valeur: LIBELLES_STATUT[statusFilter] ?? statusFilter, retirer: () => setStatusFilter("all") }]
+      : []),
+    ...(productFilter !== "all"
+      ? [{ cle: "produit", libelle: "Produit", valeur: catalogProducts.find((p) => p.id === productFilter)?.name ?? "Produit", retirer: () => setProductFilter("all") }]
+      : []),
+    ...(onlyWithResponses
+      ? [{ cle: "propositions", libelle: "Propositions", valeur: "Avec propositions", retirer: () => setOnlyWithResponses(false) }]
+      : []),
+  ];
 
   const handleResetFilters = () => {
     setSearchQuery("");
@@ -174,7 +203,7 @@ export default function ResellerDemandsView({
             prev.map((d) => (d.id === demandToCancelId ? { ...d, status: "cancelled" } : d))
           );
           toast.success("Demande annulée", {
-            description: res.message || "Votre expression de besoin a été retirée du marché.",
+            description: res.message || "Votre demande a été retirée du marché.",
           });
         }
       } catch (err) {
@@ -209,126 +238,92 @@ export default function ResellerDemandsView({
 
   return (
     <div className="space-y-6">
-      {/* Fil d'Ariane & Contexte */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
-          <Link
-            href="/dashboard/reseller"
-            className="hover:text-earth-900 flex items-center gap-1.5 transition-colors font-medium"
+      {/* En-tête commun (Lot 6B, NAV-02) */}
+      <PageHeader
+        breadcrumb={[{ href: "/dashboard/reseller", label: "Tableau de bord" }]}
+        title="Mes demandes"
+        badge={
+          businessName ? (
+            <span className="text-xs text-gray-500 font-medium hidden sm:inline-block">
+              Établissement : <strong className="text-gray-800">{businessName}</strong>
+            </span>
+          ) : undefined
+        }
+        description="Exprimez vos besoins d'approvisionnement auprès des sociétés de vos bassins cibles. Une demande ne réserve aucun stock : elle permet aux sociétés de vous soumettre des propositions."
+        action={
+          <Button
+            variant="primary"
+            size="md"
+            onClick={handleOpenCreate}
+            leftIcon={<Plus className="w-4 h-4" />}
+            className="w-full sm:w-auto shadow-sm"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Flux des Productions
-          </Link>
-          <span className="text-gray-300">/</span>
-          <span className="text-gray-900 font-semibold">Mes Demandes d&apos;Achat</span>
-        </div>
+            Exprimer une demande générale
+          </Button>
+        }
+      />
 
-        {businessName && (
-          <span className="text-xs text-gray-500 font-medium hidden sm:inline-block">
-            Établissement : <strong className="text-gray-800">{businessName}</strong>
-          </span>
-        )}
-      </div>
-
-      {/* En-tête de Section */}
-      <div className="bg-white rounded-3xl border border-gray-200/90 p-5 sm:p-7 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-earth-100 text-earth-900 text-xs font-bold tracking-tight">
-              <TrendingUp className="w-3.5 h-3.5 text-earth-800" />
-              <span>Approvisionnement B2B Décentralisé</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-950 tracking-tight">
-              Mes Demandes d&apos;Achat
-            </h1>
-            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-              Exprimez vos besoins d&apos;approvisionnement auprès des producteurs agricoles de vos bassins cibles.
-              Une demande ne réserve aucun stock : elle permet aux exploitants de vous soumettre des devis et offres fermes.
-            </p>
-          </div>
-
-          <div className="shrink-0 pt-2 md:pt-0">
-            <Button
-              variant="primary"
-              size="md"
-              onClick={handleOpenCreate}
-              leftIcon={<Plus className="w-4 h-4" />}
-              className="w-full sm:w-auto shadow-sm"
-            >
-              Exprimer un besoin général
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Cartouches de Statistiques Réelles (0 Mock Data) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-earth-50 text-earth-800 flex items-center justify-center shrink-0">
+      {/* Cartouches de Statistiques Réelles (0 Mock Data).
+          Lot 6B (MOB-07) : libellés lisibles en entier, sur deux lignes au besoin (plus de troncature).
+          Correctif NAV-06 (arbitrage B) : sous 640 px, cartes basses, libellé à gauche et valeur à droite,
+          icône masquée ; mêmes intitulés et mêmes valeurs. Présentation inchangée au-delà. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+        <div className="p-2.5 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex items-center gap-2.5 sm:gap-3.5">
+          <div className="hidden sm:flex w-11 h-11 rounded-2xl bg-earth-50 text-earth-800 items-center justify-center shrink-0">
             <TrendingUp className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <p className="text-xs text-gray-500 font-semibold truncate">Total exprimé</p>
-            <p className="text-xl sm:text-2xl font-extrabold text-gray-950">{stats.total}</p>
+          <div className="min-w-0 flex-1 flex items-center justify-between gap-2 sm:block">
+            <p className="text-xs text-gray-500 font-semibold leading-tight">Total exprimé</p>
+            <p className="text-lg sm:text-2xl font-extrabold text-gray-950 shrink-0">{stats.total}</p>
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+        <div className="p-2.5 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex items-center gap-2.5 sm:gap-3.5">
+          <div className="hidden sm:flex w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-700 items-center justify-center shrink-0">
             <Clock className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <p className="text-xs text-gray-500 font-semibold truncate">Besoins actifs</p>
-            <p className="text-xl sm:text-2xl font-extrabold text-gray-950">{stats.active}</p>
+          <div className="min-w-0 flex-1 flex items-center justify-between gap-2 sm:block">
+            <p className="text-xs text-gray-500 font-semibold leading-tight">Demandes actives</p>
+            <p className="text-lg sm:text-2xl font-extrabold text-gray-950 shrink-0">{stats.active}</p>
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
+        <div className="p-2.5 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex items-center gap-2.5 sm:gap-3.5">
+          <div className="hidden sm:flex w-11 h-11 rounded-2xl bg-blue-50 text-blue-700 items-center justify-center shrink-0">
             <MessageSquare className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <p className="text-xs text-gray-500 font-semibold truncate">Propositions reçues</p>
-            <p className="text-xl sm:text-2xl font-extrabold text-gray-950">{stats.totalResponses}</p>
+          <div className="min-w-0 flex-1 flex items-center justify-between gap-2 sm:block">
+            <p className="text-xs text-gray-500 font-semibold leading-tight">Propositions reçues</p>
+            <p className="text-lg sm:text-2xl font-extrabold text-gray-950 shrink-0">{stats.totalResponses}</p>
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-forest-50 text-forest-800 flex items-center justify-center shrink-0">
+        <div className="p-2.5 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex items-center gap-2.5 sm:gap-3.5">
+          <div className="hidden sm:flex w-11 h-11 rounded-2xl bg-forest-50 text-forest-800 items-center justify-center shrink-0">
             <CheckCircle2 className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <p className="text-xs text-gray-500 font-semibold truncate">Converties en commande</p>
-            <p className="text-xl sm:text-2xl font-extrabold text-gray-950">{stats.converted}</p>
+          <div className="min-w-0 flex-1 flex items-center justify-between gap-2 sm:block">
+            <p className="text-xs text-gray-500 font-semibold leading-tight">Converties en commande</p>
+            <p className="text-lg sm:text-2xl font-extrabold text-gray-950 shrink-0">{stats.converted}</p>
           </div>
         </div>
       </div>
 
-      {/* Cartouche d'aide et transparence territoriale */}
-      <div className="p-4 rounded-2xl bg-earth-50/60 border border-earth-200/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-earth-900">
-        <div className="flex items-start gap-2.5">
-          <Info className="w-4 h-4 text-earth-700 shrink-0 mt-0.5" />
-          <p className="leading-relaxed">
-            <strong>Cycle de vie transparent :</strong> 1. Vous publiez un besoin général ou ciblez une production.
-            2. Les producteurs qualifiés vous soumettent des propositions chiffrées (quantité, prix ferme).
-            3. Vous choisissez la proposition idéale pour passer une commande ferme avec garantie de stock.
-          </p>
-        </div>
-      </div>
-
-      {/* Barre de Recherche et Filtres */}
+      {/* Barre de Recherche et Filtres. Correctif NAV-06 (arbitrage C) : sans cadre sous 640 px ;
+          les critères choisis dans le tiroir (sous 1 024 px) restent rappelés et retirables. */}
       {demands.length > 0 && (
-        <div className="p-3 sm:p-4 bg-white rounded-2xl border border-gray-200/90 shadow-2xs space-y-3">
+        <div className="sm:p-4 sm:bg-white sm:rounded-2xl sm:border sm:border-gray-200/90 sm:shadow-2xs space-y-2 sm:space-y-3">
           <div className="flex items-center gap-2.5">
             {/* Recherche textuelle */}
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
+                aria-label="Rechercher par produit, province, ville, notes"
                 type="text"
-                placeholder="Rechercher par denrée, province, ville, notes..."
+                placeholder="Rechercher par produit, province, ville, notes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-9 py-2 text-xs sm:text-sm rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-earth-600 transition-all bg-gray-50/60 focus:bg-white"
+                className="w-full pl-9 pr-9 py-2 text-xs sm:text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-earth-600 transition-all bg-gray-50/60 focus:bg-white"
               />
               {searchQuery && (
                 <button
@@ -345,12 +340,12 @@ export default function ResellerDemandsView({
             <button
               type="button"
               onClick={() => setIsMobileFiltersOpen(true)}
-              className="lg:hidden inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+              className="lg:hidden inline-flex items-center gap-1.5 max-sm:min-h-11 px-3 py-2 text-xs font-bold rounded-xl border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
             >
               <Filter className="w-3.5 h-3.5 text-gray-500" />
               <span>Filtres</span>
               {activeFiltersCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-earth-800 text-white text-[10px] flex items-center justify-center font-bold">
+                <span className="w-4 h-4 rounded-full bg-earth-800 text-white text-[11px] flex items-center justify-center font-bold">
                   {activeFiltersCount}
                 </span>
               )}
@@ -387,10 +382,7 @@ export default function ResellerDemandsView({
                 value={productFilter}
                 onChange={(e) => setProductFilter(e.target.value)}
                 searchable
-                options={useMemo(() => [
-                  { value: "all", label: "Toutes les denrées" },
-                  ...catalogProducts.map((p) => ({ value: p.id, label: p.name })),
-                ], [catalogProducts])}
+                options={productOptions}
               />
 
               {/* Toggle offres reçues */}
@@ -404,7 +396,7 @@ export default function ResellerDemandsView({
                 }`}
               >
                 <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Avec offres ({stats.totalResponses})</span>
+                <span>Avec propositions ({stats.totalResponses})</span>
               </button>
 
               {/* Bouton reset filtres */}
@@ -421,6 +413,8 @@ export default function ResellerDemandsView({
               )}
             </div>
           </div>
+          {/* Critères du tiroir rappelés sous 1 024 px (NAV-06, arbitrage C) */}
+          <FiltresActifs criteres={filtresActifs} className="lg:hidden" />
         </div>
       )}
 
@@ -455,7 +449,7 @@ export default function ResellerDemandsView({
         <div className="space-y-4 pt-2">
           {/* Type */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-gray-800">Type de besoin</label>
+            <label className="block text-xs font-semibold text-gray-800">Type de demande</label>
             <Select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
@@ -485,15 +479,12 @@ export default function ResellerDemandsView({
 
           {/* Denrée */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-gray-800">Denrée agricole</label>
+            <label className="block text-xs font-semibold text-gray-800">Produit</label>
             <Select
               value={productFilter}
               onChange={(e) => setProductFilter(e.target.value)}
               searchable
-              options={useMemo(() => [
-                { value: "all", label: "Toutes les denrées" },
-                ...catalogProducts.map((p) => ({ value: p.id, label: p.name })),
-              ], [catalogProducts])}
+              options={productOptions}
             />
           </div>
 
@@ -507,7 +498,7 @@ export default function ResellerDemandsView({
                 className="w-4 h-4 rounded text-earth-800 focus:ring-earth-600 border-gray-300"
               />
               <span className="text-xs font-medium text-gray-800">
-                Afficher uniquement les demandes ayant reçu des offres
+                Afficher uniquement les demandes ayant reçu des propositions
               </span>
             </label>
           </div>
@@ -518,7 +509,7 @@ export default function ResellerDemandsView({
       {demands.length === 0 ? (
         <EmptyState
           title="Vous n'avez encore exprimé aucune demande d'achat."
-          description="Publiez vos prévisions d'approvisionnement en denrées agricoles auprès des exploitants ou parcourez les productions publiques pour formuler une demande directe."
+          description="Publiez vos prévisions d'approvisionnement en produits agricoles auprès des sociétés ou parcourez les productions publiques pour formuler une demande directe."
           icon={<TrendingUp className="w-8 h-8 text-earth-800" />}
           action={
             <Button
@@ -527,7 +518,7 @@ export default function ResellerDemandsView({
               onClick={handleOpenCreate}
               leftIcon={<Plus className="w-4 h-4" />}
             >
-              Exprimer un besoin général
+              Exprimer une demande générale
             </Button>
           }
         />
@@ -563,6 +554,16 @@ export default function ResellerDemandsView({
           ))}
         </div>
       )}
+
+      {/* Cartouche d'aide, replié par défaut (Lot 6B, TXT-04), placé après la liste
+          (correctif NAV-06, arbitrage D) : texte inchangé, toujours consultable. */}
+      <InfoRepliable summary="Cycle de vie transparent" tone="earth">
+        <p>
+          1. Vous publiez une demande générale ou ciblez une production.
+          2. Les sociétés qualifiées vous soumettent des propositions chiffrées (quantité, prix ferme).
+          3. Vous choisissez la proposition idéale pour passer commande, avec réservation du stock.
+        </p>
+      </InfoRepliable>
 
       {/* Drawer de Consultation Détaillée */}
       <ResellerDemandDetailDrawer
@@ -617,8 +618,8 @@ export default function ResellerDemandsView({
           }
         }}
         onConfirm={handleConfirmCancel}
-        title="Retirer cette expression de besoin ?"
-        description="Cette demande ne sera plus visible par les producteurs agricoles et ne pourra plus recevoir de nouvelles propositions. Cette action est irréversible."
+        title="Retirer cette demande ?"
+        description="Cette demande ne sera plus visible par les sociétés et ne pourra plus recevoir de nouvelles propositions. Cette action est irréversible."
         confirmText="Confirmer l'annulation"
         cancelText="Conserver la demande"
         variant="destructive"

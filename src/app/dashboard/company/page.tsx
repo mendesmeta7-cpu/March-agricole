@@ -18,11 +18,18 @@ import CompanyPendingActions from "@/components/company/dashboard/CompanyPending
 import type { PendingActionItem } from "@/components/company/dashboard/CompanyPendingActions";
 import CompanyRecentActivity from "@/components/company/dashboard/CompanyRecentActivity";
 import CompanyFinancialMetrics from "@/components/company/dashboard/CompanyFinancialMetrics";
+import CompanyFirstSteps from "@/components/company/dashboard/CompanyFirstSteps";
+import type { FirstStep } from "@/components/company/dashboard/CompanyFirstSteps";
 import { isConsumingReservation } from "@/lib/utils/stockRules";
 import { buildProvinceBreakdownByUnit } from "@/lib/utils/unitSeries";
 import type { ProvinceUnitRow } from "@/lib/utils/unitSeries";
 import { settleRead } from "@/lib/utils/settleRead";
 import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
+import { formatMoney } from "@/lib/utils/numberFormat";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Tableau de bord — Radiza" };
 
 export default async function CompanyDashboardPage() {
   const user = await getCurrentUser();
@@ -82,6 +89,7 @@ export default async function CompanyDashboardPage() {
     activeDemandsRead,
     recentOrdersRead,
     financialOrdersResult,
+    productsCountResult,
   ] = await Promise.all([
     supabase
       .from("productions")
@@ -135,6 +143,11 @@ export default async function CompanyDashboardPage() {
     // Requête dédiée aux métriques financières : léger, sans limite de résultats,
     // garantit l'exhaustivité de l'historique pour les calculs CDF/USD.
     getCompanyOrdersForFinancials(companyId),
+    // Lot 6B (D2) : 1re étape des « Premiers pas » ; décompte seul (même filtre que la page Catalogue).
+    supabase
+      .from("company_products")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId),
   ]);
 
   // ─── Productions ─────────────────────────────────────────────────────────────
@@ -322,21 +335,59 @@ export default async function CompanyDashboardPage() {
     });
   }
 
+  // ─── Premiers pas (Lot 6B, NAV-05 / D2) ──────────────────────────────────────
+  // Chaque étape vient d'une lecture réelle ; une lecture en échec donne « indisponible » (null),
+  // jamais « à faire » ni « fait ».
+  if (productsCountResult.error) {
+    console.error("Erreur décompte des produits (dashboard):", productsCountResult.error);
+  }
+  const firstSteps: FirstStep[] = [
+    {
+      key: "product",
+      label: "Ajouter un produit à votre catalogue",
+      actionLabel: "Ajouter un produit",
+      href: "/dashboard/company/products",
+      done: productsCountResult.error ? null : (productsCountResult.count ?? 0) > 0,
+    },
+    {
+      key: "production",
+      label: "Déclarer une production",
+      actionLabel: "Déclarer une production",
+      href: "/dashboard/company/productions/new",
+      done: productionsError ? null : productions.length > 0,
+    },
+    {
+      key: "campaign",
+      label: "Créer une campagne",
+      actionLabel: "Créer une campagne",
+      href: "/dashboard/company/campaigns/new",
+      done: campaignsError ? null : campaigns.length > 0,
+    },
+  ];
+  const firstStepsComplete = firstSteps.every((step) => step.done === true);
+
   // Priorité 4 — Message neutre si aucune alerte n'a été générée
-  // « Tout est à jour » serait faux si les sources de ces alertes n'ont pas pu être lues.
+  // « Tout est à jour » serait faux si les sources de ces alertes n'ont pas pu être lues,
+  // ou s'il reste une étape des « Premiers pas » à faire (Lot 6B, D2).
   if (dashboardAlerts.length === 0) {
     dashboardAlerts.push(
-      campaignsError || recentOrdersRead.failed
+      campaignsError || recentOrdersRead.failed || productionsError || productsCountResult.error
         ? {
             id: "partial-data",
             type: "welcome",
             message: "Certaines données sont temporairement indisponibles.",
           }
+        : !firstStepsComplete
+        ? {
+            id: "no-alert",
+            type: "welcome",
+            message: "Aucune alerte pour le moment.",
+          }
         : {
             id: "welcome",
             type: "welcome",
             message:
-              "Tout est à jour. Votre exploitation est opérationnelle sur Radiza.",
+              "Tout est à jour. Votre société est opérationnelle sur Radiza.",
           }
     );
   }
@@ -446,7 +497,7 @@ export default async function CompanyDashboardPage() {
       id: `order-${o.id}`,
       type: "pending_order",
       title: `Commande ${o.order_number}`,
-      subtitle: `${o.reseller?.business_name || "Revendeur"} — ${new Intl.NumberFormat("fr-FR", { style: "currency", currency: o.currency || "USD" }).format(o.total_amount)}`,
+      subtitle: `${o.reseller?.business_name || "Revendeur"} — ${formatMoney(o.total_amount, o.currency || "USD")}`,
       badgeText:
         o.status === "pending" ? "En attente" :
         o.status === "confirmed" ? "Confirmée" : "En préparation",
@@ -457,11 +508,18 @@ export default async function CompanyDashboardPage() {
   });
 
   // ─── Rendu ───────────────────────────────────────────────────────────────────
+  // Lot 6B (D2) : un graphique n'est masqué que si sa lecture a réussi et qu'il n'a aucune donnée ;
+  // une lecture en échec garde l'état « indisponible » du graphique.
+  const showTrendChart = Boolean(trendResult.error) || trendDemands.length > 0;
+  const showGeoChart = Boolean(geoResult.error) || provincesData.length > 0;
+
+  // Lot 6B (NAV-07) : bandeau compact, premiers pas, actions urgentes, compteurs,
+  // statistiques, graphiques, puis activité récente.
   return (
     <div className="space-y-6 sm:space-y-8 pb-12">
       {/* Zone d'accueil */}
       <CompanyDashboardHeader
-        companyName={company.name || "Mon Exploitation"}
+        companyName={company.name || "Ma société"}
         userName={userProfile?.full_name || undefined}
         verificationStatus={
           (company.verification_status as "verified" | "pending_verification" | "unverified") || "unverified"
@@ -470,12 +528,21 @@ export default async function CompanyDashboardPage() {
         alerts={dashboardAlerts}
       />
 
+      {/* Premiers pas : visibles tant qu'une étape reste à faire ou indisponible */}
+      <CompanyFirstSteps steps={firstSteps} />
+
       {/* Ces cartes signalent une panne sans proposer d'action : la relance est ici. */}
       {(productionsError || campaignsError || financialOrdersResult.error) && (
         <DataUnavailableNotice title="Certaines données sont temporairement indisponibles">
           Les informations affichées sont à jour. Les éléments marqués comme indisponibles
           n&apos;ont pas pu être chargés.
         </DataUnavailableNotice>
+      )}
+
+      {/* Alertes métier urgentes */}
+      {/* « Aucune action urgente » serait faux si les demandes ou les commandes manquent. */}
+      {(pendingActions.length > 0 || !activityReadFailed) && (
+        <CompanyPendingActions actions={pendingActions} />
       )}
 
       {/* 4 cartes KPI */}
@@ -493,25 +560,25 @@ export default async function CompanyDashboardPage() {
         error={financialOrdersResult.error}
       />
 
-      {/* Alertes métier urgentes */}
-      {/* « Aucune action urgente » serait faux si les demandes ou les commandes manquent. */}
-      {(pendingActions.length > 0 || !activityReadFailed) && (
-        <CompanyPendingActions actions={pendingActions} />
+      {/* Graphiques : côte à côte s'ils sont deux, pleine largeur s'il n'en reste qu'un */}
+      {(showTrendChart || showGeoChart) && (
+        <div className={`grid grid-cols-1 ${showTrendChart && showGeoChart ? "xl:grid-cols-2" : ""} gap-6 items-start`}>
+          {showTrendChart && (
+            <CompanyDemandTrendChart
+              demands={trendDemands}
+              availableProducts={availableProducts}
+              unavailable={Boolean(trendResult.error)}
+            />
+          )}
+          {showGeoChart && (
+            <CompanyDemandGeoChart
+              provincesData={provincesData}
+              unitTotals={geoUnitTotals}
+              unavailable={Boolean(geoResult.error)}
+            />
+          )}
+        </div>
       )}
-
-      {/* Graphiques côte à côte */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-        <CompanyDemandTrendChart
-          demands={trendDemands}
-          availableProducts={availableProducts}
-          unavailable={Boolean(trendResult.error)}
-        />
-        <CompanyDemandGeoChart
-          provincesData={provincesData}
-          unitTotals={geoUnitTotals}
-          unavailable={Boolean(geoResult.error)}
-        />
-      </div>
 
       {/* Activité récente */}
       <CompanyRecentActivity

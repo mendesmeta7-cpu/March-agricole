@@ -60,12 +60,12 @@ export default function CompanyPublicHeader({ company }: CompanyPublicHeaderProp
             {company.verification_status === "verified" ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                Exploitation Vérifiée
+                Société vérifiée
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
                 <ShieldCheck className="w-3.5 h-3.5 text-gray-500" />
-                Producteur Enregistré
+                Société inscrite sur la plateforme
               </span>
             )}
           </div>
@@ -94,7 +94,7 @@ export default function CompanyPublicHeader({ company }: CompanyPublicHeaderProp
             </p>
           ) : (
             <p className="text-sm text-gray-400 italic pt-1">
-              Aucune présentation descriptive supplémentaire enregistrée pour cette exploitation.
+              Aucune présentation descriptive supplémentaire enregistrée pour cette société.
             </p>
           )}
         </div>

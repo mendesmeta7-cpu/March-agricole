@@ -7,6 +7,7 @@ import {
   markAllNotificationsAsReadAction,
 } from "@/lib/actions/notifications";
 import Button from "@/components/ui/Button";
+import PageHeader from "@/components/ui/PageHeader";
 import { ToastProvider, useToast } from "@/components/ui/Toast";
 import {
   Bell,
@@ -18,8 +19,6 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  ArrowLeft,
-  Sparkles,
   Inbox,
   Filter,
   Search,
@@ -95,7 +94,7 @@ function CompanyNotificationsContent({
           const now = new Date().toISOString();
           setNotifications((prev) => prev.map((n) => ({ ...n, read_at: n.read_at || now })));
           toast.success("Notifications à jour", {
-            description: "Toutes les notifications de votre exploitation ont été marquées comme lues.",
+            description: "Toutes les notifications de votre société ont été marquées comme lues.",
           });
           router.refresh();
         } else {
@@ -287,7 +286,7 @@ function CompanyNotificationsContent({
           icon: TrendingUp,
           color: "text-forest-800 bg-forest-50 border-forest-200",
           badgeColor: "bg-forest-100 text-forest-800",
-          categoryName: "Demande du Marché",
+          categoryName: "Demande du marché",
           accentBorder: "border-l-forest-700",
         };
       case "DEMANDE_REPONSE":
@@ -348,7 +347,7 @@ function CompanyNotificationsContent({
         return "Voir mes propositions";
       case "DATE_ARRIVEE_MODIFIEE":
       case "CAMPAGNE_OUVERTE":
-        return "Consulter l'offre";
+        return "Consulter la campagne";
       default:
         return "Consulter";
     }
@@ -378,140 +377,31 @@ function CompanyNotificationsContent({
 
   return (
     <div className="space-y-6">
-      {/* 1. Fil d'Ariane */}
-      <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
-        <Link
-          href="/dashboard/company"
-          className="hover:text-forest-800 flex items-center gap-1.5 transition-colors font-medium"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Espace Société</span>
-        </Link>
-        <span>/</span>
-        <span className="text-gray-900 font-semibold">Notifications</span>
-      </div>
+      {/* 1. En-tête commun (Lot 6B, NAV-02) : la racine du fil d'Ariane porte le nom du menu */}
+      <PageHeader
+        breadcrumb={[{ href: "/dashboard/company", label: "Tableau de bord" }]}
+        title="Notifications"
+        description="Suivez en temps réel les commandes reçues, les demandes exprimées par les revendeurs et les alertes logistiques de vos campagnes."
+        action={
+          unreadCount > 0 ? (
+            <Button
+              variant="outline"
+              size="md"
+              onClick={handleMarkAllAsRead}
+              isLoading={isPending && markingId === null}
+              className="w-full sm:w-auto font-bold text-xs gap-2"
+            >
+              <CheckCheck className="w-4 h-4 text-forest-700" />
+              <span>Tout marquer comme lu ({unreadCount})</span>
+            </Button>
+          ) : undefined
+        }
+      />
 
-      {/* 2. En-tête Héro Immersif Radiza */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-forest-900 via-forest-800 to-earth-900 p-6 sm:p-8 text-white shadow-xl">
-        {/* Cercles décoratifs d'arrière-plan */}
-        <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute right-32 -bottom-16 h-48 w-48 rounded-full bg-amber-500/10 blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-semibold text-emerald-300">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Espace Société — Centre de Notifications</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white font-display">
-              Notifications Commerciales & Événements
-            </h1>
-            <p className="text-xs sm:text-sm text-gray-200/90 leading-relaxed">
-              Suivez en temps réel les commandes reçues, les besoins exprimés par les revendeurs
-              et les alertes logistiques de vos campagnes de vente.
-            </p>
-          </div>
-
-          {/* Action globale : Tout marquer comme lu */}
-          {unreadCount > 0 && (
-            <div className="self-start md:self-auto shrink-0">
-              <Button
-                variant="outline"
-                size="md"
-                onClick={handleMarkAllAsRead}
-                isLoading={isPending && markingId === null}
-                className="bg-white/10 hover:bg-white/20 text-white border-white/25 hover:border-white/40 backdrop-blur-xs font-bold text-xs gap-2 shadow-sm"
-              >
-                <CheckCheck className="w-4 h-4 text-emerald-300" />
-                <span>Tout marquer comme lu ({unreadCount})</span>
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 3. Cartes Métriques Réelles (0 Mock Data) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Total */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">
-              Total Alertes
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-forest-50 text-forest-800 flex items-center justify-center">
-              <Bell className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-black text-gray-950 font-display">
-              {stats.total}
-            </span>
-            <span className="text-[11px] text-gray-500 block mt-0.5">
-              {stats.total === 0 ? "Aucun événement" : `${stats.total} notification(s)`}
-            </span>
-          </div>
-        </div>
-
-        {/* Non Lues */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
-              Non Lues
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <Sparkles className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-black text-emerald-950 font-display">
-              {stats.unread}
-            </span>
-            <span className="text-[11px] text-gray-500 block mt-0.5">
-              {stats.unread === 0 ? "Toutes lues" : `${stats.unread} à consulter`}
-            </span>
-          </div>
-        </div>
-
-        {/* Demandes du marché */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-forest-700 uppercase tracking-wider">
-              Demandes Marché
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-forest-50 text-forest-700 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-black text-forest-950 font-display">
-              {stats.demands}
-            </span>
-            <span className="text-[11px] text-gray-500 block mt-0.5">
-              Besoins des revendeurs
-            </span>
-          </div>
-        </div>
-
-        {/* Commandes reçues */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">
-              Commandes Reçues
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
-              <ShoppingBag className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-black text-blue-950 font-display">
-              {stats.orders}
-            </span>
-            <span className="text-[11px] text-gray-500 block mt-0.5">
-              Engagements fermes
-            </span>
-          </div>
-        </div>
-      </div>
+      {/* 3. Correctif NAV-06 (Lot 6B, arbitrage A) : les quatre cartes de compteurs (Total, Non lues,
+          Demandes du marché, Commandes reçues) répétaient exactement les nombres des puces de filtre
+          ci-dessous, toujours visibles ; elles sont retirées. Calculs inchangés (stats). Le sens de leurs
+          légendes est repris dans les puces « Demandes du marché » et « Commandes reçues ». */}
 
       {/* 4. Barre de Filtres et Recherche */}
       <div className="space-y-3">
@@ -529,7 +419,7 @@ function CompanyNotificationsContent({
             >
               <span>Toutes</span>
               <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                className={`px-1.5 py-px rounded-full text-[11px] font-black ${
                   activeFilter === "ALL" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
                 }`}
               >
@@ -547,17 +437,18 @@ function CompanyNotificationsContent({
               }`}
             >
               <span>Non lues</span>
-              {stats.unread > 0 && (
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                    activeFilter === "UNREAD"
-                      ? "bg-white/20 text-white"
-                      : "bg-emerald-100 text-emerald-800"
-                  }`}
-                >
-                  {stats.unread}
-                </span>
-              )}
+              {/* NAV-06 : nombre toujours affiché, y compris 0 (il n'est plus repris par une carte) */}
+              <span
+                className={`px-1.5 py-px rounded-full text-[11px] font-black ${
+                  activeFilter === "UNREAD"
+                    ? "bg-white/20 text-white"
+                    : stats.unread > 0
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-gray-100 text-gray-700"
+                }`}
+              >
+                {stats.unread}
+              </span>
             </button>
 
             <button
@@ -569,9 +460,13 @@ function CompanyNotificationsContent({
                   : "bg-white border border-gray-200/80 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
               }`}
             >
-              <span>Demandes Marché</span>
+              {/* NAV-06 : légende de l'ancienne carte reprise dans la puce, en forme compacte */}
+              <span className="flex flex-col items-start text-left">
+                <span>Demandes du marché</span>
+                <span className="font-normal">exprimées par les revendeurs</span>
+              </span>
               <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                className={`px-1.5 py-px rounded-full text-[11px] font-black ${
                   activeFilter === "DEMANDS"
                     ? "bg-white/20 text-white"
                     : "bg-gray-100 text-gray-700"
@@ -590,9 +485,14 @@ function CompanyNotificationsContent({
                   : "bg-white border border-gray-200/80 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
               }`}
             >
-              <span>Commandes Reçues</span>
+              {/* NAV-06 : sens de l'ancienne légende « Engagements fermes » (des commandes, pas des demandes),
+                  sans formulation de garantie */}
+              <span className="flex flex-col items-start text-left">
+                <span>Commandes reçues</span>
+                <span className="font-normal">passées par les revendeurs</span>
+              </span>
               <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                className={`px-1.5 py-px rounded-full text-[11px] font-black ${
                   activeFilter === "ORDERS"
                     ? "bg-white/20 text-white"
                     : "bg-gray-100 text-gray-700"
@@ -611,9 +511,9 @@ function CompanyNotificationsContent({
                   : "bg-white border border-gray-200/80 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
               }`}
             >
-              <span>Campagnes & Offres</span>
+              <span>Campagnes</span>
               <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                className={`px-1.5 py-px rounded-full text-[11px] font-black ${
                   activeFilter === "CAMPAIGNS"
                     ? "bg-white/20 text-white"
                     : "bg-gray-100 text-gray-700"
@@ -628,11 +528,12 @@ function CompanyNotificationsContent({
           <div className="relative w-full sm:w-64">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
+              aria-label="Rechercher une notification"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Rechercher une notification..."
-              className="w-full pl-8 pr-7 py-2 text-xs rounded-xl bg-white border border-gray-200 focus:outline-none focus:ring-2 focus:ring-forest-500 placeholder:text-gray-400 text-gray-900"
+              className="w-full pl-8 pr-7 py-2 text-xs rounded-xl bg-white border border-gray-200 focus:outline-none focus:ring-2 focus:ring-forest-500 placeholder:text-gray-500 text-gray-900"
             />
             {searchQuery && (
               <button
@@ -662,9 +563,9 @@ function CompanyNotificationsContent({
           </h3>
           <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto mb-6 leading-relaxed">
             {notifications.length === 0
-              ? "Aucune nouvelle notification pour le moment. Dès qu'un revendeur passera commande ou formulera un besoin sur vos productions, vous serez alerté ici en temps réel."
+              ? "Aucune nouvelle notification pour le moment. Dès qu'un revendeur passera commande ou formulera une demande sur vos productions, vous serez alerté ici en temps réel."
               : activeFilter === "UNREAD"
-              ? "Toutes les alertes et événements de votre exploitation ont déjà été consultés."
+              ? "Toutes les alertes et événements de votre société ont déjà été consultés."
               : "Aucune notification ne correspond aux filtres et termes de recherche sélectionnés."}
           </p>
 
@@ -700,7 +601,7 @@ function CompanyNotificationsContent({
                 <span className="text-xs font-extrabold uppercase tracking-wider text-gray-500">
                   {group.label}
                 </span>
-                <span className="text-[11px] font-semibold text-gray-400">
+                <span className="text-xs font-semibold text-gray-500">
                   ({group.items.length})
                 </span>
                 <div className="flex-1 h-px bg-gray-200/80" />
@@ -737,19 +638,19 @@ function CompanyNotificationsContent({
                         <div className="space-y-1 flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${meta.badgeColor}`}
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider ${meta.badgeColor}`}
                             >
                               {meta.categoryName}
                             </span>
 
                             {isUnread && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                                 Non lue
                               </span>
                             )}
 
-                            <span className="text-[11px] text-gray-400 flex items-center gap-1 ml-auto sm:ml-0">
+                            <span className="text-xs text-gray-500 flex items-center gap-1 ml-auto sm:ml-0">
                               <Clock className="w-3 h-3 text-gray-400" />
                               {formatDate(notif.created_at)}
                             </span>
@@ -793,7 +694,7 @@ function CompanyNotificationsContent({
                         <Link
                           href={targetUrl}
                           onClick={() => handleNotificationClick(notif)}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-forest-800 hover:bg-forest-900 active:scale-98 text-white font-bold text-xs shadow-2xs hover:shadow-xs transition-all"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-forest-800 hover:bg-forest-900 active:scale-[0.98] text-white font-bold text-xs shadow-2xs hover:shadow-xs transition-all"
                         >
                           <span>{getActionLabel(notif)}</span>
                           <ArrowRight className="w-3.5 h-3.5" />

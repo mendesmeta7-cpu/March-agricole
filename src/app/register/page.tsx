@@ -2,11 +2,12 @@ import Link from "next/link";
 import { Building2, Store, ArrowRight, ArrowLeft, Info } from "lucide-react";
 import BrandLogo from "@/components/ui/BrandLogo";
 import type { Metadata } from "next";
+import SkipLink, { MAIN_CONTENT_ID } from "@/components/ui/SkipLink";
 
 export const metadata: Metadata = {
   title: "Radiza — Créer un compte",
   description:
-    "Choisissez votre profil pour rejoindre la plateforme : Société / Producteur ou Revendeur professionnel.",
+    "Choisissez votre profil pour rejoindre la plateforme : Société ou Revendeur.",
 };
 
 export default async function RegisterChoicePage(props: {
@@ -18,6 +19,7 @@ export default async function RegisterChoicePage(props: {
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-gradient-to-b from-forest-50/60 via-white to-forest-50/40 py-8 px-4 sm:px-6 lg:px-8">
+      <SkipLink />
       {/* Haut de page : Navigation retour & Logo */}
       <div className="max-w-4xl mx-auto w-full">
         <Link
@@ -30,7 +32,7 @@ export default async function RegisterChoicePage(props: {
       </div>
 
       {/* Contenu Principal */}
-      <main className="max-w-4xl mx-auto w-full my-auto py-4 sm:py-8">
+      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="max-w-4xl mx-auto w-full my-auto py-4 sm:py-8 focus:outline-none">
         <div className="text-center mb-8 sm:mb-10">
           <div className="flex justify-center mb-6">
             <BrandLogo variant="horizontal" height={44} priority />
@@ -59,7 +61,7 @@ export default async function RegisterChoicePage(props: {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-3xl mx-auto">
-          {/* Option 1 : Société / Producteur */}
+          {/* Option 1 : Société */}
           <Link
             href="/register/company"
             className="group relative p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-white border-2 border-forest-100 hover:border-forest-600 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between"
@@ -74,7 +76,7 @@ export default async function RegisterChoicePage(props: {
               </div>
 
               <h2 className="text-xl sm:text-2xl font-bold text-forest-950 mb-2">
-                Société / Producteur
+                Société
               </h2>
 
               <p className="text-sm text-forest-900/80 leading-relaxed mb-6 font-normal">
@@ -92,7 +94,7 @@ export default async function RegisterChoicePage(props: {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-forest-600" />
-                  <span>Gestion des offres et des campagnes</span>
+                  <span>Gestion des productions et des campagnes</span>
                 </div>
               </div>
             </div>
@@ -132,11 +134,11 @@ export default async function RegisterChoicePage(props: {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-earth-600" />
-                  <span>Expression des besoins d&apos;approvisionnement</span>
+                  <span>Publication de demandes d&apos;approvisionnement</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-earth-600" />
-                  <span>Commandes fermes avec stock garanti</span>
+                  <span>Commandes avec réservation du stock</span>
                 </div>
               </div>
             </div>
@@ -163,8 +165,8 @@ export default async function RegisterChoicePage(props: {
       </main>
 
       {/* Pied de page discret */}
-      <footer className="max-w-4xl mx-auto w-full text-center text-xs text-forest-700/60 pt-6">
-        Plateforme Numérique B2B Agricole — Inscription sécurisée
+      <footer className="max-w-4xl mx-auto w-full text-center text-xs text-forest-700 pt-6">
+        Plateforme Numérique B2B Agricole — Inscription sur Radiza
       </footer>
     </div>
   );

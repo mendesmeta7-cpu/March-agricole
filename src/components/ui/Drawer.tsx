@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useId, useRef } from "react";
+import React, { useId, useRef } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFocusTrap } from "./useFocusTrap";
+import { useScrollLock } from "./useScrollLock";
 
 export type DrawerSize = "sm" | "md" | "lg" | "xl" | "full";
 export type DrawerSide = "right" | "left" | "bottom";
@@ -61,17 +62,8 @@ export function Drawer({
     escapeEnabled: isDismissable,
   });
 
-  // Verrouillage du scroll arrière-plan
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isOpen]);
+  // Verrouillage du défilement de la page arrière, compté (fenêtres imbriquées) — Lot UX/UI 5B
+  useScrollLock(isOpen);
 
   if (!isOpen) return null;
 
@@ -168,7 +160,7 @@ export function Drawer({
           {/* Corps défilable */}
           <div
             className={cn(
-              "flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-6 space-y-4",
+              "flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-6 space-y-4",
               bodyClassName
             )}
           >

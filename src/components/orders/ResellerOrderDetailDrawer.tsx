@@ -29,6 +29,7 @@ import {
   AlertTriangle,
   Info,
 } from "lucide-react";
+import { formatAmount, formatMoney, formatQuantity, formatQuantityWithUnit, unitLabel } from "@/lib/utils/numberFormat";
 
 interface ResellerOrderDetailDrawerProps {
   order: OrderDetail | null;
@@ -132,7 +133,7 @@ export default function ResellerOrderDetailDrawer({
                 title="Copier le numéro de commande"
               >
                 {copied ? (
-                  <span className="inline-flex items-center text-[10px] font-bold text-emerald-600 gap-0.5">
+                  <span className="inline-flex items-center text-xs font-bold text-emerald-600 gap-0.5">
                     <Check className="w-3 h-3" /> Copié
                   </span>
                 ) : (
@@ -140,7 +141,7 @@ export default function ResellerOrderDetailDrawer({
                 )}
               </button>
             </div>
-            <span className="text-[11px] text-gray-500 font-normal block">
+            <span className="text-xs text-gray-500 font-normal block">
               Passée le {formattedDate}
             </span>
           </div>
@@ -202,16 +203,16 @@ export default function ResellerOrderDetailDrawer({
               <p className="text-emerald-800">
                 {formattedDeliveryDate
                   ? `Livraison confirmée le ${formattedDeliveryDate}`
-                  : "Livraison validée par l'exploitation agricole."}
+                  : "Livraison validée par la société."}
                 {order.delivered_quantity !== null && order.delivered_quantity !== undefined && (
                   <span className="font-bold">
-                    {" "}• Quantité livrée : {order.delivered_quantity.toLocaleString("fr-FR")}{" "}
-                    {order.campaign.unit}
+                    {" "}• Quantité livrée : {formatQuantity(order.delivered_quantity)}{" "}
+                    {unitLabel(order.campaign.unit, order.delivered_quantity)}
                   </span>
                 )}
               </p>
               {order.delivered_by && (
-                <p className="text-emerald-700 text-[11px]">
+                <p className="text-emerald-700 text-xs">
                   Validé par : <strong>{order.delivered_by}</strong>
                 </p>
               )}
@@ -234,7 +235,7 @@ export default function ResellerOrderDetailDrawer({
               <h4 className="text-sm font-bold text-rose-950">Commande Annulée</h4>
               <p className="text-rose-800">
                 Cette commande a été annulée. La réservation de stock a été automatiquement
-                restituée à l&apos;offre commerciale de l&apos;exploitation.
+                restituée à la campagne de la société.
               </p>
             </div>
           </div>
@@ -283,7 +284,7 @@ export default function ResellerOrderDetailDrawer({
                         <StepIcon className="w-4 h-4" />
                       </div>
                       <span
-                        className={`text-[10px] mt-1.5 leading-tight font-medium ${
+                        className={`text-xs mt-1.5 leading-tight font-medium ${
                           isCurrent
                             ? "font-bold text-forest-900"
                             : isPassed
@@ -332,21 +333,21 @@ export default function ResellerOrderDetailDrawer({
                     <span className="font-bold text-gray-950 text-sm block">
                       {item.product.name}
                     </span>
-                    <span className="text-[11px] text-gray-500 block">
+                    <span className="text-xs text-gray-500 block">
                       {item.product.category} • Réf. : {order.campaign.title}
                     </span>
-                    <span className="text-[11px] text-forest-700 font-semibold block mt-0.5">
-                      {item.unit_price.toLocaleString("fr-FR")} {order.currency} / {item.unit}
+                    <span className="text-xs text-forest-700 font-semibold block mt-0.5">
+                      {formatMoney(item.unit_price, order.currency)} / {item.unit}
                     </span>
                   </div>
                 </div>
 
                 <div className="text-right shrink-0">
                   <span className="font-extrabold text-gray-950 text-sm block">
-                    {item.quantity.toLocaleString("fr-FR")} {item.unit}
+                    {formatQuantityWithUnit(item.quantity, item.unit)}
                   </span>
-                  <span className="text-xs font-bold text-forest-900 block mt-0.5">
-                    {item.subtotal.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}{" "}
+                  <span className="text-xs font-bold text-forest-900 block mt-0.5 whitespace-nowrap">
+                    {formatAmount(item.subtotal)}{" "}
                     {order.currency}
                   </span>
                 </div>
@@ -355,17 +356,17 @@ export default function ResellerOrderDetailDrawer({
           </div>
 
           {/* Total général contractuel */}
-          <div className="pt-3 border-t border-gray-100 flex items-center justify-between bg-forest-50/60 p-3 rounded-xl">
+          <div className="pt-3 border-t border-gray-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between bg-forest-50/60 p-3 rounded-xl">
             <div>
               <span className="text-xs font-bold text-forest-950 block">
                 Total Contractuel Engagé
               </span>
-              <span className="text-[10px] text-forest-700">
+              <span className="text-xs text-forest-700">
                 Prix au moment de la commande
               </span>
             </div>
-            <span className="text-base font-black text-forest-950">
-              {order.total_amount.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}{" "}
+            <span className="text-base font-black text-forest-950 whitespace-nowrap">
+              {formatAmount(order.total_amount)}{" "}
               {order.currency}
             </span>
           </div>
@@ -375,14 +376,14 @@ export default function ResellerOrderDetailDrawer({
         <div className="p-3.5 rounded-2xl bg-blue-50/50 border border-blue-200/80 text-xs space-y-1.5">
           <div className="flex items-center gap-2 text-blue-950 font-bold">
             <ShieldCheck className="w-4 h-4 text-blue-700" />
-            <span>Stock Réservé et Garanti</span>
+            <span>Stock réservé</span>
           </div>
-          <p className="text-[11px] text-blue-900 leading-relaxed">
-            Votre volume de <strong>{itemQuantity.toLocaleString("fr-FR")} {itemUnit}</strong> est formellement réservé auprès de l&apos;exploitation et vous est exclusivement attribué.
+          <p className="text-xs text-blue-900 leading-relaxed">
+            Votre volume de <strong>{formatQuantityWithUnit(itemQuantity, itemUnit)}</strong> est réservé auprès de la société et vous est exclusivement attribué.
           </p>
-          <div className="flex items-center gap-4 text-[11px] text-blue-800 font-semibold pt-1">
+          <div className="flex items-center gap-4 text-xs text-blue-800 font-semibold pt-1">
             <span>Réservation : <strong>Confirmée</strong></span>
-            <span>Quantité : <strong>{itemQuantity.toLocaleString("fr-FR")} {itemUnit}</strong></span>
+            <span>Quantité : <strong>{formatQuantityWithUnit(itemQuantity, itemUnit)}</strong></span>
           </div>
         </div>
 
@@ -396,7 +397,7 @@ export default function ResellerOrderDetailDrawer({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             {/* Ville de destination */}
             <div className="p-2.5 rounded-xl bg-white border border-forest-100">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
                 Ville de destination
               </span>
               <span className="text-xs font-extrabold text-gray-900 flex items-center gap-1 mt-0.5">
@@ -410,7 +411,7 @@ export default function ResellerOrderDetailDrawer({
 
             {/* Date d'arrivée */}
             <div className="p-2.5 rounded-xl bg-white border border-forest-100">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
                 Date d&apos;arrivée prévue
               </span>
               <span className="text-xs font-extrabold text-forest-800 flex items-center gap-1 mt-0.5">
@@ -418,7 +419,7 @@ export default function ResellerOrderDetailDrawer({
                 {formattedArrivalDate || "Date à confirmer"}
               </span>
               {previousArrivalDate && (
-                <span className="text-[10px] text-amber-700 block mt-0.5 line-through">
+                <span className="text-xs text-amber-700 block mt-0.5 line-through">
                   Initiale : {previousArrivalDate}
                 </span>
               )}
@@ -428,14 +429,14 @@ export default function ResellerOrderDetailDrawer({
           {/* Dépôt de retrait */}
           {(order.depot_name_snapshot || order.depot) && (
             <div className="p-3 rounded-xl bg-white border border-forest-100 text-xs space-y-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
                 Point de retrait / Entrepôt
               </span>
               <span className="font-bold text-gray-900 block text-xs">
                 {order.depot?.name || order.depot_name_snapshot}
               </span>
               {order.depot && (
-                <p className="text-[11px] text-gray-600 leading-relaxed">
+                <p className="text-xs text-gray-600 leading-relaxed">
                   Commune {order.depot.commune}
                   {order.depot.quartier && `, Quartier ${order.depot.quartier}`}
                   <br />
@@ -451,7 +452,7 @@ export default function ResellerOrderDetailDrawer({
         <div className="p-4 rounded-2xl bg-white border border-gray-200/90 shadow-2xs space-y-3">
           <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
             <Building2 className="w-3.5 h-3.5 text-forest-700" />
-            Exploitation Vendeuse
+            Société vendeuse
           </h4>
 
           <div className="flex items-center justify-between gap-3">
@@ -473,7 +474,7 @@ export default function ResellerOrderDetailDrawer({
                 <span className="font-bold text-gray-900 block text-xs">
                   {order.company.name}
                 </span>
-                <span className="text-[11px] text-gray-500 block">
+                <span className="text-xs text-gray-500 block">
                   {order.company.city ? `${order.company.city}, ` : ""}
                   {order.company.provinces?.name || "RDC"}
                 </span>
@@ -492,8 +493,8 @@ export default function ResellerOrderDetailDrawer({
         {/* 8. Notes particulières */}
         {order.notes && (
           <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200/80 text-xs space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
-              Instructions particulières de l&apos;acheteur
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
+              Instructions particulières du revendeur
             </span>
             <p className="text-gray-700 italic leading-relaxed">
               &ldquo;{order.notes}&rdquo;

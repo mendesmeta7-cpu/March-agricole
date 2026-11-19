@@ -14,6 +14,10 @@ import {
   parseAdminListParams,
   type AdminProductionRow,
 } from "@/lib/queries/admin";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Administration · Productions — Radiza" };
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +43,7 @@ export default async function AdminProductionsPage(props: PageProps) {
     },
     {
       key: "company",
-      header: "Entreprise",
+      header: "Société",
       cell: (row) => row.companyName ?? <span className="text-gray-400">—</span>,
     },
     {
@@ -77,8 +81,8 @@ export default async function AdminProductionsPage(props: PageProps) {
       <AdminBackLink />
 
       <PageHeader
-        title="Supervision des Productions Agricoles"
-        description="Consultez les productions déclarées par les entreprises, leur statut et leur visibilité. Liste en lecture seule."
+        title="Productions"
+        description="Consultez les productions déclarées par les sociétés, leur statut et leur visibilité. Liste en lecture seule."
         badge={<Badge variant="neutral">Lecture seule</Badge>}
       />
 
@@ -102,7 +106,7 @@ export default async function AdminProductionsPage(props: PageProps) {
         columns={columns}
         getRowKey={(row) => row.id}
         emptyTitle="Aucune production déclarée pour le moment"
-        emptyDescription="Les productions apparaîtront ici dès qu'une entreprise en déclarera depuis son espace."
+        emptyDescription="Les productions apparaîtront ici dès qu'une société en déclarera depuis son espace."
         icon={<Tractor className="w-8 h-8 text-forest-700" />}
       />
     </div>

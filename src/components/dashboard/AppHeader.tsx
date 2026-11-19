@@ -93,7 +93,7 @@ export default function AppHeader({
               {entityName || userName || "Marché Agricole"}
             </span>
             {locationInfo && (
-              <span className="text-[10px] xs:text-xs text-gray-500 inline-flex items-center gap-1 truncate max-w-[140px] xs:max-w-[180px] sm:max-w-xs">
+              <span className="text-xs xs:text-xs text-gray-500 inline-flex items-center gap-1 truncate max-w-[140px] xs:max-w-[180px] sm:max-w-xs">
                 <MapPin className="w-2.5 h-2.5 xs:w-3 xs:h-3 text-gray-400 flex-shrink-0" />
                 <span className="truncate">{locationInfo}</span>
               </span>

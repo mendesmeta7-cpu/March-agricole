@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useId, useRef } from "react";
+import React, { useId, useRef } from "react";
 import { X, AlertTriangle, CheckCircle2, Info, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "./Button";
 import { useFocusTrap } from "./useFocusTrap";
+import { useScrollLock } from "./useScrollLock";
 
 export type DialogSize = "sm" | "md" | "lg" | "xl" | "2xl" | "full";
 
@@ -26,6 +27,8 @@ export interface DialogProps {
   ariaLabelledBy?: string;
   /** Id d'un élément descriptif rendu dans le corps (si `description` n'est pas fourni) */
   ariaDescribedBy?: string;
+  /** Plein écran sous 640 px (ex. : scanner de QR code) — Lot UX/UI 5B */
+  fullScreenOnMobile?: boolean;
 }
 
 const sizeWidthStyles: Record<DialogSize, string> = {
@@ -53,6 +56,7 @@ export function Dialog({
   footerClassName,
   ariaLabelledBy,
   ariaDescribedBy,
+  fullScreenOnMobile = false,
 }: DialogProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -66,23 +70,17 @@ export function Dialog({
     escapeEnabled: isDismissable,
   });
 
-  // Verrouillage du scroll arrière-plan
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isOpen]);
+  // Verrouillage du défilement de la page arrière, compté (fenêtres imbriquées) — Lot UX/UI 5B
+  useScrollLock(isOpen);
 
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      className={cn(
+        "fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain",
+        fullScreenOnMobile ? "p-0 sm:p-4" : "p-3 sm:p-4"
+      )}
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? titleId : ariaLabelledBy}
@@ -103,6 +101,7 @@ export function Dialog({
           "relative z-10 w-full bg-white focus:outline-none rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200/90 overflow-hidden flex flex-col my-auto max-h-[90vh]",
           "animate-modal-pop",
           sizeWidthStyles[size],
+          fullScreenOnMobile && "max-sm:max-w-none max-sm:h-[100dvh] max-sm:max-h-none max-sm:rounded-none max-sm:border-0",
           className
         )}
       >
@@ -149,7 +148,7 @@ export function Dialog({
         {/* Corps défilable */}
         <div
           className={cn(
-            "flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-6 space-y-4",
+            "flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-6 space-y-4",
             bodyClassName
           )}
         >

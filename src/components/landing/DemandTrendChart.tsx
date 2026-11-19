@@ -204,7 +204,7 @@ export default function DemandTrendChart() {
                   Tendance des intentions d&apos;achat — {product.name}
                 </span>
                 <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-forest-400" />
-                <span className="hidden sm:inline-block text-[11px] text-forest-600 font-medium">
+                <span className="hidden sm:inline-block text-xs text-forest-600 font-medium">
                   {product.badge}
                 </span>
               </div>
@@ -367,7 +367,7 @@ export default function DemandTrendChart() {
                       {activePoint.volume} t
                     </span>
                     <span className="text-forest-200/80">({activePoint.month})</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-forest-800 text-emerald-200 font-bold">
+                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-forest-800 text-emerald-200 font-bold">
                       {activePoint.trend}
                     </span>
                   </div>
@@ -389,13 +389,13 @@ export default function DemandTrendChart() {
 
               <div className="mt-4 pt-4 border-t border-forest-200/60 grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-[11px] text-forest-600 font-medium">Point d&apos;intérêt</p>
+                  <p className="text-xs text-forest-600 font-medium">Point d&apos;intérêt</p>
                   <p className="text-base sm:text-lg font-bold text-forest-950">
                     {activePoint.volume} {product.unit}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[11px] text-forest-600 font-medium">Variation estimée</p>
+                  <p className="text-xs text-forest-600 font-medium">Variation estimée</p>
                   <p className="text-base sm:text-lg font-bold text-emerald-700 inline-flex items-center">
                     {activePoint.trend}
                     <ArrowUpRight className="w-3.5 h-3.5 ml-0.5" />

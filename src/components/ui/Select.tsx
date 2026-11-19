@@ -1,8 +1,15 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
 import { ChevronDown, Search, Check, X, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  choisirPlacement,
+  hauteurListeMaximale,
+  zoneVisible,
+  type SelectPlacement,
+} from "./selectPlacement";
+import { useFormFieldContext } from "./formFieldContext";
 
 export interface SelectOption {
   value: string | number;
@@ -33,11 +40,15 @@ export interface SelectProps {
   leftIcon?: React.ReactNode;
   className?: string;
   menuClassName?: string;
+  /** Libellé visible associé (A11-05) ; à défaut, celui du FormField parent. */
+  "aria-labelledby"?: string;
+  /** Nom accessible quand aucun libellé n'est visible (ex. devise à côté d'un prix). */
+  "aria-label"?: string;
 }
 
 const selectSizeStyles = {
-  sm: "py-1.5 px-3 text-xs rounded-lg min-h-[34px]",
-  md: "py-2.5 px-3.5 text-sm rounded-xl min-h-[42px]",
+  sm: "py-1.5 px-3 text-xs rounded-lg min-h-[34px] max-sm:min-h-11",
+  md: "py-2.5 px-3.5 text-sm rounded-xl min-h-[42px] max-sm:min-h-11",
   lg: "py-3 px-4 text-base rounded-2xl min-h-[48px]",
 };
 
@@ -78,6 +89,8 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
       leftIcon,
       className,
       menuClassName,
+      "aria-labelledby": ariaLabelledBy,
+      "aria-label": ariaLabel,
     },
     ref
   ) => {
@@ -151,6 +164,34 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
     const containerRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // MOB-08 (Lot UX/UI 5B) : sens d'ouverture et hauteur de liste choisis à l'ouverture, avant
+    // l'affichage, d'après la place visible (tiroir, fenêtre ou page) au-dessus et en dessous.
+    const [placement, setPlacement] = useState<SelectPlacement>("bas");
+    const [listMaxHeight, setListMaxHeight] = useState<number | null>(null);
+
+    useLayoutEffect(() => {
+      if (!isOpen) {
+        setPlacement("bas");
+        setListMaxHeight(null);
+        return;
+      }
+      const container = containerRef.current;
+      const menu = menuRef.current;
+      if (!container || !menu) return;
+      const rect = container.getBoundingClientRect();
+      const zone = zoneVisible(container);
+      const espaceDessous = zone.bottom - rect.bottom;
+      const espaceDessus = rect.top - zone.top;
+      const hauteurMenu = menu.offsetHeight;
+      const sens = choisirPlacement(espaceDessous, espaceDessus, hauteurMenu);
+      const horsListe = hauteurMenu - (listRef.current?.offsetHeight ?? hauteurMenu);
+      setPlacement(sens);
+      setListMaxHeight(
+        hauteurListeMaximale(sens === "bas" ? espaceDessous : espaceDessus, hauteurMenu, horsListe)
+      );
+    }, [isOpen]);
 
     // Détermination automatique du mode recherche (activé si > 5 options ou si forcé)
     const isSearchable = searchable !== undefined ? searchable : parsedOptions.length > 5;
@@ -281,6 +322,8 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
     }, [searchQuery]);
 
     const hasError = Boolean(error);
+    // A11-05 / A11-06 (Lot UX/UI 5B) : nom, erreur et aide du FormField parent reliés à la liste.
+    const field = useFormFieldContext();
 
     return (
       <div
@@ -323,6 +366,10 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
           role="combobox"
           aria-expanded={isOpen}
           aria-haspopup="listbox"
+          aria-labelledby={ariaLabelledBy ?? (ariaLabel ? undefined : field?.labelId)}
+          aria-label={ariaLabel}
+          aria-invalid={hasError || field?.invalid || undefined}
+          aria-describedby={field?.describedBy}
           tabIndex={disabled ? -1 : 0}
           onClick={() => {
             if (!disabled) setIsOpen(!isOpen);
@@ -338,7 +385,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
           }}
           className={cn(
             "w-full bg-white border cursor-pointer transition-all duration-150 ease-out flex items-center justify-between gap-2 text-left",
-            "focus:outline-hidden focus:ring-2 focus:ring-offset-0",
+            "focus:outline-none focus:ring-2 focus:ring-offset-0",
             disabled && "bg-gray-50 text-gray-400 cursor-not-allowed border-gray-200",
             hasError
               ? "border-rose-300 focus:border-rose-500 focus:ring-rose-500/20 text-rose-950"
@@ -368,7 +415,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                 {selectedOption.badge && (
                   <span
                     className={cn(
-                      "text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0",
+                      "text-[11px] font-bold px-2 py-0.5 rounded-full border shrink-0",
                       getBadgeColor(selectedOption.badge)
                     )}
                   >
@@ -377,7 +424,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                 )}
               </div>
             ) : (
-              <span className="text-gray-400 font-normal truncate">
+              <span className="text-gray-500 font-normal truncate">
                 {placeholder}
               </span>
             )}
@@ -408,9 +455,13 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
         {/* Menu Déroulant Flottant Moderne (Custom Popover) */}
         {isOpen && (
           <div
+            ref={menuRef}
+            data-placement={placement}
             className={cn(
-              "absolute top-full mt-1.5 left-0 right-0 z-50 bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden",
-              "animate-in fade-in zoom-in-95 duration-150 origin-top",
+              "absolute left-0 right-0 z-50 bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden",
+              placement === "haut" ? "bottom-full mb-1.5" : "top-full mt-1.5",
+              "animate-in fade-in zoom-in-95 duration-150",
+              placement === "haut" ? "origin-bottom" : "origin-top",
               menuClassName
             )}
           >
@@ -425,7 +476,8 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder={searchPlaceholder}
-                    className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-hidden focus:ring-2 focus:ring-forest-600/30 focus:border-forest-600 transition-all"
+                    aria-label={searchPlaceholder.replace(/(\.\.\.|…)\s*$/, "")}
+                    className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-forest-600/30 focus:border-forest-600 transition-all"
                     onClick={(e) => e.stopPropagation()}
                   />
                   {searchQuery && (
@@ -450,13 +502,14 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
               ref={listRef}
               role="listbox"
               className="max-h-60 sm:max-h-72 overflow-y-auto p-1.5 space-y-0.5 overscroll-contain"
+              style={listMaxHeight !== null ? { maxHeight: listMaxHeight } : undefined}
             >
               {filteredOptions.length === 0 ? (
                 <div className="py-6 px-4 text-center text-xs text-gray-500 space-y-1">
                   <AlertCircle className="w-5 h-5 text-gray-400 mx-auto" />
                   <p className="font-medium text-gray-700">Aucun résultat trouvé</p>
                   {searchQuery && (
-                    <p className="text-[11px] text-gray-400">
+                    <p className="text-xs text-gray-400">
                       Aucune option pour &ldquo;{searchQuery}&rdquo;
                     </p>
                   )}
@@ -496,7 +549,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                             {opt.badge && (
                               <span
                                 className={cn(
-                                  "text-[10px] font-bold px-2 py-0.2 rounded-full border shrink-0",
+                                  "text-[11px] font-bold px-2 py-px rounded-full border shrink-0",
                                   getBadgeColor(opt.badge)
                                 )}
                               >
@@ -505,7 +558,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                             )}
                           </div>
                           {opt.description && (
-                            <p className="text-[11px] text-gray-500 font-normal truncate mt-0.5">
+                            <p className="text-xs text-gray-500 font-normal truncate mt-0.5">
                               {opt.description}
                             </p>
                           )}

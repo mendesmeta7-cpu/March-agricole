@@ -165,7 +165,7 @@ export default function ResellerLocationEditModal({
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 placeholder="Ex: Matadi, Lemba..."
-                className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 outline-hidden focus:ring-2 focus:ring-earth-500"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 outline-none focus:ring-2 focus:ring-earth-500"
               />
             </div>
 
@@ -178,7 +178,7 @@ export default function ResellerLocationEditModal({
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Ex: Marché Central..."
-                className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 outline-hidden focus:ring-2 focus:ring-earth-500"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 outline-none focus:ring-2 focus:ring-earth-500"
               />
             </div>
           </div>
@@ -189,7 +189,7 @@ export default function ResellerLocationEditModal({
               <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
               <span>Règle d&apos;intégrité historique et d&apos;éligibilité</span>
             </div>
-            <p className="text-[11px] text-amber-800 leading-relaxed">
+            <p className="text-xs text-amber-800 leading-relaxed">
               Modifier votre province de rattachement mettra immédiatement à jour les offres commerciales auxquelles vous pouvez commander. Vos <strong>commandes déjà passées</strong> restent scellées avec leur destination et leur historique d&apos;origine.
             </p>
 

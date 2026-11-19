@@ -207,7 +207,7 @@ export default function ReopenCampaignDialog({ campaign, isOpen, onClose }: Reop
               Dates limites de commande par destination
               {allDestinationsExpired && <span className="text-rose-500 ml-1 font-bold">*</span>}
             </legend>
-            <p className="text-[11px] sm:text-xs text-gray-500 leading-relaxed">
+            <p className="text-xs sm:text-xs text-gray-500 leading-relaxed">
               {allDestinationsExpired
                 ? "Toutes les destinations sont expirées : reportez la date limite d'au moins une destination."
                 : "Facultatif : reportez la date limite des destinations que vous souhaitez rouvrir."}

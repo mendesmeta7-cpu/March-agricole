@@ -14,7 +14,7 @@ export function AdminBackLink() {
     <div className="flex items-center gap-2 text-sm text-gray-500">
       <Link href="/dashboard/admin" className="hover:text-slate-800 flex items-center gap-1">
         <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-        Retour à la vue générale
+        Retour au tableau de bord
       </Link>
     </div>
   );

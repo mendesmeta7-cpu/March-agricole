@@ -115,7 +115,7 @@ export default function CompanyDemandTrendChart({
 
   const productOptions = useMemo(
     () => [
-      { value: "all", label: "Toutes les denrées" },
+      { value: "all", label: "Tous les produits" },
       ...availableProducts.map((p) => ({ value: p.id, label: p.name })),
     ],
     [availableProducts]
@@ -203,7 +203,7 @@ export default function CompanyDemandTrendChart({
       icon={TrendingUp}
       title={TITLE}
       badge={
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-forest-100 text-forest-900 border border-forest-200">
+        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-forest-100 text-forest-900 border border-forest-200">
           Données réelles
         </span>
       }
@@ -273,7 +273,7 @@ export default function CompanyDemandTrendChart({
       ) : (
         <div>
           {volumeSeries && isMultiUnit && (
-            <p className="mb-3 text-[11px] text-gray-500">
+            <p className="mb-3 text-xs text-gray-500">
               Une unité à la fois : les quantités ne sont ni converties ni additionnées entre unités.
             </p>
           )}
@@ -396,7 +396,7 @@ export default function CompanyDemandTrendChart({
                     className="absolute left-0 top-0 z-20 pointer-events-none w-max bg-gray-950 text-white rounded-xl px-3 py-2 text-xs shadow-xl"
                     style={{ maxWidth: width - TOOLTIP_MARGIN * 2 }}
                   >
-                    <p className="font-extrabold text-[11px] text-forest-200">
+                    <p className="font-extrabold text-xs text-forest-200">
                       {monthLabels[activeMonth]}
                     </p>
                     {volumeSeries ? (
@@ -404,7 +404,7 @@ export default function CompanyDemandTrendChart({
                         <p className="font-bold text-sm">
                           {formatQuantity(volumeSeries.values[activeMonth])} {volumeSeries.unitLabel}
                         </p>
-                        <p className="text-[11px] text-gray-400">
+                        <p className="text-xs text-gray-400">
                           {volumeSeries.counts[activeMonth]} demande(s) enregistrée(s)
                         </p>
                       </>
@@ -414,7 +414,7 @@ export default function CompanyDemandTrendChart({
                         {unitSeries
                           .filter((s) => s.counts[activeMonth] > 0)
                           .map((s) => (
-                            <p key={s.unitKey} className="text-[11px] text-gray-400">
+                            <p key={s.unitKey} className="text-xs text-gray-400">
                               {formatQuantity(s.values[activeMonth])} {s.unitLabel} demandé(s)
                             </p>
                           ))}
@@ -447,7 +447,7 @@ export default function CompanyDemandTrendChart({
                   : `${totalCount} demandes`}
               </strong>
             </span>
-            <span className="italic text-[11px] text-gray-400">
+            <span className="italic text-xs text-gray-500">
               Touchez ou survolez un mois pour voir le détail
             </span>
           </div>

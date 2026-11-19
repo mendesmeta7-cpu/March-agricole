@@ -13,6 +13,7 @@ import {
   Sprout,
   Package,
 } from "lucide-react";
+import { formatMoney, formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 export interface CompanyOverviewMetricsProps {
   productionsStats: {
@@ -54,7 +55,7 @@ function formatUnitTotals(totals: Record<string, number>): string | null {
   const entries = Object.entries(totals).filter(([, qty]) => qty !== 0);
   if (entries.length === 0) return null;
   return entries
-    .map(([unit, qty]) => `${qty.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ${unit}`)
+    .map(([unit, qty]) => formatQuantityWithUnit(qty, unit))
     .join(" · ");
 }
 
@@ -64,8 +65,8 @@ function formatCurrencyTotals(totals: CurrencyTotals): string | null {
   return currencies
     .map((currency) =>
       currency === "CDF"
-        ? `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(totals.CDF)} CDF`
-        : `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(totals.USD)} USD`
+        ? formatMoney(totals.CDF, "CDF")
+        : formatMoney(totals.USD, "USD")
     )
     .join(" · ");
 }
@@ -136,7 +137,7 @@ function KpiCard({
               {value}
             </span>
             {valueLabel && (
-              <span className="text-sm text-gray-400 font-medium">
+              <span className="text-sm text-gray-500 font-medium">
                 {valueLabel}
               </span>
             )}
@@ -149,7 +150,7 @@ function KpiCard({
                 <div key={i} className="flex items-center justify-between text-xs">
                   <span className="text-gray-500">{d.label}</span>
                   <span
-                    className={`font-bold ${d.highlight ? "text-amber-600" : "text-gray-900"}`}
+                    className={`font-bold ${d.highlight ? "text-amber-700" : "text-gray-900"}`}
                   >
                     {d.value}
                   </span>
@@ -162,7 +163,7 @@ function KpiCard({
         </div>
 
         {footer && !error && (
-          <p className="mt-4 text-[11px] text-gray-400 border-t border-gray-50 pt-3">
+          <p className="mt-4 text-xs text-gray-500 border-t border-gray-50 pt-3">
             {footer}
           </p>
         )}
@@ -188,7 +189,7 @@ export default function CompanyOverviewMetrics({
         <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
           Vue d&apos;ensemble
         </h2>
-        <span className="text-xs text-gray-400 font-medium">
+        <span className="text-xs text-gray-500 font-medium">
           Mis à jour en temps réel
         </span>
       </div>
@@ -255,7 +256,7 @@ export default function CompanyOverviewMetrics({
           href="/dashboard/company/campaigns"
           details={[
             {
-              label: "Réservé par acheteurs",
+              label: "Réservé par les revendeurs",
               value: formattedReserved ?? "Aucune réservation",
               highlight: formattedReserved !== null,
             },

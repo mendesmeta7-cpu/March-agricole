@@ -9,8 +9,11 @@ import SecurityPasswordDrawer from "@/components/security/SecurityPasswordDrawer
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
+import { Breadcrumb } from "@/components/ui/PageHeader";
+import { Tabs, TabPanel } from "@/components/ui/Tabs";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/Toast";
+import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import {
   Building2,
   MapPin,
@@ -19,7 +22,6 @@ import {
   ShieldCheck,
   Clock,
   User,
-  ArrowLeft,
   Camera,
   Edit3,
   Calendar,
@@ -65,12 +67,22 @@ interface CompanyProfileViewProps {
     provinces?: any;
     countries?: any;
   };
-  productionsCount: number;
-  campaignsCount: number;
-  ordersCount: number;
+  /** null : lecture en échec (affiché « Indisponible », jamais 0) — Lot 7 */
+  productionsCount: number | null;
+  campaignsCount: number | null;
+  ordersCount: number | null;
 }
 
+/** Classes du chiffre d'une carte d'activité, ou de la mention « Indisponible » (Lot 7). */
+const classeCompteur = (n: number | null) =>
+  n === null
+    ? "text-base font-bold text-amber-800 mt-2"
+    : "text-3xl font-black text-gray-950 mt-1 font-display";
+
 type TabType = "identity" | "contact" | "activity" | "security";
+
+/** Préfixe des identifiants des onglets et panneaux du profil (Lot 6B, A11-08). */
+const PROFILE_TABS_ID = "profil-societe";
 
 export default function CompanyProfileView({
   user,
@@ -179,18 +191,11 @@ export default function CompanyProfileView({
 
   return (
     <div className="space-y-6 pb-24 sm:pb-12 max-w-7xl mx-auto">
-      {/* 1. Fil d'Ariane épuré */}
-      <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
-        <Link
-          href="/dashboard/company"
-          className="hover:text-forest-800 flex items-center gap-1.5 transition-colors font-medium"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Tableau de bord</span>
-        </Link>
-        <span>/</span>
-        <span className="text-gray-900 font-semibold">Profil de l&apos;exploitation</span>
-      </div>
+      {/* 1. Fil d'Ariane commun (Lot 7, PRO-03) */}
+      <Breadcrumb
+        items={[{ href: "/dashboard/company", label: "Tableau de bord" }]}
+        current="Profil de la société"
+      />
 
       {/* 2. Carte d'en-tête du profil de l'exploitation */}
       <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-7 shadow-xs space-y-6">
@@ -216,7 +221,7 @@ export default function CompanyProfileView({
                 type="button"
                 onClick={() => setIsEditDrawerOpen(true)}
                 className="absolute bottom-0 right-0 p-1.5 sm:p-2 rounded-full bg-forest-800 hover:bg-forest-900 text-white shadow-md border-2 border-white transition-all hover:scale-105 active:scale-95"
-                title="Modifier le logo ou la photo de l'exploitation"
+                title="Modifier le logo ou la photo de la société"
                 aria-label="Modifier le logo"
               >
                 <Camera className="w-3.5 h-3.5" />
@@ -237,12 +242,12 @@ export default function CompanyProfileView({
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[11px] font-bold border border-amber-200/80">
                     <Clock className="w-3.5 h-3.5 text-amber-600" />
-                    Dossier en cours d&apos;audit
+                    Société inscrite sur la plateforme
                   </span>
                 )}
               </div>
 
-              {/* Slug et gérant */}
+              {/* Identifiant public et responsable du compte */}
               <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
                 <span className="font-mono bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md text-xs font-semibold">
                   @{company.slug}
@@ -251,7 +256,7 @@ export default function CompanyProfileView({
                   <span className="flex items-center gap-1 text-gray-500">
                     <span className="text-gray-300">•</span>
                     <User className="w-3.5 h-3.5 text-gray-400" />
-                    <span>Gérant : <strong className="text-gray-800">{profile.full_name}</strong></span>
+                    <span>Responsable du compte : <strong className="text-gray-800">{profile.full_name}</strong></span>
                   </span>
                 )}
               </div>
@@ -273,16 +278,7 @@ export default function CompanyProfileView({
 
           {/* Boutons d'actions principales */}
           <div className="flex flex-wrap items-center gap-2.5 shrink-0 pt-2 lg:pt-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="md"
-              onClick={handleCopySlug}
-              leftIcon={copiedSlug ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-            >
-              {copiedSlug ? "Identifiant copié" : "Copier l'identifiant"}
-            </Button>
-
+            {/* Lot 7 (PRO-06) : l'action principale d'abord */}
             <Button
               type="button"
               variant="primary"
@@ -292,84 +288,51 @@ export default function CompanyProfileView({
             >
               Modifier le profil
             </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              onClick={handleCopySlug}
+              leftIcon={copiedSlug ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+            >
+              {copiedSlug ? "Identifiant copié" : "Copier l'identifiant"}
+            </Button>
           </div>
         </div>
 
-        {/* 4. Barre d'onglets façon YouTube Studio / Facebook */}
+        {/* 4. Barre d'onglets (Lot 6B, A11-08 : composant Tabs ; Lot 7, D6 : 4 sections, 2 lignes sur mobile) */}
         <div className="border-t border-gray-100 pt-4">
-          <nav className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "identity"}
-              onClick={() => setActiveTab("identity")}
-              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-                activeTab === "identity"
-                  ? "bg-forest-800 text-white shadow-xs"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
-            >
-              <Building2 className="w-4 h-4" />
-              <span>Identité & Fiche</span>
-            </button>
-
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "contact"}
-              onClick={() => setActiveTab("contact")}
-              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-                activeTab === "contact"
-                  ? "bg-forest-800 text-white shadow-xs"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
-            >
-              <MapPin className="w-4 h-4" />
-              <span>Coordonnées & Siège</span>
-            </button>
-
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "activity"}
-              onClick={() => setActiveTab("activity")}
-              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-                activeTab === "activity"
-                  ? "bg-forest-800 text-white shadow-xs"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
-            >
-              <Activity className="w-4 h-4" />
-              <span>Activité en direct</span>
-              <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${
-                activeTab === "activity" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
-              }`}>
-                {productionsCount + campaignsCount + ordersCount}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "security"}
-              onClick={() => setActiveTab("security")}
-              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-                activeTab === "security"
-                  ? "bg-forest-800 text-white shadow-xs"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Gouvernance & Sécurité</span>
-            </button>
-          </nav>
+          <Tabs
+            idBase={PROFILE_TABS_ID}
+            ariaLabel="Rubriques du profil de la société"
+            variant="ghost"
+            layout="grid"
+            activeTab={activeTab}
+            onChange={(id) => setActiveTab(id as TabType)}
+            tabs={[
+              { id: "identity", label: "Identité", icon: <Building2 className="w-4 h-4" /> },
+              { id: "contact", label: "Coordonnées", icon: <MapPin className="w-4 h-4" /> },
+              {
+                id: "activity",
+                label: "Activité",
+                icon: <Activity className="w-4 h-4" />,
+                // Lot 7 : badge affiché seulement si les trois comptes sont connus (jamais une somme partielle)
+                count:
+                  productionsCount !== null && campaignsCount !== null && ordersCount !== null
+                    ? productionsCount + campaignsCount + ordersCount
+                    : undefined,
+              },
+              { id: "security", label: "Sécurité et session", icon: <ShieldCheck className="w-4 h-4" /> },
+            ]}
+          />
         </div>
       </div>
 
       {/* 5. Contenu des onglets */}
       <div className="space-y-6">
-        {/* ONGLET 1 : IDENTITÉ & FICHE */}
-        {activeTab === "identity" && (
+        {/* ONGLET 1 : IDENTITÉ */}
+        <TabPanel idBase={PROFILE_TABS_ID} tabId="identity" activeTab={activeTab}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               {/* Carte Présentation */}
@@ -381,7 +344,7 @@ export default function CompanyProfileView({
                     </div>
                     <div>
                       <h2 className="text-base font-bold text-gray-900">
-                        Présentation de l&apos;Exploitation
+                        Présentation de la société
                       </h2>
                       <p className="text-xs text-gray-500">
                         Description officielle de votre activité agricole
@@ -406,7 +369,7 @@ export default function CompanyProfileView({
                   ) : (
                     <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 text-center">
                       <p className="text-sm text-gray-500">
-                        Aucune description n&apos;a encore été rédigée pour cette exploitation.
+                        Aucune description n&apos;a encore été rédigée pour cette société.
                       </p>
                       <Button
                         variant="primary"
@@ -421,7 +384,7 @@ export default function CompanyProfileView({
                 </div>
               </Card>
 
-              {/* Carte Renseignements juridiques */}
+              {/* Carte Informations de la société (Lot 7, PRO-05 : aucune donnée de compte présentée comme juridique) */}
               <Card padding="lg" className="border-gray-200/80">
                 <div className="flex items-center gap-2.5 pb-3 mb-4 border-b border-gray-100">
                   <div className="w-9 h-9 rounded-xl bg-forest-100 text-forest-800 flex items-center justify-center">
@@ -429,7 +392,7 @@ export default function CompanyProfileView({
                   </div>
                   <div>
                     <h2 className="text-base font-bold text-gray-900">
-                      Renseignements Juridiques & Système
+                      Informations de la société
                     </h2>
                     <p className="text-xs text-gray-500">
                       Identification unique de l&apos;entité sur Radiza
@@ -440,7 +403,7 @@ export default function CompanyProfileView({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100">
                     <span className="text-xs text-gray-500 uppercase font-semibold block">
-                      Raison Sociale Officielle
+                      Nom de la société
                     </span>
                     <span className="text-gray-900 font-bold text-base mt-1 block">
                       {company.name}
@@ -458,7 +421,7 @@ export default function CompanyProfileView({
 
                   <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100">
                     <span className="text-xs text-gray-500 uppercase font-semibold block">
-                      Date d&apos;immatriculation
+                      Inscrite sur Radiza depuis le
                     </span>
                     <span className="text-gray-900 font-semibold text-sm mt-1 block">
                       {fullCreationDate}
@@ -467,18 +430,18 @@ export default function CompanyProfileView({
 
                   <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100">
                     <span className="text-xs text-gray-500 uppercase font-semibold block">
-                      Statut d&apos;Homologation
+                      Statut de vérification
                     </span>
                     <span className="mt-1 block">
                       {isVerified ? (
                         <span className="text-emerald-700 font-bold flex items-center gap-1.5 text-sm">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          Exploitation Certifiée
+                          Société vérifiée
                         </span>
                       ) : (
                         <span className="text-amber-700 font-bold flex items-center gap-1.5 text-sm">
                           <Clock className="w-4 h-4 text-amber-600" />
-                          Audit Administratif en cours
+                          Société inscrite sur la plateforme
                         </span>
                       )}
                     </span>
@@ -487,37 +450,27 @@ export default function CompanyProfileView({
               </Card>
             </div>
 
-            {/* Colonne latérale : Statut & Recommandations */}
+            {/* Colonne latérale : statut de vérification */}
             <div className="space-y-6">
               <Card padding="md" className="border-forest-200/80 bg-forest-50/40">
                 <div className="flex items-center gap-2 mb-3">
                   <ShieldCheck className="w-5 h-5 text-forest-800" />
                   <h3 className="font-bold text-forest-900 text-sm">
-                    {isVerified ? "Exploitation Agréée" : "Audit de Conformité"}
+                    {isVerified ? "Société vérifiée" : "Société inscrite sur la plateforme"}
                   </h3>
                 </div>
                 <p className="text-xs text-forest-800/90 leading-relaxed">
                   {isVerified
-                    ? "Votre exploitation agricole est pleinement certifiée par le réseau Radiza. Vos productions et campagnes de vente sont ouvertes aux acheteurs revendeurs professionnels."
-                    : "Votre dossier est actuellement soumis aux critères de validation de la plateforme. Vous pouvez d'ores et déjà préparer vos productions et consulter la demande du marché."}
-                </p>
-              </Card>
-
-              <Card padding="md" className="border-gray-200/80">
-                <h3 className="font-bold text-gray-900 text-sm mb-3 flex items-center gap-2">
-                  <Info className="w-4 h-4 text-forest-700" />
-                  Règle d&apos;or Radiza
-                </h3>
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  L&apos;inscription de votre entreprise est <strong>strictement indépendante</strong> de la création de vos productions. Vos récoltes et stocks sont gérés au niveau du module Productions & Récoltes.
+                    ? "Votre société a été vérifiée par l'administration Radiza : le badge « Société vérifiée » apparaît sur votre fiche publique et sur vos productions."
+                    : "Le badge « Société vérifiée » s'affiche lorsque l'administration Radiza a vérifié votre société. Vous pouvez dès à présent préparer vos productions et consulter les demandes du marché."}
                 </p>
               </Card>
             </div>
           </div>
-        )}
+        </TabPanel>
 
-        {/* ONGLET 2 : COORDONNÉES & SIÈGE */}
-        {activeTab === "contact" && (
+        {/* ONGLET 2 : COORDONNÉES */}
+        <TabPanel idBase={PROFILE_TABS_ID} tabId="contact" activeTab={activeTab}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Carte Coordonnées officielles */}
             <Card padding="lg" className="border-gray-200/80 space-y-4">
@@ -639,11 +592,18 @@ export default function CompanyProfileView({
               </div>
             </Card>
           </div>
-        )}
+        </TabPanel>
 
-        {/* ONGLET 3 : ACTIVITÉ EN DIRECT (DONNÉES 100% RÉELLES) */}
-        {activeTab === "activity" && (
+        {/* ONGLET 3 : ACTIVITÉ (DONNÉES 100% RÉELLES) */}
+        <TabPanel idBase={PROFILE_TABS_ID} tabId="activity" activeTab={activeTab}>
           <div className="space-y-6">
+            {/* Lot 7 : compteur en panne signalé, avec relecture réelle (« Réessayer ») */}
+            {(productionsCount === null || campaignsCount === null || ordersCount === null) && (
+              <DataUnavailableNotice title="Chiffres d'activité indisponibles">
+                Certains compteurs n&apos;ont pas pu être chargés : ils sont marqués « Indisponible »
+                au lieu d&apos;un nombre. Réessayez dans un instant.
+              </DataUnavailableNotice>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
               {/* Carte Productions */}
               <Link
@@ -655,10 +615,10 @@ export default function CompanyProfileView({
                     <Layers className="w-5 h-5" />
                   </div>
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
-                    Productions Enregistrées
+                    Productions & récoltes
                   </span>
-                  <div className="text-3xl font-black text-gray-950 mt-1 font-display">
-                    {productionsCount}
+                  <div className={classeCompteur(productionsCount)}>
+                    {productionsCount ?? "Indisponible"}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     Cultures et parcelles suivies
@@ -680,10 +640,10 @@ export default function CompanyProfileView({
                     <Megaphone className="w-5 h-5" />
                   </div>
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
-                    Campagnes de Vente
+                    Campagnes
                   </span>
-                  <div className="text-3xl font-black text-gray-950 mt-1 font-display">
-                    {campaignsCount}
+                  <div className={classeCompteur(campaignsCount)}>
+                    {campaignsCount ?? "Indisponible"}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     Lots commercialisables ouverts
@@ -705,13 +665,13 @@ export default function CompanyProfileView({
                     <ShoppingBag className="w-5 h-5" />
                   </div>
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
-                    Commandes Reçues
+                    Commandes reçues
                   </span>
-                  <div className="text-3xl font-black text-gray-950 mt-1 font-display">
-                    {ordersCount}
+                  <div className={classeCompteur(ordersCount)}>
+                    {ordersCount ?? "Indisponible"}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Réservations fermes d&apos;acheteurs
+                    Réservations fermes des revendeurs
                   </p>
                 </div>
                 <div className="pt-4 border-t border-gray-100 mt-4 flex items-center justify-between text-xs font-bold text-amber-800 group-hover:translate-x-0.5 transition-transform">
@@ -733,12 +693,12 @@ export default function CompanyProfileView({
               </p>
             </Card>
           </div>
-        )}
+        </TabPanel>
 
-        {/* ONGLET 4 : GOUVERNANCE & SÉCURITÉ */}
-        {activeTab === "security" && (
+        {/* ONGLET 4 : SÉCURITÉ ET SESSION */}
+        <TabPanel idBase={PROFILE_TABS_ID} tabId="security" activeTab={activeTab}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Responsable de compte */}
+            {/* Responsable du compte */}
             <Card padding="lg" className="border-gray-200/80 space-y-4">
               <div className="flex items-center gap-2.5 pb-3 border-b border-gray-100">
                 <div className="w-9 h-9 rounded-xl bg-forest-100 text-forest-800 flex items-center justify-center">
@@ -746,18 +706,15 @@ export default function CompanyProfileView({
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-gray-900">
-                    Responsable de Compte
+                    Responsable du compte
                   </h2>
-                  <p className="text-xs text-gray-500">
-                    Titulaire légal habilité à engager l&apos;exploitation
-                  </p>
                 </div>
               </div>
 
               <div className="space-y-3 text-sm">
                 <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100">
                   <span className="text-xs text-gray-500 uppercase font-semibold block">
-                    Nom Complet du Titulaire
+                    Nom complet
                   </span>
                   <span className="font-bold text-gray-900 text-base mt-1 block">
                     {profile?.full_name || "Non renseigné"}
@@ -766,17 +723,17 @@ export default function CompanyProfileView({
 
                 <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100">
                   <span className="text-xs text-gray-500 uppercase font-semibold block">
-                    Rôle de Gouvernance Attribué
+                    Rôle
                   </span>
                   <span className="inline-flex items-center gap-1.5 text-forest-800 font-bold mt-1 text-sm">
                     <ShieldCheck className="w-4 h-4 text-forest-600" />
-                    Owner (Fondateur de l&apos;exploitation)
+                    Propriétaire du compte
                   </span>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100">
                   <span className="text-xs text-gray-500 uppercase font-semibold block">
-                    Téléphone Personnel du Gérant
+                    Téléphone personnel
                   </span>
                   <span className="text-gray-900 font-medium text-sm mt-1 block">
                     {profile?.phone || "Non renseigné"}
@@ -873,12 +830,12 @@ export default function CompanyProfileView({
                   onClick={() => setIsLogoutConfirmOpen(true)}
                   leftIcon={<LogOut className="w-4 h-4" />}
                 >
-                  Se déconnecter de l&apos;exploitation
+                  Se déconnecter de l&apos;espace Société
                 </Button>
               </div>
             </Card>
           </div>
-        )}
+        </TabPanel>
       </div>
 
       {/* 6. Drawer d'édition du profil (R1 Design System) */}

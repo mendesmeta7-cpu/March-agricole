@@ -1,11 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
-import { useFormStatus } from "react-dom";
-import {
-  compressPhotoForUpload,
-  PHOTO_COMPRESSION_ERROR_MESSAGE,
-} from "@/lib/utils/compressImage";
+import React, { useState, useMemo, useEffect } from "react";
+import { usePhotoForUpload } from "@/components/ui/usePhotoForUpload";
+import PhotoUploadFeedback from "@/components/ui/PhotoUploadFeedback";
 import { CatalogProduct } from "@/lib/queries/products";
 import {
   associateCatalogProductAction,
@@ -34,7 +31,6 @@ import {
   AlertCircle,
   Tag,
   X,
-  Loader2,
 } from "lucide-react";
 
 interface AddProductDrawerProps {
@@ -54,29 +50,6 @@ const UNITS = [
   { value: "panier", label: "Panier" },
 ];
 
-/** Doit rester dans le formulaire : useFormStatus suit l'envoi de son formulaire parent. */
-function PhotoUploadStatus({
-  hasPhoto,
-  isPreparing,
-}: {
-  hasPhoto: boolean;
-  isPreparing: boolean;
-}) {
-  const { pending } = useFormStatus();
-  const status = isPreparing
-    ? "Préparation de la photo…"
-    : pending && hasPhoto
-      ? "Envoi de la photo…"
-      : null;
-  if (!status) return null;
-  return (
-    <p role="status" className="flex items-center gap-1.5 text-xs font-semibold text-forest-800">
-      <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
-      {status}
-    </p>
-  );
-}
-
 export default function AddProductDrawer({
   isOpen,
   onClose,
@@ -91,14 +64,11 @@ export default function AddProductDrawer({
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedCatalogProduct, setSelectedCatalogProduct] = useState<CatalogProduct | null>(null);
 
-  // Aperçu de photo personnalisée
-  const [customImagePreview, setCustomImagePreview] = useState<string | null>(null);
-  // Photo prête à l'envoi, compressée si nécessaire ; null sans nouvelle photo.
-  const [customPhoto, setCustomPhoto] = useState<File | null>(null);
-  const [isPreparingPhoto, setIsPreparingPhoto] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  const customPhotoInputRef = useRef<HTMLInputElement>(null);
-  const photoRequestRef = useRef(0);
+  // Une photo par parcours : produit du catalogue (customImage), produit personnalisé (image).
+  const catalogPhoto = usePhotoForUpload();
+  const customProductPhoto = usePhotoForUpload();
+  const clearCatalogPhoto = catalogPhoto.clear;
+  const clearCustomProductPhoto = customProductPhoto.clear;
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,52 +96,17 @@ export default function AddProductDrawer({
     });
   }, [catalogProducts, searchCatalog, selectedCategory]);
 
-  const clearCustomPhoto = () => {
-    photoRequestRef.current += 1;
-    setCustomPhoto(null);
-    setIsPreparingPhoto(false);
-    setPhotoError(null);
-    setCustomImagePreview(null);
-    if (customPhotoInputRef.current) customPhotoInputRef.current.value = "";
-  };
+  // Chaque changement d'étape démonte le champ photo : la photo préparée est retirée avec lui.
+  useEffect(() => {
+    clearCatalogPhoto();
+    clearCustomProductPhoto();
+  }, [step, clearCatalogPhoto, clearCustomProductPhoto]);
 
   const handleSelectProduct = (prod: CatalogProduct) => {
     setSelectedCatalogProduct(prod);
-    clearCustomPhoto();
+    clearCatalogPhoto();
     setErrorMsg(null);
     setStep("configure");
-  };
-
-  const handleCustomImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      clearCustomPhoto();
-      toast.error("La photo personnalisée ne doit pas dépasser 5 Mo.");
-      return;
-    }
-
-    setErrorMsg(null);
-    setPhotoError(null);
-    const requestId = ++photoRequestRef.current;
-    setIsPreparingPhoto(true);
-
-    let photo: File;
-    try {
-      photo = await compressPhotoForUpload(file);
-    } catch (err) {
-      console.error("Compression de la photo impossible :", err);
-      if (requestId !== photoRequestRef.current) return;
-      clearCustomPhoto();
-      setPhotoError(PHOTO_COMPRESSION_ERROR_MESSAGE);
-      return;
-    }
-    if (requestId !== photoRequestRef.current) return;
-
-    setCustomPhoto(photo);
-    setIsPreparingPhoto(false);
-    setCustomImagePreview(URL.createObjectURL(photo));
   };
 
   const resetState = () => {
@@ -179,7 +114,8 @@ export default function AddProductDrawer({
     setSearchCatalog("");
     setSelectedCategory("all");
     setSelectedCatalogProduct(null);
-    clearCustomPhoto();
+    clearCatalogPhoto();
+    clearCustomProductPhoto();
     setErrorMsg(null);
     setIsSubmitting(false);
   };
@@ -190,14 +126,14 @@ export default function AddProductDrawer({
   };
 
   async function handleAssociate(formData: FormData) {
-    if (isPreparingPhoto) return;
+    if (catalogPhoto.isPreparing) return;
     setIsSubmitting(true);
     setErrorMsg(null);
-    if (customPhoto) formData.set("customImage", customPhoto, customPhoto.name);
+    catalogPhoto.applyTo(formData, "customImage");
     try {
       const res = await associateCatalogProductAction(null, formData);
       if (res.success) {
-        toast.success(res.message || "Produit associé à votre exploitation avec succès.");
+        toast.success(res.message || "Produit associé à votre société avec succès.");
         if (onSuccess) onSuccess();
         handleClose();
       } else {
@@ -215,8 +151,11 @@ export default function AddProductDrawer({
   }
 
   async function handleCreateCustom(formData: FormData) {
+    if (customProductPhoto.isPreparing) return;
     setIsSubmitting(true);
     setErrorMsg(null);
+    // Correction du Lot 2D : la photo préparée part, jamais l'original.
+    customProductPhoto.applyTo(formData, "image");
     try {
       const res = await createAndAssociateProductAction(null, formData);
       if (res.success) {
@@ -258,7 +197,7 @@ export default function AddProductDrawer({
             </button>
           )}
           <span>
-            {step === "search" && "Ajouter une denrée à votre exploitation"}
+            {step === "search" && "Ajouter un produit à votre société"}
             {step === "configure" && `Configurer : ${selectedCatalogProduct?.name}`}
             {step === "custom" && "Créer un produit personnalisé privé"}
           </span>
@@ -266,10 +205,10 @@ export default function AddProductDrawer({
       }
       description={
         step === "search"
-          ? "Étape 1 sur 2 : Recherchez et sélectionnez la culture dans le référentiel officiel."
+          ? "Étape 1 sur 2 : Recherchez et sélectionnez le produit dans le référentiel officiel."
           : step === "configure"
-          ? "Étape 2 sur 2 : Personnalisez l'unité d'exploitation, votre dénomination et votre photo."
-          : "Ce produit sera strictement privé et utilisable uniquement par votre exploitation."
+          ? "Étape 2 sur 2 : Personnalisez l'unité de mesure, votre dénomination et votre photo."
+          : "Ce produit sera strictement privé et utilisable uniquement par votre société."
       }
       icon={<Package className="w-5 h-5 text-forest-700" />}
     >
@@ -289,12 +228,13 @@ export default function AddProductDrawer({
             <div className="relative">
               <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
+                aria-label="Rechercher par nom"
                 type="text"
                 autoFocus
                 value={searchCatalog}
                 onChange={(e) => setSearchCatalog(e.target.value)}
                 placeholder="Rechercher par nom (ex: Maïs, Tomate, Manioc, Haricot...)"
-                className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-forest-600/30 transition-all"
+                className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-forest-600/30 transition-all"
               />
               {searchCatalog && (
                 <button
@@ -368,7 +308,7 @@ export default function AddProductDrawer({
                           <h4 className="text-sm font-bold text-gray-900 group-hover:text-forest-800 transition-colors">
                             {prod.name}
                           </h4>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-gray-100 text-gray-700">
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-gray-100 text-gray-700">
                             {prod.category}
                           </span>
                         </div>
@@ -398,10 +338,10 @@ export default function AddProductDrawer({
                   </div>
                   <div>
                     <p className="text-sm font-bold text-gray-900">
-                      Aucune culture correspondante dans le catalogue officiel
+                      Aucun produit correspondant dans le catalogue officiel
                     </p>
                     <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1 leading-relaxed">
-                      La denrée que vous cultivez ne figure pas encore au référentiel centralisé ? Vous pouvez créer un produit personnalisé privé pour votre exploitation.
+                      Le produit que vous cultivez ne figure pas encore au référentiel centralisé ? Vous pouvez créer un produit personnalisé privé pour votre société.
                     </p>
                   </div>
                   <div className="pt-2">
@@ -466,7 +406,7 @@ export default function AddProductDrawer({
                     <span className="text-sm font-bold text-forest-950 truncate">
                       {selectedCatalogProduct.name}
                     </span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white text-forest-800 border border-forest-200 shrink-0">
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white text-forest-800 border border-forest-200 shrink-0">
                       {selectedCatalogProduct.category}
                     </span>
                   </div>
@@ -487,7 +427,7 @@ export default function AddProductDrawer({
 
             {/* Dénomination spécifique à la ferme */}
             <FormField
-              label="Dénomination spécifique à votre exploitation"
+              label="Dénomination spécifique à votre société"
               description="Nom commercial ou appellation locale qui distinguera vos récoltes (ex: Maïs doux de Bandundu, Variété F1...)."
             >
               <Input
@@ -498,7 +438,7 @@ export default function AddProductDrawer({
 
             {/* Unité de mesure */}
             <FormField
-              label="Unité de mesure principale de l'exploitation"
+              label="Unité de mesure principale de la société"
               required
               description="Unité de base pour le suivi des stocks et la commercialisation de ce produit."
             >
@@ -523,13 +463,13 @@ export default function AddProductDrawer({
 
             {/* Notes d'exploitation internes */}
             <FormField
-              label="Notes d'exploitation (internes)"
-              description="Notes d'exploitation privées pour votre équipe (parcelles, consignes d'entreposage)."
+              label="Notes internes"
+              description="Notes privées pour votre équipe (parcelles, consignes d'entreposage)."
             >
               <Textarea
                 name="notes"
                 rows={2}
-                placeholder="Notes d'exploitation, parcelles dédiées, consignes d'entreposage..."
+                placeholder="Notes internes, parcelles dédiées, consignes d'entreposage..."
               />
             </FormField>
 
@@ -541,9 +481,9 @@ export default function AddProductDrawer({
               <div className="p-3.5 rounded-2xl border border-gray-200 bg-gray-50/60 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-16 rounded-xl bg-white border border-gray-200 flex items-center justify-center shrink-0 overflow-hidden relative">
-                    {customImagePreview ? (
+                    {catalogPhoto.previewUrl ? (
                       <img
-                        src={customImagePreview}
+                        src={catalogPhoto.previewUrl}
                         alt="Photo personnalisée"
                         className="w-full h-full object-cover"
                       />
@@ -559,15 +499,15 @@ export default function AddProductDrawer({
                   </div>
                   <div className="min-w-0 flex-1 text-xs">
                     <p className="font-semibold text-gray-900">
-                      {customImagePreview
+                      {catalogPhoto.previewUrl
                         ? "Nouvelle photo personnalisée prête à être enregistrée"
                         : selectedCatalogProduct.image_url
                         ? "Photo officielle du catalogue utilisée par défaut"
                         : "Aucune photo par défaut"}
                     </p>
-                    <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
-                      {customImagePreview
-                        ? "Cette photo est propre à votre exploitation et n'écrase JAMAIS l'image officielle du catalogue commun."
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                      {catalogPhoto.previewUrl
+                        ? "Cette photo est propre à votre société et n'écrase JAMAIS l'image officielle du catalogue commun."
                         : "Vous pouvez conserver ce visuel officiel ou téléverser une photo réelle de votre propre récolte."}
                     </p>
                   </div>
@@ -575,29 +515,26 @@ export default function AddProductDrawer({
 
                 <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
                   <input
-                    ref={customPhotoInputRef}
+                    ref={catalogPhoto.inputRef}
                     type="file"
                     name="customImage"
                     accept="image/jpeg,image/png,image/webp"
-                    onChange={handleCustomImageChange}
+                    onChange={catalogPhoto.onInputChange}
+                    aria-invalid={catalogPhoto.error ? true : undefined}
+                    aria-describedby={catalogPhoto.error || catalogPhoto.isPreparing ? catalogPhoto.feedbackId : undefined}
                     className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-forest-700 file:text-white hover:file:bg-forest-800 cursor-pointer"
                   />
-                  {customImagePreview && (
+                  {catalogPhoto.previewUrl && (
                     <button
                       type="button"
-                      onClick={clearCustomPhoto}
+                      onClick={clearCatalogPhoto}
                       className="text-xs text-red-600 hover:underline shrink-0 ml-2 font-medium"
                     >
                       Annuler
                     </button>
                   )}
                 </div>
-                {photoError && (
-                  <p role="alert" className="text-xs font-medium text-rose-700">
-                    {photoError}
-                  </p>
-                )}
-                <PhotoUploadStatus hasPhoto={customPhoto !== null} isPreparing={isPreparingPhoto} />
+                <PhotoUploadFeedback photo={catalogPhoto} />
               </div>
             </div>
 
@@ -614,9 +551,9 @@ export default function AddProductDrawer({
               <SubmitButton
                 className="px-5 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white text-sm font-semibold shadow-xs"
                 loadingText="Enregistrement..."
-                disabled={isPreparingPhoto}
+                disabled={catalogPhoto.isPreparing}
               >
-                Enregistrer dans mon exploitation
+                Enregistrer dans ma société
               </SubmitButton>
             </div>
           </form>
@@ -628,7 +565,7 @@ export default function AddProductDrawer({
         {step === "custom" && (
           <form action={handleCreateCustom} className="space-y-4">
             <Alert variant="info" title="Produit personnalisé strictement privé">
-              Ce produit sera utilisable exclusivement par votre exploitation pour déclarer vos cycles de productions et publier vos offres. Il n'apparaîtra pas dans le catalogue commun partagé.
+              Ce produit sera utilisable exclusivement par votre société pour déclarer vos cycles de productions et publier vos campagnes. Il n'apparaîtra pas dans le catalogue commun partagé.
             </Alert>
 
             {/* Nom du produit */}
@@ -666,7 +603,7 @@ export default function AddProductDrawer({
 
             {/* Dénomination spécifique ferme */}
             <FormField
-              label="Dénomination spécifique de l'exploitation (optionnelle)"
+              label="Dénomination spécifique de la société (optionnelle)"
               description="Appellation commerciale propre si différente du nom général."
             >
               <Input
@@ -690,13 +627,13 @@ export default function AddProductDrawer({
             {/* Photo propre */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-gray-700">
-                Photo personnalisée de votre exploitation (optionnelle)
+                Photo personnalisée de votre société (optionnelle)
               </label>
               <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-gray-200 bg-gray-50/50">
                 <div className="w-14 h-14 rounded-xl bg-white border border-gray-200 flex items-center justify-center shrink-0 overflow-hidden relative">
-                  {customImagePreview ? (
+                  {customProductPhoto.previewUrl ? (
                     <img
-                      src={customImagePreview}
+                      src={customProductPhoto.previewUrl}
                       alt="Aperçu photo"
                       className="w-full h-full object-cover"
                     />
@@ -706,14 +643,18 @@ export default function AddProductDrawer({
                 </div>
                 <div className="flex-1 min-w-0">
                   <input
+                    ref={customProductPhoto.inputRef}
                     type="file"
                     name="image"
                     accept="image/jpeg,image/png,image/webp"
-                    onChange={handleCustomImageChange}
+                    onChange={customProductPhoto.onInputChange}
+                    aria-invalid={customProductPhoto.error ? true : undefined}
+                    aria-describedby={customProductPhoto.error || customProductPhoto.isPreparing ? customProductPhoto.feedbackId : undefined}
                     className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-forest-700 file:text-white hover:file:bg-forest-800 cursor-pointer"
                   />
                 </div>
               </div>
+              <PhotoUploadFeedback photo={customProductPhoto} />
             </div>
 
             {/* Actions */}
@@ -729,8 +670,9 @@ export default function AddProductDrawer({
               <SubmitButton
                 className="px-5 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white text-sm font-semibold shadow-xs"
                 loadingText="Création en cours..."
+                disabled={customProductPhoto.isPreparing}
               >
-                Créer et ajouter à mon exploitation
+                Créer et ajouter à ma société
               </SubmitButton>
             </div>
           </form>

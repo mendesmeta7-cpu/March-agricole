@@ -60,31 +60,31 @@ export default function CompanySidebar({
   const navItems: NavDestination[] = [
     {
       id: "dashboard",
-      label: "Dashboard",
+      label: "Tableau de bord",
       href: "/dashboard/company",
       icon: LayoutDashboard,
     },
     {
       id: "products",
-      label: "Catalogue Produits",
+      label: "Catalogue produits",
       href: "/dashboard/company/products",
       icon: Package,
     },
     {
       id: "productions",
-      label: "Productions & Récoltes",
+      label: "Productions & récoltes",
       href: "/dashboard/company/productions",
       icon: Tractor,
     },
     {
       id: "demands",
-      label: "Demande du marché",
+      label: "Demandes du marché",
       href: "/dashboard/company/demands",
       icon: TrendingUp,
     },
     {
       id: "campaigns",
-      label: "Campagne de vente",
+      label: "Campagnes",
       href: "/dashboard/company/campaigns",
       icon: Megaphone,
     },
@@ -104,7 +104,7 @@ export default function CompanySidebar({
     },
     {
       id: "profile",
-      label: "Profil entreprise",
+      label: "Profil de la société",
       href: "/dashboard/company/profile",
       icon: Building2,
     },
@@ -166,7 +166,7 @@ export default function CompanySidebar({
               {logoUrl ? (
                 <img
                   src={logoUrl}
-                  alt={entityName || userName || "Entreprise"}
+                  alt={entityName || userName || "Société"}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -175,14 +175,14 @@ export default function CompanySidebar({
             </div>
             <div className="min-w-0 flex-1">
               <h2 className="text-xs font-bold text-gray-900 truncate">
-                {entityName || userName || "Mon Entreprise"}
+                {entityName || userName || "Ma société"}
               </h2>
               <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-forest-100 text-forest-800 border-forest-200">
-                  Producteur Agricole
+                <span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-md border bg-forest-100 text-forest-800 border-forest-200">
+                  Société
                 </span>
                 {locationInfo && (
-                  <span className="text-[11px] text-gray-500 flex items-center gap-1 truncate max-w-[150px]">
+                  <span className="text-xs text-gray-500 flex items-center gap-1 truncate max-w-[150px]">
                     <MapPin className="w-3 h-3 text-forest-600 shrink-0" />
                     <span className="truncate">{locationInfo}</span>
                   </span>
@@ -229,7 +229,7 @@ export default function CompanySidebar({
 
                 {/* Badge notifications réelles */}
                 {typeof item.badge === "number" && item.badge > 0 && (
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-forest-700 text-white shadow-2xs">
+                  <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-forest-700 text-white shadow-2xs">
                     {item.badge > 99 ? "99+" : item.badge}
                   </span>
                 )}
@@ -244,7 +244,7 @@ export default function CompanySidebar({
             href="/dashboard/company/profile"
             onClick={onClose}
             className="flex items-center justify-between lg:justify-start gap-3 p-2 lg:p-1.5 rounded-xl hover:bg-white transition-colors group"
-            aria-label="Voir le profil de l'entreprise"
+            aria-label="Voir le profil de la société"
           >
             <div className="hidden lg:flex w-8 h-8 rounded-full bg-forest-100 text-forest-800 border border-forest-200/80 items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
               {logoUrl ? (
@@ -261,10 +261,10 @@ export default function CompanySidebar({
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-gray-900 truncate group-hover:text-forest-700">
-                {userName || entityName || "Mon Compte"}
+                {userName || entityName || "Mon compte"}
               </p>
               {userEmail && (
-                <p className="text-[10px] text-gray-500 truncate">{userEmail}</p>
+                <p className="text-xs text-gray-500 truncate">{userEmail}</p>
               )}
             </div>
             <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-forest-700 transition-colors shrink-0 lg:hidden" />
@@ -287,7 +287,7 @@ export default function CompanySidebar({
         onClose={() => setIsDialogOpen(false)}
         onConfirm={handleLogout}
         title="Confirmation de déconnexion"
-        description="Êtes-vous certain de vouloir fermer votre session active sur l'espace Entreprise ? Vos jetons de sécurité locaux seront réinitialisés."
+        description="Êtes-vous certain de vouloir fermer votre session active sur l'espace Société ? Vos jetons de sécurité locaux seront réinitialisés."
         confirmText="Oui, me déconnecter"
         cancelText="Rester connecté"
         variant="destructive"

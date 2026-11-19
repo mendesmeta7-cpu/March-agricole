@@ -8,6 +8,8 @@ import QRCodeModal from "./QRCodeModal";
 import Dialog from "@/components/ui/Dialog";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
+import PageHeader from "@/components/ui/PageHeader";
+import InfoRepliable from "@/components/ui/InfoRepliable";
 import { useToast } from "@/components/ui/Toast";
 import { cancelOrderAction } from "@/lib/actions/orders";
 import {
@@ -17,12 +19,9 @@ import {
   Truck,
   Search,
   Filter,
-  ArrowLeft,
   PackageOpen,
   Megaphone,
   X,
-  ShieldCheck,
-  QrCode,
   Layers,
   AlertTriangle,
   RotateCcw,
@@ -180,97 +179,90 @@ export default function ResellerOrdersView({
   };
 
   return (
-    <div className="space-y-6">
-      {/* 1. Fil d'Ariane */}
-      <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
-        <Link
-          href="/dashboard/reseller"
-          className="hover:text-forest-800 flex items-center gap-1.5 transition-colors font-medium"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Espace Revendeur</span>
-        </Link>
-        <span>/</span>
-        <span className="text-gray-900 font-semibold">Mes Commandes</span>
-      </div>
+    // NAV-06 (Lot 6B, levier autorisé le 2026-11-19) : 16 px entre les sections sous 640 px, 24 px au-delà
+    <div className="space-y-4 sm:space-y-6">
+      {/* 1. En-tête commun (Lot 6B, NAV-02) : la racine du fil d'Ariane porte le nom du menu */}
+      <PageHeader
+        breadcrumb={[{ href: "/dashboard/reseller", label: "Tableau de bord" }]}
+        title="Mes commandes"
+        description="Suivez en temps réel vos réservations fermes de récoltes, l'acheminement vers votre région et présentez le QR code unique associé à votre commande lors du retrait."
+        action={
+          <Link
+            href="/dashboard/reseller/campaigns"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 max-sm:min-h-11 rounded-xl bg-forest-800 hover:bg-forest-900 text-white font-bold text-xs shadow-xs hover:shadow-md transition-all shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-600 focus-visible:ring-offset-2"
+          >
+            <Megaphone className="w-4 h-4 text-emerald-300" aria-hidden="true" />
+            <span>Explorer les campagnes</span>
+          </Link>
+        }
+      />
 
-      {/* 2. En-tête de section moderne */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight font-display">
-            Mes Commandes d&apos;Achat
-          </h1>
-          <p className="text-xs sm:text-sm text-gray-600 mt-1 max-w-2xl">
-            Suivez en temps réel vos réservations fermes de récoltes, l&apos;acheminement vers votre
-            région et présentez votre QR Code sécurisé lors du retrait en dépôt.
-          </p>
-        </div>
-
-        <Link
-          href="/dashboard/reseller/campaigns"
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-white font-bold text-xs shadow-xs hover:shadow-md transition-all self-start md:self-auto shrink-0"
-        >
-          <Megaphone className="w-4 h-4 text-emerald-300" />
-          <span>Explorer les offres</span>
-        </Link>
-      </div>
-
-      {/* 3. Indicateurs statistiques réels (0 Mock Data) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
+      {/* 3. Indicateurs statistiques réels (0 Mock Data). Correctif NAV-06 (Lot 6B, arbitrage B) : sous 640 px,
+          cartes basses, libellé et valeur sur une même ligne, icône masquée. Les légendes qui ne faisaient que
+          répéter la valeur (« n commande(s) passée(s) », « n lot(s) réceptionné(s) ») sont retirées ; celles qui
+          précisent l'indicateur (« à confirmer par la société », « en préparation / route ») restent.
+          Valeurs et calculs inchangés ; présentation inchangée au-delà de 640 px, hors ces deux légendes. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+        <div className="p-2.5 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">
               Total Commandes
             </span>
-            <div className="w-8 h-8 rounded-xl bg-forest-50 text-forest-800 flex items-center justify-center">
+            <span className="sm:hidden text-lg font-black text-gray-950 font-display shrink-0">
+              {totalCount}
+            </span>
+            <div className="hidden sm:flex w-8 h-8 rounded-xl bg-forest-50 text-forest-800 items-center justify-center">
               <ShoppingBag className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-black text-gray-950 font-display">
+          <div className="sm:mt-3">
+            <span className="hidden sm:inline text-3xl font-black text-gray-950 font-display">
               {totalCount}
-            </span>
-            <span className="text-[11px] text-gray-500 block mt-0.5">
-              {totalCount === 0 ? "0 commande enregistrée" : `${totalCount} commande(s) passée(s)`}
             </span>
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
+        <div className="p-2.5 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">
               En Attente
             </span>
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+            <span className="sm:hidden text-lg font-black text-amber-950 font-display shrink-0">
+              {pendingCount}
+            </span>
+            <div className="hidden sm:flex w-8 h-8 rounded-xl bg-amber-50 text-amber-700 items-center justify-center">
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-black text-amber-950 font-display">
+          <div className="sm:mt-3">
+            <span className="hidden sm:inline text-3xl font-black text-amber-950 font-display">
               {pendingCount}
             </span>
-            <span className="text-[11px] text-gray-500 block mt-0.5">
+            <span className="text-xs text-gray-500 block mt-0.5">
               {pendingCount === 0
                 ? "0 en attente"
-                : `${pendingCount} à confirmer par la ferme`}
+                : `${pendingCount} à confirmer par la société`}
             </span>
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
+        <div className="p-2.5 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">
               En Préparation
             </span>
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+            <span className="sm:hidden text-lg font-black text-indigo-950 font-display shrink-0">
+              {inProgressCount}
+            </span>
+            <div className="hidden sm:flex w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 items-center justify-center">
               <Truck className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-black text-indigo-950 font-display">
+          <div className="sm:mt-3">
+            <span className="hidden sm:inline text-3xl font-black text-indigo-950 font-display">
               {inProgressCount}
             </span>
-            <span className="text-[11px] text-gray-500 block mt-0.5">
+            <span className="text-xs text-gray-500 block mt-0.5">
               {inProgressCount === 0
                 ? "0 en cours"
                 : `${inProgressCount} lot(s) en préparation / route`}
@@ -278,50 +270,22 @@ export default function ResellerOrdersView({
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
+        <div className="p-2.5 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
               Livrées / Clôturées
             </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+            <span className="sm:hidden text-lg font-black text-emerald-950 font-display shrink-0">
+              {deliveredCount}
+            </span>
+            <div className="hidden sm:flex w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-black text-emerald-950 font-display">
+          <div className="sm:mt-3">
+            <span className="hidden sm:inline text-3xl font-black text-emerald-950 font-display">
               {deliveredCount}
             </span>
-            <span className="text-[11px] text-gray-500 block mt-0.5">
-              {deliveredCount === 0
-                ? "0 commande livrée"
-                : `${deliveredCount} lot(s) réceptionné(s)`}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 4. Cartouche de transparence et rassurance */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-forest-50/70 to-emerald-50/50 border border-forest-100/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-forest-800 text-white flex items-center justify-center shrink-0 shadow-2xs mt-0.5 sm:mt-0">
-            <ShieldCheck className="w-5 h-5 text-emerald-300" />
-          </div>
-          <div className="text-xs space-y-0.5">
-            <h3 className="text-xs sm:text-sm font-bold text-forest-950">
-              Garantie d&apos;Approvisionnement et Sécurité Transactionnelle
-            </h3>
-            <p className="text-forest-900/90 leading-relaxed text-[11px] sm:text-xs">
-              Toute commande passée déduit instantanément la quantité des stocks de
-              l&apos;exploitation. Vous recevez un QR code infalsifiable à présenter au point de
-              retrait le jour de l&apos;arrivée.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-stretch sm:self-auto shrink-0">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 border border-forest-200/80 text-[11px] font-semibold text-forest-900">
-            <QrCode className="w-3.5 h-3.5 text-forest-700" />
-            <span>Retrait par QR Code</span>
           </div>
         </div>
       </div>
@@ -333,10 +297,10 @@ export default function ResellerOrdersView({
           <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="N° commande, culture, exploitation, ville..."
+            placeholder="N° commande, produit, société, ville..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-gray-200 bg-white placeholder-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-forest-600 outline-hidden transition-all shadow-2xs"
+            className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-gray-200 bg-white placeholder-gray-500 focus:ring-2 focus:ring-forest-600 focus:border-forest-600 outline-none transition-all shadow-2xs"
           />
           {searchQuery && (
             <button
@@ -362,7 +326,7 @@ export default function ResellerOrdersView({
               <Filter className="w-4 h-4" />
               <span>Filtrer les commandes</span>
             </span>
-            <span className="px-2 py-0.5 rounded-full bg-forest-100 text-forest-900 text-[10px] font-bold">
+            <span className="px-2 py-0.5 rounded-full bg-forest-100 text-forest-900 text-[11px] font-bold">
               {filteredOrders.length}
             </span>
           </Button>
@@ -441,7 +405,7 @@ export default function ResellerOrdersView({
           </h3>
           <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto mb-6">
             {orders.length === 0
-              ? "Vous n'avez pas encore passé de commande d'achat ferme. Explorez les campagnes commerciales ouvertes pour réserver des récoltes."
+              ? "Vous n'avez pas encore passé de commande. Explorez les campagnes ouvertes pour réserver des récoltes."
               : "Aucune commande ne correspond à vos filtres ou à votre terme de recherche."}
           </p>
 
@@ -451,7 +415,7 @@ export default function ResellerOrdersView({
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-forest-800 text-white font-bold text-xs hover:bg-forest-900 transition-colors shadow-xs"
             >
               <Megaphone className="w-4 h-4 text-emerald-300" />
-              <span>Découvrir les offres commerciales</span>
+              <span>Découvrir les campagnes</span>
             </Link>
           ) : (
             <Button variant="outline" size="sm" onClick={handleResetFilters}>
@@ -473,6 +437,13 @@ export default function ResellerOrdersView({
           ))}
         </div>
       )}
+
+      {/* Explication générale repliée (Lot 6B, TXT-04 ; texte inchangé), placée après la liste
+          (correctif NAV-06, arbitrage D) : toujours consultable. */}
+      <InfoRepliable summary="Réservation du stock et retrait par QR code" tone="forest">
+        Chaque commande réserve la quantité commandée sur le stock de la société. Vous recevez un QR
+        code unique associé à votre commande, à présenter lors du retrait de la commande.
+      </InfoRepliable>
 
       {/* 7. Drawer mobile de filtres */}
       <Drawer
@@ -500,7 +471,7 @@ export default function ResellerOrdersView({
               }`}
             >
               <span>Toutes les commandes</span>
-              <span className="text-[11px] text-gray-400 font-mono">{totalCount}</span>
+              <span className="text-xs text-gray-400 font-mono">{totalCount}</span>
             </button>
 
             <button
@@ -516,7 +487,7 @@ export default function ResellerOrdersView({
               }`}
             >
               <span>En attente de confirmation</span>
-              <span className="text-[11px] text-gray-400 font-mono">{pendingCount}</span>
+              <span className="text-xs text-gray-400 font-mono">{pendingCount}</span>
             </button>
 
             <button
@@ -532,7 +503,7 @@ export default function ResellerOrdersView({
               }`}
             >
               <span>En préparation & acheminement</span>
-              <span className="text-[11px] text-gray-400 font-mono">{inProgressCount}</span>
+              <span className="text-xs text-gray-400 font-mono">{inProgressCount}</span>
             </button>
 
             <button
@@ -548,7 +519,7 @@ export default function ResellerOrdersView({
               }`}
             >
               <span>Livrées / Réceptionnées</span>
-              <span className="text-[11px] text-gray-400 font-mono">{deliveredCount}</span>
+              <span className="text-xs text-gray-400 font-mono">{deliveredCount}</span>
             </button>
 
             {cancelledCount > 0 && (
@@ -565,7 +536,7 @@ export default function ResellerOrdersView({
                 }`}
               >
                 <span>Commandes annulées</span>
-                <span className="text-[11px] text-gray-400 font-mono">{cancelledCount}</span>
+                <span className="text-xs text-gray-400 font-mono">{cancelledCount}</span>
               </button>
             )}
           </div>
@@ -634,7 +605,7 @@ export default function ResellerOrdersView({
             <p className="text-xs text-gray-600 leading-relaxed">
               Êtes-vous sûr de vouloir annuler la commande{" "}
               <strong>{cancelModalOrder.order_number}</strong> ? Le volume réservé sera
-              instantanément réintégré aux stocks disponibles de l&apos;offre commerciale.
+              instantanément réintégré aux stocks disponibles de la campagne.
             </p>
 
             {cancelError && (
@@ -644,7 +615,7 @@ export default function ResellerOrdersView({
             )}
 
             <div className="space-y-1">
-              <label className="block text-[11px] font-medium text-gray-700">
+              <label className="block text-xs font-medium text-gray-700">
                 Motif de l&apos;annulation (Optionnel)
               </label>
               <textarea
@@ -652,7 +623,7 @@ export default function ResellerOrdersView({
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 placeholder="Ex: Changement de prévisions logistiques..."
-                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:ring-1 focus:ring-rose-500 outline-hidden resize-none"
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:ring-1 focus:ring-rose-500 outline-none resize-none"
               />
             </div>
           </div>

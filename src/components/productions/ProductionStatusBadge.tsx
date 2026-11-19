@@ -63,7 +63,7 @@ export default function ProductionStatusBadge({
 
   const sizeClasses =
     size === "sm"
-      ? "text-[11px] px-2.5 py-0.5 gap-1.5 font-semibold"
+      ? "text-xs px-2.5 py-0.5 gap-1.5 font-semibold"
       : "text-xs px-3 py-1 gap-2 font-bold";
 
   return (
@@ -88,13 +88,13 @@ export function CampaignActiveBadge({
 }) {
   const sizeClasses =
     size === "sm"
-      ? "text-[10px] px-2 py-0.5 gap-1 font-bold"
+      ? "text-xs px-2 py-0.5 gap-1 font-bold"
       : "text-xs px-2.5 py-1 gap-1.5 font-bold";
 
   return (
     <span
       className={`inline-flex items-center rounded-full bg-forest-800/90 text-emerald-200 border border-emerald-500/40 shadow-xs backdrop-blur-md ${sizeClasses} ${className}`}
-      title="Cette production est associée à une offre commerciale active ouverte aux commandes."
+      title="Cette production est associée à une campagne active ouverte aux commandes."
     >
       <Megaphone className={size === "sm" ? "w-3 h-3 text-emerald-300" : "w-3.5 h-3.5 text-emerald-300"} />
       <span>Campagne active</span>

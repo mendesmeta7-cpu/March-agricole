@@ -47,7 +47,7 @@ function isDestinationActive(pathname: string, href: string): boolean {
 }
 
 function tabClassName(isActive: boolean): string {
-  return `group flex-1 min-w-0 flex flex-col items-center justify-between py-1 px-0.5 relative transition-all duration-150 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-600 rounded-xl active:scale-95 motion-reduce:transform-none ${
+  return `group flex-auto flex flex-col items-center justify-between py-1 px-0.5 relative transition-all duration-150 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-600 rounded-xl active:scale-95 motion-reduce:transform-none ${
     isActive
       ? "text-forest-800 font-bold"
       : "text-gray-500 hover:text-gray-900 font-medium"
@@ -83,14 +83,14 @@ function TabContent({
 
         {/* Badge pour notifications non lues (données réelles) */}
         {badge > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold flex items-center justify-center shadow-xs animate-in zoom-in-75">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-700 text-white text-[11px] font-extrabold flex items-center justify-center shadow-xs animate-in zoom-in-75">
             {formatBadge(badge)}
           </span>
         )}
       </div>
 
       <span
-        className={`text-[11px] tracking-tight mt-0.5 text-center leading-[1.15] max-w-full transition-colors line-clamp-2 ${
+        className={`text-xs tracking-tight mt-0.5 text-center leading-[1.15] max-w-full transition-colors line-clamp-2 ${
           isActive
             ? "text-forest-900 font-bold"
             : "text-gray-600 group-hover:text-gray-900"
@@ -255,7 +255,7 @@ export default function ResellerBottomNav({
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold truncate">{item.label}</span>
                       {typeof item.badge === "number" && item.badge > 0 && (
-                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-600 text-white">
+                        <span className="text-[11px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-700 text-white">
                           {formatBadge(item.badge)}
                         </span>
                       )}

@@ -28,6 +28,7 @@ import {
   Truck,
   CheckCheck,
 } from "lucide-react";
+import { formatAmount, formatMoney, formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 interface ResellerOrderCardProps {
   order: OrderDetail;
@@ -169,7 +170,7 @@ export default function ResellerOrderCard({
                 )}
               </button>
             </div>
-            <span className="text-[10px] text-gray-500 flex items-center gap-1">
+            <span className="text-xs text-gray-500 flex items-center gap-1">
               <Calendar className="w-2.5 h-2.5 text-gray-400" />
               {formattedDate}
             </span>
@@ -216,7 +217,7 @@ export default function ResellerOrderCard({
             </span>
           </Link>
 
-          <span className="text-[11px] text-gray-500 flex items-center gap-1 shrink-0">
+          <span className="text-xs text-gray-500 flex items-center gap-1 shrink-0">
             <MapPin className="w-3 h-3 text-gray-400" />
             {order.delivery_province?.name || "RDC"}
           </span>
@@ -228,17 +229,17 @@ export default function ResellerOrderCard({
             <span className="text-xs font-bold text-gray-900 block truncate">
               {mainItem?.product.name || order.campaign.title}
             </span>
-            <span className="text-[11px] text-gray-500 block truncate mt-0.5">
+            <span className="text-xs text-gray-500 block truncate mt-0.5">
               Réf. : {order.campaign.title}
             </span>
           </div>
           <div className="text-right shrink-0">
             <span className="text-xs font-black text-gray-950 flex items-center gap-1 justify-end">
               <Layers className="w-3.5 h-3.5 text-earth-700" />
-              {itemQuantity.toLocaleString("fr-FR")} {itemUnit}
+              {formatQuantityWithUnit(itemQuantity, itemUnit)}
             </span>
-            <span className="text-[10px] text-gray-500 block mt-0.5">
-              à {itemUnitPrice.toLocaleString("fr-FR")} {order.currency}/{itemUnit}
+            <span className="text-xs text-gray-500 block mt-0.5">
+              à {formatMoney(itemUnitPrice, order.currency)}/{itemUnit}
             </span>
           </div>
         </div>
@@ -250,7 +251,7 @@ export default function ResellerOrderCard({
           order.depot_name_snapshot ||
           order.depot?.name) && (
           <div className="p-2.5 rounded-xl bg-forest-50/40 border border-forest-100/70 text-xs space-y-1">
-            <div className="flex items-center justify-between text-[11px] font-semibold text-forest-950 gap-2">
+            <div className="flex items-center justify-between text-xs font-semibold text-forest-950 gap-2">
               <span className="flex items-center gap-1 truncate">
                 <MapPin className="w-3.5 h-3.5 text-forest-600 shrink-0" />
                 Arrivée :{" "}
@@ -262,7 +263,7 @@ export default function ResellerOrderCard({
               </span>
 
               {formattedArrivalDate && (
-                <span className="text-[11px] text-forest-800 font-bold flex items-center gap-1 shrink-0">
+                <span className="text-xs text-forest-800 font-bold flex items-center gap-1 shrink-0">
                   <Calendar className="w-3 h-3 text-forest-600" />
                   {formattedArrivalDate}
                 </span>
@@ -270,13 +271,13 @@ export default function ResellerOrderCard({
             </div>
 
             {previousArrivalDate && (
-              <span className="text-[10px] text-amber-800 font-medium block">
+              <span className="text-xs text-amber-800 font-medium block">
                 ⚠️ Date réajustée (initiale : {previousArrivalDate})
               </span>
             )}
 
             {(order.depot_name_snapshot || order.depot?.name) && (
-              <p className="text-[11px] text-gray-600 truncate pl-4">
+              <p className="text-xs text-gray-600 truncate pl-4">
                 Point de retrait : <strong>{order.depot_name_snapshot || order.depot?.name}</strong>
               </p>
             )}
@@ -286,7 +287,7 @@ export default function ResellerOrderCard({
         {/* Progression des statuts */}
         {order.status !== "cancelled" ? (
           <div className="pt-1 space-y-1.5">
-            <div className="flex justify-between items-center text-[10px] text-gray-400 font-medium">
+            <div className="flex justify-between items-center text-xs text-gray-500 font-medium">
               <span>Étape</span>
               <span className="text-forest-800 font-bold">
                 {currentStepIndex >= 0 ? `${currentStepIndex + 1} / 5` : ""}
@@ -322,12 +323,12 @@ export default function ResellerOrderCard({
         )}
 
         {/* Montant total */}
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-forest-50/50 border border-forest-100 text-xs">
-          <span className="text-[11px] font-medium text-forest-800">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 rounded-xl bg-forest-50/50 border border-forest-100 text-xs">
+          <span className="text-xs font-medium text-forest-800">
             Total engagé
           </span>
-          <span className="text-sm font-black text-forest-950">
-            {order.total_amount.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}{" "}
+          <span className="text-sm font-black text-forest-950 whitespace-nowrap">
+            {formatAmount(order.total_amount)}{" "}
             {order.currency}
           </span>
         </div>
@@ -340,7 +341,7 @@ export default function ResellerOrderCard({
             <button
               type="button"
               onClick={() => setShowCancelModal(true)}
-              className="text-[11px] font-semibold text-rose-700 hover:text-rose-900 hover:underline inline-flex items-center gap-1 transition-colors"
+              className="text-xs font-semibold text-rose-700 hover:text-rose-900 hover:underline inline-flex items-center gap-1 transition-colors"
             >
               <XCircle className="w-3.5 h-3.5" />
               Annuler
@@ -351,8 +352,8 @@ export default function ResellerOrderCard({
               Réceptionnée
             </span>
           ) : (
-            <span className="text-[10px] text-gray-500">
-              {order.status === "cancelled" ? "Réservation libérée" : "Stock garanti"}
+            <span className="text-xs text-gray-500">
+              {order.status === "cancelled" ? "Réservation libérée" : "Stock réservé"}
             </span>
           )}
         </div>
@@ -417,7 +418,7 @@ export default function ResellerOrderCard({
               Êtes-vous sûr de vouloir annuler la commande{" "}
               <strong>{order.order_number}</strong> ({itemQuantity} {itemUnit} de{" "}
               {mainItem?.product.name}) ? La quantité réservée sera immédiatement remise à
-              disposition de l&apos;offre commerciale.
+              disposition de la campagne.
             </p>
 
             {cancelError && (
@@ -427,7 +428,7 @@ export default function ResellerOrderCard({
             )}
 
             <div className="space-y-1">
-              <label className="block text-[11px] font-medium text-gray-700">
+              <label className="block text-xs font-medium text-gray-700">
                 Motif de l&apos;annulation (Optionnel)
               </label>
               <textarea
@@ -435,7 +436,7 @@ export default function ResellerOrderCard({
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 placeholder="Ex: Changement de prévisions logistiques..."
-                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:ring-1 focus:ring-rose-500 outline-hidden resize-none"
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:ring-1 focus:ring-rose-500 outline-none resize-none"
               />
             </div>
           </div>

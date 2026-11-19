@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useRef, useId } from "react";
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import { useState, useMemo, useEffect } from "react";
+import { Drawer } from "@/components/ui/Drawer";
 import { CatalogProduct } from "@/lib/queries/products";
 import {
   createAdminCatalogProductAction,
@@ -10,7 +10,9 @@ import {
 } from "@/lib/actions/admin/products";
 import SubmitButton from "@/components/SubmitButton";
 import Select from "@/components/ui/Select";
-import { X, Image as ImageIcon, AlertCircle, CheckCircle2, Trash2 } from "lucide-react";
+import { usePhotoForUpload } from "@/components/ui/usePhotoForUpload";
+import PhotoUploadFeedback from "@/components/ui/PhotoUploadFeedback";
+import { AlertCircle, CheckCircle2, Trash2, Image as ImageIcon } from "lucide-react";
 
 interface AdminProductModalProps {
   isOpen: boolean;
@@ -58,6 +60,12 @@ export default function AdminProductModal({
   );
   const [removeImage, setRemoveImage] = useState(false);
   const [state, setState] = useState<ActionResponse | null>(null);
+  const photo = usePhotoForUpload({ keepTransparency: true });
+  const clearPhoto = photo.clear;
+  // La fenêtre reste montée entre deux ouvertures : une photo préparée ne doit pas survivre.
+  useEffect(() => {
+    if (!isOpen) clearPhoto();
+  }, [isOpen, clearPhoto]);
 
   const allCategories = useMemo(
     () => Array.from(new Set([...DEFAULT_CATEGORIES, ...categories.filter(Boolean)])),
@@ -74,27 +82,22 @@ export default function AdminProductModal({
 
   const unitOptions = useMemo(() => DEFAULT_UNITS, []);
 
-  const panelRef = useRef<HTMLDivElement>(null);
-  const titleId = useId();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  useFocusTrap(panelRef, {
-    isOpen: isOpen,
-    onEscape: onClose,
-    escapeEnabled: !isSubmitting,
-  });
 
   if (!isOpen) return null;
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { file, error } = await photo.onInputChange(e);
     if (file) {
       setRemoveImage(false);
-      const url = URL.createObjectURL(file);
-      setImagePreview(url);
+      setImagePreview(URL.createObjectURL(file));
+    } else if (error && !removeImage) {
+      setImagePreview(productToEdit?.image_url || null);
     }
   };
 
   const handleRemoveImage = () => {
+    photo.clear();
     setImagePreview(null);
     setRemoveImage(true);
   };
@@ -106,62 +109,47 @@ export default function AdminProductModal({
     } else {
       formData.set("category", selectedCategory);
     }
+    photo.applyTo(formData, "image");
 
-    if (isEditing && productToEdit) {
-      formData.set("productId", productToEdit.id);
-      formData.set("keepExistingImage", (!removeImage && !formData.get("image")).toString());
-      formData.set("removeImage", removeImage.toString());
-      const res = await updateAdminCatalogProductAction(null, formData);
-      setState(res);
-      setIsSubmitting(false);
-      if (res.success) {
-        setTimeout(() => {
-          onClose();
-          setState(null);
-        }, 1200);
+    let res: ActionResponse;
+    try {
+      if (isEditing && productToEdit) {
+        formData.set("productId", productToEdit.id);
+        formData.set("keepExistingImage", (!removeImage && !formData.get("image")).toString());
+        formData.set("removeImage", removeImage.toString());
+        res = await updateAdminCatalogProductAction(null, formData);
+      } else {
+        res = await createAdminCatalogProductAction(null, formData);
       }
-    } else {
-      const res = await createAdminCatalogProductAction(null, formData);
-      setState(res);
-      setIsSubmitting(false);
-      if (res.success) {
-        setTimeout(() => {
-          onClose();
-          setState(null);
-        }, 1200);
-      }
+    } catch (err) {
+      // Une action rejetée ne doit jamais laisser la fenêtre bloquée.
+      console.error("Erreur enregistrement produit du catalogue :", err);
+      res = {
+        error: "L'enregistrement du produit a échoué. Vérifiez votre connexion puis réessayez.",
+      };
+    }
+
+    setState(res);
+    setIsSubmitting(false);
+    if (res.success) {
+      setTimeout(() => {
+        onClose();
+        setState(null);
+      }, 1200);
     }
   }
 
+  // Lot UX/UI 5B : surface partagée Drawer (focus, Échap, verrouillage compté du défilement).
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-      >
-        {/* En-tête */}
-        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/70">
-          <div>
-            <h2 id={titleId} className="text-lg font-bold text-gray-950">
-              {isEditing ? "Modifier une référence officielle" : "Ajouter un produit au catalogue"}
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Référentiel officiel commun administré par la plateforme
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer la fenêtre"
-            className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      size="lg"
+      isDismissable={!isSubmitting}
+      showCloseButton={!isSubmitting}
+      title={isEditing ? "Modifier une référence officielle" : "Ajouter un produit au catalogue"}
+      description={"Référentiel officiel commun administré par la plateforme"}
+    >
         {/* Feedback message */}
         {state?.error && (
           <div className="mx-6 mt-4 p-3.5 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2 text-red-800 text-xs">
@@ -178,7 +166,7 @@ export default function AdminProductModal({
         )}
 
         {/* Formulaire */}
-        <form action={handleSubmit} onSubmit={() => setIsSubmitting(true)} className="p-6 overflow-y-auto space-y-4 flex-1">
+        <form action={handleSubmit} onSubmit={() => setIsSubmitting(true)} className="space-y-4">
           {/* Nom du produit */}
           <div>
             <label htmlFor="admin-product-name" className="block text-xs font-semibold text-gray-700 mb-1">
@@ -278,13 +266,16 @@ export default function AdminProductModal({
               </div>
               <div className="flex-1 min-w-0 space-y-1.5">
                 <input
+                  ref={photo.inputRef}
                   type="file"
                   name="image"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={handleImageChange}
+                  aria-invalid={photo.error ? true : undefined}
+                  aria-describedby={photo.error || photo.isPreparing ? photo.feedbackId : undefined}
                   className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-slate-800 cursor-pointer"
                 />
-                <div className="flex items-center justify-between text-[11px] text-gray-500">
+                <div className="flex items-center justify-between text-xs text-gray-500">
                   <span>JPG, PNG ou WebP. Max 5 Mo.</span>
                   {imagePreview && (
                     <button
@@ -297,9 +288,10 @@ export default function AdminProductModal({
                     </button>
                   )}
                 </div>
+                <PhotoUploadFeedback photo={photo} />
               </div>
             </div>
-            <p className="mt-1 text-[11px] text-gray-500">
+            <p className="mt-1 text-xs text-gray-500">
               Cette photo servira de visuel officiel de référence dans le catalogue commun.
             </p>
           </div>
@@ -316,12 +308,12 @@ export default function AdminProductModal({
             <SubmitButton
               className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold shadow-xs"
               loadingText="Enregistrement..."
+              disabled={photo.isPreparing}
             >
               {isEditing ? "Mettre à jour" : "Ajouter la référence"}
             </SubmitButton>
           </div>
         </form>
-      </div>
-    </div>
+    </Drawer>
   );
 }

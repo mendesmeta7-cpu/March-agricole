@@ -22,6 +22,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Image from "next/image";
+import { formatMoney, formatQuantity } from "@/lib/utils/numberFormat";
 
 interface ResellerDemandDetailDrawerProps {
   isOpen: boolean;
@@ -96,7 +97,7 @@ export default function ResellerDemandDetailDrawer({
                 }}
                 leftIcon={<MessageSquare className="w-4 h-4" />}
               >
-                Consulter les offres ({responsesCount})
+                Consulter les propositions ({responsesCount})
               </Button>
             )}
 
@@ -150,7 +151,7 @@ export default function ResellerDemandDetailDrawer({
 
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-earth-800 bg-earth-200/70 px-2 py-0.5 rounded-md">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-earth-800 bg-earth-200/70 px-2 py-0.5 rounded-md">
                 {demand.product.category}
               </span>
               {isProductionDemand ? (
@@ -182,10 +183,10 @@ export default function ResellerDemandDetailDrawer({
               <span>Volume recherché</span>
             </div>
             <p className="text-xl font-extrabold text-gray-950">
-              {demand.quantity.toLocaleString("fr-FR")}{" "}
+              {formatQuantity(demand.quantity)}{" "}
               <span className="text-sm font-medium text-gray-600">{demand.unit}</span>
             </p>
-            <p className="text-[11px] text-gray-500">Unité de référence : {demand.unit}</p>
+            <p className="text-xs text-gray-500">Unité de référence : {demand.unit}</p>
           </div>
 
           <div className="p-4 rounded-xl bg-white border border-gray-200/80 shadow-2xs space-y-1">
@@ -196,12 +197,12 @@ export default function ResellerDemandDetailDrawer({
             <p className="text-xl font-extrabold text-gray-950">
               {responsesCount}{" "}
               <span className="text-sm font-medium text-gray-600">
-                offre{responsesCount > 1 ? "s" : ""}
+                proposition{responsesCount > 1 ? "s" : ""}
               </span>
             </p>
-            <p className="text-[11px] text-gray-500">
+            <p className="text-xs text-gray-500">
               {responsesCount > 0
-                ? "Devis et offres fermes disponibles"
+                ? "Propositions disponibles"
                 : "En attente des exploitants de la zone"}
             </p>
           </div>
@@ -219,7 +220,7 @@ export default function ResellerDemandDetailDrawer({
             <span className="text-xs text-gray-500 ml-1.5">({demand.country.name})</span>
           </div>
           <p className="text-xs text-gray-500 leading-relaxed">
-            Ce besoin est visible par les exploitants agricoles desservant ce territoire ou capables d&apos;y acheminer leurs récoltes.
+            Cette demande est visible par les sociétés desservant ce territoire ou capables d&apos;y acheminer leurs récoltes.
           </p>
         </div>
 
@@ -275,7 +276,7 @@ export default function ResellerDemandDetailDrawer({
                 <p className="text-xs text-gray-600">
                   Volume total attendu :{" "}
                   <strong>
-                    {demand.production.expected_quantity?.toLocaleString("fr-FR")}{" "}
+                    {formatQuantity(demand.production.expected_quantity)}{" "}
                     {demand.production.unit}
                   </strong>
                 </p>
@@ -295,7 +296,7 @@ export default function ResellerDemandDetailDrawer({
           <div className="p-4 rounded-xl bg-forest-50/50 border border-forest-200/80 shadow-2xs space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-forest-800 flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5" />
-              Exploitation Ciblée Spécifiquement
+              Société ciblée
             </h4>
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-forest-100 text-forest-800 flex items-center justify-center font-bold text-xs shrink-0">
@@ -324,7 +325,7 @@ export default function ResellerDemandDetailDrawer({
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-bold text-gray-950 flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-emerald-700" />
-              Propositions des Producteurs ({responsesCount})
+              Propositions des sociétés ({responsesCount})
             </h4>
             {responsesCount > 0 && (
               <button
@@ -335,7 +336,7 @@ export default function ResellerDemandDetailDrawer({
                 }}
                 className="text-xs text-earth-700 font-bold hover:underline flex items-center gap-1"
               >
-                Gérer les offres <ArrowRight className="w-3 h-3" />
+                Gérer les propositions <ArrowRight className="w-3 h-3" />
               </button>
             )}
           </div>
@@ -344,10 +345,10 @@ export default function ResellerDemandDetailDrawer({
             <div className="p-6 rounded-2xl bg-gray-50 border border-gray-200/70 text-center space-y-2">
               <Clock className="w-7 h-7 text-gray-400 mx-auto" />
               <p className="text-xs font-semibold text-gray-800">
-                Aucune offre reçue pour l&apos;instant
+                Aucune proposition reçue pour l&apos;instant
               </p>
-              <p className="text-[11px] text-gray-500 max-w-sm mx-auto leading-relaxed">
-                Les entreprises agricoles réelles notifiées analyseront votre besoin en fonction de leurs récoltes et vous adresseront leurs devis directement ici.
+              <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
+                Les sociétés notifiées analyseront votre demande en fonction de leurs récoltes et vous adresseront leurs propositions directement ici.
               </p>
             </div>
           ) : (
@@ -362,29 +363,29 @@ export default function ResellerDemandDetailDrawer({
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="font-bold text-gray-950 truncate">
-                          {resp.company?.name || "Entreprise agricole"}
+                          {resp.company?.name || "Société"}
                         </p>
-                        <p className="text-[11px] text-gray-500">
-                          Production : {resp.production?.title || "Stock certifié"}
+                        <p className="text-xs text-gray-500">
+                          Production : {resp.production?.title || "non précisée"}
                         </p>
                       </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 shrink-0">
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 shrink-0">
                         {resp.status === "ordered" ? "Commandée" : resp.status === "proposed" ? "Disponible" : resp.status}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-gray-50 text-[11px]">
                       <div>
-                        <span className="text-gray-500 block text-[10px]">Volume proposé</span>
+                        <span className="text-gray-500 block text-xs">Volume proposé</span>
                         <strong className="text-gray-900">{resp.proposed_quantity} {demand.unit}</strong>
                       </div>
                       <div>
-                        <span className="text-gray-500 block text-[10px]">Prix unitaire</span>
-                        <strong className="text-gray-900">{resp.unit_price} {resp.currency}</strong>
+                        <span className="text-gray-500 block text-xs">Prix unitaire</span>
+                        <strong className="text-gray-900">{formatMoney(resp.unit_price, resp.currency)}</strong>
                       </div>
                       <div>
-                        <span className="text-gray-500 block text-[10px]">Total</span>
-                        <strong className="text-earth-900">{totalAmount.toLocaleString("fr-FR")} {resp.currency}</strong>
+                        <span className="text-gray-500 block text-xs">Total</span>
+                        <strong className="text-earth-900">{formatMoney(totalAmount, resp.currency)}</strong>
                       </div>
                     </div>
                   </div>

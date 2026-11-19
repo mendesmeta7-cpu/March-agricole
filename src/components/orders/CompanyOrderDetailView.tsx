@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo, useRef, useId } from "react";
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import { useState, useTransition, useMemo } from "react";
 import { OrderDetail, OrderStatus } from "@/lib/queries/orders";
 import OrderStatusBadge from "./OrderStatusBadge";
 import DeliveryConfirmationModal from "./DeliveryConfirmationModal";
@@ -12,7 +11,7 @@ import { useRouter } from "next/navigation";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
-import { ConfirmDialog } from "@/components/ui/Dialog";
+import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ToastProvider, useToast } from "@/components/ui/Toast";
 import {
   COMPANY_ORDER_STATUS_LABELS,
@@ -26,10 +25,7 @@ import {
   Calendar,
   MapPin,
   Tag,
-  Layers,
   ShieldCheck,
-  AlertTriangle,
-  X,
   FileText,
   Settings,
   CheckCircle2,
@@ -41,6 +37,7 @@ import {
   XCircle,
   Sparkles,
 } from "lucide-react";
+import { formatAmount, formatMoney, formatQuantity, formatQuantityWithUnit, unitLabel } from "@/lib/utils/numberFormat";
 
 interface CompanyOrderDetailViewProps {
   order: OrderDetail;
@@ -79,14 +76,6 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
     [order.status]
   );
   const canCancel = canCompanyCancelOrder(order.status);
-
-  const statusDialogRef = useRef<HTMLDivElement>(null);
-  const statusDialogTitleId = useId();
-  useFocusTrap(statusDialogRef, {
-    isOpen: showStatusModal && statusOptions.length > 0,
-    onEscape: () => setShowStatusModal(false),
-    escapeEnabled: !updating,
-  });
 
   const mainItem = order.order_items[0];
   const itemQuantity = mainItem ? mainItem.quantity : 0;
@@ -299,7 +288,7 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
                   size="sm"
                   onClick={() => handleQuickTransition("preparing")}
                   isLoading={updating}
-                  className="gap-1.5 text-xs font-bold bg-indigo-700 hover:bg-indigo-800 text-white"
+                  className="gap-1.5 text-xs font-bold !bg-indigo-700 hover:!bg-indigo-800 !text-white"
                 >
                   <Package className="w-3.5 h-3.5" />
                   <span>En préparation</span>
@@ -396,12 +385,12 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
                       )}
                     </div>
                     <span
-                      className={`text-[11px] sm:text-xs font-semibold leading-tight line-clamp-2 ${
+                      className={`text-xs sm:text-xs font-semibold leading-tight line-clamp-2 ${
                         isCurrent
                           ? "text-forest-950 font-bold"
                           : isDone
                           ? "text-gray-700"
-                          : "text-gray-400"
+                          : "text-gray-500"
                       }`}
                     >
                       {s.label}
@@ -419,7 +408,7 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
             <span className="font-bold text-sm block">Commande annulée</span>
             <p className="text-rose-700 leading-relaxed">
               Cette commande a été annulée. La réservation de stock associée a été
-              immédiatement libérée et restituée à l&apos;offre commerciale correspondante.
+              immédiatement libérée et restituée à la campagne correspondante.
             </p>
           </div>
         </div>
@@ -443,8 +432,8 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
                 {order.delivered_quantity !== null && order.delivered_quantity !== undefined && (
                   <span className="font-bold">
                     {" "}
-                    • Quantité remise : {order.delivered_quantity.toLocaleString("fr-FR")}{" "}
-                    {order.campaign.unit}
+                    • Quantité remise : {formatQuantity(order.delivered_quantity)}{" "}
+                    {unitLabel(order.campaign.unit, order.delivered_quantity)}
                   </span>
                 )}
               </p>
@@ -466,7 +455,7 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
           <Card padding="md">
             <h2 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
               <FileText className="w-4 h-4 text-forest-700" />
-              Lignes de Commande Ferme
+              Lignes de commande
             </h2>
 
             <div className="divide-y divide-gray-100">
@@ -494,31 +483,31 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
                         {item.product?.name || item.product_name_snapshot || "Produit agricole"}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {item.product?.category || "Culture"} • Offre :{" "}
-                        {order.campaign?.title || order.campaign_title_snapshot || "Offre commerciale"}
+                        {item.product?.category || "Produit"} • Campagne :{" "}
+                        {order.campaign?.title || order.campaign_title_snapshot || "Campagne"}
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between sm:justify-end gap-6 text-xs sm:text-right">
                     <div>
-                      <span className="text-gray-400 block text-[11px]">Prix Unitaire</span>
+                      <span className="text-gray-500 block text-xs">Prix Unitaire</span>
                       <span className="font-semibold text-gray-800">
-                        {item.unit_price.toLocaleString("fr-FR")} {order.currency}/{item.unit}
+                        {formatMoney(item.unit_price, order.currency)}/{item.unit}
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-gray-400 block text-[11px]">Volume</span>
+                      <span className="text-gray-500 block text-xs">Volume</span>
                       <span className="font-bold text-gray-950">
-                        {item.quantity.toLocaleString("fr-FR")} {item.unit}
+                        {formatQuantityWithUnit(item.quantity, item.unit)}
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-gray-400 block text-[11px]">Total Ligne</span>
-                      <span className="font-black text-forest-900 font-mono">
-                        {item.subtotal.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}{" "}
+                      <span className="text-gray-500 block text-xs">Total Ligne</span>
+                      <span className="font-black text-forest-900 font-mono whitespace-nowrap">
+                        {formatAmount(item.subtotal)}{" "}
                         {order.currency}
                       </span>
                     </div>
@@ -528,17 +517,17 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
             </div>
 
             {/* Total général */}
-            <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between bg-forest-900/5 p-4 rounded-2xl">
+            <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between bg-forest-900/5 p-4 rounded-2xl">
               <div>
                 <span className="text-xs font-bold text-forest-950 block">
                   Montant Total de la Commande
                 </span>
-                <span className="text-[11px] text-forest-700">
+                <span className="text-xs text-forest-700">
                   Engagement commercial ferme enregistré
                 </span>
               </div>
-              <span className="text-xl font-black text-forest-950 font-mono">
-                {order.total_amount.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}{" "}
+              <span className="text-xl font-black text-forest-950 font-mono whitespace-nowrap">
+                {formatAmount(order.total_amount)}{" "}
                 {order.currency}
               </span>
             </div>
@@ -550,12 +539,12 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
               <ShieldCheck className="w-5 h-5 text-blue-700 shrink-0 mt-0.5" />
               <div className="space-y-1.5 flex-1">
                 <span className="font-bold text-blue-950 block">
-                  Stock Réservé et Garanti
+                  Stock réservé
                 </span>
                 <p className="text-blue-900 text-xs leading-relaxed">
-                  Cette commande a réservé {itemQuantity} {itemUnit} sur l&apos;offre commerciale{" "}
-                  <strong>{order.campaign?.title || order.campaign_title_snapshot || "Offre"}</strong>.
-                  Ce volume est déduit du stock disponible à la vente pour garantir votre commande exclusive.
+                  Cette commande a réservé {itemQuantity} {itemUnit} sur la campagne{" "}
+                  <strong>{order.campaign?.title || order.campaign_title_snapshot || "Campagne"}</strong>.
+                  Ce volume est déduit du stock disponible à la vente et réservé pour cette commande.
                 </p>
                 <div className="pt-1.5 flex items-center gap-4 text-xs font-semibold text-blue-800">
                   <span>
@@ -582,19 +571,19 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
           <Card padding="md">
             <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-3 flex items-center gap-1.5">
               <Store className="w-3.5 h-3.5 text-forest-700" />
-              Acheteur / Revendeur
+              Revendeur
             </h3>
 
             <div className="space-y-2.5 text-xs">
               <div>
-                <span className="text-gray-400 text-[11px] block">Raison Sociale :</span>
+                <span className="text-gray-500 text-xs block">Raison Sociale :</span>
                 <span className="font-bold text-gray-950 text-sm block">
                   {order.reseller.business_name}
                 </span>
               </div>
 
               <div>
-                <span className="text-gray-400 text-[11px] block">Territoire d&apos;activité :</span>
+                <span className="text-gray-500 text-xs block">Territoire d&apos;activité :</span>
                 <span className="text-gray-800 font-medium">
                   {order.reseller.city ? `${order.reseller.city}, ` : ""}
                   {order.reseller.provinces?.name || "RDC"}
@@ -603,7 +592,7 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
 
               {order.reseller.delivery_address && (
                 <div>
-                  <span className="text-gray-400 text-[11px] block">Adresse de contact :</span>
+                  <span className="text-gray-500 text-xs block">Adresse de contact :</span>
                   <span className="text-gray-700">{order.reseller.delivery_address}</span>
                 </div>
               )}
@@ -623,7 +612,7 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
 
               <div className="space-y-2.5 text-xs text-gray-800">
                 <div>
-                  <span className="text-gray-400 text-[11px] block">Ville d&apos;arrivée prévue :</span>
+                  <span className="text-gray-500 text-xs block">Ville d&apos;arrivée prévue :</span>
                   <span className="font-bold text-gray-950 text-sm">
                     {order.destination_city_snapshot ||
                       order.destination?.city_name ||
@@ -633,7 +622,7 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
 
                 {formattedArrivalDate && (
                   <div>
-                    <span className="text-gray-400 text-[11px] block">Date prévue d&apos;arrivée :</span>
+                    <span className="text-gray-500 text-xs block">Date prévue d&apos;arrivée :</span>
                     <span className="font-bold text-forest-800 flex items-center gap-1 mt-0.5">
                       <Calendar className="w-3.5 h-3.5 text-forest-600" />
                       {formattedArrivalDate}
@@ -643,12 +632,12 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
 
                 {(order.depot_name_snapshot || order.depot) && (
                   <div className="pt-2 border-t border-forest-100">
-                    <span className="text-gray-400 text-[11px] block">Point de dépôt / retrait :</span>
+                    <span className="text-gray-500 text-xs block">Point de dépôt / retrait :</span>
                     <span className="font-semibold text-gray-950 block">
                       {order.depot?.name || order.depot_name_snapshot}
                     </span>
                     {order.depot && (
-                      <p className="text-[11px] text-gray-600 mt-0.5">
+                      <p className="text-xs text-gray-600 mt-0.5">
                         Commune {order.depot.commune}
                         {order.depot.quartier && `, Quartier ${order.depot.quartier}`}
                         <br />
@@ -671,21 +660,21 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
 
             <div className="space-y-2 text-xs text-gray-700">
               <div>
-                <span className="text-gray-400 text-[11px] block">Province :</span>
+                <span className="text-gray-500 text-xs block">Province :</span>
                 <span className="font-semibold text-gray-900">
                   {order.delivery_province?.name || "Non spécifié"}
                 </span>
               </div>
 
               <div>
-                <span className="text-gray-400 text-[11px] block">Ville :</span>
+                <span className="text-gray-500 text-xs block">Ville :</span>
                 <span className="font-semibold text-gray-900">
                   {order.delivery_city || "Non spécifié"}
                 </span>
               </div>
 
               <div>
-                <span className="text-gray-400 text-[11px] block">Adresse détaillée :</span>
+                <span className="text-gray-500 text-xs block">Adresse détaillée :</span>
                 <span className="text-gray-800">
                   {order.delivery_address || "Adresse principale du revendeur"}
                 </span>
@@ -698,7 +687,7 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
             <Card padding="md">
               <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-forest-700" />
-                Instructions de l&apos;acheteur
+                Instructions du revendeur
               </h3>
               <p className="text-xs text-gray-700 italic leading-relaxed">
                 &ldquo;{order.notes}&rdquo;
@@ -709,74 +698,60 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
       </div>
 
       {/* Modal d'actualisation de statut */}
-      {showStatusModal && statusOptions.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div
-            ref={statusDialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={statusDialogTitleId}
-            className="relative w-full max-w-md bg-white rounded-3xl shadow-xl border border-gray-100 p-5 space-y-4"
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <h3 id={statusDialogTitleId} className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                <Settings className="w-4 h-4 text-forest-700" />
-                Actualiser l&apos;état logistique
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowStatusModal(false)}
-                disabled={updating}
-                aria-label="Fermer"
-                className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 disabled:opacity-50"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      <Dialog
+        isOpen={showStatusModal && statusOptions.length > 0}
+        onClose={() => setShowStatusModal(false)}
+        size="md"
+        isDismissable={!updating}
+        showCloseButton={!updating}
+        icon={<Settings className="w-5 h-5" />}
+        title={"Actualiser l'état logistique"}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowStatusModal(false)}
+              disabled={updating}
+            >
+              Fermer
+            </Button>
 
-            <p className="text-xs text-gray-600">
-              Commande <strong>{order.order_number}</strong>
-            </p>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleUpdateStatus}
+              isLoading={updating}
+            >
+              Enregistrer
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-gray-600">
+            Commande <strong>{order.order_number}</strong>
+          </p>
 
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-700">
-                Nouveau statut :
-              </label>
-              <Select
-                value={newStatus}
-                onChange={(e) => setNewStatus(e.target.value as OrderStatus)}
-                options={statusOptions}
-                selectSize="sm"
-              />
-            </div>
-
-            <p className="text-[11px] text-gray-500 leading-relaxed">
-              Le statut ne peut qu&apos;avancer. La livraison se confirme via le QR code ou le
-              numéro de commande ; l&apos;annulation via le bouton « Annuler ».
-            </p>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowStatusModal(false)}
-                disabled={updating}
-              >
-                Fermer
-              </Button>
-
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleUpdateStatus}
-                isLoading={updating}
-              >
-                Enregistrer
-              </Button>
-            </div>
+          <div className="space-y-1.5">
+            <label htmlFor="company-order-detail-status-select" className="block text-xs font-bold text-gray-700">
+              Nouveau statut :
+            </label>
+            <Select
+              id="company-order-detail-status-select"
+              value={newStatus}
+              onChange={(e) => setNewStatus(e.target.value as OrderStatus)}
+              options={statusOptions}
+              selectSize="sm"
+            />
           </div>
+
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Le statut ne peut qu&apos;avancer. La livraison se confirme via le QR code ou le
+            numéro de commande ; l&apos;annulation via le bouton « Annuler ».
+          </p>
         </div>
-      )}
+      </Dialog>
 
       {/* Modal Confirmation Livraison */}
       {showDeliveryModal && (
@@ -825,7 +800,7 @@ function OrderDetailContent({ order: initialOrder }: CompanyOrderDetailViewProps
           onClose={() => setShowCancelModal(false)}
           onConfirm={handleConfirmCancel}
           title="Annuler cette commande ?"
-          description={`Êtes-vous certain de vouloir annuler la commande ${order.order_number} (${order.reseller.business_name}) ? Cette action libérera immédiatement les ${itemQuantity} ${itemUnit} réservés pour les remettre en stock disponible sur votre offre commerciale.`}
+          description={`Êtes-vous certain de vouloir annuler la commande ${order.order_number} (${order.reseller.business_name}) ? Cette action libérera immédiatement les ${itemQuantity} ${itemUnit} réservés pour les remettre en stock disponible sur votre campagne.`}
           confirmText="Confirmer l'annulation"
           cancelText="Conserver la commande"
           variant="destructive"

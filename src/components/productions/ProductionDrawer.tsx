@@ -4,6 +4,7 @@ import React, { useState, useRef, useTransition, useEffect, useMemo } from "reac
 import { ProductionItem, ProductionStatus } from "@/lib/queries/productions";
 import { CompanyProductItem } from "@/lib/queries/products";
 import { createProductionAction, updateProductionAction } from "@/lib/actions/productions";
+import type { ActionResponse as ProductionActionResponse } from "@/lib/actions/productions";
 import { MONTHS_FR, formatSeasonalPeriod } from "@/lib/utils/seasonalMonths";
 import { Drawer } from "@/components/ui/Drawer";
 import FormField from "@/components/ui/FormField";
@@ -255,12 +256,20 @@ export default function ProductionDrawer({
     if (preparedPhoto) formData.set("image", preparedPhoto, preparedPhoto.name);
 
     startTransition(async () => {
-      let res;
-      if (isEditing && editingProduction) {
-        formData.set("productionId", editingProduction.id);
-        res = await updateProductionAction(null, formData);
-      } else {
-        res = await createProductionAction(null, formData);
+      let res: ProductionActionResponse;
+      try {
+        if (isEditing && editingProduction) {
+          formData.set("productionId", editingProduction.id);
+          res = await updateProductionAction(null, formData);
+        } else {
+          res = await createProductionAction(null, formData);
+        }
+      } catch (err) {
+        // Une action rejetée affiche un message au lieu de faire tomber la page.
+        console.error("Erreur enregistrement production :", err);
+        res = {
+          error: "L'enregistrement de la production a échoué. Vérifiez votre connexion puis réessayez.",
+        };
       }
 
       if (res.error) {
@@ -346,12 +355,12 @@ export default function ProductionDrawer({
         <div className="space-y-1">
           {activeCompanyProducts.length === 0 ? (
             <Alert variant="warning" title="Aucun produit configuré">
-              Votre exploitation ne dispose d&apos;aucun produit actif dans son catalogue. Veuillez d&apos;abord ajouter
-              vos cultures depuis l&apos;onglet Catalogue Produits.
+              Votre société ne dispose d&apos;aucun produit actif dans son catalogue. Veuillez d&apos;abord ajouter
+              vos produits depuis la rubrique Catalogue produits.
             </Alert>
           ) : (
             <FormField
-              label="Culture / Produit d'exploitation"
+              label="Produit cultivé"
               required
               description={
                 isEditing ? (
@@ -360,7 +369,7 @@ export default function ProductionDrawer({
                     {isEngaged ? ` ${PRODUCTION_LOCK_MESSAGES.product}` : ""}
                   </span>
                 ) : (
-                  "Sélectionnez la denrée cultivée enregistrée dans votre catalogue société."
+                  "Sélectionnez le produit cultivé enregistré dans le catalogue de votre société."
                 )
               }
             >
@@ -470,12 +479,12 @@ export default function ProductionDrawer({
             <h4 className="text-xs font-bold text-forest-950 uppercase tracking-wide">
               Calendrier saisonnier récurrent
             </h4>
-            <span className="text-[11px] text-forest-700/80 italic">(sans année calendaire)</span>
+            <span className="text-xs text-forest-700/80 italic">(sans année calendaire)</span>
           </div>
 
-          <p className="text-[11px] text-forest-900/80 leading-relaxed">
+          <p className="text-xs text-forest-900/80 leading-relaxed">
             Spécifiez les mois indicatifs de semis et de récolte. Ces repères saisonniers se répètent cycliquement chaque année
-            et orientent les acheteurs sans contrainte d&apos;année calendaire.
+            et orientent les revendeurs sans contrainte d&apos;année calendaire.
           </p>
 
           {/* Plantation / Semis */}
@@ -487,7 +496,7 @@ export default function ProductionDrawer({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="block text-[11px] text-gray-600 font-medium">Mois de début</label>
+                <label className="block text-xs text-gray-600 font-medium">Mois de début</label>
                 <Select
                   name="plantingStartMonth"
                   value={plantingStartMonth}
@@ -499,7 +508,7 @@ export default function ProductionDrawer({
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[11px] text-gray-600 font-medium">Mois de fin</label>
+                <label className="block text-xs text-gray-600 font-medium">Mois de fin</label>
                 <Select
                   name="plantingEndMonth"
                   value={plantingEndMonth}
@@ -528,7 +537,7 @@ export default function ProductionDrawer({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="block text-[11px] text-gray-600 font-medium">Mois de début</label>
+                <label className="block text-xs text-gray-600 font-medium">Mois de début</label>
                 <Select
                   name="harvestStartMonth"
                   value={harvestStartMonth}
@@ -540,7 +549,7 @@ export default function ProductionDrawer({
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[11px] text-gray-600 font-medium">Mois de fin</label>
+                <label className="block text-xs text-gray-600 font-medium">Mois de fin</label>
                 <Select
                   name="harvestEndMonth"
                   value={harvestEndMonth}
@@ -560,7 +569,7 @@ export default function ProductionDrawer({
             )}
           </div>
 
-          <p className="text-[10px] text-forest-800/80 italic">
+          <p className="text-xs text-forest-800/80 italic">
             💡 Astuce : Les saisons agricoles qui chevauchent l&apos;année (ex. Octobre à Février) sont parfaitement prises en compte.
           </p>
         </div>
@@ -596,7 +605,7 @@ export default function ProductionDrawer({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <span className="text-xs font-semibold text-gray-900 block">Visibilité publique</span>
-                <span className="text-[11px] text-gray-500 block">Visible sur le flux revendeur (si actif)</span>
+                <span className="text-xs text-gray-500 block">Visible sur le tableau de bord revendeur (si actif)</span>
               </div>
               <Switch
                 name={isVisibilityLocked ? undefined : "isPublic"}
@@ -610,7 +619,7 @@ export default function ProductionDrawer({
               {isVisibilityLocked && <input type="hidden" name="isPublic" value="true" />}
             </div>
             {isVisibilityLocked && (
-              <p id={visibilityLockId} className="text-[11px] text-amber-800 font-medium leading-relaxed">
+              <p id={visibilityLockId} className="text-xs text-amber-800 font-medium leading-relaxed">
                 {PRODUCTION_LOCK_MESSAGES.visibility}
               </p>
             )}
@@ -634,7 +643,7 @@ export default function ProductionDrawer({
         {/* Photographie de production (Supabase Storage public-assets/productions) */}
         <div className="space-y-2">
           <label className="block text-xs font-semibold text-gray-800">
-            Photographie du champ / de la culture <span className="text-rose-500">*</span>
+            Photographie du champ / de la culture <span className="text-rose-600">*</span>
           </label>
 
           <div className="flex items-center gap-4">
@@ -676,11 +685,11 @@ export default function ProductionDrawer({
                   {photoError}
                 </p>
               ) : photoStatus ? (
-                <p role="status" className="text-[11px] font-semibold text-forest-800">
+                <p role="status" className="text-xs font-semibold text-forest-800">
                   {photoStatus}
                 </p>
               ) : (
-                <p className="text-[11px] text-gray-500">
+                <p className="text-xs text-gray-500">
                   Format JPG, PNG ou WebP. Max 5 Mo.
                 </p>
               )}

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useTransition, useMemo } from "react";
-import Link from "next/link";
 import { CompanyProductItem, CatalogProduct } from "@/lib/queries/products";
 import {
   toggleCompanyProductStatusAction,
@@ -15,14 +14,15 @@ import { useToast } from "@/components/ui/Toast";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import Badge from "@/components/ui/Badge";
+import PageHeader from "@/components/ui/PageHeader";
 import Select from "@/components/ui/Select";
+import FiltresActifs from "@/components/ui/FiltresActifs";
 import { formatQuantity, groupQuantitiesByUnit } from "@/lib/utils/unitSeries";
 import {
   Package,
   Plus,
   Search,
   Filter,
-  ArrowLeft,
   Scale,
   Layers,
   Calendar,
@@ -31,6 +31,7 @@ import {
   AlertCircle,
   X,
   RefreshCw,
+  ChevronDown,
 } from "lucide-react";
 
 interface CompanyProductsViewProps {
@@ -50,6 +51,8 @@ export default function CompanyProductsView({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  // NAV-06 (arbitrage C) : filtre de catégorie replié sous 640 px, critère actif toujours rappelé
+  const [categorieOuverte, setCategorieOuverte] = useState(false);
 
   // Tiroirs / Modales
   const [isAddDrawerOpen, setIsAddDrawerOpen] = useState(false);
@@ -141,7 +144,7 @@ export default function CompanyProductsView({
           );
           toast.success(
             targetStatus
-              ? `« ${item.custom_name || item.product.name} » a été réactivé dans votre exploitation.`
+              ? `« ${item.custom_name || item.product.name} » a été réactivé dans votre société.`
               : `« ${item.custom_name || item.product.name} » a été archivé.`
           );
         } else {
@@ -172,7 +175,7 @@ export default function CompanyProductsView({
         setItems((prev) => prev.filter((p) => p.id !== deletingProduct.id));
         toast.success(
           res.message ||
-            `« ${deletingProduct.custom_name || deletingProduct.product.name} » a été retiré de votre exploitation.`
+            `« ${deletingProduct.custom_name || deletingProduct.product.name} » a été retiré de votre société.`
         );
         setDeletingProduct(null);
       } else {
@@ -195,35 +198,22 @@ export default function CompanyProductsView({
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      {/* Fil d'Ariane de navigation */}
-      <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
-        <Link
-          href="/dashboard/company"
-          className="hover:text-forest-800 flex items-center gap-1.5 transition-colors font-medium"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-forest-700" />
-          <span>Retour au tableau de bord</span>
-        </Link>
-      </div>
-
-      {/* En-tête principal moderne */}
-      <div className="bg-white rounded-3xl border border-gray-200/90 p-5 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-              Catalogue Produits
-            </h1>
-            <Badge variant="forest" size="md">
-              {activeCount} active{activeCount > 1 ? "s" : ""}
-            </Badge>
-          </div>
-          <p className="text-xs sm:text-sm text-gray-500 max-w-2xl leading-relaxed">
-            Configurez les denrées et variétés cultivées par{" "}
-            <strong className="text-gray-900 font-semibold">{companyName}</strong>. Ce catalogue sert de base obligatoire pour déclarer vos parcelles et publier vos campagnes de vente.
-          </p>
-        </div>
-
-        <div className="shrink-0 flex items-center gap-2">
+      {/* En-tête commun (Lot 6B, NAV-02) */}
+      <PageHeader
+        breadcrumb={[{ href: "/dashboard/company", label: "Tableau de bord" }]}
+        title="Catalogue produits"
+        badge={
+          <Badge variant="forest" size="md">
+            {activeCount} active{activeCount > 1 ? "s" : ""}
+          </Badge>
+        }
+        description={
+          <>
+            Configurez les produits et variétés cultivés par{" "}
+            <strong className="text-gray-900 font-semibold">{companyName}</strong>. Ce catalogue sert de base obligatoire pour déclarer vos parcelles et publier vos campagnes.
+          </>
+        }
+        action={
           <Button
             type="button"
             variant="primary"
@@ -233,61 +223,38 @@ export default function CompanyProductsView({
             <Plus className="w-4 h-4" />
             <span>Associer un produit</span>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Bandeau de statistiques réelles (0 mock data) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white rounded-2xl border border-gray-200/80 p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-gray-500 mb-1.5">
-            <span className="text-xs font-semibold text-gray-600">Total Références</span>
-            <Package className="w-4 h-4 text-forest-700" />
-          </div>
-          <div className="text-xl sm:text-2xl font-bold text-gray-900">
-            {totalCount}
-          </div>
-          <div className="text-[11px] text-gray-400 mt-0.5">
-            Denrées configurées dans l'exploitation
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-emerald-100 bg-linear-to-br from-white to-emerald-50/20 p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-emerald-800 mb-1.5">
-            <span className="text-xs font-semibold text-emerald-900">Denrées Actives</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          </div>
-          <div className="text-xl sm:text-2xl font-bold text-emerald-950">
-            {activeCount}
-          </div>
-          <div className="text-[11px] text-emerald-700/80 mt-0.5">
-            Prêtes pour déclaration de récoltes
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-200/80 p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-gray-500 mb-1.5">
+      {/* Bandeau de statistiques réelles (0 mock data).
+          Correctif NAV-06 (Lot 6B) : « Total Références » et « Produits actifs » répétaient exactement les
+          puces « Tous (n) » et « Actifs (n) » des filtres, toujours visibles (arbitrage A) : retirés.
+          Les deux indicateurs propres à cette page restent, en cartes plus basses sous 640 px (arbitrage B). */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <div className="bg-white rounded-2xl border border-gray-200/80 p-3 sm:p-4 shadow-2xs">
+          <div className="flex items-center justify-between text-gray-500 mb-0.5 sm:mb-1.5">
             <span className="text-xs font-semibold text-gray-600">Productions Liées</span>
-            <Layers className="w-4 h-4 text-forest-700" />
+            <Layers className="hidden sm:block w-4 h-4 text-forest-700" />
           </div>
-          <div className="text-xl sm:text-2xl font-bold text-gray-900">
+          <div className="text-lg sm:text-2xl font-bold text-gray-900">
             {totalProductionsCount}
           </div>
-          <div className="text-[11px] text-gray-400 mt-0.5">
+          <div className="text-xs text-gray-500 sm:mt-0.5">
             Cycle(s) cultural(aux) rattaché(s)
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-forest-100 bg-linear-to-br from-white to-forest-50/20 p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-forest-800 mb-1.5">
+        <div className="bg-white rounded-2xl border border-forest-100 bg-gradient-to-br from-white to-forest-50/20 p-3 sm:p-4 shadow-2xs">
+          <div className="flex items-center justify-between text-forest-800 mb-0.5 sm:mb-1.5">
             <span className="text-xs font-semibold text-forest-900">Volume Total Déclaré</span>
-            <Scale className="w-4 h-4 text-forest-700" />
+            <Scale className="hidden sm:block w-4 h-4 text-forest-700" />
           </div>
           {declaredVolumeByUnit.length === 0 ? (
-            <div className="text-xl sm:text-2xl font-bold text-forest-950">0</div>
+            <div className="text-lg sm:text-2xl font-bold text-forest-950">0</div>
           ) : (
             <ul
               className={`flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 font-bold text-forest-950 ${
-                declaredVolumeByUnit.length > 1 ? "text-base sm:text-lg" : "text-xl sm:text-2xl"
+                declaredVolumeByUnit.length > 1 ? "text-base sm:text-lg" : "text-lg sm:text-2xl"
               }`}
               aria-label="Volume total déclaré par unité"
             >
@@ -304,7 +271,7 @@ export default function CompanyProductsView({
               ))}
             </ul>
           )}
-          <div className="text-[11px] text-forest-700/80 mt-0.5">
+          <div className="text-xs text-forest-700/80 sm:mt-0.5">
             {declaredVolumeByUnit.length > 1
               ? "Quantités cumulées par unité, sans conversion"
               : "Quantités cumulées des productions"}
@@ -316,8 +283,8 @@ export default function CompanyProductsView({
       {items.length === 0 ? (
         <div className="bg-white rounded-3xl border border-gray-200/90 p-6 sm:p-10 shadow-xs">
           <EmptyState
-            title="Votre exploitation n'a configuré aucun produit"
-            description="Associez vos premières denrées depuis le référentiel national commun ou créez une référence personnalisée. Vos produits configurés serviront de point de départ obligatoire pour déclarer vos récoltes (Phase S4) et publier vos campagnes de vente."
+            title="Votre société n'a configuré aucun produit"
+            description="Associez vos premiers produits depuis le référentiel national commun ou créez une référence personnalisée. Vos produits configurés serviront de point de départ obligatoire pour déclarer vos récoltes (Phase S4) et publier vos campagnes."
             icon={<Package className="w-12 h-12 text-forest-700" />}
             action={
               <Button
@@ -335,32 +302,70 @@ export default function CompanyProductsView({
       ) : (
         <div className="space-y-4 sm:space-y-5">
           {/* Barre de recherche et filtres responsive */}
-          <div className="bg-white rounded-2xl border border-gray-200/90 p-3.5 sm:p-4 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-            {/* Recherche textuelle multi-champs */}
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Rechercher par culture, variété, catégorie, unité ou notes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-forest-600/30 transition-all placeholder:text-gray-400"
-              />
-              {searchQuery && (
+          <div className="bg-white rounded-2xl border border-gray-200/90 p-3 sm:p-4 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            {/* Recherche textuelle multi-champs + accès au filtre de catégorie sur une ligne sous 640 px
+                (correctif NAV-06, arbitrage C ; au-delà, le filtre reste affiché comme avant) */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <input
+                  aria-label="Rechercher par produit, variété, catégorie, unité ou notes"
+                  type="text"
+                  placeholder="Rechercher par produit, variété, catégorie, unité ou notes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-forest-600/30 transition-all placeholder:text-gray-500"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="p-1 text-gray-400 hover:text-gray-600 absolute right-3 top-1/2 -translate-y-1/2"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {availableCategories.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="p-1 text-gray-400 hover:text-gray-600 absolute right-3 top-1/2 -translate-y-1/2"
+                  onClick={() => setCategorieOuverte((v) => !v)}
+                  aria-expanded={categorieOuverte}
+                  aria-controls="produits-filtre-categorie"
+                  className={`sm:hidden inline-flex items-center gap-1.5 min-h-11 px-3 rounded-xl border text-xs font-bold shrink-0 transition-colors ${
+                    selectedCategory !== "all"
+                      ? "border-forest-300 bg-forest-50 text-forest-900"
+                      : "border-gray-200 bg-gray-50 text-gray-700"
+                  }`}
                 >
-                  <X className="w-4 h-4" />
+                  <Filter className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Catégorie</span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 motion-safe:transition-transform ${categorieOuverte ? "rotate-180" : ""}`}
+                    aria-hidden="true"
+                  />
                 </button>
               )}
             </div>
 
-            {/* Filtre par catégorie agronomique */}
+            {/* Filtre par catégorie agronomique (replié sous 640 px) */}
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              {!categorieOuverte && selectedCategory !== "all" && (
+                <FiltresActifs
+                  className="sm:hidden w-full"
+                  criteres={[{
+                    cle: "categorie",
+                    libelle: "Catégorie",
+                    valeur: selectedCategory,
+                    retirer: () => setSelectedCategory("all"),
+                  }]}
+                />
+              )}
               {availableCategories.length > 0 && (
-                <div className="w-full sm:w-56 shrink-0">
+                <div
+                  id="produits-filtre-categorie"
+                  className={`${categorieOuverte ? "block" : "hidden"} sm:block w-full sm:w-56 shrink-0`}
+                >
                   <Select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
@@ -371,8 +376,11 @@ export default function CompanyProductsView({
                 </div>
               )}
 
-              {/* Segmented Control pour le statut */}
-              <div className="flex items-center rounded-xl bg-gray-100 p-1 text-xs font-medium w-full sm:w-auto justify-between sm:justify-start shrink-0">
+              {/* Segmented Control pour le statut. NAV-06 : la légende de l'ancienne carte « Produits actifs »
+                  (« Prêtes pour déclaration de récoltes ») est reprise sous le contrôle, en forme compacte ;
+                  seul un produit actif peut servir à déclarer une production (createProductionAction). */}
+              <div className="flex flex-col gap-1 w-full sm:w-auto shrink-0">
+              <div className="flex items-center rounded-xl bg-gray-100 p-1 text-xs font-medium w-full sm:w-auto justify-between sm:justify-start">
                 <button
                   type="button"
                   onClick={() => setStatusFilter("all")}
@@ -387,10 +395,11 @@ export default function CompanyProductsView({
                 <button
                   type="button"
                   onClick={() => setStatusFilter("active")}
+                  aria-describedby="produits-actifs-aide"
                   className={`flex-1 sm:flex-initial text-center px-3 py-1.5 rounded-lg transition-all ${
                     statusFilter === "active"
                       ? "bg-white text-forest-800 shadow-2xs font-semibold"
-                      : "text-gray-500 hover:text-gray-900"
+                      : "text-gray-600 hover:text-gray-900"
                   }`}
                 >
                   Actifs ({activeCount})
@@ -402,12 +411,16 @@ export default function CompanyProductsView({
                     className={`flex-1 sm:flex-initial text-center px-3 py-1.5 rounded-lg transition-all ${
                       statusFilter === "inactive"
                         ? "bg-white text-gray-900 shadow-2xs font-semibold"
-                        : "text-gray-500 hover:text-gray-900"
+                        : "text-gray-600 hover:text-gray-900"
                     }`}
                   >
                     Archivés ({inactiveCount})
                   </button>
                 )}
+              </div>
+              <p id="produits-actifs-aide" className="text-xs text-gray-500 px-1">
+                Actifs : utilisables pour déclarer une production
+              </p>
               </div>
             </div>
           </div>
@@ -480,11 +493,11 @@ export default function CompanyProductsView({
         isOpen={Boolean(deletingProduct)}
         onClose={() => setDeletingProduct(null)}
         onConfirm={handleConfirmDelete}
-        title="Retirer ce produit de votre exploitation ?"
+        title="Retirer ce produit de votre société ?"
         description={
           deletingProduct?.productions_count && deletingProduct.productions_count > 0
             ? `Attention : « ${deletingProduct?.custom_name || deletingProduct?.product.name} » est rattaché à ${deletingProduct.productions_count} cycle(s) cultural(aux). Sa suppression physique sera bloquée par le système pour protéger votre historique agronomique. Nous vous recommandons de l'archiver.`
-            : `Êtes-vous certain de vouloir supprimer « ${deletingProduct?.custom_name || deletingProduct?.product.name} » de votre catalogue d'exploitation ? Cette action ne supprime jamais le produit officiel du catalogue commun.`
+            : `Êtes-vous certain de vouloir supprimer « ${deletingProduct?.custom_name || deletingProduct?.product.name} » du catalogue de votre société ? Cette action ne supprime jamais le produit officiel du catalogue commun.`
         }
         confirmText="Supprimer"
         cancelText="Annuler"

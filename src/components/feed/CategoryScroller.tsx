@@ -59,7 +59,7 @@ export default function CategoryScroller({
         <button
           type="button"
           onClick={() => onSelectCategory("all")}
-          className={`flex flex-col items-center gap-1.5 flex-shrink-0 group cursor-pointer transition-transform duration-180 active:scale-95 select-none p-1 ${
+          className={`flex flex-col items-center gap-1.5 flex-shrink-0 group cursor-pointer transition-transform duration-[180ms] active:scale-95 select-none p-1 ${
             selectedCategory === "all" ? "scale-102" : "opacity-85 hover:opacity-100"
           }`}
           aria-pressed={selectedCategory === "all"}
@@ -108,7 +108,7 @@ export default function CategoryScroller({
               key={name}
               type="button"
               onClick={() => onSelectCategory(name)}
-              className={`flex flex-col items-center gap-1.5 flex-shrink-0 group cursor-pointer transition-transform duration-180 active:scale-95 select-none p-1 ${
+              className={`flex flex-col items-center gap-1.5 flex-shrink-0 group cursor-pointer transition-transform duration-[180ms] active:scale-95 select-none p-1 ${
                 isSelected ? "scale-102" : "opacity-85 hover:opacity-100"
               }`}
               aria-pressed={isSelected}
@@ -124,7 +124,7 @@ export default function CategoryScroller({
                   <img
                     src={optimizedImage}
                     alt={name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-250"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[250ms]"
                     loading="lazy"
                   />
                 ) : (

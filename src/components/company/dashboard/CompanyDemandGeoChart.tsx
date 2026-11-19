@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import Drawer from "@/components/ui/Drawer";
 import Badge from "@/components/ui/Badge";
-import Button from "@/components/ui/Button";
+import Button, { buttonClassName } from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import DashboardChartCard, { ChartUnitSelect } from "./DashboardChartCard";
@@ -124,7 +124,7 @@ export default function CompanyDemandGeoChart({
         {!hasData || !selectedUnit ? (
           <EmptyState
             title="Aucune demande localisée"
-            description="Les besoins déclarés par les acheteurs apparaîtront ici ventilés par région."
+            description="Les demandes déclarées par les revendeurs apparaîtront ici ventilées par région."
             icon={<MapPin className="w-6 h-6 text-forest-600" />}
             className="py-10"
           />
@@ -160,7 +160,7 @@ export default function CompanyDemandGeoChart({
                         <span className="text-sm font-extrabold text-gray-950">
                           {share.demandsCount}
                         </span>
-                        <span className="text-xs text-gray-400 ml-1">
+                        <span className="text-xs text-gray-500 ml-1">
                           demande{share.demandsCount > 1 ? "s" : ""}
                         </span>
                       </div>
@@ -184,7 +184,7 @@ export default function CompanyDemandGeoChart({
                     </div>
 
                     {/* Volume et % (dans l'unité) */}
-                    <div className="flex items-center justify-between gap-3 mt-1.5 text-[11px] text-gray-400">
+                    <div className="flex items-center justify-between gap-3 mt-1.5 text-xs text-gray-500">
                       <span className="min-w-0 break-words">
                         {formatQuantity(share.quantity)} {share.unitLabel}
                       </span>
@@ -249,7 +249,7 @@ export default function CompanyDemandGeoChart({
                       <h4 className="text-sm font-bold text-gray-950">
                         {demand.product?.name || "Produit"}
                       </h4>
-                      <span className="text-[11px] text-gray-500">
+                      <span className="text-xs text-gray-500">
                         {demand.product?.category || ""}
                       </span>
                     </div>
@@ -264,13 +264,13 @@ export default function CompanyDemandGeoChart({
 
                 <div className="grid grid-cols-2 gap-2 text-xs bg-gray-50 p-2.5 rounded-lg">
                   <div>
-                    <span className="text-gray-400 block text-[10px] uppercase tracking-wider mb-0.5">Volume</span>
+                    <span className="text-gray-400 block text-[11px] uppercase tracking-wider mb-0.5">Volume</span>
                     <span className="font-extrabold text-gray-900">
                       {demand.quantity} {demand.unit}
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-400 block text-[10px] uppercase tracking-wider mb-0.5">Date</span>
+                    <span className="text-gray-400 block text-[11px] uppercase tracking-wider mb-0.5">Date</span>
                     <span className="font-semibold text-gray-700">
                       {new Intl.DateTimeFormat("fr-FR", {
                         day: "numeric",
@@ -291,11 +291,10 @@ export default function CompanyDemandGeoChart({
                   <Link
                     href={`/dashboard/company/demands/${demand.id}`}
                     onClick={() => setSelectedProvince(null)}
+                    className={buttonClassName({ variant: "outline", size: "sm", className: "text-xs" })}
                   >
-                    <Button variant="outline" size="sm" className="text-xs">
-                      Répondre
-                      <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-                    </Button>
+                    Répondre
+                    <ArrowRight className="w-3.5 h-3.5 ml-1.5" aria-hidden="true" />
                   </Link>
                 </div>
               </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { ArrowRight, Sparkles, Megaphone, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, Sparkles, Megaphone, ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { FeedBannerItem } from "@/lib/queries/feedBanners";
 import { getOptimizedCloudinaryUrl } from "@/lib/cloudinaryUrl";
 
@@ -11,27 +11,47 @@ interface FeedHighlightBannerProps {
   banners?: FeedBannerItem[];
 }
 
+/** Délai entre deux bannières quand le défilement automatique est actif. */
+const ROTATION_DELAY_MS = 5000;
+
 export default function FeedHighlightBanner({
   campaignsCount = 0,
   banners = [],
 }: FeedHighlightBannerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+  // Lot UX/UI 6B (A11-09) : le défilement s'arrête au survol, au focus clavier, à la demande
+  // (bouton pause) et n'existe pas quand le système demande de réduire les animations.
+  const [isHovered, setIsHovered] = useState(false);
+  const [hasFocusWithin, setHasFocusWithin] = useState(false);
+  const [isUserPaused, setIsUserPaused] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const touchStartXRef = useRef<number | null>(null);
 
   const activeBanners = banners.filter((b) => b.is_active);
   const totalSlides = activeBanners.length;
+  const autoRotate =
+    totalSlides > 1 && !prefersReducedMotion && !isUserPaused && !isHovered && !hasFocusWithin;
 
-  // Défilement automatique toutes les 5 secondes (crossfade fluide)
+  // Réglage système « réduire les animations », suivi s'il change pendant la visite
   useEffect(() => {
-    if (totalSlides <= 1 || isPaused) return;
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setPrefersReducedMotion(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  // Défilement automatique (fondu enchaîné), seulement si rien ne l'interrompt
+  useEffect(() => {
+    if (!autoRotate) return;
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % totalSlides);
-    }, 5000);
+    }, ROTATION_DELAY_MS);
 
     return () => clearInterval(interval);
-  }, [totalSlides, isPaused]);
+  }, [autoRotate, totalSlides]);
 
   const handleNext = () => {
     if (totalSlides > 1) {
@@ -82,25 +102,25 @@ export default function FeedHighlightBanner({
 
             <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
               {campaignsCount > 0
-                ? `${campaignsCount} offre${campaignsCount > 1 ? "s" : ""} commerciale${campaignsCount > 1 ? "s" : ""}`
-                : "Productions & Cultures"}
+                ? `${campaignsCount} campagne${campaignsCount > 1 ? "s" : ""} active${campaignsCount > 1 ? "s" : ""}`
+                : "Productions & récoltes"}
             </h2>
 
             <p className="text-xs sm:text-sm text-forest-100/90 leading-relaxed">
               {campaignsCount > 0
-                ? "Commandez directement auprès des exploitations agricoles partenaires avec réservation immédiate de vos volumes."
-                : "Découvrez les productions en culture et récoltées, et transmettez vos expressions de besoin aux producteurs."}
+                ? "Commandez directement auprès des sociétés partenaires avec réservation immédiate de vos volumes."
+                : "Découvrez les productions en culture et récoltées, et transmettez vos demandes aux sociétés."}
             </p>
           </div>
 
           <div className="flex-shrink-0 pt-1 sm:pt-0">
             <Link
               href="/dashboard/reseller/campaigns"
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-white text-forest-900 font-bold text-xs sm:text-sm hover:bg-forest-50 active:scale-97 transition-all shadow-md group"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 max-sm:min-h-11 rounded-2xl bg-white text-forest-900 font-bold text-xs sm:text-sm hover:bg-forest-50 motion-safe:active:scale-[0.97] transition-all shadow-md group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-forest-800"
             >
               <Megaphone className="w-4 h-4 text-forest-700" />
-              <span>Voir les offres</span>
-              <ArrowRight className="w-4 h-4 text-forest-700 group-hover:translate-x-0.5 transition-transform" />
+              <span>Voir les campagnes</span>
+              <ArrowRight className="w-4 h-4 text-forest-700 motion-safe:group-hover:translate-x-0.5 transition-transform" />
             </Link>
           </div>
         </div>
@@ -109,16 +129,29 @@ export default function FeedHighlightBanner({
   }
 
   // 2. Carrousel dynamique avec les bannières Cloudinary administrées
+  const ctaClass =
+    "inline-flex items-center justify-center gap-2 px-5 py-2.5 max-sm:min-h-11 rounded-2xl bg-white text-forest-900 font-bold text-xs sm:text-sm hover:bg-forest-50 motion-safe:active:scale-[0.97] transition-all shadow-md group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-forest-900";
+  // Flèches : visibles au survol et dès qu'un élément du carrousel a le focus clavier
+  const arrowClass =
+    "absolute top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-xs items-center justify-center transition-all opacity-0 group-hover/carousel:opacity-100 group-focus-within/carousel:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer hidden sm:flex";
+
   return (
-    <div
+    <section
+      aria-roledescription="carrousel"
+      aria-label="Bannières à la une"
       className="relative overflow-hidden rounded-3xl text-white shadow-sm group/carousel select-none"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onFocus={() => setHasFocusWithin(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHasFocusWithin(false);
+      }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Conteneur principal avec hauteur fixe adaptative */}
-      <div className="relative w-full h-[190px] sm:h-[220px]">
+      {/* Conteneur principal avec hauteur fixe adaptative.
+          Annonce la bannière affichée seulement quand le défilement automatique est arrêté. */}
+      <div className="relative w-full h-[190px] sm:h-[220px]" aria-live={autoRotate ? "off" : "polite"}>
         {activeBanners.map((banner, index) => {
           const isActive = index === currentIndex;
           const optimizedBg = getOptimizedCloudinaryUrl(banner.image_url, {
@@ -131,7 +164,13 @@ export default function FeedHighlightBanner({
           return (
             <div
               key={banner.id}
-              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+              role="group"
+              aria-roledescription="bannière"
+              aria-label={`${index + 1} sur ${totalSlides}`}
+              aria-hidden={!isActive}
+              // Une bannière masquée ne doit ni recevoir le focus ni être lue
+              inert={!isActive}
+              className={`absolute inset-0 motion-safe:transition-opacity motion-safe:duration-700 motion-safe:ease-in-out ${
                 isActive ? "opacity-100 z-10 pointer-events-auto" : "opacity-0 z-0 pointer-events-none"
               }`}
             >
@@ -172,20 +211,20 @@ export default function FeedHighlightBanner({
                         href={banner.button_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-white text-forest-900 font-bold text-xs sm:text-sm hover:bg-forest-50 active:scale-97 transition-all shadow-md group"
+                        className={ctaClass}
                       >
                         <Megaphone className="w-4 h-4 text-forest-700" />
                         <span>{banner.button_label}</span>
-                        <ArrowRight className="w-4 h-4 text-forest-700 group-hover:translate-x-0.5 transition-transform" />
+                        <ArrowRight className="w-4 h-4 text-forest-700 motion-safe:group-hover:translate-x-0.5 transition-transform" />
                       </a>
                     ) : (
                       <Link
                         href={banner.button_url || "/dashboard/reseller/campaigns"}
-                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-white text-forest-900 font-bold text-xs sm:text-sm hover:bg-forest-50 active:scale-97 transition-all shadow-md group"
+                        className={ctaClass}
                       >
                         <Megaphone className="w-4 h-4 text-forest-700" />
                         <span>{banner.button_label}</span>
-                        <ArrowRight className="w-4 h-4 text-forest-700 group-hover:translate-x-0.5 transition-transform" />
+                        <ArrowRight className="w-4 h-4 text-forest-700 motion-safe:group-hover:translate-x-0.5 transition-transform" />
                       </Link>
                     )}
                   </div>
@@ -196,48 +235,68 @@ export default function FeedHighlightBanner({
         })}
       </div>
 
+      {/* Pause / reprise du défilement (inutile si le système demande de réduire les animations).
+          Zone tactile de 44 px, pastille visible de 32 px. */}
+      {totalSlides > 1 && !prefersReducedMotion && (
+        <button
+          type="button"
+          onClick={() => setIsUserPaused((v) => !v)}
+          className="absolute top-1 right-1 z-20 w-11 h-11 flex items-center justify-center rounded-full cursor-pointer focus-visible:outline-none group/pause"
+          aria-label={isUserPaused ? "Reprendre le défilement des bannières" : "Mettre en pause le défilement des bannières"}
+        >
+          <span
+            aria-hidden="true"
+            className="w-8 h-8 rounded-full bg-black/30 group-hover/pause:bg-black/50 backdrop-blur-xs flex items-center justify-center group-focus-visible/pause:ring-2 group-focus-visible/pause:ring-white"
+          >
+            {isUserPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+          </span>
+        </button>
+      )}
+
       {/* Flèches de navigation manuelles discrètes */}
       {totalSlides > 1 && (
         <>
           <button
             type="button"
             onClick={handlePrev}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-xs flex items-center justify-center transition-all opacity-0 group-hover/carousel:opacity-100 cursor-pointer hidden sm:flex"
+            className={`${arrowClass} left-2`}
             aria-label="Bannière précédente"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5" aria-hidden="true" />
           </button>
 
           <button
             type="button"
             onClick={handleNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-xs flex items-center justify-center transition-all opacity-0 group-hover/carousel:opacity-100 cursor-pointer hidden sm:flex"
+            className={`${arrowClass} right-2`}
             aria-label="Bannière suivante"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-5 h-5" aria-hidden="true" />
           </button>
         </>
       )}
 
-      {/* Indicateurs de pagination discrets (● ○ ○) */}
+      {/* Indicateurs de pagination discrets (● ○ ○).
+          Sous 640 px, chaque point garde son dessin mais reçoit une zone tactile de 44 px de haut
+          et de 24 px de large (pseudo-élément), sans chevauchement entre points voisins. */}
       {totalSlides > 1 && (
-        <div className="absolute bottom-3 right-4 z-20 flex items-center gap-1.5 bg-black/30 px-2 py-1 rounded-full backdrop-blur-xs">
-          {activeBanners.map((_, i) => (
+        <div className="absolute bottom-3 right-4 z-20 flex items-center gap-1.5 max-sm:gap-[18px] bg-black/30 px-2 max-sm:px-3 py-1 rounded-full backdrop-blur-xs">
+          {activeBanners.map((banner, i) => (
             <button
-              key={i}
+              key={banner.id}
               type="button"
               onClick={() => setCurrentIndex(i)}
-              className={`rounded-full transition-all duration-300 cursor-pointer ${
+              className={`relative rounded-full motion-safe:transition-all motion-safe:duration-300 cursor-pointer before:absolute max-sm:before:-inset-x-[9px] max-sm:before:-inset-y-[19px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 focus-visible:ring-offset-black/40 ${
                 i === currentIndex
                   ? "w-4 h-1.5 bg-white"
                   : "w-1.5 h-1.5 bg-white/50 hover:bg-white/80"
               }`}
-              aria-label={`Aller au slide ${i + 1}`}
+              aria-label={`Afficher la bannière ${i + 1} sur ${totalSlides}`}
               aria-current={i === currentIndex ? "true" : undefined}
             />
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }

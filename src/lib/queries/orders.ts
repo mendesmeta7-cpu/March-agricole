@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isMalformedIdError } from "@/lib/utils/readErrors";
 
 export type OrderStatus =
   | "pending"
@@ -374,10 +375,12 @@ export async function getResellerOrderById(
     .eq("reseller_id", resellerId)
     .maybeSingle();
 
-  if (error || !data) {
-    if (error) console.error("Erreur récupération détail commande revendeur:", error);
-    return null;
+  // Lot 2C : panne ≠ « introuvable » (identifiant mal formé = absence réelle)
+  if (error && !isMalformedIdError(error)) {
+    console.error("Erreur récupération détail commande revendeur:", error);
+    throw new Error("Lecture du détail de la commande impossible");
   }
+  if (!data) return null;
 
   return formatOrderRecord(data);
 }
@@ -637,10 +640,12 @@ export async function getCompanyOrderById(
     .eq("company_id", companyId)
     .maybeSingle();
 
-  if (error || !data) {
-    if (error) console.error("Erreur récupération détail commande entreprise:", error);
-    return null;
+  // Lot 2C : panne ≠ « introuvable » (identifiant mal formé = absence réelle)
+  if (error && !isMalformedIdError(error)) {
+    console.error("Erreur récupération détail commande entreprise:", error);
+    throw new Error("Lecture du détail de la commande impossible");
   }
+  if (!data) return null;
 
   return formatOrderRecord(data);
 }

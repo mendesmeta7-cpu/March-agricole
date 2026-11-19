@@ -7,6 +7,10 @@ import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import { getCompanyProductions } from "@/lib/queries/productions";
 import { getCompanyProducts } from "@/lib/queries/products";
 import CompanyProductionsView from "@/components/productions/CompanyProductionsView";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Productions & récoltes — Radiza" };
 
 export default async function CompanyProductionsPage() {
   const supabase = await createClient();

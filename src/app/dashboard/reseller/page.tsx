@@ -4,6 +4,10 @@ import { getActiveFeedCategories } from "@/lib/queries/feedCategories";
 import { getActiveFeedBanners } from "@/lib/queries/feedBanners";
 import FeedView from "@/components/feed/FeedView";
 import { isCampaignActive } from "@/lib/utils/campaignStatus";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Tableau de bord — Radiza" };
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

@@ -1,23 +1,22 @@
 "use client";
 
 /**
- * DashboardAlertCard — Carte d'informations dynamiques (Prompt 6)
+ * DashboardAlertCard — Alertes opérationnelles du tableau de bord Société
  *
- * Affiche les alertes opérationnelles de l'exploitation dans la bannière verte du
- * dashboard Société. Si plusieurs alertes existent, elles se succèdent en rotation
- * douce toutes les 4 secondes. La rotation est désactivée si l'utilisateur a activé
- * "prefers-reduced-motion". Les points de navigation permettent toujours une
- * consultation manuelle.
+ * Affiche les alertes de la société dans la bannière verte du tableau de bord.
+ *
+ * Lot UX/UI 6B (fiche A11-09, décision D3) : les alertes ne tournent plus. Elles forment une
+ * liste statique : les trois premières sont visibles, les suivantes s'affichent avec un bouton.
+ * Rien ne disparaît seul, aucune minuterie, aucune animation : le réglage « mouvement réduit »
+ * est respecté par construction.
  *
  * Règles :
  * - Aucune donnée fictive : toutes les alertes proviennent de props calculés côté serveur.
  * - Une campagne expirée ne génère jamais d'alerte "se termine bientôt".
  * - Le message neutre n'apparaît que si le tableau d'alertes est vide.
- * - Pas de clignotement, pas d'animation intrusive.
- * - Transitions CSS opacity uniquement (pas de transform pour éviter le motion sickness).
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useId, useState } from "react";
 import Link from "next/link";
 import { ShoppingBag, Megaphone, Clock, Sparkles } from "lucide-react";
 
@@ -34,9 +33,12 @@ export interface DashboardAlert {
   id: string;
   type: DashboardAlertType;
   message: string;
-  /** Lien optionnel — rend le texte du message cliquable */
+  /** Lien optionnel — rend l'alerte cliquable */
   href?: string;
 }
+
+/** Nombre d'alertes visibles avant le bouton « Afficher … » (décision D3). */
+export const VISIBLE_ALERTS = 3;
 
 // ─── Configuration visuelle par type ──────────────────────────────────────────
 
@@ -82,105 +84,57 @@ interface DashboardAlertCardProps {
 }
 
 export default function DashboardAlertCard({ alerts }: DashboardAlertCardProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  // `fading` contrôle l'opacité pendant la transition sortante (200 ms)
-  const [fading, setFading] = useState(false);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-
-  // Détection initiale + écoute des changements de préférence système
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setPrefersReducedMotion(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  // Transition vers un index donné
-  const goTo = useCallback(
-    (nextIndex: number) => {
-      if (nextIndex === currentIndex || alerts.length <= 1) return;
-      if (prefersReducedMotion) {
-        // Sans animation : bascule immédiate
-        setCurrentIndex(nextIndex);
-        return;
-      }
-      setFading(true);
-      setTimeout(() => {
-        setCurrentIndex(nextIndex);
-        setFading(false);
-      }, 200);
-    },
-    [currentIndex, alerts.length, prefersReducedMotion]
-  );
-
-  const goToNext = useCallback(() => {
-    goTo((currentIndex + 1) % alerts.length);
-  }, [goTo, currentIndex, alerts.length]);
-
-  // Rotation automatique toutes les 4 s (désactivée si reduced motion)
-  useEffect(() => {
-    if (prefersReducedMotion || alerts.length <= 1) return;
-    const timer = setInterval(goToNext, 4000);
-    return () => clearInterval(timer);
-  }, [goToNext, prefersReducedMotion, alerts.length]);
+  const [showAll, setShowAll] = useState(false);
+  const listId = useId();
 
   if (alerts.length === 0) return null;
 
-  const alert = alerts[currentIndex];
-  const { Icon, containerClass, iconClass } = CONFIG[alert.type];
-
-  // Classe d'opacité (transition CSS pure, pas de JS pour le rendu)
-  const opacityClass = prefersReducedMotion
-    ? "opacity-100"
-    : `transition-opacity duration-200 ${fading ? "opacity-0" : "opacity-100"}`;
+  const hiddenCount = Math.max(0, alerts.length - VISIBLE_ALERTS);
+  const shown = showAll ? alerts : alerts.slice(0, VISIBLE_ALERTS);
 
   return (
-    <div
-      className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border backdrop-blur-sm ${containerClass} ${opacityClass}`}
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-    >
-      {/* Icône contextuelle */}
-      <Icon className={`w-4 h-4 shrink-0 ${iconClass}`} aria-hidden="true" />
+    <div className="space-y-1.5">
+      <ul id={listId} aria-label="Alertes de la société" className="space-y-1.5">
+        {shown.map((alert) => {
+          const { Icon, containerClass, iconClass } = CONFIG[alert.type];
+          const rowClass = `flex items-center gap-2.5 px-3.5 py-2.5 max-sm:min-h-11 rounded-xl border backdrop-blur-sm ${containerClass}`;
+          const content = (
+            <>
+              <Icon className={`w-4 h-4 shrink-0 ${iconClass}`} aria-hidden="true" />
+              <span className="text-xs font-medium leading-snug flex-1">{alert.message}</span>
+            </>
+          );
+          return (
+            <li key={alert.id}>
+              {alert.href ? (
+                <Link
+                  href={alert.href}
+                  className={`${rowClass} hover:underline underline-offset-2 decoration-[color:color-mix(in_srgb,currentColor_40%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70`}
+                >
+                  {content}
+                </Link>
+              ) : (
+                <div className={rowClass}>{content}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
 
-      {/* Message — cliquable si href fourni */}
-      {alert.href ? (
-        <Link
-          href={alert.href}
-          className="text-xs font-medium leading-snug flex-1 hover:underline underline-offset-2 decoration-current/40"
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          aria-expanded={showAll}
+          aria-controls={listId}
+          className="inline-flex items-center min-h-11 px-1 text-xs font-semibold text-emerald-200 hover:text-white underline underline-offset-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
         >
-          {alert.message}
-        </Link>
-      ) : (
-        <span className="text-xs font-medium leading-snug flex-1">
-          {alert.message}
-        </span>
-      )}
-
-      {/* Points de navigation (visibles uniquement si >= 2 alertes) */}
-      {alerts.length > 1 && (
-        <div
-          className="flex items-center gap-1 ml-1 shrink-0"
-          aria-label="Navigation entre les alertes"
-        >
-          {alerts.map((_, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => goTo(idx)}
-              aria-label={`Afficher l'alerte ${idx + 1} sur ${alerts.length}`}
-              aria-current={idx === currentIndex ? "true" : undefined}
-              className={`h-1.5 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
-                idx === currentIndex
-                  ? "bg-white w-3"
-                  : "bg-white/40 w-1.5 hover:bg-white/60"
-              }`}
-            />
-          ))}
-        </div>
+          {showAll
+            ? "Afficher moins d'alertes"
+            : hiddenCount === 1
+            ? "Afficher l'autre alerte"
+            : `Afficher les ${hiddenCount} autres alertes`}
+        </button>
       )}
     </div>
   );

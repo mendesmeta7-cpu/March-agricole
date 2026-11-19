@@ -48,7 +48,7 @@ export default function CompanyBottomNav({
   const primaryTabs = [
     {
       id: "dashboard",
-      label: "Dashboard",
+      label: "Tableau de bord",
       href: "/dashboard/company",
       icon: LayoutDashboard,
       isActive: pathname === "/dashboard/company",
@@ -87,15 +87,15 @@ export default function CompanyBottomNav({
   const secondarySections = [
     {
       id: "products",
-      label: "Catalogue Produits",
+      label: "Catalogue produits",
       description: "Gestion des produits et configuration du catalogue",
       href: "/dashboard/company/products",
       icon: Package,
     },
     {
       id: "demands",
-      label: "Demande du marché",
-      description: "Besoins d'approvisionnement exprimés par les revendeurs",
+      label: "Demandes du marché",
+      description: "Demandes exprimées par les revendeurs",
       href: "/dashboard/company/demands",
       icon: TrendingUp,
     },
@@ -109,8 +109,8 @@ export default function CompanyBottomNav({
     },
     {
       id: "profile",
-      label: "Profil entreprise",
-      description: "Identité juridique, coordonnées et logo de l'exploitation",
+      label: "Profil de la société",
+      description: "Identité juridique, coordonnées et logo de la société",
       href: "/dashboard/company/profile",
       icon: Building2,
     },
@@ -160,13 +160,13 @@ export default function CompanyBottomNav({
                 key={tab.id}
                 href={tab.href}
                 aria-current={tab.isActive ? "page" : undefined}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-1 px-1 transition-colors relative min-w-[56px] focus-visible:outline-none ${
+                className={`flex flex-col items-center justify-center flex-auto h-full py-1 px-0.5 transition-colors relative rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-forest-600 ${
                   tab.isActive
                     ? "text-forest-700 font-bold"
                     : "text-gray-500 hover:text-gray-900"
                 }`}
               >
-                <div className="relative">
+                <div className="relative min-w-11 flex justify-center">
                   <Icon
                     className={`w-5 h-5 transition-transform duration-150 ${
                       tab.isActive
@@ -176,7 +176,7 @@ export default function CompanyBottomNav({
                   />
                   {/* Badge commandes en attente sur l'onglet */}
                   {typeof tab.badge === "number" && tab.badge > 0 && (
-                    <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-amber-500 text-white text-[9px] font-extrabold flex items-center justify-center shadow-2xs">
+                    <span className="absolute -top-1 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-700 text-white text-[11px] font-extrabold flex items-center justify-center shadow-2xs">
                       {tab.badge > 9 ? "9+" : tab.badge}
                     </span>
                   )}
@@ -184,7 +184,7 @@ export default function CompanyBottomNav({
                     <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-forest-600 rounded-full" />
                   )}
                 </div>
-                <span className="text-[10px] mt-1 tracking-tight truncate max-w-[64px]">
+                <span className="text-xs mt-1 tracking-tight text-center leading-[1.15] line-clamp-2">
                   {tab.label}
                 </span>
               </Link>
@@ -197,13 +197,13 @@ export default function CompanyBottomNav({
             onClick={() => setIsMoreSheetOpen(true)}
             aria-label="Plus d'options de navigation"
             aria-expanded={isMoreSheetOpen}
-            className={`flex flex-col items-center justify-center flex-1 h-full py-1 px-1 transition-colors relative min-w-[56px] focus-visible:outline-none ${
+            className={`flex flex-col items-center justify-center flex-auto h-full py-1 px-0.5 transition-colors relative rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-forest-600 ${
               isMoreActive
                 ? "text-forest-700 font-bold"
                 : "text-gray-500 hover:text-gray-900"
             }`}
           >
-            <div className="relative">
+            <div className="relative min-w-11 flex justify-center">
               <MoreHorizontal
                 className={`w-5 h-5 transition-transform duration-150 ${
                   isMoreActive
@@ -213,7 +213,7 @@ export default function CompanyBottomNav({
               />
               {/* Badge si notifications non lues */}
               {unreadNotificationsCount > 0 && (
-                <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-forest-700 text-white text-[9px] font-extrabold flex items-center justify-center shadow-2xs">
+                <span className="absolute -top-1 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-forest-700 text-white text-[11px] font-extrabold flex items-center justify-center shadow-2xs">
                   {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
                 </span>
               )}
@@ -221,7 +221,7 @@ export default function CompanyBottomNav({
                 <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-forest-600 rounded-full" />
               )}
             </div>
-            <span className="text-[10px] mt-1 tracking-tight truncate max-w-[64px]">
+            <span className="text-xs mt-1 tracking-tight">
               Plus
             </span>
           </button>
@@ -247,10 +247,10 @@ export default function CompanyBottomNav({
               </div>
               <div>
                 <h3 className="text-sm font-bold text-gray-900">
-                  Sections Complémentaires
+                  Sections complémentaires
                 </h3>
-                <p className="text-[11px] text-gray-500">
-                  {entityName || "Espace Entreprise Agricole"}
+                <p className="text-xs text-gray-500">
+                  {entityName || "Espace Société"}
                 </p>
               </div>
             </div>
@@ -299,12 +299,12 @@ export default function CompanyBottomNav({
                           {sec.label}
                         </span>
                         {typeof sec.badge === "number" && sec.badge > 0 && (
-                          <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-forest-700 text-white">
+                          <span className="text-[11px] font-extrabold px-1.5 py-0.5 rounded-full bg-forest-700 text-white">
                             {sec.badge > 99 ? "99+" : sec.badge}
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                      <p className="text-xs text-gray-500 truncate mt-0.5">
                         {sec.description}
                       </p>
                     </div>
@@ -333,7 +333,7 @@ export default function CompanyBottomNav({
                   <span className="text-xs sm:text-sm font-bold block">
                     Se déconnecter
                   </span>
-                  <span className="text-[11px] text-rose-500">
+                  <span className="text-xs text-rose-500">
                     Fermer la session sur cet appareil
                   </span>
                 </div>
@@ -350,7 +350,7 @@ export default function CompanyBottomNav({
         onClose={() => setIsLogoutDialogOpen(false)}
         onConfirm={handleLogout}
         title="Confirmation de déconnexion"
-        description="Êtes-vous certain de vouloir fermer votre session active sur l'espace Entreprise ? Vos jetons de sécurité locaux seront réinitialisés."
+        description="Êtes-vous certain de vouloir fermer votre session active sur l'espace Société ? Vos jetons de sécurité locaux seront réinitialisés."
         confirmText="Oui, me déconnecter"
         cancelText="Rester connecté"
         variant="destructive"

@@ -133,12 +133,12 @@ export default function AppSidebar({
 
   const adminNavItems: NavItem[] = [
     {
-      label: "Vue Générale",
+      label: "Tableau de bord",
       href: "/dashboard/admin",
       icon: <LayoutDashboard className="w-5 h-5" />,
     },
     {
-      label: "Entreprises Agricoles",
+      label: "Sociétés",
       href: "/dashboard/admin/companies",
       icon: <Building2 className="w-5 h-5" />,
     },
@@ -148,7 +148,7 @@ export default function AppSidebar({
       icon: <Store className="w-5 h-5" />,
     },
     {
-      label: "Catalogue Produits",
+      label: "Catalogue produits",
       href: "/dashboard/admin/products",
       icon: <Package className="w-5 h-5" />,
     },
@@ -168,17 +168,17 @@ export default function AppSidebar({
       icon: <ShoppingBag className="w-5 h-5" />,
     },
     {
-      label: "Catégories du Flux",
+      label: "Catégories du tableau de bord revendeur",
       href: "/dashboard/admin/categories",
       icon: <Layers className="w-5 h-5" />,
     },
     {
-      label: "Bannières du Flux",
+      label: "Bannières du tableau de bord revendeur",
       href: "/dashboard/admin/banners",
       icon: <ImageIcon className="w-5 h-5" />,
     },
     {
-      label: "Demandes Marché",
+      label: "Demandes",
       href: "/dashboard/admin/demands",
       icon: <TrendingUp className="w-5 h-5" />,
     },
@@ -194,7 +194,7 @@ export default function AppSidebar({
   const roleLabels = {
     company: "Exploitation Agricole",
     reseller: "Revendeur / Distributeur",
-    admin: "Supervision Admin",
+    admin: "Administrateur",
   };
 
   const roleColors = {
@@ -240,7 +240,7 @@ export default function AppSidebar({
               {entityName || userName || "Mon Espace"}
             </h2>
             <span
-              className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md border mt-0.5 ${roleColors[role]}`}
+              className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded-md border mt-0.5 ${roleColors[role]}`}
             >
               {roleLabels[role]}
             </span>
@@ -288,7 +288,7 @@ export default function AppSidebar({
               </div>
 
               {item.badge && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
                   {item.badge}
                 </span>
               )}
@@ -307,7 +307,7 @@ export default function AppSidebar({
             <p className="text-xs font-semibold text-gray-900 truncate">
               {userName || userEmail || "Utilisateur"}
             </p>
-            <p className="text-[10px] text-gray-500 truncate">{userEmail}</p>
+            <p className="text-xs text-gray-500 truncate">{userEmail}</p>
           </div>
         </div>
       </div>

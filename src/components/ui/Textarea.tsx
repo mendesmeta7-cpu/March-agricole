@@ -1,5 +1,8 @@
+"use client";
+
 import React from "react";
 import { cn } from "@/lib/utils";
+import { mergeIds, useFormFieldContext } from "./formFieldContext";
 
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -17,11 +20,16 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       value,
       disabled,
       rows = 3,
+      "aria-describedby": ariaDescribedBy,
+      "aria-invalid": ariaInvalid,
       ...props
     },
     ref
   ) => {
+    // A11-06 : état d'erreur et messages du FormField parent annoncés avec le champ.
+    const field = useFormFieldContext();
     const hasError = Boolean(error);
+    const invalide = hasError || Boolean(field?.invalid);
     const currentLength = typeof value === "string" ? value.length : 0;
 
     return (
@@ -32,8 +40,10 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           value={value}
           disabled={disabled}
           maxLength={maxLength}
+          aria-invalid={ariaInvalid ?? (invalide || undefined)}
+          aria-describedby={mergeIds(ariaDescribedBy, field?.describedBy)}
           className={cn(
-            "w-full bg-white border text-gray-900 placeholder:text-gray-400 text-sm rounded-xl px-3.5 py-2.5 transition-all duration-150 ease-out resize-y",
+            "w-full bg-white border text-gray-900 placeholder:text-gray-500 text-sm rounded-xl px-3.5 py-2.5 transition-all duration-150 ease-out resize-y",
             "focus:outline-none focus:ring-2 focus:ring-offset-0",
             "disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed disabled:border-gray-200",
             hasError
@@ -45,7 +55,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         />
 
         {showCount && maxLength && (
-          <div className="text-right text-[11px] text-gray-400 pr-1">
+          <div className="text-right text-xs text-gray-400 pr-1">
             {currentLength} / {maxLength}
           </div>
         )}

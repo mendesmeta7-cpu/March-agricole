@@ -1,12 +1,11 @@
-import { useState, useRef, useTransition, useEffect, useMemo, useId } from "react";
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import { useState, useRef, useTransition, useEffect, useMemo } from "react";
+import { Drawer } from "@/components/ui/Drawer";
 import { DemandItem } from "@/lib/queries/demands";
 import { CatalogProduct } from "@/lib/queries/products";
 import { Province, Country } from "@/lib/queries/geography";
 import { createDemandAction, updateDemandAction } from "@/lib/actions/demands";
 import { Select } from "@/components/ui/Select";
 import {
-  X,
   TrendingUp,
   AlertCircle,
   Calendar,
@@ -14,7 +13,6 @@ import {
   Scale,
   Building2,
   Info,
-  FileText,
 } from "lucide-react";
 
 interface DemandFormModalProps {
@@ -127,7 +125,7 @@ export default function DemandFormModal({
 
   const companyOptions = useMemo(() => {
     return [
-      { value: "", label: "Tous les producteurs (Ouvert au marché)" },
+      { value: "", label: "Toutes les sociétés (ouvert au marché)" },
       ...companies.map((c) => ({
         value: c.id,
         label: c.name,
@@ -173,52 +171,52 @@ export default function DemandFormModal({
     });
   };
 
-  const panelRef = useRef<HTMLDivElement>(null);
-  const titleId = useId();
-  useFocusTrap(panelRef, {
-    isOpen: isOpen,
-    onEscape: onClose,
-    escapeEnabled: !isPending,
-  });
 
   if (!isOpen) return null;
 
+  // Lot UX/UI 5B : surface partagée Drawer (focus, Échap, verrouillage compté du défilement).
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
-      <div
-        ref={panelRef}
-        className="relative w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 mt-auto sm:mt-0"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        {/* Header */}
-        <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between bg-earth-900/5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-earth-700 text-white flex items-center justify-center shadow-xs">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 id={titleId} className="text-base sm:text-lg font-bold text-gray-900">
-                {isEditing ? "Modifier mon expression de besoin" : "Exprimer un besoin d'approvisionnement"}
-              </h2>
-              <p className="text-xs text-gray-500">
-                Informez les producteurs agricoles des volumes recherchés dans votre province.
-              </p>
-            </div>
-          </div>
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      size="xl"
+      isDismissable={!isPending}
+      showCloseButton={!isPending}
+      icon={<TrendingUp className="w-5 h-5" />}
+      title={isEditing ? "Modifier ma demande" : "Exprimer une demande d'approvisionnement"}
+      description={"Informez les sociétés des volumes recherchés dans votre province."}
+      footer={
+        <>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fermer le formulaire de demande"
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-white/80 transition-colors"
+            disabled={isPending}
+            className="px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
           >
-            <X className="w-5 h-5" />
+            Annuler
           </button>
-        </div>
-
+          <button
+            type="submit"
+            form="demand-form"
+            disabled={isPending || catalogProducts.length === 0}
+            className="px-5 py-2.5 text-xs font-semibold text-white bg-earth-700 hover:bg-earth-800 rounded-xl shadow-xs hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isPending ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Enregistrement...
+              </>
+            ) : isEditing ? (
+              "Enregistrer les modifications"
+            ) : (
+              "Publier ma demande"
+            )}
+          </button>
+        </>
+      }
+    >
         {/* Form Body */}
-        <form ref={formRef} onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+        <form id="demand-form" ref={formRef} onSubmit={handleSubmit} className="space-y-5">
           {errorMessage && (
             <div role="alert" className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
@@ -232,28 +230,28 @@ export default function DemandFormModal({
             <div className="leading-relaxed">
               <strong className="font-semibold">Information :</strong> Une demande est une expression
               de besoin territorial. Elle n&apos;engage aucun paiement, ne réserve aucun stock et ne constitue pas
-              une commande ferme.
+              une commande.
             </div>
           </div>
 
           {/* Sélection du produit */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-gray-800">
-              Denrée / Produit recherché <span className="text-rose-500">*</span>
+            <label id="demand-product-label" className="block text-xs font-semibold text-gray-800">
+              Produit recherché <span className="text-rose-600">*</span>
             </label>
             {catalogProducts.length === 0 ? (
               <div className="p-3 rounded-xl bg-rose-50 text-rose-800 text-xs">
                 Aucun produit disponible dans le catalogue national.
               </div>
             ) : (
-              <Select
+              <Select aria-labelledby="demand-product-label"
                 name="productId"
                 value={productId}
                 onChange={(e) => handleProductChange(e.target.value)}
                 options={productOptions}
                 searchable
-                searchPlaceholder="Rechercher une denrée (ail, maïs, ananas...)"
-                placeholder="Sélectionner une denrée..."
+                searchPlaceholder="Rechercher un produit (ail, maïs, ananas...)"
+                placeholder="Sélectionner un produit..."
                 disabled={isEditing}
                 required
               />
@@ -263,12 +261,12 @@ export default function DemandFormModal({
           {/* Quantité & Unité */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-800">
-                Quantité estimée <span className="text-rose-500">*</span>
+              <label htmlFor="demand-quantity" className="block text-xs font-semibold text-gray-800">
+                Quantité estimée <span className="text-rose-600">*</span>
               </label>
               <div className="relative">
                 <Scale className="w-4 h-4 text-gray-400 absolute left-3 top-3.5 pointer-events-none" />
-                <input
+                <input id="demand-quantity"
                   type="number"
                   step="any"
                   min="0.01"
@@ -283,10 +281,10 @@ export default function DemandFormModal({
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-800">
-                Unité de mesure <span className="text-rose-500">*</span>
+              <label id="demand-unit-label" className="block text-xs font-semibold text-gray-800">
+                Unité de mesure <span className="text-rose-600">*</span>
               </label>
-              <Select
+              <Select aria-labelledby="demand-unit-label"
                 name="unit"
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
@@ -305,10 +303,10 @@ export default function DemandFormModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
-                <label className="block text-[11px] font-semibold text-gray-700">
-                  Pays <span className="text-rose-500">*</span>
+                <label id="demand-country-label" className="block text-xs font-semibold text-gray-700">
+                  Pays <span className="text-rose-700">*</span>
                 </label>
-                <Select
+                <Select aria-labelledby="demand-country-label"
                   name="countryId"
                   value={countryId}
                   onChange={(e) => setCountryId(e.target.value)}
@@ -319,10 +317,10 @@ export default function DemandFormModal({
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[11px] font-semibold text-gray-700">
-                  Province / Région <span className="text-rose-500">*</span>
+                <label id="demand-province-label" className="block text-xs font-semibold text-gray-700">
+                  Province / Région <span className="text-rose-700">*</span>
                 </label>
-                <Select
+                <Select aria-labelledby="demand-province-label"
                   name="provinceId"
                   value={provinceId}
                   onChange={(e) => setProvinceId(e.target.value)}
@@ -335,10 +333,10 @@ export default function DemandFormModal({
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[11px] font-semibold text-gray-700">
+                <label htmlFor="demand-city" className="block text-xs font-semibold text-gray-700">
                   Ville / Territoire
                 </label>
-                <input
+                <input id="demand-city"
                   type="text"
                   name="city"
                   value={city}
@@ -353,12 +351,12 @@ export default function DemandFormModal({
           {/* Période souhaitée */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-800">
+              <label htmlFor="demand-period-start" className="block text-xs font-semibold text-gray-800">
                 Période souhaitée à partir du
               </label>
               <div className="relative">
                 <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-3.5 pointer-events-none" />
-                <input
+                <input id="demand-period-start"
                   type="date"
                   name="targetPeriodStart"
                   value={targetPeriodStart}
@@ -369,12 +367,12 @@ export default function DemandFormModal({
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-800">
+              <label htmlFor="demand-period-end" className="block text-xs font-semibold text-gray-800">
                 Date limite souhaitée
               </label>
               <div className="relative">
                 <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-3.5 pointer-events-none" />
-                <input
+                <input id="demand-period-end"
                   type="date"
                   name="targetPeriodEnd"
                   value={targetPeriodEnd}
@@ -389,30 +387,30 @@ export default function DemandFormModal({
           {/* Entreprise cible (Optionnel) */}
           {companies.length > 0 && (
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-800">
-                Producteur spécifique ciblé (optionnel)
+              <label id="demand-target-company-label" className="block text-xs font-semibold text-gray-800">
+                Société ciblée (optionnel)
               </label>
-              <Select
+              <Select aria-labelledby="demand-target-company-label"
                 name="targetCompanyId"
                 value={targetCompanyId}
                 onChange={(e) => setTargetCompanyId(e.target.value)}
                 options={companyOptions}
                 searchable={companies.length > 5}
-                searchPlaceholder="Rechercher producteur..."
+                searchPlaceholder="Rechercher une société..."
                 leftIcon={<Building2 className="w-4 h-4 text-gray-400" />}
               />
-              <p className="text-[11px] text-gray-500">
-                Laissez &quot;Tous les producteurs&quot; pour que votre besoin soit visible par l&apos;ensemble des entreprises agricoles de la région.
+              <p className="text-xs text-gray-500">
+                Laissez &quot;Toutes les sociétés&quot; pour que votre demande soit visible par l&apos;ensemble des sociétés de la région.
               </p>
             </div>
           )}
 
           {/* Notes et exigences qualitatives */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-gray-800">
+            <label htmlFor="demand-notes" className="block text-xs font-semibold text-gray-800">
               Spécifications techniques & Tolérances (optionnel)
             </label>
-            <textarea
+            <textarea id="demand-notes"
               name="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -421,36 +419,7 @@ export default function DemandFormModal({
               className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:ring-2 focus:ring-earth-600 transition-all resize-none"
             />
           </div>
-
-          {/* Footer Actions */}
-          <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isPending}
-              className="px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={isPending || catalogProducts.length === 0}
-              className="px-5 py-2.5 text-xs font-semibold text-white bg-earth-700 hover:bg-earth-800 rounded-xl shadow-xs hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {isPending ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Enregistrement...
-                </>
-              ) : isEditing ? (
-                "Enregistrer les modifications"
-              ) : (
-                "Publier mon expression de besoin"
-              )}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+    </Drawer>
   );
 }

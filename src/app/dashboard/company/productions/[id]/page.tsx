@@ -3,11 +3,13 @@ import { getCurrentCompanyId, getCurrentUser } from "@/lib/auth/currentCompany";
 import CompanyAccountMissing from "@/components/company/CompanyAccountMissing";
 import { redirect, notFound } from "next/navigation";
 import { settleRead } from "@/lib/utils/settleRead";
-import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import { getProductionById } from "@/lib/queries/productions";
-import { getCompanyProducts } from "@/lib/queries/products";
 import { getProductionDemandsAnalysis } from "@/lib/queries/demands";
 import ProductionDetailView from "@/components/productions/ProductionDetailView";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Détail de la production — Radiza" };
 
 interface ProductionDetailPageProps {
   params: Promise<{
@@ -37,11 +39,15 @@ export default async function CompanyProductionDetailPage(props: ProductionDetai
     .eq("id", companyId)
     .single();
 
-  // 2. Récupération conjointe : production, produits de l'entreprise et analyse des demandes
-  const [production, productsRead, demandsAnalysis] = await Promise.all([
+  // 2. Récupération conjointe : production et analyse des demandes (Lot 2C : l'analyse est une
+  // lecture secondaire, sa panne est signalée dans sa section). Lot UX/UI 5B : la modification a sa
+  // page dédiée, qui lit elle-même les produits ; le détail n'en a plus besoin.
+  const [production, analysisRead] = await Promise.all([
     getProductionById(params.id, companyId),
-    settleRead(getCompanyProducts(companyId), []),
-    getProductionDemandsAnalysis(params.id),
+    settleRead<Awaited<ReturnType<typeof getProductionDemandsAnalysis>> | null>(
+      getProductionDemandsAnalysis(params.id),
+      null
+    ),
   ]);
 
   if (!production) {
@@ -49,18 +55,11 @@ export default async function CompanyProductionDetailPage(props: ProductionDetai
   }
 
   return (
-    <>
-      {productsRead.failed && (
-        <DataUnavailableNotice className="mb-4" title="Liste de produits indisponible">
-          Vos produits n&apos;ont pas pu être chargés. Réessayez avant de modifier cette production.
-        </DataUnavailableNotice>
-      )}
-      <ProductionDetailView
-        production={production}
-        companyProducts={productsRead.data}
-        companyName={company?.name || "Exploitation agricole"}
-        demandsAnalysis={demandsAnalysis}
-      />
-    </>
+    <ProductionDetailView
+      production={production}
+      companyName={company?.name || "Société"}
+      demandsAnalysis={analysisRead.data ?? undefined}
+      demandsAnalysisUnavailable={analysisRead.failed}
+    />
   );
 }

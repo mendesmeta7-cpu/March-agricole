@@ -31,10 +31,9 @@ export default async function AdminLayout({
   return (
     <DashboardLayout
       role="admin"
-      entityName="Administration Système"
+      entityName="Administration"
       userName={profile?.full_name}
       userEmail={user.email}
-      locationInfo="Supervision Centrale"
     >
       {children}
     </DashboardLayout>

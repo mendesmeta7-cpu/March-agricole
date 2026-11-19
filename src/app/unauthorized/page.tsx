@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { ShieldAlert, ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Accès non autorisé — Radiza" };
 
 export default function UnauthorizedPage() {
   return (

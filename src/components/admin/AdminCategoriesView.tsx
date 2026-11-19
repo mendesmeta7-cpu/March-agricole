@@ -7,6 +7,7 @@ import AdminCategoryModal from "@/components/admin/AdminCategoryModal";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
+import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Plus, Edit2, Trash2, Image as ImageIcon, Package, Layers } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -33,14 +34,17 @@ export default function AdminCategoriesView({ categories }: AdminCategoriesViewP
     setErrorMsg(null);
   };
 
-  const handleDelete = async (category: FeedCategoryItem) => {
-    if (
-      !confirm(
-        `Êtes-vous sûr de vouloir supprimer la catégorie « ${category.name} » ?\nSon image Cloudinary sera également détruite.`
-      )
-    ) {
-      return;
-    }
+  // RET-07 (Lot UX/UI 5B) : confirmation dans un ConfirmDialog au lieu de confirm() natif.
+  const [categoryASupprimer, setCategoryASupprimer] = useState<FeedCategoryItem | null>(null);
+
+  const handleDelete = (category: FeedCategoryItem) => {
+    setErrorMsg(null);
+    setCategoryASupprimer(category);
+  };
+
+  const confirmDelete = async () => {
+    const category = categoryASupprimer;
+    if (!category) return;
 
     setDeletingId(category.id);
     setErrorMsg(null);
@@ -56,6 +60,7 @@ export default function AdminCategoriesView({ categories }: AdminCategoriesViewP
       setErrorMsg("Erreur lors de la suppression.");
     } finally {
       setDeletingId(null);
+      setCategoryASupprimer(null);
     }
   };
 
@@ -65,10 +70,10 @@ export default function AdminCategoriesView({ categories }: AdminCategoriesViewP
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">
-            Catégories du Flux ({categories.length})
+            Catégories du tableau de bord revendeur ({categories.length})
           </h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            Configurez les icônes et images Cloudinary visibles dans le sélecteur horizontal du Flux revendeur.
+            Configurez les icônes et images Cloudinary visibles dans le sélecteur horizontal du tableau de bord revendeur.
           </p>
         </div>
 
@@ -118,13 +123,13 @@ export default function AdminCategoriesView({ categories }: AdminCategoriesViewP
                     <Badge variant={cat.is_active ? "forest" : "neutral"} size="sm">
                       {cat.is_active ? "Active" : "Désactivée"}
                     </Badge>
-                    <span className="text-[11px] text-gray-400">
+                    <span className="text-xs text-gray-500">
                       Ordre : {cat.sort_order}
                     </span>
                   </div>
 
                   {typeof cat.products_count === "number" && (
-                    <p className="text-[11px] text-gray-500 inline-flex items-center gap-1 pt-1">
+                    <p className="text-xs text-gray-500 inline-flex items-center gap-1 pt-1">
                       <Package className="w-3 h-3 text-gray-400" />
                       <span>{cat.products_count} produit{cat.products_count > 1 ? "s" : ""} associé{cat.products_count > 1 ? "s" : ""}</span>
                     </p>
@@ -134,7 +139,7 @@ export default function AdminCategoriesView({ categories }: AdminCategoriesViewP
 
               {/* Barre d'actions inférieure */}
               <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-[10px] text-gray-400 truncate font-mono">
+                <span className="text-xs text-gray-500 truncate font-mono">
                   {cat.cloudinary_public_id ? "Image configurée ✓" : "Sans image"}
                 </span>
 
@@ -165,7 +170,7 @@ export default function AdminCategoriesView({ categories }: AdminCategoriesViewP
       ) : (
         <EmptyState
           title="Aucune catégorie configurée"
-          description="Créez votre première catégorie visuelle pour le sélecteur du flux revendeur."
+          description="Créez votre première catégorie visuelle pour le sélecteur du tableau de bord revendeur."
           icon={<Layers className="w-8 h-8 text-forest-700" />}
           action={
             <button
@@ -178,6 +183,21 @@ export default function AdminCategoriesView({ categories }: AdminCategoriesViewP
           }
         />
       )}
+
+      {/* Confirmation de suppression (RET-07) */}
+      <ConfirmDialog
+        isOpen={categoryASupprimer !== null}
+        onClose={() => {
+          if (deletingId === null) setCategoryASupprimer(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Supprimer la catégorie ?"
+        description={categoryASupprimer ? `La catégorie « ${categoryASupprimer.name} » sera supprimée. Son image Cloudinary sera également détruite.` : ""}
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        variant="destructive"
+        isLoading={deletingId !== null}
+      />
 
       {/* Modal d'ajout / modification */}
       <AdminCategoryModal

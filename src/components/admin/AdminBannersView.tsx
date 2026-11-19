@@ -7,6 +7,7 @@ import AdminBannerModal from "@/components/admin/AdminBannerModal";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
+import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Plus, Edit2, Trash2, Megaphone, ExternalLink, Image as ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -33,14 +34,17 @@ export default function AdminBannersView({ banners }: AdminBannersViewProps) {
     setErrorMsg(null);
   };
 
-  const handleDelete = async (banner: FeedBannerItem) => {
-    if (
-      !confirm(
-        `Êtes-vous sûr de vouloir supprimer la bannière « ${banner.title} » ?\nSon image Cloudinary sera également définitivement détruite.`
-      )
-    ) {
-      return;
-    }
+  // RET-07 (Lot UX/UI 5B) : confirmation dans un ConfirmDialog au lieu de confirm() natif.
+  const [bannerASupprimer, setBannerASupprimer] = useState<FeedBannerItem | null>(null);
+
+  const handleDelete = (banner: FeedBannerItem) => {
+    setErrorMsg(null);
+    setBannerASupprimer(banner);
+  };
+
+  const confirmDelete = async () => {
+    const banner = bannerASupprimer;
+    if (!banner) return;
 
     setDeletingId(banner.id);
     setErrorMsg(null);
@@ -56,6 +60,7 @@ export default function AdminBannersView({ banners }: AdminBannersViewProps) {
       setErrorMsg("Erreur lors de la suppression.");
     } finally {
       setDeletingId(null);
+      setBannerASupprimer(null);
     }
   };
 
@@ -65,10 +70,10 @@ export default function AdminBannersView({ banners }: AdminBannersViewProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">
-            Bannières du Flux ({banners.length})
+            Bannières du tableau de bord revendeur ({banners.length})
           </h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            Configurez les affiches du carrousel d&apos;accueil du Flux revendeur avec visuels Cloudinary.
+            Configurez les affiches du carrousel d&apos;accueil du tableau de bord revendeur avec visuels Cloudinary.
           </p>
         </div>
 
@@ -94,7 +99,7 @@ export default function AdminBannersView({ banners }: AdminBannersViewProps) {
           {banners.map((banner) => (
             <Card key={banner.id} padding="none" className="overflow-hidden flex flex-col justify-between">
               {/* Image banner */}
-              <div className="relative w-full aspect-21/9 bg-gray-100 overflow-hidden">
+              <div className="relative w-full aspect-[21/9] bg-gray-100 overflow-hidden">
                 {banner.image_url ? (
                   <img
                     src={banner.image_url}
@@ -111,7 +116,7 @@ export default function AdminBannersView({ banners }: AdminBannersViewProps) {
                   <Badge variant={banner.is_active ? "forest" : "neutral"} size="sm">
                     {banner.is_active ? "Active" : "Désactivée"}
                   </Badge>
-                  <span className="px-2 py-0.5 rounded-full bg-black/60 text-white text-[10px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-black/60 text-white text-[11px] font-bold">
                     Ordre : {banner.sort_order}
                   </span>
                 </div>
@@ -134,7 +139,7 @@ export default function AdminBannersView({ banners }: AdminBannersViewProps) {
                       Bouton : {banner.button_label}
                     </span>
                     {banner.button_url && (
-                      <span className="text-[11px] text-gray-400 font-mono truncate max-w-[200px]">
+                      <span className="text-xs text-gray-500 font-mono truncate max-w-[200px]">
                         → {banner.button_url}
                       </span>
                     )}
@@ -144,7 +149,7 @@ export default function AdminBannersView({ banners }: AdminBannersViewProps) {
 
               {/* Barre d'action */}
               <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-[10px] text-gray-400 font-mono truncate max-w-[200px]">
+                <span className="text-xs text-gray-500 font-mono truncate max-w-[200px]">
                   ID : {banner.cloudinary_public_id || "N/A"}
                 </span>
 
@@ -175,7 +180,7 @@ export default function AdminBannersView({ banners }: AdminBannersViewProps) {
       ) : (
         <EmptyState
           title="Aucune bannière configurée"
-          description="Ajoutez des visuels avec boutons d'action pour le carrousel d'accueil du Flux revendeur."
+          description="Ajoutez des visuels avec boutons d'action pour le carrousel d'accueil du tableau de bord revendeur."
           icon={<Megaphone className="w-8 h-8 text-forest-700" />}
           action={
             <button
@@ -188,6 +193,21 @@ export default function AdminBannersView({ banners }: AdminBannersViewProps) {
           }
         />
       )}
+
+      {/* Confirmation de suppression (RET-07) */}
+      <ConfirmDialog
+        isOpen={bannerASupprimer !== null}
+        onClose={() => {
+          if (deletingId === null) setBannerASupprimer(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Supprimer la bannière ?"
+        description={bannerASupprimer ? `La bannière « ${bannerASupprimer.title} » sera supprimée. Son image Cloudinary sera également définitivement détruite.` : ""}
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        variant="destructive"
+        isLoading={deletingId !== null}
+      />
 
       {/* Modal d'ajout / modification */}
       <AdminBannerModal

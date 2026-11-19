@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition, useEffect, useRef, useId } from "react";
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import { useState, useMemo, useTransition, useEffect } from "react";
 import { OrderDetail, OrderStatus } from "@/lib/queries/orders";
 import OrderStatusBadge from "./OrderStatusBadge";
 import CompanyOrderCard from "./CompanyOrderCard";
@@ -10,10 +9,12 @@ import CompanyOrderLookupWidget from "./CompanyOrderLookupWidget";
 import DeliveryConfirmationModal from "./DeliveryConfirmationModal";
 import { updateOrderStatusAction, cancelOrderAction } from "@/lib/actions/orders";
 import Card from "@/components/ui/Card";
+import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Drawer from "@/components/ui/Drawer";
 import Select from "@/components/ui/Select";
-import { ConfirmDialog } from "@/components/ui/Dialog";
+import FiltresActifs from "@/components/ui/FiltresActifs";
+import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ToastProvider, useToast } from "@/components/ui/Toast";
 import {
   COMPANY_ORDER_STATUS_LABELS,
@@ -29,22 +30,18 @@ import {
   Truck,
   Search,
   Filter,
-  ArrowLeft,
   PackageOpen,
   Eye,
   Settings,
   Layers,
   Calendar,
-  AlertTriangle,
   X,
   Store,
   LayoutGrid,
   List,
   RotateCcw,
-  CheckCheck,
-  XCircle,
-  Package,
 } from "lucide-react";
+import { formatAmount, formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 interface CompanyOrdersViewProps {
   initialOrders: OrderDetail[];
@@ -105,14 +102,14 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
       new Map(
         orders
           .filter((o): o is OrderDetail & { campaign_id: string } => !!o.campaign_id)
-          .map((o) => [o.campaign_id, o.campaign?.title || o.campaign_title_snapshot || "Offre commerciale"])
+          .map((o) => [o.campaign_id, o.campaign?.title || o.campaign_title_snapshot || "Campagne"])
       ).entries()
     );
   }, [orders]);
 
   const campaignOptions = useMemo(
     () => [
-      { value: "all", label: "Toutes les offres" },
+      { value: "all", label: "Toutes les campagnes" },
       ...uniqueCampaigns.map(([cId, cTitle]) => ({ value: cId, label: cTitle })),
     ],
     [uniqueCampaigns]
@@ -123,14 +120,6 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
     () => (statusModalOrder ? getNextCompanyOrderStatusOptions(statusModalOrder.status) : []),
     [statusModalOrder]
   );
-
-  const statusDialogRef = useRef<HTMLDivElement>(null);
-  const statusDialogTitleId = useId();
-  useFocusTrap(statusDialogRef, {
-    isOpen: !!statusModalOrder && statusOptions.length > 0,
-    onEscape: () => setStatusModalOrder(null),
-    escapeEnabled: !actionLoading,
-  });
 
   // Commandes filtrées
   const filteredOrders = useMemo(() => {
@@ -342,136 +331,39 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* 1. Fil d'Ariane */}
-      <div className="flex items-center gap-2 text-sm text-gray-500">
-        <Link
-          href="/dashboard/company"
-          className="hover:text-forest-800 flex items-center gap-1 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Retour au tableau de bord</span>
-        </Link>
-      </div>
+      {/* 1. En-tête commun (Lot 6B, NAV-02). Les compteurs du bandeau sombre (Total, En attente,
+          Livrées) faisaient double emploi avec les cartes ci-dessous (NAV-06) : seules les cartes restent. */}
+      <PageHeader
+        breadcrumb={[{ href: "/dashboard/company", label: "Tableau de bord" }]}
+        title="Commandes reçues"
+        description="Suivez les engagements fermes de vos revendeurs, gérez la préparation de vos lots récoltés et validez les remises de stock physiques au dépôt."
+      />
 
-      {/* 2. En-tête Héro Immersif Radiza */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-forest-900 via-forest-800 to-earth-900 p-6 sm:p-8 text-white shadow-xl">
-        {/* Motif décoratif d'arrière-plan */}
-        <div className="absolute inset-0 opacity-5 pointer-events-none">
-          <div className="absolute top-0 right-0 w-64 h-64 rounded-full border-[40px] border-white -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full border-[30px] border-white translate-y-1/2 -translate-x-1/2" />
-        </div>
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-xl">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-xs font-semibold uppercase tracking-wider">
-              <ShoppingBag className="w-3.5 h-3.5" />
-              Espace Société — Commandes Reçues
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              Commandes Reçues
-            </h1>
-            <p className="text-white/80 text-xs sm:text-sm leading-relaxed">
-              Suivez les engagements fermes de vos acheteurs professionnels, gérez la préparation
-              de vos lots récoltés et validez les remises de stock physiques au dépôt.
-            </p>
-          </div>
-
-          {/* Compteurs de lecture rapide */}
-          <div className="flex items-center gap-4 bg-white/10 backdrop-blur-xs p-4 rounded-2xl border border-white/15 self-start md:self-auto shrink-0">
-            <div className="text-center px-2">
-              <span className="block text-2xl font-black text-white">{metrics.total}</span>
-              <span className="block text-[11px] text-white/70">Total</span>
-            </div>
-            <div className="w-px h-8 bg-white/20" />
-            <div className="text-center px-2">
-              <span className="block text-2xl font-black text-amber-300">{metrics.pending}</span>
-              <span className="block text-[11px] text-white/70">En attente</span>
-            </div>
-            <div className="w-px h-8 bg-white/20" />
-            <div className="text-center px-2">
-              <span className="block text-2xl font-black text-emerald-300">{metrics.delivered}</span>
-              <span className="block text-[11px] text-white/70">Livrées</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Métriques Détaillées Réelles (0 Mock Data) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card padding="md">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
-                Total Commandes
-              </span>
-              <span className="text-2xl font-extrabold text-gray-900 mt-1 block">
-                {metrics.total}
-              </span>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-forest-50 text-forest-700 flex items-center justify-center">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-          </div>
-          <span className="text-[11px] text-gray-500 mt-2 block">
-            {metrics.total === 0 ? "Aucune commande enregistrée" : `${metrics.total} commande(s) globale(s)`}
-          </span>
-        </Card>
-
-        <Card padding="md">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
-                À Valider
-              </span>
-              <span className="text-2xl font-extrabold text-amber-700 mt-1 block">
-                {metrics.pending}
-              </span>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-              <Clock className="w-5 h-5" />
-            </div>
-          </div>
-          <span className="text-[11px] text-gray-500 mt-2 block">
-            {metrics.pending === 0 ? "Aucune commande en attente" : `${metrics.pending} lot(s) à confirmer`}
-          </span>
-        </Card>
-
-        <Card padding="md">
-          <div className="flex items-center justify-between">
-            <div>
+      {/* 2. Indicateur propre à cette page. Correctif NAV-06 (Lot 6B) : « Total Commandes », « À Valider » et
+          « Livrées » répétaient exactement les onglets « Toutes », « En attente » et « Livrées » ci-dessous, toujours
+          visibles (arbitrage A) : retirés. « En cours » (confirmées, en préparation ou prêtes) n'a pas d'onglet
+          équivalent : il reste, avec sa légende, en carte basse (arbitrage B). Calculs inchangés (metrics). */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card padding="none" className="p-2.5 sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            {/* Sous 640 px : libellé et légende sur une ligne (arbitrage B, suite) ; empilés au-delà */}
+            <div className="min-w-0 flex flex-wrap items-baseline gap-x-2 sm:block">
               <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
                 En Cours
               </span>
-              <span className="text-2xl font-extrabold text-indigo-700 mt-1 block">
+              <span className="text-xs text-gray-500 sm:mt-0.5 block">
+                {metrics.inProgress === 0 ? "0 lot en préparation" : `${metrics.inProgress} confirmée(s) ou en route`}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className="text-xl leading-6 sm:text-2xl sm:leading-8 font-extrabold text-indigo-700">
                 {metrics.inProgress}
               </span>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
-              <Truck className="w-5 h-5" />
-            </div>
-          </div>
-          <span className="text-[11px] text-gray-500 mt-2 block">
-            {metrics.inProgress === 0 ? "0 lot en préparation" : `${metrics.inProgress} confirmée(s) ou en route`}
-          </span>
-        </Card>
-
-        <Card padding="md">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
-                Livrées
-              </span>
-              <span className="text-2xl font-extrabold text-emerald-700 mt-1 block">
-                {metrics.delivered}
-              </span>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5" />
+              <div className="hidden sm:flex w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 items-center justify-center">
+                <Truck className="w-5 h-5" />
+              </div>
             </div>
           </div>
-          <span className="text-[11px] text-gray-500 mt-2 block">
-            {metrics.delivered === 0 ? "0 commande livrée" : `${metrics.delivered} réception(s) validée(s)`}
-          </span>
         </Card>
       </div>
 
@@ -480,7 +372,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
 
       {/* 5. Onglets de Statut Défilables */}
       <div className="border-b border-gray-200/80">
-        <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-none">
+        <div className="flex items-center gap-1 overflow-x-auto pb-2 no-scrollbar">
           {statusTabs.map((tab) => {
             const isActive = selectedStatus === tab.id;
             return (
@@ -496,7 +388,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
               >
                 <span>{tab.label}</span>
                 <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  className={`px-1.5 py-px rounded-full text-[11px] font-bold ${
                     isActive
                       ? "bg-white/20 text-white"
                       : "bg-gray-100 text-gray-600"
@@ -510,17 +402,19 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
         </div>
       </div>
 
-      {/* 6. Barre d'outils de Filtrage et Recherche */}
-      <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+      {/* 6. Barre d'outils de Filtrage et Recherche — recherche et accès aux filtres sur une même ligne
+          (correctif NAV-06, arbitrage C) ; le critère de campagne choisi dans le tiroir reste rappelé sous 640 px. */}
+      <div className="space-y-2">
+      <div className="flex flex-row gap-2 sm:gap-3 items-center justify-between">
         {/* Barre de recherche */}
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 min-w-0 md:max-w-md">
           <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="N° commande, revendeur, culture, ville..."
+            placeholder="N° commande, revendeur, produit, ville..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-8 py-2.5 text-xs rounded-2xl border border-gray-200 bg-white focus:ring-2 focus:ring-forest-500 outline-hidden transition-all shadow-2xs"
+            className="w-full pl-9 pr-8 py-2.5 text-xs rounded-2xl border border-gray-200 bg-white focus:ring-2 focus:ring-forest-500 outline-none transition-all shadow-2xs"
           />
           {searchQuery && (
             <button
@@ -552,12 +446,12 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
           <button
             type="button"
             onClick={() => setIsMobileFilterOpen(true)}
-            className="sm:hidden px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-700 flex items-center gap-1.5 shadow-2xs"
+            className="sm:hidden min-h-11 px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-700 flex items-center gap-1.5 shadow-2xs shrink-0"
           >
             <Filter className="w-3.5 h-3.5 text-gray-500" />
             <span>Filtres</span>
             {activeFiltersCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-forest-700 text-white text-[10px] flex items-center justify-center font-bold">
+              <span className="w-4 h-4 rounded-full bg-forest-700 text-white text-[11px] flex items-center justify-center font-bold">
                 {activeFiltersCount}
               </span>
             )}
@@ -607,6 +501,18 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
           </div>
         </div>
       </div>
+      {selectedCampaignId !== "all" && (
+        <FiltresActifs
+          className="sm:hidden"
+          criteres={[{
+            cle: "campagne",
+            libelle: "Campagne",
+            valeur: campaignOptions.find((o) => o.value === selectedCampaignId)?.label ?? "Campagne",
+            retirer: () => setSelectedCampaignId("all"),
+          }]}
+        />
+      )}
+      </div>
 
       {/* 7. Contenu : Liste de commandes ou États Vides */}
       {filteredOrders.length === 0 ? (
@@ -619,7 +525,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
           </h3>
           <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto mb-6 leading-relaxed">
             {orders.length === 0
-              ? "Vos offres commerciales n'ont pas encore reçu d'engagements fermes de la part des revendeurs. Vérifiez que vos campagnes de vente sont publiées et actives sur le marché."
+              ? "Vos campagnes n'ont pas encore reçu d'engagements fermes de la part des revendeurs. Vérifiez que vos campagnes sont publiées et actives sur le marché."
               : "Aucune commande ne correspond aux filtres et termes de recherche sélectionnés."}
           </p>
 
@@ -629,7 +535,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-forest-800 text-white font-bold text-xs hover:bg-forest-900 transition-colors shadow-sm"
             >
               <ShoppingBag className="w-4 h-4" />
-              <span>Consulter mes campagnes de vente</span>
+              <span>Consulter mes campagnes</span>
             </Link>
           ) : (
             <Button variant="outline" size="sm" onClick={handleResetFilters} className="gap-1.5 text-xs">
@@ -659,8 +565,8 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
               <thead>
                 <tr className="bg-gray-50/80 border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                   <th className="py-3.5 px-4">Commande</th>
-                  <th className="py-3.5 px-4">Acheteur / Revendeur</th>
-                  <th className="py-3.5 px-4">Produit & Offre</th>
+                  <th className="py-3.5 px-4">Revendeur</th>
+                  <th className="py-3.5 px-4">Produit & campagne</th>
                   <th className="py-3.5 px-4 text-right">Volume</th>
                   <th className="py-3.5 px-4 text-right">Montant</th>
                   <th className="py-3.5 px-4">Statut</th>
@@ -683,10 +589,10 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
                     <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
                       {/* N° Commande & Date */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="font-mono text-gray-500 text-[11px] font-medium block">
+                        <span className="font-mono text-gray-500 text-xs font-medium block">
                           Réf. {order.order_number}
                         </span>
-                        <span className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
+                        <span className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                           <Calendar className="w-3 h-3" />
                           {formattedDate}
                         </span>
@@ -702,7 +608,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
                             <span className="font-bold text-gray-900 block truncate max-w-[160px]">
                               {order.reseller.business_name}
                             </span>
-                            <span className="text-[10px] text-gray-500">
+                            <span className="text-xs text-gray-500">
                               {order.reseller.city ? `${order.reseller.city}, ` : ""}
                               {order.reseller.provinces?.name || "RDC"}
                             </span>
@@ -715,8 +621,8 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
                         <span className="font-semibold text-gray-900 block truncate max-w-[180px]">
                           {mainItem?.product?.name || mainItem?.product_name_snapshot || "Produit agricole"}
                         </span>
-                        <span className="text-[10px] text-gray-400 block truncate max-w-[180px]">
-                          {order.campaign?.title || order.campaign_title_snapshot || "Offre"}
+                        <span className="text-xs text-gray-400 block truncate max-w-[180px]">
+                          {order.campaign?.title || order.campaign_title_snapshot || "Campagne"}
                         </span>
                       </td>
 
@@ -724,17 +630,17 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
                       <td className="py-3.5 px-4 text-right whitespace-nowrap">
                         <span className="font-extrabold text-gray-900 flex items-center gap-1 justify-end">
                           <Layers className="w-3 h-3 text-forest-700" />
-                          {itemQty.toLocaleString("fr-FR")} {itemUnit}
+                          {formatQuantityWithUnit(itemQty, itemUnit)}
                         </span>
-                        <span className="text-[10px] text-gray-400">
+                        <span className="text-xs text-gray-400">
                           {mainItem ? `${mainItem.unit_price} ${order.currency}/${itemUnit}` : ""}
                         </span>
                       </td>
 
                       {/* Montant Total */}
                       <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                        <span className="font-black text-forest-900 font-mono">
-                          {order.total_amount.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}{" "}
+                        <span className="font-black text-forest-900 font-mono whitespace-nowrap">
+                          {formatAmount(order.total_amount)}{" "}
                           {order.currency}
                         </span>
                       </td>
@@ -796,40 +702,48 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
       />
 
       {/* 9. Modal Changement Manuel de Statut */}
-      {statusModalOrder && statusOptions.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div
-            ref={statusDialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={statusDialogTitleId}
-            className="relative w-full max-w-md bg-white rounded-3xl shadow-xl border border-gray-100 p-5 space-y-4"
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <h3 id={statusDialogTitleId} className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                <Settings className="w-4 h-4 text-forest-700" />
-                Actualiser le Statut Logistique
-              </h3>
-              <button
-                type="button"
-                onClick={() => setStatusModalOrder(null)}
-                disabled={actionLoading}
-                aria-label="Fermer"
-                className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 disabled:opacity-50"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      <Dialog
+        isOpen={!!statusModalOrder && statusOptions.length > 0}
+        onClose={() => setStatusModalOrder(null)}
+        size="md"
+        isDismissable={!actionLoading}
+        showCloseButton={!actionLoading}
+        icon={<Settings className="w-5 h-5" />}
+        title={"Actualiser le Statut Logistique"}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setStatusModalOrder(null)}
+              disabled={actionLoading}
+            >
+              Fermer
+            </Button>
 
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSubmitStatusModal}
+              isLoading={actionLoading}
+            >
+              Enregistrer
+            </Button>
+          </>
+        }
+      >
+        {statusModalOrder && (
+          <div className="space-y-4">
             <p className="text-xs text-gray-600">
               Commande <strong>{statusModalOrder.order_number}</strong> ({statusModalOrder.reseller.business_name})
             </p>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-700">
+              <label htmlFor="company-orders-status-select" className="block text-xs font-bold text-gray-700">
                 Sélectionner le nouveau statut :
               </label>
               <Select
+                id="company-orders-status-select"
                 value={newStatus}
                 onChange={(e) => setNewStatus(e.target.value as OrderStatus)}
                 options={statusOptions}
@@ -837,33 +751,13 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
               />
             </div>
 
-            <p className="text-[11px] text-gray-500 leading-relaxed">
+            <p className="text-xs text-gray-500 leading-relaxed">
               Le statut ne peut qu&apos;avancer. La livraison se confirme via le QR code ou le
               numéro de commande ; l&apos;annulation via le bouton « Annuler ».
             </p>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setStatusModalOrder(null)}
-                disabled={actionLoading}
-              >
-                Fermer
-              </Button>
-
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleSubmitStatusModal}
-                isLoading={actionLoading}
-              >
-                Enregistrer
-              </Button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Dialog>
 
       {/* 11. Modal Confirmation Livraison (RPC confirm_order_delivery) */}
       {deliveryModalOrder && (
@@ -912,7 +806,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
           onClose={() => setCancelModalOrder(null)}
           onConfirm={handleConfirmCancelOrder}
           title="Annuler cette commande ?"
-          description={`Êtes-vous certain de vouloir annuler la commande ${cancelModalOrder.order_number} (${cancelModalOrder.reseller.business_name}) ? Cette action libérera immédiatement les ${cancelModalOrder.order_items[0]?.quantity || 0} ${cancelModalOrder.order_items[0]?.unit || "tonne"} réservés pour les remettre en stock disponible sur votre offre commerciale.`}
+          description={`Êtes-vous certain de vouloir annuler la commande ${cancelModalOrder.order_number} (${cancelModalOrder.reseller.business_name}) ? Cette action libérera immédiatement les ${cancelModalOrder.order_items[0]?.quantity || 0} ${cancelModalOrder.order_items[0]?.unit || "tonne"} réservés pour les remettre en stock disponible sur votre campagne.`}
           confirmText="Confirmer l'annulation"
           cancelText="Conserver la commande"
           variant="destructive"
@@ -944,7 +838,7 @@ function OrdersContent({ initialOrders }: CompanyOrdersViewProps) {
         <div className="space-y-4 py-2">
           {uniqueCampaigns.length > 0 && (
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700">Offre commerciale :</label>
+              <label className="text-xs font-bold text-gray-700">Campagne :</label>
               <Select
                 value={selectedCampaignId}
                 onChange={(e) => setSelectedCampaignId(e.target.value)}

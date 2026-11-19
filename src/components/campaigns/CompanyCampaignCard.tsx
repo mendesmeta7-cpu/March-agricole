@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   Building,
 } from "lucide-react";
+import { formatAmount, formatQuantity, formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 interface CompanyCampaignCardProps {
   campaign: CompanyCampaignItem;
@@ -108,35 +109,35 @@ export default function CompanyCampaignCard({
         {/* 2. Prix & Volume */}
         <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-gray-50 border border-gray-100">
           <div>
-            <span className="text-[10px] text-gray-400 block uppercase font-medium">Prix unitaire</span>
+            <span className="text-[11px] text-gray-500 block uppercase font-medium">Prix unitaire</span>
             <span className="text-sm font-extrabold text-forest-900 flex items-center gap-1 mt-0.5">
               <Tag className="w-3.5 h-3.5 text-forest-600" />
-              {campaign.unit_price.toLocaleString("fr-FR")}
-              <span className="text-[10px] font-normal text-gray-500">
+              {formatAmount(campaign.unit_price)}
+              <span className="text-xs font-normal text-gray-500">
                 {campaign.currency}/{campaign.unit}
               </span>
             </span>
           </div>
           <div>
-            <span className="text-[10px] text-gray-400 block uppercase font-medium">Volume total</span>
+            <span className="text-[11px] text-gray-500 block uppercase font-medium">Volume total</span>
             <span className="text-sm font-extrabold text-gray-900 flex items-center gap-1 mt-0.5">
               <Layers className="w-3.5 h-3.5 text-earth-600" />
-              {campaign.marketable_quantity.toLocaleString("fr-FR")}
-              <span className="text-[10px] font-normal text-gray-500">{campaign.unit}</span>
+              {formatQuantity(campaign.marketable_quantity)}
+              <span className="text-xs font-normal text-gray-500">{campaign.unit}</span>
             </span>
           </div>
         </div>
 
         {/* 3. Barre de réservation */}
         <div className="space-y-1.5">
-          <div className="flex justify-between items-center text-[11px]">
+          <div className="flex justify-between items-center text-xs">
             <span className="text-gray-500">
               Réservé :{" "}
               <strong className="text-amber-700">
-                {campaign.reserved_quantity.toLocaleString("fr-FR")} {campaign.unit}
+                {formatQuantityWithUnit(campaign.reserved_quantity, campaign.unit)}
               </strong>
             </span>
-            <span className="text-gray-400">{stockPercent}%</span>
+            <span className="text-gray-500">{stockPercent}%</span>
           </div>
           <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
             <div
@@ -157,7 +158,7 @@ export default function CompanyCampaignCard({
         {/* 5. Destinations avec état */}
         {campaign.destinations && campaign.destinations.length > 0 ? (
           <div className="space-y-1.5">
-            <span className="text-[10px] text-gray-400 uppercase font-medium flex items-center gap-1">
+            <span className="text-[11px] text-gray-500 uppercase font-medium flex items-center gap-1">
               <Building className="w-3 h-3" />
               Villes d&apos;arrivée ({campaign.destinations.length})
             </span>
@@ -192,9 +193,9 @@ export default function CompanyCampaignCard({
 
             {/* Compteur active/expirée */}
             {destSummary.total > 0 && (
-              <div className="flex items-center gap-2 text-[10px]">
+              <div className="flex items-center gap-2 text-xs">
                 {destSummary.active > 0 && (
-                  <span className="text-emerald-600">
+                  <span className="text-emerald-700">
                     {destSummary.active} active{destSummary.active > 1 ? "s" : ""}
                   </span>
                 )}
@@ -208,7 +209,7 @@ export default function CompanyCampaignCard({
           </div>
         ) : campaign.delivery_zones.length > 0 ? (
           <div>
-            <span className="text-[10px] text-gray-400 uppercase font-medium flex items-center gap-1 mb-1">
+            <span className="text-[11px] text-gray-400 uppercase font-medium flex items-center gap-1 mb-1">
               <MapPin className="w-3 h-3" />
               Provinces desservies
             </span>
@@ -231,7 +232,7 @@ export default function CompanyCampaignCard({
         ) : null}
 
         {/* 6. Dates */}
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+        <div className="flex items-center gap-1.5 text-xs text-gray-500">
           <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
           <span>
             Du {formatDate(campaign.start_date)}

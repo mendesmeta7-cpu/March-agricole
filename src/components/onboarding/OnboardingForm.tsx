@@ -112,8 +112,8 @@ export default function OnboardingForm({
                   <p className="text-xs text-gray-500 font-medium">Type de compte</p>
                   <p className="text-sm font-bold text-gray-900 truncate">
                     {selectedRole === "company"
-                      ? "Société / Producteur Agricole"
-                      : "Revendeur Professionnel"}
+                      ? "Société"
+                      : "Revendeur"}
                   </p>
                 </div>
                 <span
@@ -141,7 +141,7 @@ export default function OnboardingForm({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            {/* Option 1 : Société Agricole / Producteur */}
+            {/* Option 1 : Société */}
             <button
               type="button"
               onClick={() => { setSelectedRole("company"); }}
@@ -169,16 +169,16 @@ export default function OnboardingForm({
                   )}
                 </div>
 
-                <div className="inline-flex items-center px-2 py-0.5 rounded-md bg-forest-100 text-forest-800 text-[10px] font-bold uppercase tracking-wider mb-2">
+                <div className="inline-flex items-center px-2 py-0.5 rounded-md bg-forest-100 text-forest-800 text-[11px] font-bold uppercase tracking-wider mb-2">
                   Production & Vente
                 </div>
 
                 <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1.5">
-                  Société / Producteur Agricole
+                  Société
                 </h3>
 
                 <p className="text-xs sm:text-sm text-gray-600 leading-relaxed mb-4">
-                  Ferme, plantation, coopérative ou agro-industrie qui produit, récolte et vend des denrées agricoles.
+                  Ferme, plantation, coopérative ou agro-industrie qui produit, récolte et vend des produits agricoles.
                 </p>
 
                 <ul className="space-y-1.5 text-xs text-forest-900/80 pt-3 border-t border-forest-100">
@@ -188,7 +188,7 @@ export default function OnboardingForm({
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-forest-600 shrink-0" />
-                    <span>Lancement de campagnes de vente sécurisées</span>
+                    <span>Lancement de campagnes</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-forest-600 shrink-0" />
@@ -198,7 +198,7 @@ export default function OnboardingForm({
               </div>
             </button>
 
-            {/* Option 2 : Revendeur Professionnel */}
+            {/* Option 2 : Revendeur */}
             <button
               type="button"
               onClick={() => setSelectedRole("reseller")}
@@ -226,30 +226,30 @@ export default function OnboardingForm({
                   )}
                 </div>
 
-                <div className="inline-flex items-center px-2 py-0.5 rounded-md bg-earth-100 text-earth-900 text-[10px] font-bold uppercase tracking-wider mb-2">
+                <div className="inline-flex items-center px-2 py-0.5 rounded-md bg-earth-100 text-earth-900 text-[11px] font-bold uppercase tracking-wider mb-2">
                   Achat & Distribution
                 </div>
 
                 <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1.5">
-                  Revendeur Professionnel
+                  Revendeur
                 </h3>
 
                 <p className="text-xs sm:text-sm text-gray-600 leading-relaxed mb-4">
-                  Grossiste, demi-grossiste, détaillant ou transformateur qui achète des denrées pour le marché.
+                  Grossiste, demi-grossiste, détaillant ou transformateur qui achète des produits agricoles pour le marché.
                 </p>
 
                 <ul className="space-y-1.5 text-xs text-earth-900/80 pt-3 border-t border-earth-100">
                   <li className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-earth-700 shrink-0" />
-                    <span>Accès au flux de récoltes réelles vérifiées</span>
+                    <span>Accès aux productions publiées par les sociétés</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-earth-700 shrink-0" />
-                    <span>Commandes avec réservation garantie de stock</span>
+                    <span>Commandes avec réservation du stock</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-earth-700 shrink-0" />
-                    <span>Expression de besoins d&apos;approvisionnement</span>
+                    <span>Publication de demandes d&apos;approvisionnement</span>
                   </li>
                 </ul>
               </div>
@@ -268,7 +268,7 @@ export default function OnboardingForm({
             </span>
             <h2 className="text-base sm:text-lg font-bold text-gray-900">
               {selectedRole === "company"
-                ? "Informations de votre entreprise agricole"
+                ? "Informations de votre société"
                 : "Informations de votre commerce revendeur"}
             </h2>
           </div>
@@ -298,10 +298,10 @@ export default function OnboardingForm({
           {selectedRole === "company" && (
             <div className="space-y-5 animate-in fade-in duration-200">
               <FormField
-                label="Dénomination / Raison sociale de l'entreprise"
+                label="Dénomination / Raison sociale de la société"
                 htmlFor="onboarding-company-name"
                 required
-                description="Le nom officiel de votre exploitation, ferme ou coopérative."
+                description="Le nom officiel de votre société, ferme ou coopérative."
               >
                 <Input
                   id="onboarding-company-name"
@@ -335,10 +335,10 @@ export default function OnboardingForm({
                 </FormField>
 
                 <FormField
-                  label="Adresse de l'exploitation ou siège"
+                  label="Adresse de la société ou siège"
                   htmlFor="onboarding-company-address"
                   optional
-                  description="Adresse physique, route ou repère de la ferme."
+                  description="Adresse physique, route ou repère de la société."
                 >
                   <Input
                     id="onboarding-company-address"
@@ -462,7 +462,7 @@ export default function OnboardingForm({
               <p className="leading-relaxed">
                 {selectedRole === "company" ? (
                   <span>
-                    La <strong>province</strong> indiquée correspond à l&apos;implantation principale de vos exploitations. Vous pourrez configurer vos parcelles précises dans votre espace.
+                    La <strong>province</strong> indiquée correspond à l&apos;implantation principale de votre société. Vous pourrez configurer vos parcelles précises dans votre espace.
                   </span>
                 ) : (
                   <span>
@@ -494,7 +494,7 @@ export default function OnboardingForm({
           <div className="flex items-center justify-center gap-2 text-xs text-gray-400 text-center">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
             <span>
-              Processus sécurisé Radiza Identity • Aucune donnée fictive • Respect de la confidentialité
+              Inscription sur Radiza • Fournissez des informations exactes
             </span>
           </div>
         </div>

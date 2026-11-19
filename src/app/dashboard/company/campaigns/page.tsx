@@ -1,30 +1,37 @@
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentCompanyId, getCurrentUser } from "@/lib/auth/currentCompany";
 import CompanyAccountMissing from "@/components/company/CompanyAccountMissing";
 import { redirect } from "next/navigation";
-import { settleRead } from "@/lib/utils/settleRead";
-import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
-import {
-  getCompanyCampaigns,
-  getCompanyEligibleProductions,
-} from "@/lib/queries/campaigns";
-import { getAggregatedMarketDemands } from "@/lib/queries/demands";
+import { getCompanyCampaigns } from "@/lib/queries/campaigns";
 import CompanyCampaignsView from "@/components/campaigns/CompanyCampaignsView";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Campagnes — Radiza" };
 
 interface CompanyCampaignsPageProps {
   searchParams?: Promise<{
     production_id?: string;
     new?: string;
+    /** Campagne dont le tiroir de détail s'ouvre à l'arrivée (ancienne route /campaigns/[id]) */
+    campagne?: string;
   }>;
 }
 
 export default async function CompanyCampaignsPage(props: CompanyCampaignsPageProps) {
   const searchParams = await props.searchParams;
-  const supabase = await createClient();
   const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login?redirect=/dashboard/company/campaigns");
+  }
+
+  // Lot UX/UI 5B : la création se fait sur la page dédiée. Les anciens liens qui ouvraient la
+  // modale (?production_id=, ?new=true) y mènent désormais, production pré-remplie conservée.
+  if (searchParams?.production_id || searchParams?.new === "true") {
+    const query = searchParams.production_id
+      ? `?production_id=${encodeURIComponent(searchParams.production_id)}`
+      : "";
+    redirect(`/dashboard/company/campaigns/new${query}`);
   }
 
   // 1. Entreprise rattachée (membre ou créateur) — résolution mutualisée et mise en cache (FUN-18)
@@ -34,53 +41,13 @@ export default async function CompanyCampaignsPage(props: CompanyCampaignsPagePr
     return <CompanyAccountMissing />;
   }
 
-  // Récupération du pays de l'entreprise
-  const { data: companyRecord, error: companyError } = await supabase
-    .from("companies")
-    .select("country_id")
-    .eq("id", companyId)
-    .single();
-
-  const countryId = companyRecord?.country_id;
-
-  // 2. Chargement simultané des données
-  const [campaigns, eligibleRead, provincesResult, marketDemandsRead] =
-    await Promise.all([
-      getCompanyCampaigns(companyId),
-      settleRead(getCompanyEligibleProductions(companyId), []),
-      countryId
-        ? supabase
-            .from("provinces")
-            .select("id, country_id, code, name")
-            .eq("country_id", countryId)
-            .order("name")
-        : Promise.resolve({ data: [], error: null }),
-      settleRead(getAggregatedMarketDemands(), []),
-    ]);
-
-  const provinces = provincesResult.data || [];
-  // Une panne de ces lectures secondaires n'efface pas la liste : elle est signalée.
-  const formDataFailed =
-    Boolean(companyError || provincesResult.error) ||
-    eligibleRead.failed ||
-    marketDemandsRead.failed;
+  // 2. Campagnes de la société (le formulaire et ses données sont chargés par les pages dédiées)
+  const campaigns = await getCompanyCampaigns(companyId);
 
   return (
-    <>
-      {formDataFailed && (
-        <DataUnavailableNotice className="mb-4" title="Formulaire de campagne incomplet">
-          Vos campagnes sont affichées, mais les productions éligibles, les provinces ou la
-          demande du marché n&apos;ont pas pu être chargées. Réessayez avant de créer une campagne.
-        </DataUnavailableNotice>
-      )}
-      <CompanyCampaignsView
-        initialCampaigns={campaigns}
-        eligibleProductions={eligibleRead.data}
-        provinces={provinces}
-        marketDemands={marketDemandsRead.data}
-        initialModalOpen={!!searchParams?.production_id || searchParams?.new === "true"}
-        defaultProductionId={searchParams?.production_id}
-      />
-    </>
+    <CompanyCampaignsView
+      initialCampaigns={campaigns}
+      initialDetailCampaignId={searchParams?.campagne}
+    />
   );
 }

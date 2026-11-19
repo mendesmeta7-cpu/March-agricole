@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { formatQuantity } from "@/lib/utils/numberFormat";
 
 interface ProductionCardProps {
   production: ProductionItem;
@@ -64,7 +65,7 @@ export default function ProductionCard({
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-forest-50 to-emerald-50/40 text-forest-700">
               <Tractor className="w-12 h-12 text-forest-600/70 mb-1" />
-              <span className="text-[11px] font-medium text-forest-800/80">Cycle cultural</span>
+              <span className="text-xs font-medium text-forest-800/80">Cycle cultural</span>
             </div>
           )}
 
@@ -80,15 +81,15 @@ export default function ProductionCard({
             </div>
 
             <span
-              className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-md shadow-xs ${
+              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-md shadow-xs ${
                 production.is_public
                   ? "bg-white/90 text-forest-800"
                   : "bg-black/65 text-gray-200"
               }`}
               title={
                 production.is_public
-                  ? "Visible par les revendeurs dans le flux d'approvisionnement"
-                  : "Privé (usage interne de l'exploitation)"
+                  ? "Visible par les revendeurs dans leur tableau de bord"
+                  : "Privé (usage interne de la société)"
               }
             >
               {production.is_public ? (
@@ -128,11 +129,11 @@ export default function ProductionCard({
             <div className="flex items-center gap-2">
               <Scale className="w-4 h-4 text-forest-700 shrink-0" />
               <div>
-                <p className="text-[10px] uppercase font-bold text-forest-700 tracking-wider">
+                <p className="text-[11px] uppercase font-bold text-forest-700 tracking-wider">
                   Volume prévisionnel
                 </p>
                 <p className="text-sm font-extrabold text-forest-950">
-                  {production.expected_quantity.toLocaleString("fr-FR")}{" "}
+                  {formatQuantity(production.expected_quantity)}{" "}
                   <span className="text-xs font-medium text-forest-800">
                     {production.unit}
                   </span>
@@ -140,7 +141,7 @@ export default function ProductionCard({
               </div>
             </div>
 
-            <span className="text-[10px] font-bold text-forest-700 bg-forest-100/90 px-2 py-0.5 rounded-md">
+            <span className="text-[11px] font-bold text-forest-700 bg-forest-100/90 px-2 py-0.5 rounded-md">
               Déclaré
             </span>
           </div>
@@ -183,11 +184,11 @@ export default function ProductionCard({
           )}
 
           {/* Puces de suivi réel (Campagnes & Demandes) */}
-          <div className="flex items-center gap-2 pt-1 flex-wrap text-[11px]">
+          <div className="flex items-center gap-2 pt-1 flex-wrap text-xs">
             {campaignsCount > 0 && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-earth-50 text-earth-800 border border-earth-200 font-medium">
                 <Megaphone className="w-3 h-3 text-earth-600" />
-                <span>{campaignsCount} offre(s)</span>
+                <span>{campaignsCount} campagne(s)</span>
               </span>
             )}
             {demandsCount > 0 && (
@@ -197,7 +198,7 @@ export default function ProductionCard({
               </span>
             )}
             {isHarvested && !hasActiveCampaign && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200 font-semibold text-[10px]">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200 font-semibold text-[11px]">
                 🌾 Prête pour commercialisation
               </span>
             )}
@@ -222,7 +223,7 @@ export default function ProductionCard({
             <Link
               href={`/dashboard/company/campaigns/new?production_id=${production.id}`}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all"
-              title="Lancer une offre commerciale sur cette récolte"
+              title="Lancer une campagne sur cette récolte"
             >
               <Plus className="w-3.5 h-3.5 text-emerald-700" />
               <span>Campagne</span>

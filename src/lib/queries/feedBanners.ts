@@ -47,9 +47,11 @@ export async function getAllFeedBannersAdmin(): Promise<FeedBannerItem[]> {
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });
 
+  // Lot 2C : lecture principale de la page d'administration — une panne n'est
+  // jamais présentée comme « aucune bannière » (écran d'erreur avec « Réessayer »)
   if (error) {
     console.error("Erreur getAllFeedBannersAdmin :", error.message);
-    return [];
+    throw new Error("Lecture des bannières du flux impossible");
   }
 
   return (data || []) as FeedBannerItem[];

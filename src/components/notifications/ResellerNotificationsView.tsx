@@ -7,6 +7,7 @@ import {
   markAllNotificationsAsReadAction,
 } from "@/lib/actions/notifications";
 import Button from "@/components/ui/Button";
+import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -20,7 +21,6 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  ArrowLeft,
   Sparkles,
   Inbox,
   Filter,
@@ -194,7 +194,7 @@ export default function ResellerNotificationsView({
         return {
           icon: <TrendingUp className="w-5 h-5 text-emerald-700" />,
           bg: "bg-emerald-50 text-emerald-800 border-emerald-200",
-          tag: "Proposition de devis",
+          tag: "Proposition",
         };
       case "DEMANDE_ACCEPTEE":
         return {
@@ -212,7 +212,7 @@ export default function ResellerNotificationsView({
         return {
           icon: <Megaphone className="w-5 h-5 text-amber-700" />,
           bg: "bg-amber-50 text-amber-800 border-amber-200",
-          tag: "Nouvelle offre",
+          tag: "Nouvelle campagne",
         };
       case "COMMANDE_CREEE":
         return {
@@ -274,7 +274,7 @@ export default function ResellerNotificationsView({
       case "DEMANDE_REPONSE":
         return "Consulter la proposition";
       case "CAMPAGNE_OUVERTE":
-        return "Découvrir l'offre";
+        return "Découvrir la campagne";
       case "COMMANDE_CREEE":
         return "Détails de la commande";
       case "DATE_ARRIVEE_MODIFIEE":
@@ -304,65 +304,39 @@ export default function ResellerNotificationsView({
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Navigation fil d'Ariane */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
-          <Link
-            href="/dashboard/reseller"
-            className="hover:text-earth-900 flex items-center gap-1.5 transition-colors font-medium"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Flux des Productions
-          </Link>
-          <span className="text-gray-300">/</span>
-          <span className="text-gray-900 font-semibold">Notifications</span>
-        </div>
-
-        {unreadCount > 0 ? (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
-            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-            {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            Tout est à jour
-          </span>
-        )}
-      </div>
-
-      {/* En-tête de Section */}
-      <div className="bg-white rounded-3xl border border-gray-200/90 p-5 sm:p-7 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-xl">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-earth-100 text-earth-900 text-xs font-bold tracking-tight">
-              <Bell className="w-3.5 h-3.5 text-earth-800" />
-              <span>Centre d&apos;Alertes & Événements</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-950 tracking-tight">
-              Notifications
-            </h1>
-            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-              Suivez en temps réel les propositions de devis adressées par les producteurs, l&apos;ouverture des campagnes commerciales et le suivi logistique de vos commandes.
-            </p>
-          </div>
-
-          {unreadCount > 0 && (
-            <div className="shrink-0 pt-2 sm:pt-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleMarkAllAsRead}
-                isLoading={isPending}
-                leftIcon={<CheckCheck className="w-4 h-4 text-emerald-600" />}
-                className="w-full sm:w-auto shadow-2xs font-semibold"
-              >
-                Tout marquer comme lu ({unreadCount})
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* En-tête commun (Lot 6B, NAV-02) */}
+      <PageHeader
+        breadcrumb={[{ href: "/dashboard/reseller", label: "Tableau de bord" }]}
+        title="Notifications"
+        badge={
+          unreadCount > 0 ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-600 motion-safe:animate-pulse" aria-hidden="true" />
+              {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+              Tout est à jour
+            </span>
+          )
+        }
+        description="Suivez en temps réel les propositions adressées par les sociétés, l'ouverture des campagnes commerciales et le suivi logistique de vos commandes."
+        action={
+          unreadCount > 0 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleMarkAllAsRead}
+              isLoading={isPending}
+              leftIcon={<CheckCheck className="w-4 h-4 text-emerald-600" />}
+              className="w-full sm:w-auto shadow-2xs font-semibold"
+            >
+              Tout marquer comme lu ({unreadCount})
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Cartouches de Statistiques Réelles (0 Mock Data) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -371,7 +345,7 @@ export default function ResellerNotificationsView({
             <Bell className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] text-gray-500 font-semibold truncate">Total alertes</p>
+            <p className="text-xs text-gray-500 font-semibold truncate">Total alertes</p>
             <p className="text-lg sm:text-xl font-extrabold text-gray-950">{stats.total}</p>
           </div>
         </div>
@@ -381,7 +355,7 @@ export default function ResellerNotificationsView({
             <Clock className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] text-gray-500 font-semibold truncate">Non lues</p>
+            <p className="text-xs text-gray-500 font-semibold truncate">Non lues</p>
             <p className="text-lg sm:text-xl font-extrabold text-gray-950">{stats.unread}</p>
           </div>
         </div>
@@ -391,7 +365,7 @@ export default function ResellerNotificationsView({
             <Megaphone className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] text-gray-500 font-semibold truncate">Offres ouvertes</p>
+            <p className="text-xs text-gray-500 font-semibold truncate">Campagnes annoncées</p>
             <p className="text-lg sm:text-xl font-extrabold text-gray-950">{stats.campaigns}</p>
           </div>
         </div>
@@ -401,7 +375,7 @@ export default function ResellerNotificationsView({
             <ShoppingBag className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] text-gray-500 font-semibold truncate">Commandes</p>
+            <p className="text-xs text-gray-500 font-semibold truncate">Commandes</p>
             <p className="text-lg sm:text-xl font-extrabold text-gray-950">{stats.orders}</p>
           </div>
         </div>
@@ -485,7 +459,7 @@ export default function ResellerNotificationsView({
               href="/dashboard/reseller"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-earth-800 text-white text-xs font-bold hover:bg-earth-900 transition-colors shadow-2xs"
             >
-              <span>Explorer le flux des productions</span>
+              <span>Explorer le tableau de bord</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           }
@@ -516,7 +490,7 @@ export default function ResellerNotificationsView({
           {groupedNotifications.map((group) => (
             <div key={group.id} className="space-y-3">
               <div className="flex items-center gap-2 px-1">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-gray-400">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-gray-500">
                   {group.label}
                 </span>
                 <div className="h-px bg-gray-200/80 flex-1" />
@@ -548,7 +522,7 @@ export default function ResellerNotificationsView({
 
                         <div className="space-y-1 min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-gray-100 text-gray-600">
+                            <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-gray-100 text-gray-600">
                               {meta.tag}
                             </span>
                             <h4
@@ -567,7 +541,7 @@ export default function ResellerNotificationsView({
                             {notif.message}
                           </p>
 
-                          <div className="flex items-center gap-2 pt-1 text-[11px] text-gray-400">
+                          <div className="flex items-center gap-2 pt-1 text-xs text-gray-500">
                             <Clock className="w-3 h-3" />
                             <span>{formatDate(notif.created_at)}</span>
                           </div>

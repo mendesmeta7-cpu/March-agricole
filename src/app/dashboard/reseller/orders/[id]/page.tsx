@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { getResellerOrderById } from "@/lib/queries/orders";
 import ResellerOrderDetailView from "@/components/orders/ResellerOrderDetailView";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Détail de la commande — Radiza" };
 
 interface ResellerOrderDetailPageProps {
   params: Promise<{

@@ -10,6 +10,9 @@ import CompanyDemandProposalModal from "./CompanyDemandProposalModal";
 import { useToast } from "@/components/ui/Toast";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import PageHeader from "@/components/ui/PageHeader";
+import InfoRepliable from "@/components/ui/InfoRepliable";
+import FiltresActifs, { type CritereActif } from "@/components/ui/FiltresActifs";
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
 import { ConfirmDialog } from "@/components/ui/Dialog";
@@ -19,8 +22,6 @@ import {
   Scale,
   Search,
   Filter,
-  ArrowLeft,
-  Info,
   Package,
   Sparkles,
   BarChart3,
@@ -38,10 +39,12 @@ import {
   RefreshCw,
   X,
   ChevronDown,
+  AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { formatQuantity, formatUnitTotals, groupQuantitiesByUnit } from "@/lib/utils/unitSeries";
+import { formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 interface MarketDemandsAnalysisViewProps {
   initialGeneralDemands?: DemandItem[];
@@ -56,6 +59,8 @@ interface MarketDemandsAnalysisViewProps {
     status: string;
     product_id: string;
   }[];
+  /** Lot 2C : productions illisibles — compatibilité inconnue, réponse bloquée. */
+  productionsUnavailable?: boolean;
   companyName: string;
 }
 
@@ -67,6 +72,7 @@ export default function MarketDemandsAnalysisView({
   catalogProducts,
   provinces,
   companyProductions = [],
+  productionsUnavailable = false,
   companyName,
 }: MarketDemandsAnalysisViewProps) {
   const { toast } = useToast();
@@ -135,6 +141,44 @@ export default function MarketDemandsAnalysisView({
     return { volumeByUnit, totalDemands, distinctProvinces, distinctProducts };
   }, [initialAggregates]);
 
+  // Options des filtres : calculées à chaque rendu au niveau du composant. Elles étaient appelées
+  // (useMemo) à l'intérieur du panneau conditionnel, ce qui faisait tomber la page à son ouverture
+  // (nombre de hooks variable ; constaté le 2026-11-19, correctif NAV-06).
+  const productOptions = useMemo(
+    () => [
+      { value: "all", label: "Tous les produits" },
+      ...catalogProducts.map((p) => ({ value: p.id, label: p.name })),
+    ],
+    [catalogProducts]
+  );
+  const provinceOptions = useMemo(
+    () => [
+      { value: "all", label: "Toutes les provinces" },
+      ...provinces.map((prov) => ({ value: prov.id, label: prov.name })),
+    ],
+    [provinces]
+  );
+
+  // Critères choisis dans le panneau, rappelés quand il est replié (NAV-06, arbitrage C)
+  const filtresActifs: CritereActif[] = [
+    ...(selectedProductId !== "all"
+      ? [{
+          cle: "produit",
+          libelle: "Produit",
+          valeur: productOptions.find((o) => o.value === selectedProductId)?.label ?? "Produit",
+          retirer: () => setSelectedProductId("all"),
+        }]
+      : []),
+    ...(selectedProvinceId !== "all"
+      ? [{
+          cle: "province",
+          libelle: "Province de livraison",
+          valeur: provinceOptions.find((o) => o.value === selectedProvinceId)?.label ?? "Province",
+          retirer: () => setSelectedProvinceId("all"),
+        }]
+      : []),
+  ];
+
   // Nombre de filtres actifs
   const activeFiltersCount = [
     selectedProductId !== "all",
@@ -165,7 +209,7 @@ export default function MarketDemandsAnalysisView({
         toast.error("Erreur", { description: res.error });
       } else {
         setGeneralDemands((prev) => prev.filter((d) => d.id !== demandId));
-        toast.success("Demande écartée", {
+        toast.success("Demande refusée", {
           description: "La demande a été retirée de votre tableau de bord.",
         });
       }
@@ -189,71 +233,26 @@ export default function MarketDemandsAnalysisView({
 
   return (
     <div className="space-y-6">
-      {/* ─── Fil d'Ariane ──────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
-        <Link
-          href="/dashboard/company"
-          className="hover:text-forest-800 flex items-center gap-1.5 transition-colors font-medium"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Tableau de bord
-        </Link>
-        <span className="text-gray-300">/</span>
-        <span className="text-gray-900 font-semibold">Demande du marché</span>
-      </div>
+      {/* ─── En-tête commun (Lot 6B, NAV-02) ──────────────────────────────────
+          Les deux chiffres du bandeau sombre (demandes, provinces) étaient repris par les
+          cartes ci-dessous (NAV-06) : seules les cartes restent. */}
+      <PageHeader
+        breadcrumb={[{ href: "/dashboard/company", label: "Tableau de bord" }]}
+        title="Demandes du marché"
+        description={
+          <>
+            Consultez les demandes des revendeurs et répondez directement avec vos
+            productions réelles pour <span className="text-gray-900 font-semibold">« {companyName} »</span>.
+          </>
+        }
+      />
 
-      {/* ─── En-tête de section ────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-earth-900 via-earth-800 to-forest-900 p-6 sm:p-8 text-white shadow-lg">
-        {/* Motif de fond décoratif */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-4 right-8 w-32 h-32 rounded-full bg-white/20" />
-          <div className="absolute bottom-2 right-20 w-16 h-16 rounded-full bg-white/10" />
-          <div className="absolute top-16 right-32 w-8 h-8 rounded-full bg-white/15" />
-        </div>
-
-        <div className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div className="space-y-2 flex-1 min-w-0">
-            {/* Badge de catégorie */}
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-semibold text-white/90 backdrop-blur-sm">
-              <Inbox className="w-3.5 h-3.5" />
-              Espace Société — Flux Commercial
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight">
-              Demande du marché
-            </h1>
-            <p className="text-sm sm:text-base text-white/70 max-w-xl leading-relaxed">
-              Consultez les expressions de besoin des revendeurs et répondez directement avec vos
-              productions réelles pour <span className="text-white/90 font-semibold">« {companyName} »</span>.
-            </p>
-          </div>
-
-          {/* Statistiques rapides en-tête */}
-          <div className="flex flex-row sm:flex-col gap-3 sm:items-end shrink-0">
-            <div className="text-center sm:text-right">
-              <p className="text-3xl font-black text-white">{generalDemands.length}</p>
-              <p className="text-xs text-white/60 font-medium">Demandes générales</p>
-            </div>
-            <div className="text-center sm:text-right">
-              <p className="text-3xl font-black text-emerald-300">{stats.distinctProvinces}</p>
-              <p className="text-xs text-white/60 font-medium">Provinces actives</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ─── Cartes de métriques réelles ───────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* ─── Cartes de métriques réelles ─────────────────────────────────────
+          Correctif NAV-06 (Lot 6B) : « Demandes actives » répétait exactement le nombre de l'onglet « Demandes »,
+          toujours visible (arbitrage A) : retiré. Les trois indicateurs propres à la page restent, en cartes basses
+          sous 640 px (arbitrage B) ; le volume y occupe toute la largeur pour que ses unités restent lisibles. */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
         {[
-          {
-            label: "Demandes actives",
-            value: generalDemands.length,
-            unit: "",
-            icon: Inbox,
-            bg: "bg-earth-50",
-            iconColor: "text-earth-700",
-            valueColor: "text-earth-950",
-          },
           {
             label: "Volume total recherché",
             // Une valeur par unité, séparées par « · » (jamais additionnées entre unités)
@@ -295,7 +294,7 @@ export default function MarketDemandsAnalysisView({
             valueColor: "text-blue-950",
           },
           {
-            label: "Denrées ciblées",
+            label: "Produits ciblés",
             value: stats.distinctProducts,
             unit: "",
             icon: Package,
@@ -308,19 +307,23 @@ export default function MarketDemandsAnalysisView({
           return (
             <Card
               key={i}
-              className="p-4 sm:p-5 border-gray-100 shadow-xs hover:shadow-sm transition-shadow"
+              padding="none"
+              className={`p-3 sm:p-5 border-gray-100 shadow-xs hover:shadow-sm transition-shadow ${
+                i === 0 ? "col-span-2 lg:col-span-1" : ""
+              }`}
             >
               <div className="flex items-start gap-3">
                 <div
-                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${stat.bg} ${stat.iconColor} flex items-center justify-center shrink-0`}
+                  className={`hidden sm:flex w-10 h-10 rounded-xl ${stat.bg} ${stat.iconColor} items-center justify-center shrink-0`}
                 >
-                  <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Icon className="w-5 h-5" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] sm:text-xs text-gray-500 font-medium leading-tight">
+                {/* Sous 640 px, tuiles 2 et 3 : libellé et valeur sur une ligne (NAV-06, arbitrage B, suite) */}
+                <div className={i === 0 ? "min-w-0" : "min-w-0 flex-1 flex items-center justify-between gap-2 sm:block"}>
+                  <p className="text-xs sm:text-xs text-gray-500 font-medium leading-tight">
                     {stat.label}
                   </p>
-                  <p className={`text-xl sm:text-2xl font-black ${stat.valueColor} leading-tight`}>
+                  <p className={`text-lg sm:text-2xl font-black ${stat.valueColor} leading-tight ${i === 0 ? "mt-0.5" : "shrink-0"} sm:mt-0`}>
                     {stat.value}
                     {stat.unit && (
                       <span className="text-xs font-normal text-gray-500 ml-1">{stat.unit}</span>
@@ -331,25 +334,6 @@ export default function MarketDemandsAnalysisView({
             </Card>
           );
         })}
-      </div>
-
-      {/* ─── Cartouche explicatif métier ───────────────────────────────────── */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-earth-50/80 border border-earth-100 flex items-start gap-3">
-        <div className="w-9 h-9 rounded-xl bg-earth-100 text-earth-700 flex items-center justify-center shrink-0">
-          <Info className="w-4 h-4" />
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm font-bold text-earth-900">Comment fonctionne la Demande du marché ?</p>
-          <p className="text-xs text-earth-800/85 leading-relaxed">
-            Les revendeurs expriment leurs besoins en denrées agricoles (produit, volume, province de livraison,
-            période souhaitée). En tant que société agricole, vous pouvez <strong>répondre à ces demandes</strong> en
-            associant l&apos;une de vos productions réelles et en soumettant un volume et un prix ferme.
-            Le revendeur pourra ensuite convertir votre proposition en commande ferme.
-          </p>
-          <p className="text-[11px] text-earth-700/70 font-medium pt-0.5">
-            💡 Règle clé : Une demande ≠ une commande. Aucun stock n&apos;est réservé avant l&apos;acceptation d&apos;une proposition.
-          </p>
-        </div>
       </div>
 
       {/* ─── Onglets ────────────────────────────────────────────────────────── */}
@@ -375,7 +359,7 @@ export default function MarketDemandsAnalysisView({
               <span className="hidden sm:inline">{tab.label}</span>
               <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
               <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
                   isActive
                     ? "bg-earth-100 text-earth-800"
                     : "bg-gray-100 text-gray-600"
@@ -388,16 +372,19 @@ export default function MarketDemandsAnalysisView({
         })}
       </div>
 
-      {/* ─── Barre de recherche et filtres ─────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
+      {/* ─── Barre de recherche et filtres ───────────────────────────────────
+          Correctif NAV-06 (arbitrage C) : sous 640 px, recherche et bouton « Filtres » sur une même ligne,
+          sans cadre ; les critères choisis restent rappelés quand le panneau est replié. */}
+      <div className="space-y-2">
+      <div className="sm:bg-white sm:rounded-2xl sm:border sm:border-gray-100 sm:shadow-xs overflow-hidden">
         {/* Ligne principale de recherche */}
-        <div className="p-3 sm:p-4 flex flex-col sm:flex-row gap-3">
+        <div className="sm:p-4 flex flex-row items-center gap-2 sm:gap-3">
           {/* Barre de recherche */}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Filtrer par denrée, province, localité, notes..."
+              placeholder="Filtrer par produit, province, localité, notes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-9 py-2.5 text-xs sm:text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-earth-600/50 focus:border-earth-400 transition-all bg-gray-50/50 focus:bg-white"
@@ -418,7 +405,9 @@ export default function MarketDemandsAnalysisView({
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm rounded-xl border transition-all cursor-pointer font-medium ${
+            aria-expanded={showFilters}
+            aria-controls="demandes-marche-filtres"
+            className={`flex items-center gap-2 max-sm:min-h-11 px-3 sm:px-4 py-2.5 text-xs sm:text-sm rounded-xl border transition-all cursor-pointer font-medium shrink-0 ${
               activeFiltersCount > 0
                 ? "border-earth-300 bg-earth-50 text-earth-800"
                 : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
@@ -427,7 +416,7 @@ export default function MarketDemandsAnalysisView({
             <Filter className="w-3.5 h-3.5" />
             <span>Filtres</span>
             {activeFiltersCount > 0 && (
-              <span className="bg-earth-700 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              <span className="bg-earth-700 text-white text-[11px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                 {activeFiltersCount}
               </span>
             )}
@@ -439,30 +428,28 @@ export default function MarketDemandsAnalysisView({
             <button
               type="button"
               onClick={resetFilters}
-              className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-earth-700 hover:text-earth-800 underline underline-offset-2 cursor-pointer whitespace-nowrap"
+              aria-label="Réinitialiser les filtres"
+              className="flex items-center justify-center gap-1.5 max-sm:min-h-11 max-sm:min-w-11 px-2 sm:px-3 py-2.5 text-xs font-semibold text-earth-700 hover:text-earth-800 underline underline-offset-2 cursor-pointer whitespace-nowrap shrink-0"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Réinitialiser
+              <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
+              <span className="hidden sm:inline">Réinitialiser</span>
             </button>
           )}
         </div>
 
         {/* Filtres dépliables */}
         {showFilters && (
-          <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-0 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div id="demandes-marche-filtres" className="pt-3 sm:px-4 sm:pb-4 sm:pt-0 sm:border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Filtre par denrée */}
           <div>
             <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
-              Denrée agricole
+              Produit
             </label>
             <Select
               value={selectedProductId}
               onChange={(e) => setSelectedProductId(e.target.value)}
               searchable
-              options={useMemo(() => [
-                { value: "all", label: "Toutes les denrées" },
-                ...catalogProducts.map((p) => ({ value: p.id, label: p.name })),
-              ], [catalogProducts])}
+              options={productOptions}
             />
           </div>
 
@@ -475,14 +462,13 @@ export default function MarketDemandsAnalysisView({
               value={selectedProvinceId}
               onChange={(e) => setSelectedProvinceId(e.target.value)}
               searchable
-              options={useMemo(() => [
-                { value: "all", label: "Toutes les provinces" },
-                ...provinces.map((prov) => ({ value: prov.id, label: prov.name })),
-              ], [provinces])}
+              options={provinceOptions}
             />
           </div>
           </div>
         )}
+      </div>
+      {!showFilters && <FiltresActifs criteres={filtresActifs} />}
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════════
@@ -514,9 +500,9 @@ export default function MarketDemandsAnalysisView({
           {generalDemands.length === 0 && (
             <EmptyState
               title="Aucune demande générale en attente"
-              description="Dès qu'un acheteur publiera une expression de besoin nationale ou régionale, elle apparaîtra ici pour vous permettre d'y répondre avec vos productions réelles."
+              description="Dès qu'un revendeur publiera une demande nationale ou régionale, elle apparaîtra ici pour vous permettre d'y répondre avec vos productions réelles."
               icon={<Inbox className="w-8 h-8 text-earth-600" />}
-              phaseBadge="Flux commercial actif"
+              phaseBadge="Activité commerciale"
             />
           )}
 
@@ -553,8 +539,11 @@ export default function MarketDemandsAnalysisView({
                 ).length;
 
                 return (
+                  // NAV-06 (Lot 6B, levier autorisé le 2026-11-19) : padding="none", la marge vient du bloc interne
+                  // (p-4 sm:p-5) ; la marge par défaut de Card s'y ajoutait et décalait aussi la bande colorée.
                   <Card
                     key={dem.id}
+                    padding="none"
                     className="overflow-hidden border border-gray-100 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col group"
                   >
                     {/* Bande colorée supérieure */}
@@ -579,11 +568,11 @@ export default function MarketDemandsAnalysisView({
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-earth-700 bg-earth-100/80 px-2 py-0.5 rounded-md">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-earth-700 bg-earth-100/80 px-2 py-0.5 rounded-md">
                               {dem.product.category}
                             </span>
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
-                              Besoin exprimé
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
+                              Demande exprimée
                             </span>
                           </div>
                           <h3 className="text-sm sm:text-base font-bold text-gray-900 mt-1 truncate">
@@ -596,11 +585,11 @@ export default function MarketDemandsAnalysisView({
                       <div className="p-3.5 rounded-xl bg-gradient-to-br from-earth-50 to-earth-100/50 border border-earth-100">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-[10px] font-semibold text-earth-600 uppercase tracking-wider">
+                            <p className="text-[11px] font-semibold text-earth-700 uppercase tracking-wider">
                               Volume recherché
                             </p>
                             <p className="text-lg sm:text-xl font-black text-earth-950 mt-0.5">
-                              {dem.quantity.toLocaleString("fr-FR")}{" "}
+                              {formatQuantity(dem.quantity)}{" "}
                               <span className="text-sm font-semibold text-earth-700">{dem.unit}</span>
                             </p>
                           </div>
@@ -646,12 +635,17 @@ export default function MarketDemandsAnalysisView({
                       </div>
 
                       {/* ─── Indicateur de compatibilité avec vos productions ─ */}
-                      {eligibleProductionsCount > 0 ? (
+                      {productionsUnavailable ? (
+                        <div className="flex items-center gap-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                          <span>Productions non vérifiées : réessayez avant de répondre</span>
+                        </div>
+                      ) : eligibleProductionsCount > 0 ? (
                         <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
                           <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                           <span className="font-semibold">
                             {eligibleProductionsCount} production{eligibleProductionsCount > 1 ? "s" : ""}{" "}
-                            compatible{eligibleProductionsCount > 1 ? "s" : ""} dans votre exploitation
+                            compatible{eligibleProductionsCount > 1 ? "s" : ""} dans votre société
                           </span>
                         </div>
                       ) : (
@@ -677,7 +671,8 @@ export default function MarketDemandsAnalysisView({
                         <button
                           type="button"
                           onClick={() => handleOpenProposal(dem)}
-                          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-earth-800 hover:bg-earth-900 active:scale-95 rounded-xl shadow-xs transition-all cursor-pointer"
+                          disabled={productionsUnavailable}
+                          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-earth-800 hover:bg-earth-900 active:scale-95 rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                         >
                           <Send className="w-3.5 h-3.5" />
                           Répondre
@@ -686,8 +681,8 @@ export default function MarketDemandsAnalysisView({
                         <button
                           type="button"
                           onClick={() => setRefusingDemand(dem)}
-                          title="Écarter cette demande"
-                          aria-label="Écarter cette demande"
+                          title="Refuser cette demande"
+                          aria-label="Refuser cette demande"
                           className="p-2 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border border-gray-200 cursor-pointer"
                         >
                           <XCircle className="w-4 h-4" />
@@ -709,15 +704,15 @@ export default function MarketDemandsAnalysisView({
         <div className="space-y-5">
           {/* Sous-titre */}
           <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-            Vue agrégée et anonymisée des expressions de besoin par denrée et par province. Ces données vous
+            Vue agrégée et anonymisée des demandes par produit et par province. Ces données vous
             permettent d&apos;orienter vos futures campagnes commerciales vers les bassins à forte demande.
           </p>
 
           {/* État vide : 0 agrégats */}
           {initialAggregates.length === 0 && (
             <EmptyState
-              title="Aucune expression de besoin sur le marché"
-              description="Dès que des revendeurs formuleront des expressions de besoin dans leurs provinces, les volumes agrégés apparaîtront automatiquement ici pour orienter vos futures campagnes."
+              title="Aucune demande sur le marché"
+              description="Dès que des revendeurs formuleront des demandes dans leurs provinces, les volumes agrégés apparaîtront automatiquement ici pour orienter vos futures campagnes."
               icon={<Globe2 className="w-8 h-8 text-forest-700" />}
               phaseBadge="Marché en attente"
             />
@@ -757,7 +752,7 @@ export default function MarketDemandsAnalysisView({
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-gray-900">
-                      Cartographie des besoins par territoire
+                      Cartographie des demandes par territoire
                     </h3>
                     <p className="text-xs text-gray-500">
                       {filteredAggregates.length} ligne{filteredAggregates.length > 1 ? "s" : ""} — Données réelles groupées
@@ -775,11 +770,11 @@ export default function MarketDemandsAnalysisView({
                   <thead className="bg-gray-50/80 text-gray-500 font-semibold border-b border-gray-100 text-[11px] uppercase tracking-wider">
                     <tr>
                       <th className="py-3 px-4 sm:px-5">Province / Territoire</th>
-                      <th className="py-3 px-4 sm:px-5">Denrée Agricole</th>
+                      <th className="py-3 px-4 sm:px-5">Produit</th>
                       <th className="py-3 px-4 sm:px-5 hidden md:table-cell">Catégorie</th>
-                      <th className="py-3 px-4 sm:px-5 text-center">Acheteurs</th>
+                      <th className="py-3 px-4 sm:px-5 text-center">Demandes</th>
                       <th className="py-3 px-4 sm:px-5 text-right">Volume Recherché</th>
-                      <th className="py-3 px-4 sm:px-5 text-right hidden sm:table-cell">Opportunité</th>
+                      <th className="py-3 px-4 sm:px-5 text-right hidden sm:table-cell">Statut</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 text-gray-700">
@@ -809,13 +804,13 @@ export default function MarketDemandsAnalysisView({
                           </span>
                         </td>
                         <td className="py-3.5 px-4 sm:px-5 text-right font-black text-forest-950 text-sm">
-                          {row.total_demanded_quantity.toLocaleString("fr-FR")}{" "}
+                          {formatQuantity(row.total_demanded_quantity)}{" "}
                           <span className="text-xs font-normal text-forest-700">{row.unit}</span>
                         </td>
                         <td className="py-3.5 px-4 sm:px-5 text-right hidden sm:table-cell">
                           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-forest-700 bg-forest-100/70 px-2 py-0.5 rounded-md">
                             <Sparkles className="w-3 h-3" />
-                            Bassin solvable
+                            Demandes actives
                           </span>
                         </td>
                       </tr>
@@ -830,7 +825,7 @@ export default function MarketDemandsAnalysisView({
                   Données agrégées et anonymisées — aucun revendeur n&apos;est identifiable
                 </p>
                 <div className="flex items-center gap-4 text-xs font-semibold text-gray-700">
-                  <span>Total : {stats.totalDemands} acheteur(s)</span>
+                  <span>Total : {stats.totalDemands} demande(s)</span>
                   {stats.volumeByUnit.length > 0 && (
                     <span className="text-forest-700">
                       Volume recherché : {formatUnitTotals(stats.volumeByUnit) || "0"}
@@ -868,6 +863,20 @@ export default function MarketDemandsAnalysisView({
         </div>
       )}
 
+      {/* ─── Cartouche explicatif métier, replié par défaut (Lot 6B, TXT-04), placé après les listes
+          (correctif NAV-06, arbitrage D) : texte inchangé, toujours consultable. ─── */}
+      <InfoRepliable summary="Comment fonctionnent les demandes du marché ?" tone="earth">
+        <p>
+          Les revendeurs expriment leurs besoins en produits agricoles (produit, volume, province de livraison,
+          période souhaitée). En tant que société agricole, vous pouvez <strong>répondre à ces demandes</strong> en
+          associant l&apos;une de vos productions réelles et en soumettant un volume et un prix ferme.
+          Le revendeur pourra ensuite transformer votre proposition en commande.
+        </p>
+        <p className="font-medium">
+          💡 Règle clé : Une demande ≠ une commande. Aucun stock n&apos;est réservé avant l&apos;acceptation d&apos;une proposition.
+        </p>
+      </InfoRepliable>
+
       {/* ─── Modale de formulation de proposition ─────────────────────────── */}
       <CompanyDemandProposalModal
         isOpen={isProposalModalOpen}
@@ -885,13 +894,13 @@ export default function MarketDemandsAnalysisView({
         isOpen={!!refusingDemand}
         onClose={() => setRefusingDemand(null)}
         onConfirm={handleConfirmRefuse}
-        title="Écarter cette demande ?"
+        title="Refuser cette demande ?"
         description={
           refusingDemand
-            ? `Vous allez écarter la demande pour « ${refusingDemand.product.name} » (${refusingDemand.quantity.toLocaleString("fr-FR")} ${refusingDemand.unit}, province ${refusingDemand.province.name}). Elle sera retirée de votre tableau de bord.`
+            ? `Vous allez refuser la demande pour « ${refusingDemand.product.name} » (${formatQuantityWithUnit(refusingDemand.quantity, refusingDemand.unit)}, province ${refusingDemand.province.name}). Elle sera retirée de votre tableau de bord.`
             : ""
         }
-        confirmText="Confirmer l'écartement"
+        confirmText="Confirmer le refus"
         variant="destructive"
         isLoading={isRefuseLoading}
       />

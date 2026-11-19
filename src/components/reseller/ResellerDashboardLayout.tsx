@@ -5,6 +5,7 @@ import ResellerSidebar from "@/components/reseller/ResellerSidebar";
 import ResellerHeader from "@/components/reseller/ResellerHeader";
 import ResellerBottomNav from "@/components/reseller/ResellerBottomNav";
 import Drawer from "@/components/ui/Drawer";
+import SkipLink, { MAIN_CONTENT_ID } from "@/components/ui/SkipLink";
 
 interface ResellerDashboardLayoutProps {
   children: React.ReactNode;
@@ -29,6 +30,8 @@ export default function ResellerDashboardLayout({
 
   return (
     <div className="min-h-screen bg-[#f9faf9] flex flex-col lg:flex-row antialiased text-gray-900">
+      {/* Lot 6B (A11-07) : lien d'évitement, premier arrêt de tabulation */}
+      <SkipLink />
       {/* 1. Sidebar Desktop permanente (écrans >= lg) avec les 6 destinations obligatoires */}
       <aside className="hidden lg:flex lg:flex-shrink-0 sticky top-0 h-screen z-30">
         <ResellerSidebar
@@ -48,8 +51,8 @@ export default function ResellerDashboardLayout({
         side="left"
         size="sm"
         showCloseButton={false}
-        className="p-0 max-w-[288px] w-full"
-        bodyClassName="p-0 overflow-hidden h-full"
+        className="!p-0 !max-w-[288px] w-full"
+        bodyClassName="!p-0 overflow-hidden h-full"
       >
         <ResellerSidebar
           businessName={businessName}
@@ -75,7 +78,7 @@ export default function ResellerDashboardLayout({
         />
 
         {/* Contenu principal avec padding compensatoire généreux pour la Bottom Navigation */}
-        <main className="flex-1 px-3 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-7xl w-full mx-auto pb-28 lg:pb-12">
+        <main id={MAIN_CONTENT_ID} tabIndex={-1} className="flex-1 px-3 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-7xl w-full mx-auto pb-28 lg:pb-12 focus:outline-none">
           {children}
         </main>
       </div>

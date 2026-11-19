@@ -4,8 +4,10 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import { registerCompanyAction } from "@/lib/actions/auth";
 import SubmitButton from "@/components/SubmitButton";
+import PasswordField from "@/components/ui/PasswordField";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import { Building2, AlertCircle, ArrowLeft, ShieldAlert, MailCheck } from "lucide-react";
+import SkipLink, { MAIN_CONTENT_ID } from "@/components/ui/SkipLink";
 
 export default function RegisterCompanyPage() {
   const [state, formAction] = useActionState(registerCompanyAction, null);
@@ -18,7 +20,8 @@ export default function RegisterCompanyPage() {
   if (state?.emailSent) {
     return (
       <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-forest-50/50 flex flex-col justify-center">
-        <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-forest-100 p-8 text-center">
+        <SkipLink />
+        <main id={MAIN_CONTENT_ID} tabIndex={-1} className="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-forest-100 p-8 text-center focus:outline-none">
           <div className="w-16 h-16 bg-forest-100 text-forest-700 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <MailCheck className="w-8 h-8" />
           </div>
@@ -27,8 +30,8 @@ export default function RegisterCompanyPage() {
             Nous vous avons envoyé un email contenant un lien pour confirmer la création de votre compte professionnel.
           </p>
           <div className="p-4 bg-gray-50 rounded-xl mb-8">
-            <p className="text-xs text-gray-500 font-medium">Sécurité propulsée par</p>
-            <p className="text-sm font-bold text-slate-800 tracking-wider">SYNAPTA Identity</p>
+            <p className="text-xs text-gray-500 font-medium">Plateforme éditée par</p>
+            <p className="text-sm font-bold text-slate-800 tracking-wider">Synapta SARL</p>
           </div>
           <Link
             href="/login"
@@ -36,14 +39,15 @@ export default function RegisterCompanyPage() {
           >
             Aller à la page de connexion
           </Link>
-        </div>
+        </main>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-forest-50/50">
-      <div className="max-w-2xl mx-auto">
+      <SkipLink />
+      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="max-w-2xl mx-auto focus:outline-none">
         <Link
           href="/register"
           className="inline-flex items-center gap-2 text-sm font-medium text-forest-800 hover:text-forest-950 mb-6 transition-colors"
@@ -70,7 +74,7 @@ export default function RegisterCompanyPage() {
           <div className="mb-6 p-4 rounded-xl bg-forest-50/60 border border-forest-200/60 text-xs text-forest-900 flex items-start gap-3 leading-relaxed">
             <ShieldAlert className="w-4 h-4 text-forest-700 flex-shrink-0 mt-0.5" />
             <div>
-              <strong>Étape 1 sur 2 :</strong> Créez votre accès responsable. La configuration détaillée de votre exploitation (dénomination, localisation et filières) s&apos;effectue lors de l&apos;activation de votre compte.
+              <strong>Étape 1 sur 2 :</strong> Créez votre accès responsable. La configuration détaillée de votre société (dénomination, localisation et filières) s&apos;effectue lors de l&apos;activation de votre compte.
             </div>
           </div>
 
@@ -99,7 +103,7 @@ export default function RegisterCompanyPage() {
           <form action={formAction} className="space-y-5">
             <div>
               <label htmlFor="register-company-fullName" className="block text-sm font-medium text-gray-700 mb-1">
-                Nom complet du responsable <span className="text-red-500">*</span>
+                Nom complet du responsable <span className="text-red-600">*</span>
               </label>
               <input
                 id="register-company-fullName"
@@ -110,7 +114,7 @@ export default function RegisterCompanyPage() {
                 onChange={(e) => setFullName(e.target.value)}
                 required
                 placeholder="Ex: Jean Mukendi"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
               />
             </div>
 
@@ -126,13 +130,13 @@ export default function RegisterCompanyPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Ex: +243 990 000 000"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
               />
             </div>
 
             <div>
               <label htmlFor="register-company-email" className="block text-sm font-medium text-gray-700 mb-1">
-                Adresse email professionnelle <span className="text-red-500">*</span>
+                Adresse email professionnelle <span className="text-red-600">*</span>
               </label>
               <input
                 id="register-company-email"
@@ -143,23 +147,23 @@ export default function RegisterCompanyPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="contact@ferme-agro.cd"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
               />
             </div>
 
             <div>
               <label htmlFor="register-company-password" className="block text-sm font-medium text-gray-700 mb-1">
-                Mot de passe <span className="text-red-500">*</span>
+                Mot de passe <span className="text-red-600">*</span>
               </label>
-              <input
+              {/* AUT-01 (Lot UX/UI 5B) : mot de passe affichable */}
+              <PasswordField
                 id="register-company-password"
-                type="password"
                 name="password"
                 autoComplete="new-password"
                 required
                 minLength={6}
                 placeholder="Au moins 6 caractères"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none"
               />
             </div>
 
@@ -180,7 +184,7 @@ export default function RegisterCompanyPage() {
             </p>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
