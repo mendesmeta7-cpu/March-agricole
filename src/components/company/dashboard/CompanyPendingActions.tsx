@@ -58,8 +58,8 @@ export default function CompanyPendingActions({
             </div>
             <p className="text-xs text-gray-500">
               {hasActions
-                ? "Demandes d'acheteurs en attente de réponse et commandes à traiter."
-                : "Suivi opérationnel en direct de votre exploitation."}
+                ? "Demandes de revendeurs en attente de réponse et commandes à traiter."
+                : "Suivi opérationnel en direct de votre société."}
             </p>
           </div>
         </div>
@@ -93,7 +93,7 @@ export default function CompanyPendingActions({
                 Aucune action urgente en attente
               </h4>
               <p className="text-xs text-emerald-800/80 mt-0.5">
-                Toutes les demandes ont reçu une réponse, aucune commande n&apos;est en attente de confirmation et vos offres sont à jour.
+                Toutes les demandes ont reçu une réponse, aucune commande n&apos;est en attente de confirmation et vos campagnes sont à jour.
               </p>
             </div>
           </div>
@@ -161,7 +161,7 @@ export default function CompanyPendingActions({
                         {act.badgeText}
                       </Badge>
                       {act.date && (
-                        <span className="text-[11px] text-gray-500 font-medium">
+                        <span className="text-xs text-gray-500 font-medium">
                           {act.date}
                         </span>
                       )}

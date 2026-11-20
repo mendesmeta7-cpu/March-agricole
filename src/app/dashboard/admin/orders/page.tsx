@@ -13,6 +13,10 @@ import {
   parseAdminListParams,
   type AdminOrderRow,
 } from "@/lib/queries/admin";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Administration · Commandes — Radiza" };
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +46,7 @@ export default async function AdminOrdersPage(props: PageProps) {
     },
     {
       key: "company",
-      header: "Entreprise",
+      header: "Société",
       cell: (row) => row.companyName ?? <span className="text-gray-400">—</span>,
     },
     {
@@ -75,8 +79,8 @@ export default async function AdminOrdersPage(props: PageProps) {
       <AdminBackLink />
 
       <PageHeader
-        title="Supervision des Commandes"
-        description="Consultez les commandes passées entre revendeurs et entreprises et leur statut. Les montants sont affichés dans leur devise d'origine. Liste en lecture seule."
+        title="Commandes"
+        description="Consultez les commandes passées entre revendeurs et sociétés et leur statut. Les montants sont affichés dans leur devise d'origine. Liste en lecture seule."
         badge={<Badge variant="neutral">Lecture seule</Badge>}
       />
 

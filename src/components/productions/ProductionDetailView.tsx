@@ -2,7 +2,6 @@
 
 import React, { useState, useTransition } from "react";
 import { ProductionItem, ProductionStatus } from "@/lib/queries/productions";
-import { CompanyProductItem } from "@/lib/queries/products";
 import { ProductionDemandRegionAnalysis, DemandItem } from "@/lib/queries/demands";
 import {
   updateProductionStatusAction,
@@ -10,11 +9,12 @@ import {
   deleteProductionAction,
 } from "@/lib/actions/productions";
 import ProductionStatusBadge, { CampaignActiveBadge } from "./ProductionStatusBadge";
-import ProductionDrawer from "./ProductionDrawer";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/Toast";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import InfoRepliable from "@/components/ui/InfoRepliable";
+import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import { formatProductionSeasonCalendar } from "@/lib/utils/seasonalMonths";
 import { PRODUCTION_LOCK_MESSAGES } from "@/lib/utils/productionRules";
 import {
@@ -28,23 +28,20 @@ import {
   Tractor,
   Tag,
   AlertCircle,
-  Info,
-  CheckCircle2,
   Trash2,
   BarChart3,
   Megaphone,
   Clock,
   Sparkles,
   Layers,
-  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { formatQuantity, formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 interface ProductionDetailViewProps {
   production: ProductionItem;
-  companyProducts: CompanyProductItem[];
   companyName: string;
   demandsAnalysis?: {
     totalDemandsCount: number;
@@ -53,13 +50,15 @@ interface ProductionDetailViewProps {
     regions: ProductionDemandRegionAnalysis[];
     demandsList: DemandItem[];
   };
+  /** Lot 2C : analyse illisible — jamais présentée comme « 0 demande ». */
+  demandsAnalysisUnavailable?: boolean;
 }
 
 export default function ProductionDetailView({
   production: initialProduction,
-  companyProducts,
   companyName,
   demandsAnalysis,
+  demandsAnalysisUnavailable = false,
 }: ProductionDetailViewProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -71,7 +70,6 @@ export default function ProductionDetailView({
     setLastServerProduction(initialProduction);
     setProduction(initialProduction);
   }
-  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -117,8 +115,8 @@ export default function ProductionDetailView({
         toast.success(
           nextVal ? "Visibilité activée" : "Passée en privé",
           nextVal
-            ? "Cette production est désormais visible des revendeurs dans le flux d'approvisionnement."
-            : "Cette production est désormais masquée du flux public des revendeurs."
+            ? "Cette production est désormais visible des revendeurs dans leur tableau de bord."
+            : "Cette production est désormais masquée aux revendeurs."
         );
       }
     });
@@ -154,7 +152,7 @@ export default function ProductionDetailView({
             className="hover:text-forest-800 flex items-center gap-1.5 transition-colors font-medium"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Productions & Récoltes</span>
+            <span>Productions & récoltes</span>
           </Link>
           <span>/</span>
           <span className="text-gray-900 font-semibold truncate max-w-[220px]">
@@ -168,7 +166,7 @@ export default function ProductionDetailView({
             variant="outline"
             size="sm"
             leftIcon={<Edit3 className="w-3.5 h-3.5 text-gray-600" />}
-            onClick={() => setIsEditDrawerOpen(true)}
+            onClick={() => router.push(`/dashboard/company/productions/${production.id}/edit`)}
           >
             Modifier
           </Button>
@@ -238,7 +236,7 @@ export default function ProductionDetailView({
               ) : (
                 <>
                   <EyeOff className="w-3.5 h-3.5 text-gray-300" />
-                  <span>Privé (Masqué du flux)</span>
+                  <span>Privé (masqué aux revendeurs)</span>
                 </>
               )}
             </button>
@@ -257,7 +255,7 @@ export default function ProductionDetailView({
               {production.title}
             </h1>
             <p className="text-xs sm:text-sm text-forest-100/90 mt-1 flex items-center gap-1.5">
-              <span>Exploitation : {companyName}</span>
+              <span>Société : {companyName}</span>
               <span>•</span>
               <MapPin className="w-3.5 h-3.5 inline text-forest-300" />
               <span>{production.location_name}</span>
@@ -267,18 +265,15 @@ export default function ProductionDetailView({
 
         {/* Corps de la Fiche */}
         <div className="p-4 sm:p-8 space-y-6">
-          {/* Note d'intégrité métier stricte */}
-          <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-950 text-xs sm:text-sm flex items-start gap-3">
-            <Info className="w-5 h-5 shrink-0 text-amber-700 mt-0.5" />
-            <div className="space-y-1">
-              <p className="font-bold">Information sur la production :</p>
-              <p className="text-xs text-amber-900/90 leading-relaxed">
-                Cette fiche enregistre exclusivement une <strong>production planifiée ou en cours</strong>.
-                Elle ne constitue ni un stock physique disponible, ni une récolte certifiée, ni une campagne
-                commerciale ouverte à la commande.
-              </p>
-            </div>
-          </div>
+          {/* Note d'intégrité métier : explication générale, repliée par défaut (Lot 6B, TXT-04).
+              Les règles qui bloquent une action restent affichées là où elles s'appliquent. */}
+          <InfoRepliable summary="Information sur la production" tone="amber">
+            <p>
+              Cette fiche enregistre exclusivement une <strong>production planifiée ou en cours</strong>.
+              Elle ne constitue ni un stock physique disponible, ni une récolte certifiée, ni une campagne
+              commerciale ouverte à la commande.
+            </p>
+          </InfoRepliable>
 
           {/* Grille des caractéristiques clés */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -288,7 +283,7 @@ export default function ProductionDetailView({
                 <span>Volume prévisionnel déclaré</span>
               </div>
               <p className="text-2xl font-black text-forest-950">
-                {production.expected_quantity.toLocaleString("fr-FR")}
+                {formatQuantity(production.expected_quantity)}
               </p>
               <p className="text-xs text-forest-800">Unité : <strong>{production.unit}</strong></p>
             </div>
@@ -320,7 +315,7 @@ export default function ProductionDetailView({
                       </span>
                     </div>
                   )}
-                  <p className="text-[11px] text-gray-400 italic">
+                  <p className="text-xs text-gray-500 italic">
                     Ces mois sont récurrents chaque année jusqu&apos;à modification de votre part.
                   </p>
                 </div>
@@ -342,7 +337,7 @@ export default function ProductionDetailView({
               </p>
             ) : (
               <p className="text-xs text-gray-400 italic">
-                Aucune description complémentaire renseignée pour cette culture.
+                Aucune description complémentaire renseignée pour cette production.
               </p>
             )}
           </div>
@@ -418,7 +413,7 @@ export default function ProductionDetailView({
               <p className="text-[11px] text-amber-800 bg-amber-50/70 p-2.5 rounded-xl border border-amber-200 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 shrink-0" />
                 <span>
-                  Règle de commercialisation : Les offres commerciales ne peuvent être ouvertes que lorsque la production est passée au statut <strong>« Récoltée »</strong>.
+                  Règle de commercialisation : Les campagnes ne peuvent être ouvertes que lorsque la production est passée au statut <strong>« Récoltée »</strong>.
                 </span>
               </p>
             )}
@@ -431,26 +426,33 @@ export default function ProductionDetailView({
                 <BarChart3 className="w-5 h-5 text-earth-700" />
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-gray-900">
-                    Analyse territoriale des demandes pour cette denrée
+                    Analyse territoriale des demandes pour ce produit
                   </h3>
                   <p className="text-xs text-gray-500">
-                    Besoins exprimés par les revendeurs pour guider le choix de vos zones de livraison.
+                    Demandes exprimées par les revendeurs pour guider le choix de vos zones de livraison.
                   </p>
                 </div>
               </div>
 
-              <span className="text-xs font-bold text-earth-800 bg-earth-50 px-2.5 py-1 rounded-full border border-earth-200">
-                {totalDemandsCount} demande(s) enregistrée(s)
-              </span>
+              {!demandsAnalysisUnavailable && (
+                <span className="text-xs font-bold text-earth-800 bg-earth-50 px-2.5 py-1 rounded-full border border-earth-200">
+                  {totalDemandsCount} demande(s) enregistrée(s)
+                </span>
+              )}
             </div>
 
-            {regions.length === 0 ? (
+            {demandsAnalysisUnavailable ? (
+              <DataUnavailableNotice title="Analyse des demandes indisponible">
+                Les demandes exprimées sur cette production n&apos;ont pas pu être chargées. Ne vous
+                fiez pas à cette section pour choisir vos zones de livraison avant d&apos;avoir réessayé.
+              </DataUnavailableNotice>
+            ) : regions.length === 0 ? (
               <div className="p-6 text-center bg-gray-50/60 rounded-2xl border border-gray-200/80 space-y-2">
                 <p className="text-xs text-gray-600 font-medium">
-                  Aucune demande territoriale ciblée sur cette denrée pour l&apos;instant.
+                  Aucune demande territoriale ciblée sur ce produit pour l&apos;instant.
                 </p>
-                <p className="text-[11px] text-gray-400">
-                  Dès que les revendeurs publieront des besoins pour {production.product.name}, la répartition par province s&apos;affichera ici.
+                <p className="text-xs text-gray-400">
+                  Dès que les revendeurs publieront des demandes pour {production.product.name}, la répartition par province s&apos;affichera ici.
                 </p>
               </div>
             ) : (
@@ -458,7 +460,7 @@ export default function ProductionDetailView({
                 <div className="p-3 bg-earth-50/70 rounded-xl border border-earth-100 text-xs text-earth-900 flex items-center justify-between">
                   <span>Volume total recherché sur le marché :</span>
                   <strong className="text-sm font-extrabold text-earth-950">
-                    {totalQuantityDemanded.toLocaleString("fr-FR")} {production.unit}
+                    {formatQuantityWithUnit(totalQuantityDemanded, production.unit)}
                   </strong>
                 </div>
 
@@ -473,7 +475,7 @@ export default function ProductionDetailView({
                           <MapPin className="w-3.5 h-3.5 text-earth-600" />
                           <span>{reg.province_name}</span>
                         </span>
-                        <span className="text-[10px] font-extrabold text-earth-800 bg-earth-100/80 px-2 py-0.5 rounded-full">
+                        <span className="text-[11px] font-extrabold text-earth-800 bg-earth-100/80 px-2 py-0.5 rounded-full">
                           {reg.percentage}%
                         </span>
                       </div>
@@ -485,10 +487,10 @@ export default function ProductionDetailView({
                         />
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1">
-                        <span>{reg.demands_count} acheteur(s)</span>
+                      <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
+                        <span>{reg.demands_count} demande(s)</span>
                         <strong className="text-gray-900">
-                          {reg.total_quantity.toLocaleString("fr-FR")} {reg.unit}
+                          {formatQuantityWithUnit(reg.total_quantity, reg.unit)}
                         </strong>
                       </div>
                     </div>
@@ -504,15 +506,6 @@ export default function ProductionDetailView({
           </div>
         </div>
       </div>
-
-      {/* Tiroir d'édition (R1) */}
-      <ProductionDrawer
-        isOpen={isEditDrawerOpen}
-        onClose={() => setIsEditDrawerOpen(false)}
-        companyProducts={companyProducts}
-        editingProduction={production}
-        onSuccess={() => router.refresh()}
-      />
 
       {/* Dialogue de Confirmation de Suppression Sécurisée (R1) */}
       <ConfirmDialog

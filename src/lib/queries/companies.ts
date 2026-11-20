@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isMalformedIdError } from "@/lib/utils/readErrors";
 import { ProductionStatus } from "@/lib/queries/productions";
 import { FeedProduct } from "@/lib/queries/feed";
 
@@ -67,10 +68,12 @@ export async function getPublicCompanyProfile(
     .eq("is_active", true)
     .maybeSingle();
 
-  if (error || !data) {
-    if (error) console.error("Erreur récupération profil public entreprise:", error);
-    return null;
+  // Lot 2C : panne ≠ « introuvable » (identifiant mal formé = absence réelle)
+  if (error && !isMalformedIdError(error)) {
+    console.error("Erreur récupération profil public entreprise:", error);
+    throw new Error("Lecture du profil public de l'entreprise impossible");
   }
+  if (!data) return null;
 
   const rawItem = data as any;
   return {
@@ -123,9 +126,10 @@ export async function getCompanyPublicProductions(
     .in("status", ["planned", "growing", "harvested"])
     .order("created_at", { ascending: false });
 
+  // Lot 2C : une panne n'est jamais affichée comme « aucune production » (lecture isolée par la page)
   if (error) {
     console.error("Erreur récupération productions publiques entreprise:", error);
-    return [];
+    throw new Error("Lecture des productions publiques de l'entreprise impossible");
   }
 
   return (data || []).map((item: any) => ({

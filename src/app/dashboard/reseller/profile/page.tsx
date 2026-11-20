@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import ResellerProfileView from "@/components/reseller/ResellerProfileView";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Mon profil — Radiza" };
 
 export default async function ResellerProfilePage() {
   const supabase = await createClient();
@@ -47,8 +51,9 @@ export default async function ResellerProfilePage() {
       profile={profileRes.data}
       reseller={resellerRes.data}
       provinces={provincesRes.data || []}
-      ordersCount={ordersCountRes.count || 0}
-      demandsCount={demandsCountRes.count || 0}
+      // Lot 7 : compteur indisponible (null) si la lecture échoue, jamais un faux 0 ; requêtes inchangées
+      ordersCount={ordersCountRes.error ? null : (ordersCountRes.count ?? 0)}
+      demandsCount={demandsCountRes.error ? null : (demandsCountRes.count ?? 0)}
     />
   );
 }

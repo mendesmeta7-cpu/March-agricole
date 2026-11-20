@@ -26,7 +26,7 @@ export default function FeedSearchBar({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Rechercher une production, un produit..."
-          className="w-full pl-11 pr-10 py-3.5 rounded-2xl border border-gray-200/90 bg-white text-gray-900 placeholder:text-gray-400 text-sm focus:ring-2 focus:ring-forest-600 focus:border-transparent outline-none transition-all shadow-xs hover:border-gray-300"
+          className="w-full pl-11 pr-10 py-3.5 rounded-2xl border border-gray-200/90 bg-white text-gray-900 placeholder:text-gray-500 text-sm focus:ring-2 focus:ring-forest-600 focus:border-transparent outline-none transition-all shadow-xs hover:border-gray-300"
           aria-label="Rechercher une production, un produit"
         />
         {search.trim().length > 0 && (

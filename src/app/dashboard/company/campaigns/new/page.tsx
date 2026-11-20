@@ -4,12 +4,13 @@ import CompanyAccountMissing from "@/components/company/CompanyAccountMissing";
 import { redirect } from "next/navigation";
 import { settleRead } from "@/lib/utils/settleRead";
 import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
-import {
-  getCompanyCampaigns,
-  getCompanyEligibleProductions,
-} from "@/lib/queries/campaigns";
+import { getCompanyEligibleProductions } from "@/lib/queries/campaigns";
 import { getAggregatedMarketDemands } from "@/lib/queries/demands";
-import CompanyCampaignsView from "@/components/campaigns/CompanyCampaignsView";
+import CampaignForm from "@/components/campaigns/CampaignForm";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Nouvelle campagne — Radiza" };
 
 interface NewCampaignPageProps {
   searchParams?: Promise<{
@@ -43,9 +44,8 @@ export default async function NewCompanyCampaignPage(props: NewCampaignPageProps
   const countryId = companyRecord?.country_id;
 
   // 2. Chargement simultané des données
-  const [campaigns, eligibleProductions, provincesResult, marketDemandsRead] =
+  const [eligibleProductions, provincesResult, marketDemandsRead] =
     await Promise.all([
-      getCompanyCampaigns(companyId),
       getCompanyEligibleProductions(companyId),
       countryId
         ? supabase
@@ -71,12 +71,12 @@ export default async function NewCompanyCampaignPage(props: NewCampaignPageProps
           L&apos;indication de la demande du marché n&apos;a pas pu être chargée.
         </DataUnavailableNotice>
       )}
-      <CompanyCampaignsView
-        initialCampaigns={campaigns}
+      {/* Lot UX/UI 5B : création sur page dédiée, assistant en cinq étapes */}
+      <CampaignForm
+        mode="assistant"
         eligibleProductions={eligibleProductions}
         provinces={provinces}
         marketDemands={marketDemandsRead.data}
-        initialModalOpen={true}
         defaultProductionId={searchParams?.production_id}
       />
     </>

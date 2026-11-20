@@ -10,12 +10,13 @@ import {
   MapPin,
   Calendar,
 } from "lucide-react";
-import Button from "@/components/ui/Button";
+import { buttonClassName } from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import type { DemandItem } from "@/lib/queries/demands";
 import type { OrderDetail } from "@/lib/queries/orders";
+import { formatMoney, formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 export interface CompanyRecentActivityProps {
   recentDemands: DemandItem[];
@@ -44,23 +45,19 @@ export default function CompanyRecentActivity({
               </div>
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-gray-950">
-                  Dernières Demandes du Marché
+                  Dernières demandes du marché
                 </h3>
                 <p className="text-xs text-gray-500">
-                  Besoins d&apos;approvisionnement exprimés par les revendeurs.
+                  Demandes exprimées par les revendeurs.
                 </p>
               </div>
             </div>
 
-            <Link href="/dashboard/company/demands">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs font-bold text-forest-700 hover:text-forest-800 hover:bg-forest-50/60"
-              >
-                <span>Tout voir</span>
-                <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-              </Button>
+            <Link href="/dashboard/company/demands"
+              className={buttonClassName({ variant: "ghost", size: "sm", className: "text-xs font-bold text-forest-700 hover:text-forest-800 hover:bg-forest-50/60" })}
+            >
+              <span>Tout voir</span>
+              <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
             </Link>
           </div>
 
@@ -73,7 +70,7 @@ export default function CompanyRecentActivity({
             <div className="py-8">
               <EmptyState
                 title="Aucune demande récente"
-                description="Les opportunités d'achat formulées par les revendeurs apparaîtront ici dès leur publication."
+                description="Les demandes formulées par les revendeurs apparaîtront ici dès leur publication."
                 icon={<TrendingUp className="w-6 h-6 text-gray-400" />}
                 className="bg-gray-50/40 rounded-2xl border border-gray-100 py-8"
               />
@@ -96,7 +93,7 @@ export default function CompanyRecentActivity({
                           {d.product?.name || "Produit agricole"}
                         </span>
                         {d.province?.name && (
-                          <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">
+                          <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">
                             <MapPin className="w-2.5 h-2.5" />
                             {d.province.name}
                           </span>
@@ -105,10 +102,10 @@ export default function CompanyRecentActivity({
 
                       <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
                         <span className="font-extrabold text-forest-900">
-                          {d.quantity.toLocaleString("fr-FR")} {d.unit}
+                          {formatQuantityWithUnit(d.quantity, d.unit)}
                         </span>
                         <span className="text-gray-300">&bull;</span>
-                        <span className="inline-flex items-center gap-1 text-[11px]">
+                        <span className="inline-flex items-center gap-1 text-xs">
                           <Calendar className="w-3 h-3 text-gray-400" />
                           {new Intl.DateTimeFormat("fr-FR", {
                             day: "numeric",
@@ -119,14 +116,10 @@ export default function CompanyRecentActivity({
                     </div>
                   </div>
 
-                  <Link href={`/dashboard/company/demands/${d.id}`} className="shrink-0">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-8 px-3 rounded-xl border-gray-200 hover:border-forest-600 hover:text-forest-900"
-                    >
-                      <span>Consulter</span>
-                    </Button>
+                  <Link href={`/dashboard/company/demands/${d.id}`}
+                    className={buttonClassName({ variant: "outline", size: "sm", className: "shrink-0 text-xs h-8 px-3 rounded-xl border-gray-200 hover:border-forest-600 hover:text-forest-900" })}
+                  >
+                    <span>Consulter</span>
                   </Link>
                 </div>
               ))}
@@ -139,7 +132,7 @@ export default function CompanyRecentActivity({
           <span>
             {demandsUnavailable
               ? "Indisponible pour le moment"
-              : `${recentDemands.length} opportunité(s) de marché active(s)`}
+              : `${recentDemands.length} demande(s) active(s)`}
           </span>
           <Link
             href="/dashboard/company/demands"
@@ -162,23 +155,19 @@ export default function CompanyRecentActivity({
               </div>
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-gray-950">
-                  Dernières Commandes Reçues
+                  Dernières commandes reçues
                 </h3>
                 <p className="text-xs text-gray-500">
-                  Engagements fermes passés sur vos offres commerciales.
+                  Engagements fermes passés sur vos campagnes.
                 </p>
               </div>
             </div>
 
-            <Link href="/dashboard/company/orders">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs font-bold text-forest-700 hover:text-forest-800 hover:bg-forest-50/60"
-              >
-                <span>Tout voir</span>
-                <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-              </Button>
+            <Link href="/dashboard/company/orders"
+              className={buttonClassName({ variant: "ghost", size: "sm", className: "text-xs font-bold text-forest-700 hover:text-forest-800 hover:bg-forest-50/60" })}
+            >
+              <span>Tout voir</span>
+              <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
             </Link>
           </div>
 
@@ -191,7 +180,7 @@ export default function CompanyRecentActivity({
             <div className="py-8">
               <EmptyState
                 title="Aucune commande enregistrée"
-                description="Les commandes réservées par les revendeurs lors de vos campagnes de vente apparaîtront ici."
+                description="Les commandes réservées par les revendeurs lors de vos campagnes apparaîtront ici."
                 icon={<ShoppingBag className="w-6 h-6 text-gray-400" />}
                 className="bg-gray-50/40 rounded-2xl border border-gray-100 py-8"
               />
@@ -199,10 +188,7 @@ export default function CompanyRecentActivity({
           ) : (
             <div className="space-y-2.5 mt-4">
               {recentOrders.slice(0, 4).map((order) => {
-                const formattedAmount = new Intl.NumberFormat("fr-FR", {
-                  style: "currency",
-                  currency: order.currency || "USD",
-                }).format(order.total_amount);
+                const formattedAmount = formatMoney(order.total_amount, order.currency || "USD");
 
                 return (
                   <div
@@ -234,14 +220,10 @@ export default function CompanyRecentActivity({
                       </div>
                     </div>
 
-                    <Link href={`/dashboard/company/orders/${order.id}`} className="shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs h-8 px-3 rounded-xl border-gray-200 hover:border-purple-600 hover:text-purple-900"
-                      >
-                        <span>Détails</span>
-                      </Button>
+                    <Link href={`/dashboard/company/orders/${order.id}`}
+                      className={buttonClassName({ variant: "outline", size: "sm", className: "shrink-0 text-xs h-8 px-3 rounded-xl border-gray-200 hover:border-purple-600 hover:text-purple-900" })}
+                    >
+                      <span>Détails</span>
                     </Link>
                   </div>
                 );

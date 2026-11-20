@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isMalformedIdError } from "@/lib/utils/readErrors";
 
 export type DemandStatus = "active" | "converted" | "cancelled" | "expired";
 export type DemandType = "general" | "production";
@@ -376,18 +377,13 @@ export async function getProductionDemandsAnalysis(
     .eq("status", "active")
     .order("created_at", { ascending: false });
 
-  if (error || !data) {
-    if (error) console.error("Erreur analyse demandes production:", error);
-    return {
-      totalDemandsCount: 0,
-      totalQuantityDemanded: 0,
-      unit: "tonne",
-      regions: [],
-      demandsList: [],
-    };
+  // Lot 2C : une panne n'est jamais affichée comme « 0 demande » (lecture isolée par la page)
+  if (error) {
+    console.error("Erreur analyse demandes production:", error);
+    throw new Error("Lecture de l'analyse des demandes impossible");
   }
 
-  const demandsList = data.map((d: any) => ({
+  const demandsList = (data || []).map((d: any) => ({
     ...d,
     quantity: Number(d.quantity),
     province: Array.isArray(d.province) ? d.province[0] : d.province,
@@ -533,10 +529,12 @@ export async function getDemandById(
 
   const { data, error } = await query.maybeSingle();
 
-  if (error || !data) {
-    if (error) console.error("Erreur récupération demande par ID:", error);
-    return null;
+  // Lot 2C : panne ≠ « introuvable » (identifiant mal formé = absence réelle)
+  if (error && !isMalformedIdError(error)) {
+    console.error("Erreur récupération demande par ID:", error);
+    throw new Error("Lecture du détail de la demande impossible");
   }
+  if (!data) return null;
 
   return {
     ...data,

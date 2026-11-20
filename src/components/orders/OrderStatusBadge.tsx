@@ -30,7 +30,7 @@ export default function OrderStatusBadge({
       className: "bg-amber-50 text-amber-800 border-amber-200/80",
     },
     confirmed: {
-      label: "Confirmée par l'exploitation",
+      label: "Confirmée par la société",
       shortLabel: "Confirmée",
       icon: <CheckCircle2 className="w-3.5 h-3.5" />,
       className: "bg-blue-50 text-blue-800 border-blue-200/80",
@@ -62,7 +62,7 @@ export default function OrderStatusBadge({
   };
 
   const current = configMap[status] || configMap.pending;
-  const padding = size === "sm" ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-xs";
+  const padding = size === "sm" ? "px-2 py-0.5 text-xs" : "px-2.5 py-1 text-xs";
 
   return (
     <span

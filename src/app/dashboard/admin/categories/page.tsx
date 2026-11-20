@@ -4,6 +4,10 @@ import { getAllFeedCategoriesAdmin } from "@/lib/queries/feedCategories";
 import AdminCategoriesView from "@/components/admin/AdminCategoriesView";
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Administration · Catégories — Radiza" };
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -32,9 +36,9 @@ export default async function AdminCategoriesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Gestion des Catégories du Flux"
-        description="Associez des visuels illustratifs haute définition aux filtres de catégories du Flux revendeur."
-        badge={<Badge variant="forest">Contenu du Flux</Badge>}
+        title="Catégories du tableau de bord revendeur"
+        description="Associez des visuels illustratifs haute définition aux filtres de catégories du tableau de bord revendeur."
+        badge={<Badge variant="forest">Tableau de bord revendeur</Badge>}
       />
 
       <AdminCategoriesView categories={categories} />

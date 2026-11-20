@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getAdminCatalogProducts } from "@/lib/queries/products";
 import AdminProductsView from "@/components/admin/AdminProductsView";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Administration · Catalogue produits — Radiza" };
 
 export default async function AdminProductsPage() {
   const supabase = await createClient();

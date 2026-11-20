@@ -14,6 +14,7 @@ import {
   Layers,
   ArrowRight,
 } from "lucide-react";
+import { formatAmount, formatQuantity } from "@/lib/utils/numberFormat";
 
 interface FeedProductionCardProps {
   production: FeedProductionItem;
@@ -78,13 +79,13 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 text-gray-300">
             <ImageOff className="w-5 h-5 sm:w-7 sm:h-7 mb-1" />
-            <span className="text-[9px] sm:text-[10px] font-medium text-gray-400">Visuel en cours</span>
+            <span className="text-xs sm:text-xs font-medium text-gray-400">Visuel en cours</span>
           </div>
         )}
 
         {production.product.category && (
           <div className="absolute top-1.5 left-1.5 z-10 max-w-[80px] sm:max-w-[100px]">
-            <span className="block px-1.5 py-0.5 rounded-md bg-white/90 backdrop-blur-sm text-gray-800 text-[8px] sm:text-[10px] font-bold tracking-tight shadow-sm uppercase truncate">
+            <span className="block px-1.5 py-0.5 rounded-md bg-white/90 backdrop-blur-sm text-gray-800 text-[11px] sm:text-[11px] font-bold tracking-tight shadow-sm uppercase truncate">
               {production.product.category}
             </span>
           </div>
@@ -92,12 +93,12 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
 
         <div className="absolute top-1.5 right-1.5 z-10">
           {hasActiveCampaign ? (
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-emerald-600 text-white shadow-sm">
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] sm:text-[11px] font-extrabold uppercase tracking-wide bg-emerald-700 text-white shadow-sm">
               <Megaphone className="w-2 h-2 flex-shrink-0" />
               <span>Campagne</span>
             </span>
           ) : (
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border ${statusInfo.color}`}>
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-bold border ${statusInfo.color}`}>
               {statusInfo.emoji}
             </span>
           )}
@@ -110,7 +111,7 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
         {/* Société */}
         <Link
           href={`/dashboard/reseller/companies/${production.company.id}`}
-          className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-semibold text-gray-500 hover:text-forest-700 transition-colors max-w-full"
+          className="inline-flex items-center gap-1 text-xs sm:text-xs font-semibold text-gray-500 hover:text-forest-700 transition-colors max-w-full"
         >
           <div className="w-3.5 h-3.5 rounded-md bg-forest-50 border border-forest-100 flex items-center justify-center overflow-hidden flex-shrink-0">
             {production.company.logo_url ? (
@@ -125,11 +126,11 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
 
         {/* Nom du produit */}
         <Link href={`/dashboard/reseller/productions/${production.id}`} className="block min-w-0 flex-1">
-          <h3 className="text-[11px] sm:text-sm font-bold text-gray-900 group-hover:text-forest-700 transition-colors line-clamp-2 leading-tight">
+          <h3 className="text-xs sm:text-sm font-bold text-gray-900 group-hover:text-forest-700 transition-colors line-clamp-2 leading-tight">
             {production.product.name}
           </h3>
           {production.title !== production.product.name && (
-            <p className="text-[9px] sm:text-[10px] text-gray-400 line-clamp-1 mt-0.5 leading-none">
+            <p className="text-xs sm:text-xs text-gray-500 line-clamp-1 mt-0.5 leading-none">
               {production.title}
             </p>
           )}
@@ -143,33 +144,33 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
               <div className="min-w-0">
                 <div className="flex items-baseline gap-0.5 text-forest-900 min-w-0">
                   <span className="text-xs sm:text-sm font-black tracking-tight leading-none">
-                    {production.active_campaign!.unit_price.toLocaleString("fr-FR")}
+                    {formatAmount(production.active_campaign!.unit_price)}
                   </span>
-                  <span className="text-[8px] sm:text-[9px] font-bold text-forest-600 truncate">
+                  <span className="text-xs sm:text-xs font-bold text-forest-600 truncate">
                     {production.active_campaign!.currency}/{production.unit}
                   </span>
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
                 {isAvailabilityUnknown || availableStock === null ? (
-                  <span className="text-[9px] sm:text-[10px] font-semibold text-amber-700 leading-tight block max-w-[7rem]">
+                  <span className="text-xs sm:text-xs font-semibold text-amber-700 leading-tight block max-w-[7rem]">
                     Disponibilité momentanément indisponible
                   </span>
                 ) : (
-                  <span className="text-[9px] sm:text-[10px] font-semibold text-gray-600">
-                    {availableStock.toLocaleString("fr-FR")}{" "}
-                    <span className="font-normal text-gray-400">{production.unit}</span>
+                  <span className="text-xs sm:text-xs font-semibold text-gray-600">
+                    {formatQuantity(availableStock)}{" "}
+                    <span className="font-normal text-gray-500">{production.unit}</span>
                   </span>
                 )}
               </div>
             </div>
           ) : (
             <div className="flex items-center justify-between gap-1 min-w-0">
-              <span className="text-[9px] sm:text-[10px] font-extrabold text-forest-900 truncate">
-                {production.expected_quantity.toLocaleString("fr-FR")}{" "}
-                <span className="font-medium text-gray-400">{production.unit}</span>
+              <span className="text-xs sm:text-xs font-extrabold text-forest-900 truncate">
+                {formatQuantity(production.expected_quantity)}{" "}
+                <span className="font-medium text-gray-500">{production.unit}</span>
               </span>
-              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] sm:text-[9px] font-bold border flex-shrink-0 ${statusInfo.color}`}>
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] sm:text-[11px] font-bold border flex-shrink-0 ${statusInfo.color}`}>
                 {statusInfo.emoji}
               </span>
             </div>
@@ -180,7 +181,7 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
               canOrder ? (
                 <Link
                   href={`/dashboard/reseller/productions/${production.id}?order=true`}
-                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-forest-700 hover:bg-forest-800 active:scale-95 text-white font-bold text-[9px] sm:text-[10px] shadow-sm transition-all"
+                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-forest-700 hover:bg-forest-800 active:scale-95 text-white font-bold text-[11px] sm:text-[11px] shadow-sm transition-all"
                 >
                   <ShoppingCart className="w-2.5 h-2.5 flex-shrink-0" />
                   <span>Commander</span>
@@ -189,7 +190,7 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
                 <button
                   type="button"
                   disabled
-                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-amber-50 text-amber-800 font-semibold text-[9px] sm:text-[10px] border border-amber-200 cursor-not-allowed"
+                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-amber-50 text-amber-800 font-semibold text-[11px] sm:text-[11px] border border-amber-200 cursor-not-allowed"
                   title={production.active_campaign?.eligibility_message || "Disponibilité momentanément indisponible"}
                 >
                   <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
@@ -199,7 +200,7 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
                 <button
                   type="button"
                   disabled
-                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-orange-50 text-orange-700 font-semibold text-[9px] sm:text-[10px] border border-orange-200 cursor-not-allowed"
+                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-orange-50 text-orange-700 font-semibold text-[11px] sm:text-[11px] border border-orange-200 cursor-not-allowed"
                   title={production.active_campaign?.eligibility_message || "Période de commande terminée"}
                 >
                   <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
@@ -209,7 +210,7 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
                 <button
                   type="button"
                   disabled
-                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-gray-100 text-gray-400 font-semibold text-[9px] sm:text-[10px] border border-gray-200 cursor-not-allowed"
+                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-gray-100 text-gray-400 font-semibold text-[11px] sm:text-[11px] border border-gray-200 cursor-not-allowed"
                 >
                   <Layers className="w-2.5 h-2.5 flex-shrink-0" />
                   <span>Stock épuisé</span>
@@ -218,16 +219,16 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
                 <button
                   type="button"
                   disabled
-                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-gray-100 text-gray-500 font-semibold text-[9px] sm:text-[10px] border border-gray-200 cursor-not-allowed"
+                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-gray-100 text-gray-500 font-semibold text-[11px] sm:text-[11px] border border-gray-200 cursor-not-allowed"
                 >
                   <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" />
-                  <span>Offre fermée</span>
+                  <span>Campagne fermée</span>
                 </button>
               ) : (
                 <button
                   type="button"
                   disabled
-                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-gray-100 text-gray-400 font-semibold text-[9px] sm:text-[10px] border border-gray-200 cursor-not-allowed"
+                  className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-gray-100 text-gray-400 font-semibold text-[11px] sm:text-[11px] border border-gray-200 cursor-not-allowed"
                 >
                   <Layers className="w-2.5 h-2.5 flex-shrink-0" />
                   <span>Indisponible</span>
@@ -236,7 +237,7 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
             ) : (
               <Link
                 href={`/dashboard/reseller/productions/${production.id}`}
-                className="w-full inline-flex items-center justify-center gap-0.5 px-2 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-semibold text-[9px] sm:text-[10px] transition-colors"
+                className="w-full inline-flex items-center justify-center gap-0.5 px-2 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-semibold text-[11px] sm:text-[11px] transition-colors"
               >
                 <AlertCircle className="w-2.5 h-2.5 text-amber-700 flex-shrink-0" />
                 <span>Hors zone</span>
@@ -245,7 +246,7 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
           ) : production.status === "growing" || production.status === "harvested" ? (
             <Link
               href={`/dashboard/reseller/productions/${production.id}`}
-              className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-forest-50 hover:bg-forest-100 text-forest-800 font-bold text-[9px] sm:text-[10px] border border-forest-200/90 transition-colors"
+              className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-forest-50 hover:bg-forest-100 text-forest-800 font-bold text-[11px] sm:text-[11px] border border-forest-200/90 transition-colors"
             >
               <TrendingUp className="w-2.5 h-2.5 text-forest-700 flex-shrink-0" />
               <span>Faire une demande</span>
@@ -253,7 +254,7 @@ export default function FeedProductionCard({ production, index = 0 }: FeedProduc
           ) : (
             <Link
               href={`/dashboard/reseller/productions/${production.id}`}
-              className="w-full inline-flex items-center justify-center gap-0.5 px-2 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-700 font-semibold text-[9px] sm:text-[10px] border border-gray-200 transition-colors group/btn"
+              className="w-full inline-flex items-center justify-center gap-0.5 px-2 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-700 font-semibold text-[11px] sm:text-[11px] border border-gray-200 transition-colors group/btn"
             >
               <span>Voir le détail</span>
               <ArrowRight className="w-2.5 h-2.5 text-gray-400 motion-safe:group-hover/btn:translate-x-0.5 transition-transform" />

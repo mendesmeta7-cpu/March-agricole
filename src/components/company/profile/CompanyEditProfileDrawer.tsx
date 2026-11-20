@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Drawer from "@/components/ui/Drawer";
 import FormField from "@/components/ui/FormField";
 import Input from "@/components/ui/Input";
@@ -9,6 +9,8 @@ import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 import { useToast } from "@/components/ui/Toast";
 import { updateCompanyProfileAction } from "@/lib/actions/company";
+import { usePhotoForUpload } from "@/components/ui/usePhotoForUpload";
+import PhotoUploadFeedback from "@/components/ui/PhotoUploadFeedback";
 import {
   Building2,
   Upload,
@@ -45,7 +47,9 @@ export default function CompanyEditProfileDrawer({
 }: CompanyEditProfileDrawerProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Logo : transparence conservée, photo préparée sous 900 Ko.
+  const logo = usePhotoForUpload({ keepTransparency: true });
+  const clearLogo = logo.clear;
 
   // États du formulaire
   const [name, setName] = useState(company.name || "");
@@ -57,7 +61,6 @@ export default function CompanyEditProfileDrawer({
 
   // Gestion du logo
   const [logoPreview, setLogoPreview] = useState<string | null>(company.logo_url);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,43 +76,35 @@ export default function CompanyEditProfileDrawer({
       setCity(company.city || "");
       setAddress(company.address || "");
       setLogoPreview(company.logo_url);
-      setLogoFile(null);
+      clearLogo();
       setRemoveLogo(false);
       setErrorMessage(null);
     }
-  }, [isOpen, company]);
+  }, [isOpen, company, clearLogo]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      setErrorMessage("Le fichier sélectionné dépasse 5 Mo. Veuillez choisir une image plus légère.");
-      return;
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { file, error } = await logo.onInputChange(e);
+    if (file) {
+      setRemoveLogo(false);
+      setLogoPreview(URL.createObjectURL(file));
+    } else if (error && !removeLogo) {
+      setLogoPreview(company.logo_url);
     }
-
-    setLogoFile(file);
-    setRemoveLogo(false);
-    const preview = URL.createObjectURL(file);
-    setLogoPreview(preview);
-    setErrorMessage(null);
   };
 
   const handleRemoveLogo = () => {
-    setLogoFile(null);
+    clearLogo();
     setLogoPreview(null);
     setRemoveLogo(true);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (logo.isPreparing) return;
     setErrorMessage(null);
 
     if (!name || name.trim().length < 2) {
-      setErrorMessage("La raison sociale de l'entreprise est obligatoire (minimum 2 caractères).");
+      setErrorMessage("La raison sociale de la société est obligatoire (minimum 2 caractères).");
       return;
     }
 
@@ -127,8 +122,8 @@ export default function CompanyEditProfileDrawer({
 
       if (removeLogo) {
         formData.append("removeLogo", "true");
-      } else if (logoFile) {
-        formData.append("logo", logoFile);
+      } else if (logo.photo) {
+        formData.append("logo", logo.photo, logo.photo.name);
       }
 
       const res = await updateCompanyProfileAction(null, formData);
@@ -140,7 +135,7 @@ export default function CompanyEditProfileDrawer({
       }
 
       toast.success("Profil mis à jour", {
-        description: "Les informations de votre exploitation agricole ont été modifiées avec succès.",
+        description: "Les informations de votre société ont été modifiées avec succès.",
       });
 
       onClose();
@@ -158,7 +153,7 @@ export default function CompanyEditProfileDrawer({
       isOpen={isOpen}
       onClose={onClose}
       size="lg"
-      title="Modifier le profil de l'exploitation"
+      title="Modifier le profil de la société"
       description="Renseignements légaux, coordonnées et identité visuelle"
       icon={<Building2 className="w-5 h-5 text-forest-700" />}
       footer={
@@ -178,6 +173,7 @@ export default function CompanyEditProfileDrawer({
             size="md"
             onClick={handleSubmit}
             isLoading={isSubmitting}
+            disabled={logo.isPreparing}
           >
             Enregistrer les modifications
           </Button>
@@ -201,7 +197,7 @@ export default function CompanyEditProfileDrawer({
             <div>
               <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                 <Camera className="w-4 h-4 text-forest-700" />
-                Logo officiel de l&apos;exploitation
+                Logo officiel de la société
               </h4>
               <p className="text-xs text-gray-500 mt-0.5">
                 Image affichée sur votre profil et vos documents officiels
@@ -234,23 +230,31 @@ export default function CompanyEditProfileDrawer({
 
             <div className="flex-1 space-y-1.5">
               <input
-                ref={fileInputRef}
+                ref={logo.inputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleFileChange}
                 className="hidden"
                 id="drawer-logo-upload"
+                aria-invalid={logo.error ? true : undefined}
+                aria-describedby={logo.error || logo.isPreparing ? logo.feedbackId : undefined}
               />
-              <label
-                htmlFor="drawer-logo-upload"
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-gray-300 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 cursor-pointer shadow-2xs transition-all"
+              {/* Sous-lot P : vrai bouton (focalisable, Entrée et Espace) qui ouvre le champ masqué */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-11 font-semibold"
+                leftIcon={<Upload className="w-4 h-4 text-forest-700" aria-hidden="true" />}
+                onClick={() => logo.inputRef.current?.click()}
+                aria-describedby={logo.error || logo.isPreparing ? logo.feedbackId : undefined}
               >
-                <Upload className="w-4 h-4 text-forest-700" />
-                <span>{logoPreview ? "Changer l'image" : "Sélectionner une image"}</span>
-              </label>
-              <p className="text-[11px] text-gray-500">
+                {logoPreview ? "Changer l'image" : "Sélectionner une image"}
+              </Button>
+              <p className="text-xs text-gray-500">
                 Formats acceptés : JPG, PNG, WebP (Max 5 Mo).
               </p>
+              <PhotoUploadFeedback photo={logo} isSending={isSubmitting} />
             </div>
           </div>
         </div>
@@ -262,7 +266,7 @@ export default function CompanyEditProfileDrawer({
           </h4>
 
           <FormField
-            label="Raison sociale / Nom de l'exploitation"
+            label="Raison sociale / Nom de la société"
             required
             description="Le nom officiel sous lequel votre société est enregistrée"
           >

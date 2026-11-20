@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useId } from "react";
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import { useEffect, useRef, useState } from "react";
+import { Dialog } from "@/components/ui/Dialog";
 import { Html5Qrcode } from "html5-qrcode";
-import { X, Camera, AlertCircle, RefreshCw, Keyboard, Sparkles } from "lucide-react";
+import { AlertCircle, RefreshCw, Keyboard, Sparkles } from "lucide-react";
 
 interface QRScannerModalProps {
   isOpen: boolean;
@@ -103,48 +103,46 @@ export default function QRScannerModal({
     };
   }, [isOpen, onScanSuccess]);
 
-  const panelRef = useRef<HTMLDivElement>(null);
-  const titleId = useId();
-  useFocusTrap(panelRef, {
-    isOpen: isOpen,
-    onEscape: onClose,
-    escapeEnabled: true,
-  });
 
   if (!isOpen) return null;
 
+  // Lot UX/UI 5B : surface partagée Dialog (focus, Échap, verrouillage compté du défilement).
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
-      <div
-        ref={panelRef}
-        className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-forest-900/5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-forest-800 text-white flex items-center justify-center shadow-xs">
-              <Camera className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 id={titleId} className="text-sm font-bold text-gray-900">Scanner le QR Code</h3>
-              <p className="text-[11px] text-gray-500">Pointez l&apos;objectif vers le QR du revendeur</p>
-            </div>
-          </div>
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      size="md"
+      isDismissable={true}
+      showCloseButton={true}
+      title={"Scanner le QR Code"}
+      description={"Pointez l'objectif vers le QR du revendeur"}
+      fullScreenOnMobile
+      footer={
+        <>
           <button
             type="button"
-            aria-label="Fermer"
-            onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-white/80 transition-colors"
+            onClick={() => {
+              onClose();
+              onSwitchToManual();
+            }}
+            className="px-3.5 py-2 text-xs font-semibold text-gray-700 hover:text-forest-900 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors flex items-center gap-1.5 shadow-2xs"
           >
-            <X className="w-5 h-5" />
+            <Keyboard className="w-3.5 h-3.5" />
+            Saisie manuelle
           </button>
-        </div>
 
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900 rounded-xl hover:bg-gray-200/60 transition-colors"
+          >
+            Fermer
+          </button>
+        </>
+      }
+    >
         {/* Viewfinder zone */}
-        <div className="p-4 sm:p-6 flex-1 flex flex-col items-center justify-center space-y-4">
+        <div className="flex-1 flex flex-col items-center justify-center space-y-4">
           {cameraError ? (
             <div className="p-5 text-center space-y-3 bg-amber-50/80 rounded-2xl border border-amber-200/80 w-full">
               <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto">
@@ -175,7 +173,7 @@ export default function QRScannerModal({
                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                   <div className="w-48 h-48 border-2 border-forest-400/80 rounded-xl relative shadow-[0_0_15px_rgba(34,197,94,0.3)]">
                     <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-forest-400 to-transparent animate-pulse" />
-                    <div className="absolute top-2 left-2 text-[9px] font-mono text-forest-300 bg-black/60 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                    <div className="absolute top-2 left-2 text-[11px] font-mono text-forest-300 bg-black/60 px-1.5 py-0.5 rounded-md flex items-center gap-1">
                       <Sparkles className="w-2.5 h-2.5" /> Scan actif
                     </div>
                   </div>
@@ -191,34 +189,10 @@ export default function QRScannerModal({
             </div>
           )}
 
-          <p className="text-[11px] text-gray-500 text-center max-w-xs leading-relaxed">
+          <p className="text-xs text-gray-500 text-center max-w-xs leading-relaxed">
             Cadrez le QR code affiché sur l&apos;écran du revendeur. La recherche de commande démarrera automatiquement dès détection.
           </p>
         </div>
-
-        {/* Footer */}
-        <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onSwitchToManual();
-            }}
-            className="px-3.5 py-2 text-xs font-semibold text-gray-700 hover:text-forest-900 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors flex items-center gap-1.5 shadow-2xs"
-          >
-            <Keyboard className="w-3.5 h-3.5" />
-            Saisie manuelle
-          </button>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900 rounded-xl hover:bg-gray-200/60 transition-colors"
-          >
-            Fermer
-          </button>
-        </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

@@ -45,15 +45,24 @@ export async function getAllFeedCategoriesAdmin(): Promise<FeedCategoryItem[]> {
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
-  if (error || !categories) {
-    console.error("Erreur getAllFeedCategoriesAdmin :", error?.message);
-    return [];
+  // Lot 2C : lecture principale de la page d'administration — une panne n'est
+  // jamais présentée comme « aucune catégorie » (écran d'erreur avec « Réessayer »)
+  if (error) {
+    console.error("Erreur getAllFeedCategoriesAdmin :", error.message);
+    throw new Error("Lecture des catégories du flux impossible");
   }
+  if (!categories) return [];
 
   // Comptage des produits rattachés à chaque catégorie
-  const { data: productCategories } = await supabase
+  const { data: productCategories, error: countError } = await supabase
     .from("products")
     .select("category");
+
+  // Comptage illisible : aucun nombre affiché plutôt qu'un faux « 0 produit »
+  if (countError) {
+    console.error("Erreur comptage des produits par catégorie :", countError.message);
+    return categories as FeedCategoryItem[];
+  }
 
   const countMap: Record<string, number> = {};
   (productCategories || []).forEach((p: any) => {

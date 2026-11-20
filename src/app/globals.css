@@ -34,6 +34,12 @@ body {
       font-size: 0.875rem; /* text-sm sur écran desktop */
     }
   }
+  /* Lot UX/UI 3B (A11-02) : texte d'exemple des champs en gray-500 (4,8:1 sur blanc) au lieu du gray-400
+     de Tailwind (2,5:1, mesuré sur 70 champs). Une classe placeholder:* posée sur un champ reste prioritaire. */
+  input::placeholder,
+  textarea::placeholder {
+    color: theme("colors.gray.500");
+  }
 }
 
 /* Utilitaires pour le défilement horizontal fluide */
@@ -164,7 +170,10 @@ body {
   from { stroke-dashoffset: 0; }
 }
 
-/* Classes utilitaires d'animation */
+/* Classes utilitaires d'animation.
+   Lot UX/UI 5B (suite du Lot 3A) : déclarées dans @layer utilities pour que Tailwind leur applique
+   ses variantes (sm:animate-slide-in-down du Toast, auparavant sans effet). */
+@layer utilities {
 .animate-fade-in-up {
   animation: fadeInUp 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -195,6 +204,7 @@ body {
 
 .animate-modal-pop {
   animation: modalPop 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
 }
 
 /* ============================================================

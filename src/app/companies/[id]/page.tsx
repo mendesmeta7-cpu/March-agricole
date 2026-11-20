@@ -1,5 +1,6 @@
 import { getPublicCompanyProfile, getCompanyPublicProductions } from "@/lib/queries/companies";
 import { notFound } from "next/navigation";
+import { settleRead } from "@/lib/utils/settleRead";
 import CompanyPublicProfileView from "@/components/companies/CompanyPublicProfileView";
 import Link from "next/link";
 import BrandLogo from "@/components/ui/BrandLogo";
@@ -18,10 +19,11 @@ export default async function PublicCompanyPage(props: PublicCompanyPageProps) {
     notFound();
   }
 
-  const productions = await getCompanyPublicProductions(params.id);
+  // Lot 2C : panne des productions signalée sans faire tomber la fiche
+  const productionsRead = await settleRead(getCompanyPublicProductions(params.id), []);
 
   return (
-    <div className="min-h-screen bg-sand-50/40 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Navigation d'en-tête publique */}
         <header className="flex items-center justify-between pb-4 border-b border-gray-200/80">
@@ -52,7 +54,8 @@ export default async function PublicCompanyPage(props: PublicCompanyPageProps) {
         {/* Vue profil public */}
         <CompanyPublicProfileView
           company={company}
-          productions={productions}
+          productions={productionsRead.data}
+          productionsUnavailable={productionsRead.failed}
           backHref="/"
           backLabel="Retour à l'accueil"
         />

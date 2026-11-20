@@ -110,7 +110,7 @@ export function RadioGroup({
                 </div>
 
                 {opt.description && (
-                  <p className="text-[11px] sm:text-xs text-gray-500 leading-relaxed line-clamp-2">
+                  <p className="text-xs sm:text-xs text-gray-500 leading-relaxed line-clamp-2">
                     {opt.description}
                   </p>
                 )}
@@ -157,7 +157,7 @@ export function RadioGroup({
                 {opt.label}
               </span>
               {opt.description && (
-                <span className="text-[11px] sm:text-xs text-gray-500 block leading-relaxed">
+                <span className="text-xs sm:text-xs text-gray-500 block leading-relaxed">
                   {opt.description}
                 </span>
               )}

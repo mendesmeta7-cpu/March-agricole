@@ -16,6 +16,10 @@ import {
   parseAdminListParams,
   type AdminCompanyRow,
 } from "@/lib/queries/admin";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Administration · Sociétés — Radiza" };
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +48,7 @@ export default async function AdminCompaniesPage(props: PageProps) {
   const columns: AdminColumn<AdminCompanyRow>[] = [
     {
       key: "name",
-      header: "Entreprise",
+      header: "Société",
       cell: (row) => (
         <div className="min-w-0 space-y-0.5">
           <p className="font-semibold text-gray-950 break-words">{row.name}</p>
@@ -68,7 +72,7 @@ export default async function AdminCompaniesPage(props: PageProps) {
     {
       key: "owner",
       header: "Responsable",
-      cell: (row) => row.ownerName ?? <span className="text-gray-400">Non renseigné</span>,
+      cell: (row) => row.ownerName ?? <span className="text-gray-500">Non renseigné</span>,
     },
     {
       key: "created",
@@ -105,8 +109,8 @@ export default async function AdminCompaniesPage(props: PageProps) {
       <AdminBackLink />
 
       <PageHeader
-        title="Supervision des Entreprises Agricoles"
-        description="Consultez les entreprises inscrites et validez leur badge de vérification. Les autres informations sont en lecture seule."
+        title="Sociétés"
+        description="Consultez les sociétés inscrites et validez leur badge de vérification. Les autres informations sont en lecture seule."
         badge={
           counts && counts.pending > 0 ? (
             <Badge variant="warning">
@@ -122,8 +126,8 @@ export default async function AdminCompaniesPage(props: PageProps) {
         basePath={BASE_PATH}
         q={params.q}
         status={params.status}
-        searchLabel="Rechercher une entreprise"
-        searchPlaceholder="Nom de l'entreprise…"
+        searchLabel="Rechercher une société"
+        searchPlaceholder="Nom de la société…"
         statusLabel="Statut de vérification"
         statusOptions={statusOptions}
       />
@@ -132,11 +136,11 @@ export default async function AdminCompaniesPage(props: PageProps) {
         basePath={BASE_PATH}
         params={params}
         result={result}
-        caption="Liste des entreprises agricoles inscrites"
+        caption="Liste des sociétés inscrites"
         columns={columns}
         getRowKey={(row) => row.id}
-        emptyTitle="Aucune entreprise inscrite pour le moment"
-        emptyDescription="Les entreprises agricoles apparaîtront ici dès leur inscription via le parcours officiel."
+        emptyTitle="Aucune société inscrite pour le moment"
+        emptyDescription="Les sociétés apparaîtront ici dès leur inscription via le parcours officiel."
         icon={<Building2 className="w-8 h-8 text-forest-700" />}
       />
     </div>

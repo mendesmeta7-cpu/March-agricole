@@ -3,6 +3,10 @@ import CompanyAccountMissing from "@/components/company/CompanyAccountMissing";
 import { redirect } from "next/navigation";
 import { getCompanyOrders } from "@/lib/queries/orders";
 import CompanyOrdersView from "@/components/orders/CompanyOrdersView";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Commandes reçues — Radiza" };
 
 export default async function CompanyOrdersPage() {
   const user = await getCurrentUser();

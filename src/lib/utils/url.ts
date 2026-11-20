@@ -57,6 +57,8 @@ const ALLOWED_REDIRECT_PREFIXES = [
   "/unauthorized",
   "/privacy",
   "/terms",
+  // Lot UX/UI 5B : retour à la page de consultation d'une campagne après connexion
+  "/campaigns",
   "/"
 ];
 

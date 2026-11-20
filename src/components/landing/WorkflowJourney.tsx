@@ -163,9 +163,9 @@ export default function WorkflowJourney() {
                       <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
                     <span
-                      className={`absolute -top-1.5 -right-1.5 text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center border ${
+                      className={`absolute -top-1.5 -right-1.5 text-[11px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center border ${
                         isCurrent
-                          ? "bg-emerald-500 text-white border-white"
+                          ? "bg-emerald-700 text-white border-white"
                           : "bg-forest-100 text-forest-700 border-forest-200"
                       }`}
                     >
@@ -176,7 +176,7 @@ export default function WorkflowJourney() {
                   <span className="text-xs sm:text-sm font-extrabold text-forest-950 tracking-tight">
                     {step.label}
                   </span>
-                  <span className="text-[11px] text-forest-600 font-medium">
+                  <span className="text-xs text-forest-600 font-medium">
                     {step.role}
                   </span>
                 </button>

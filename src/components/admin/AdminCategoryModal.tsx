@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useRef, useId } from "react";
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import { useState, useEffect } from "react";
+import { Dialog } from "@/components/ui/Dialog";
 import { FeedCategoryItem } from "@/lib/queries/feedCategories";
 import {
   createAdminFeedCategoryAction,
   updateAdminFeedCategoryAction,
   ActionResponse,
 } from "@/lib/actions/admin/feedCategories";
-import { X, Upload, Image as ImageIcon, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, Trash2, CheckCircle2, AlertCircle, Image as ImageIcon } from "lucide-react";
 import SubmitButton from "@/components/SubmitButton";
+import Button from "@/components/ui/Button";
+import { usePhotoForUpload } from "@/components/ui/usePhotoForUpload";
+import PhotoUploadFeedback from "@/components/ui/PhotoUploadFeedback";
 
 interface AdminCategoryModalProps {
   isOpen: boolean;
@@ -26,34 +29,31 @@ export default function AdminCategoryModal({
   const [formState, setFormState] = useState<ActionResponse | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(category?.image_url || null);
   const [removeImage, setRemoveImage] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const photo = usePhotoForUpload({ keepTransparency: true });
+  const clearPhoto = photo.clear;
+  // La fenêtre reste montée entre deux ouvertures : une photo préparée ne doit pas survivre.
+  useEffect(() => {
+    if (!isOpen) clearPhoto();
+  }, [isOpen, clearPhoto]);
 
-  const panelRef = useRef<HTMLDivElement>(null);
-  const titleId = useId();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  useFocusTrap(panelRef, {
-    isOpen: isOpen,
-    onEscape: onClose,
-    escapeEnabled: !isSubmitting,
-  });
 
   if (!isOpen) return null;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { file, error } = await photo.onInputChange(e);
     if (file) {
-      const objectUrl = URL.createObjectURL(file);
-      setPreviewUrl(objectUrl);
+      setPreviewUrl(URL.createObjectURL(file));
       setRemoveImage(false);
+    } else if (error && !removeImage) {
+      setPreviewUrl(category?.image_url || null);
     }
   };
 
   const handleRemoveImage = () => {
+    photo.clear();
     setPreviewUrl(null);
     setRemoveImage(true);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
 
   const handleSubmit = async (formData: FormData) => {
@@ -61,13 +61,22 @@ export default function AdminCategoryModal({
     if (removeImage) {
       formData.set("removeImage", "true");
     }
+    photo.applyTo(formData, "image");
 
     let res: ActionResponse;
-    if (isEditing) {
-      formData.set("id", category.id);
-      res = await updateAdminFeedCategoryAction(null, formData);
-    } else {
-      res = await createAdminFeedCategoryAction(null, formData);
+    try {
+      if (isEditing) {
+        formData.set("id", category.id);
+        res = await updateAdminFeedCategoryAction(null, formData);
+      } else {
+        res = await createAdminFeedCategoryAction(null, formData);
+      }
+    } catch (err) {
+      // Une action rejetée ne doit jamais laisser la fenêtre bloquée.
+      console.error("Erreur enregistrement catégorie :", err);
+      res = {
+        error: "L'enregistrement de la catégorie a échoué. Vérifiez votre connexion puis réessayez.",
+      };
     }
 
     setFormState(res);
@@ -79,37 +88,19 @@ export default function AdminCategoryModal({
     }
   };
 
+  // Lot UX/UI 5B : surface partagée Dialog (focus, Échap, verrouillage compté du défilement).
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-150"
-      >
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <h2 id={titleId} className="text-lg font-bold text-gray-900">
-              {isEditing ? `Modifier la catégorie` : `Ajouter une catégorie`}
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Administrez les catégories visuelles affichées dans le Flux revendeur
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer la fenêtre"
-            className="p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      size="lg"
+      isDismissable={!isSubmitting}
+      showCloseButton={!isSubmitting}
+      title={isEditing ? `Modifier la catégorie` : `Ajouter une catégorie`}
+      description={"Administrez les catégories visuelles affichées dans le tableau de bord revendeur"}
+    >
         {/* Formulaire */}
-        <form action={handleSubmit} onSubmit={() => setIsSubmitting(true)} className="p-6 space-y-5">
+        <form action={handleSubmit} onSubmit={() => setIsSubmitting(true)} className="space-y-5">
           {formState?.error && (
             <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -136,7 +127,7 @@ export default function AdminCategoryModal({
               required
               defaultValue={category?.name || ""}
               placeholder="ex. Céréales, Tubercules, Fruits..."
-              className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-hidden transition-all"
+              className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-none transition-all"
             />
           </div>
 
@@ -171,24 +162,32 @@ export default function AdminCategoryModal({
 
               <div className="flex-1 space-y-2">
                 <input
-                  ref={fileInputRef}
+                  ref={photo.inputRef}
                   type="file"
                   name="image"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={handleFileChange}
                   className="hidden"
                   id="category-image-upload"
+                  aria-invalid={photo.error ? true : undefined}
+                  aria-describedby={photo.error || photo.isPreparing ? photo.feedbackId : undefined}
                 />
-                <label
-                  htmlFor="category-image-upload"
-                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 cursor-pointer transition-all shadow-2xs"
+                {/* Sous-lot P : vrai bouton (focalisable, Entrée et Espace) qui ouvre le champ masqué */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-11 font-semibold"
+                  leftIcon={<Upload className="w-3.5 h-3.5 text-gray-500" aria-hidden="true" />}
+                  onClick={() => photo.inputRef.current?.click()}
+                  aria-describedby={photo.error || photo.isPreparing ? photo.feedbackId : undefined}
                 >
-                  <Upload className="w-3.5 h-3.5 text-gray-500" />
-                  <span>{previewUrl ? "Changer l'image" : "Choisir une image"}</span>
-                </label>
-                <p className="text-[11px] text-gray-500">
+                  {previewUrl ? "Changer l'image" : "Choisir une image"}
+                </Button>
+                <p className="text-xs text-gray-500">
                   Format JPG, PNG ou WebP. Max 5 Mo. Stockée sur Cloudinary.
                 </p>
+                <PhotoUploadFeedback photo={photo} />
               </div>
             </div>
           </div>
@@ -204,7 +203,7 @@ export default function AdminCategoryModal({
                 type="number"
                 name="sortOrder"
                 defaultValue={category?.sort_order ?? 0}
-                className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-hidden transition-all"
+                className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-none transition-all"
               />
             </div>
 
@@ -235,12 +234,12 @@ export default function AdminCategoryModal({
             <SubmitButton
               className="px-5 py-2.5 rounded-2xl bg-forest-700 hover:bg-forest-800 text-white font-bold text-xs shadow-xs"
               loadingText="Téléversement en cours..."
+              disabled={photo.isPreparing}
             >
               {isEditing ? "Enregistrer les modifications" : "Créer la catégorie"}
             </SubmitButton>
           </div>
         </form>
-      </div>
-    </div>
+    </Dialog>
   );
 }

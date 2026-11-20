@@ -14,7 +14,7 @@ export default function ResellerDashboardError({
       error={error}
       reset={reset}
       backHref="/dashboard/reseller"
-      backLabel="Retour au flux"
+      backLabel="Retour au tableau de bord"
       scopeLabel="votre espace revendeur"
       compact
     />

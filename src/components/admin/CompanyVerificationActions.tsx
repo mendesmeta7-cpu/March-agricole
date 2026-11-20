@@ -30,9 +30,9 @@ const ACTION_CONFIG: Record<
 > = {
   verified: {
     label: "Vérifier",
-    title: "Vérifier cette entreprise ?",
+    title: "Vérifier cette société ?",
     description: (name) =>
-      `« ${name} » recevra le badge d'entreprise vérifiée, affiché sur son profil public. L'opération est journalisée.`,
+      `« ${name} » recevra le badge de société vérifiée, affiché sur son profil public. L'opération est journalisée.`,
     confirmText: "Confirmer la vérification",
     variant: "success",
     buttonVariant: "success",
@@ -42,7 +42,7 @@ const ACTION_CONFIG: Record<
     label: "Rejeter",
     title: "Rejeter la vérification ?",
     description: (name) =>
-      `« ${name} » ne portera pas le badge d'entreprise vérifiée. Son compte reste actif. L'opération est journalisée.`,
+      `« ${name} » ne portera pas le badge de société vérifiée. Son compte reste actif. L'opération est journalisée.`,
     confirmText: "Confirmer le rejet",
     variant: "destructive",
     buttonVariant: "destructive",

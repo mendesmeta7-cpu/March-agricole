@@ -1,6 +1,9 @@
+"use client";
+
 import React from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { mergeIds, useFormFieldContext } from "./formFieldContext";
 
 export interface InputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> {
@@ -13,8 +16,8 @@ export interface InputProps
 }
 
 const inputSizeStyles = {
-  sm: "py-1.5 px-3 text-xs sm:text-sm rounded-lg",
-  md: "py-2.5 px-3.5 text-sm rounded-xl",
+  sm: "py-1.5 px-3 text-xs sm:text-sm rounded-lg max-sm:min-h-11",
+  md: "py-2.5 px-3.5 text-sm rounded-xl max-sm:min-h-11",
   lg: "py-3 px-4 text-base rounded-2xl",
 };
 
@@ -31,11 +34,16 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       onClear,
       disabled,
       value,
+      "aria-describedby": ariaDescribedBy,
+      "aria-invalid": ariaInvalid,
       ...props
     },
     ref
   ) => {
+    // A11-06 : état d'erreur et messages du FormField parent annoncés avec le champ.
+    const field = useFormFieldContext();
     const hasError = Boolean(error);
+    const invalide = hasError || Boolean(field?.invalid);
     const showClear = clearable && Boolean(value) && !disabled && Boolean(onClear);
 
     return (
@@ -51,8 +59,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           type={type}
           disabled={disabled}
           value={value}
+          aria-invalid={ariaInvalid ?? (invalide || undefined)}
+          aria-describedby={mergeIds(ariaDescribedBy, field?.describedBy)}
           className={cn(
-            "w-full bg-white border text-gray-900 placeholder:text-gray-400 transition-all duration-150 ease-out",
+            "w-full bg-white border text-gray-900 placeholder:text-gray-500 transition-all duration-150 ease-out",
             "focus:outline-none focus:ring-2 focus:ring-offset-0",
             "disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed disabled:border-gray-200",
             hasError

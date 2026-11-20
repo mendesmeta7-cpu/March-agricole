@@ -80,7 +80,12 @@ export async function loginAction(
     // FUN-16 : retour vers la page demandée avant la connexion, uniquement si elle est
     // interne (sanitizeRedirectPath) ET située dans l'espace du rôle de l'utilisateur.
     const requested = sanitizeRedirectPath(formData.get("redirect")?.toString(), home);
-    redirect(requested === home || requested.startsWith(`${home}/`) ? requested : home);
+    // Lot UX/UI 5B : la page de consultation d'une campagne (/campaigns/[id]) est publique et
+    // commune à tous les rôles ; le visiteur qui se connecte depuis un lien partagé y revient.
+    const isPublicCampaignPage = requested.startsWith("/campaigns/");
+    redirect(
+      requested === home || requested.startsWith(`${home}/`) || isPublicCampaignPage ? requested : home
+    );
   } else {
     // Rôle inconnu malgré un statut completed : erreur explicite, pas d'accès par défaut
     return { error: "Compte incomplet ou non reconnu. Veuillez contacter le support." };

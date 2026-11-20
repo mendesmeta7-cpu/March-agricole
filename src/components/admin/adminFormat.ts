@@ -1,3 +1,4 @@
+import { formatMoney, formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 // Utilitaires de mise en forme partagés par les listes d'administration (fr-FR).
 
 const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -27,13 +28,11 @@ export function formatAdminDateOnly(value: string | null | undefined): string {
 }
 
 export function formatAdminQuantity(value: number, unit: string | null | undefined): string {
-  return `${value.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}${unit ? ` ${unit}` : ""}`;
+  return formatQuantityWithUnit(value, unit);
 }
 
 export function formatAdminAmount(value: number, currency: string | null | undefined): string {
-  return `${value.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}${
-    currency ? ` ${currency}` : ""
-  }`;
+  return formatMoney(value, currency);
 }
 
 export const RESELLER_TYPE_LABELS: Record<string, string> = {

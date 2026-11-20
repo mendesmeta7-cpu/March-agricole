@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isMalformedIdError } from "@/lib/utils/readErrors";
 import { isCampaignEffectivelyOpen } from "@/lib/utils/campaignReopenRules";
 import { hasUnitCommitments } from "@/lib/utils/productionRules";
 
@@ -249,10 +250,12 @@ export async function getProductionById(
 
   const { data, error } = await query.maybeSingle();
 
-  if (error || !data) {
-    if (error) console.error("Erreur récupération détail production:", error);
-    return null;
+  // Lot 2C : panne ≠ « introuvable » (identifiant mal formé = absence réelle)
+  if (error && !isMalformedIdError(error)) {
+    console.error("Erreur récupération détail production:", error);
+    throw new Error("Lecture du détail de la production impossible");
   }
+  if (!data) return null;
 
   const campaignsList = Array.isArray(data.campaigns) ? data.campaigns : [];
   const activeCamp = campaignsList.find((c: any) => c.status === "active");

@@ -5,11 +5,14 @@ import { PublicCompanyProfile, CompanyPublicProductionItem } from "@/lib/queries
 import CompanyPublicHeader from "@/components/companies/CompanyPublicHeader";
 import CompanyPublicProductionsList from "@/components/companies/CompanyPublicProductionsList";
 import Card from "@/components/ui/Card";
+import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import { ArrowLeft, Sprout, Info, TrendingUp } from "lucide-react";
 
 interface CompanyPublicProfileViewProps {
   company: PublicCompanyProfile;
   productions: CompanyPublicProductionItem[];
+  /** Lot 2C : productions illisibles — jamais présentées comme « aucune production ». */
+  productionsUnavailable?: boolean;
   backHref?: string;
   backLabel?: string;
 }
@@ -17,6 +20,7 @@ interface CompanyPublicProfileViewProps {
 export default function CompanyPublicProfileView({
   company,
   productions,
+  productionsUnavailable = false,
   backHref = "/dashboard/reseller/feed",
   backLabel = "Retour aux productions",
 }: CompanyPublicProfileViewProps) {
@@ -45,21 +49,30 @@ export default function CompanyPublicProfileView({
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-900">
-                Productions & Récoltes Publiques
+                Productions & récoltes publiques
               </h2>
               <p className="text-xs text-gray-500">
-                Déclarations de cultures partagées publiquement par cette exploitation
+                Productions partagées publiquement par cette société
               </p>
             </div>
           </div>
 
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
-            {productions.length} {productions.length > 1 ? "productions déclarées" : "production déclarée"}
-          </span>
+          {!productionsUnavailable && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+              {productions.length} {productions.length > 1 ? "productions déclarées" : "production déclarée"}
+            </span>
+          )}
         </div>
 
         {/* Liste des productions réelles */}
-        <CompanyPublicProductionsList productions={productions} />
+        {productionsUnavailable ? (
+          <DataUnavailableNotice title="Productions indisponibles">
+            Les productions de cette société n&apos;ont pas pu être chargées. Cela ne signifie pas
+            qu&apos;elle n&apos;en a aucune : réessayez dans un instant.
+          </DataUnavailableNotice>
+        ) : (
+          <CompanyPublicProductionsList productions={productions} />
+        )}
       </div>
 
       {/* 4. Note d'information revendeur */}
@@ -72,7 +85,7 @@ export default function CompanyPublicProfileView({
                 Cadre informatif & Découplage commercial :
               </span>
               <p className="text-amber-800 text-xs leading-relaxed">
-                Les fiches affichées sur ce profil constituent des déclarations de cultures prévisionnelles. Aucune commande ferme ni réservation directe de stock n&apos;est disponible sans campagne commerciale active.
+                Les fiches affichées sur ce profil constituent des déclarations de productions prévisionnelles. Aucune commande ni réservation directe de stock n&apos;est possible sans campagne active.
               </p>
             </div>
           </div>
@@ -85,7 +98,7 @@ export default function CompanyPublicProfileView({
               Un besoin spécifique d&apos;approvisionnement ?
             </div>
             <p className="text-xs text-earth-800 leading-relaxed">
-              Vous pouvez publier une demande d&apos;achat sur la plateforme pour informer les exploitations de vos volumes cibles.
+              Vous pouvez publier une demande d&apos;achat sur la plateforme pour informer les sociétés de vos volumes cibles.
             </p>
             <Link
               href="/dashboard/reseller/demands"

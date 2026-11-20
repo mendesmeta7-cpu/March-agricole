@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useRef, useId } from "react";
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import { useState, useEffect } from "react";
+import { Drawer } from "@/components/ui/Drawer";
 import { FeedBannerItem } from "@/lib/queries/feedBanners";
 import {
   createAdminFeedBannerAction,
   updateAdminFeedBannerAction,
   ActionResponse,
 } from "@/lib/actions/admin/feedBanners";
-import { X, Upload, Image as ImageIcon, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, CheckCircle2, AlertCircle } from "lucide-react";
 import SubmitButton from "@/components/SubmitButton";
+import Button from "@/components/ui/Button";
+import { usePhotoForUpload } from "@/components/ui/usePhotoForUpload";
+import PhotoUploadFeedback from "@/components/ui/PhotoUploadFeedback";
+import { BANNER_MAX_SOURCE_BYTES } from "@/lib/utils/compressImage";
 
 interface AdminBannerModalProps {
   isOpen: boolean;
@@ -25,36 +29,41 @@ export default function AdminBannerModal({
   const isEditing = !!banner;
   const [formState, setFormState] = useState<ActionResponse | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(banner?.image_url || null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const photo = usePhotoForUpload({ maxSourceBytes: BANNER_MAX_SOURCE_BYTES });
+  const clearPhoto = photo.clear;
+  // La fenêtre reste montée entre deux ouvertures : une photo préparée ne doit pas survivre.
+  useEffect(() => {
+    if (!isOpen) clearPhoto();
+  }, [isOpen, clearPhoto]);
 
-  const panelRef = useRef<HTMLDivElement>(null);
-  const titleId = useId();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  useFocusTrap(panelRef, {
-    isOpen: isOpen,
-    onEscape: onClose,
-    escapeEnabled: !isSubmitting,
-  });
 
   if (!isOpen) return null;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const objectUrl = URL.createObjectURL(file);
-      setPreviewUrl(objectUrl);
-    }
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { file, error } = await photo.onInputChange(e);
+    if (file) setPreviewUrl(URL.createObjectURL(file));
+    else if (error) setPreviewUrl(banner?.image_url || null);
   };
 
   const handleSubmit = async (formData: FormData) => {
     setFormState(null);
+    photo.applyTo(formData, "image");
 
     let res: ActionResponse;
-    if (isEditing) {
-      formData.set("id", banner.id);
-      res = await updateAdminFeedBannerAction(null, formData);
-    } else {
-      res = await createAdminFeedBannerAction(null, formData);
+    try {
+      if (isEditing) {
+        formData.set("id", banner.id);
+        res = await updateAdminFeedBannerAction(null, formData);
+      } else {
+        res = await createAdminFeedBannerAction(null, formData);
+      }
+    } catch (err) {
+      // Une action rejetée ne doit jamais laisser la fenêtre bloquée.
+      console.error("Erreur enregistrement bannière :", err);
+      res = {
+        error: "L'enregistrement de la bannière a échoué. Vérifiez votre connexion puis réessayez.",
+      };
     }
 
     setFormState(res);
@@ -66,37 +75,19 @@ export default function AdminBannerModal({
     }
   };
 
+  // Lot UX/UI 5B : surface partagée Drawer (focus, Échap, verrouillage compté du défilement).
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-150"
-      >
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
-          <div>
-            <h2 id={titleId} className="text-lg font-bold text-gray-900">
-              {isEditing ? `Modifier la bannière` : `Ajouter une bannière`}
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Gérez les affiches et bannières du carrousel d&apos;accueil du Flux revendeur
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer la fenêtre"
-            className="p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      size="lg"
+      isDismissable={!isSubmitting}
+      showCloseButton={!isSubmitting}
+      title={isEditing ? `Modifier la bannière` : `Ajouter une bannière`}
+      description={"Gérez les affiches et bannières du carrousel d'accueil du tableau de bord revendeur"}
+    >
         {/* Formulaire */}
-        <form action={handleSubmit} onSubmit={() => setIsSubmitting(true)} className="p-6 space-y-4">
+        <form action={handleSubmit} onSubmit={() => setIsSubmitting(true)} className="space-y-4">
           {formState?.error && (
             <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -123,7 +114,7 @@ export default function AdminBannerModal({
               required
               defaultValue={banner?.title || ""}
               placeholder="ex. Récoltes de Maïs au Kasaï"
-              className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-hidden transition-all"
+              className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-none transition-all"
             />
           </div>
 
@@ -137,8 +128,8 @@ export default function AdminBannerModal({
               name="subtitle"
               rows={2}
               defaultValue={banner?.subtitle || ""}
-              placeholder="Commandez directement auprès des producteurs avec réservation immédiate."
-              className="w-full px-4 py-2 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-hidden transition-all"
+              placeholder="Commandez directement auprès des sociétés avec réservation immédiate."
+              className="w-full px-4 py-2 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-none transition-all"
             />
           </div>
 
@@ -152,9 +143,9 @@ export default function AdminBannerModal({
                 id="admin-banner-buttonLabel"
                 type="text"
                 name="buttonLabel"
-                defaultValue={banner?.button_label || "Voir les offres"}
-                placeholder="ex. Découvrir, Voir les offres..."
-                className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-hidden transition-all"
+                defaultValue={banner?.button_label || "Voir les campagnes"}
+                placeholder="ex. Découvrir, Voir les campagnes..."
+                className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-none transition-all"
               />
             </div>
 
@@ -168,7 +159,7 @@ export default function AdminBannerModal({
                 name="buttonUrl"
                 defaultValue={banner?.button_url || "/dashboard/reseller/campaigns"}
                 placeholder="/dashboard/reseller/campaigns"
-                className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-hidden transition-all"
+                className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-none transition-all"
               />
             </div>
           </div>
@@ -181,7 +172,7 @@ export default function AdminBannerModal({
 
             <div className="space-y-3">
               {previewUrl && (
-                <div className="w-full aspect-21/9 rounded-2xl bg-gray-100 border border-gray-200 overflow-hidden relative">
+                <div className="w-full aspect-[21/9] rounded-2xl bg-gray-100 border border-gray-200 overflow-hidden relative">
                   <img
                     src={previewUrl}
                     alt="Aperçu"
@@ -192,7 +183,7 @@ export default function AdminBannerModal({
 
               <div className="flex items-center gap-3">
                 <input
-                  ref={fileInputRef}
+                  ref={photo.inputRef}
                   type="file"
                   name="image"
                   required={!isEditing}
@@ -200,18 +191,26 @@ export default function AdminBannerModal({
                   onChange={handleFileChange}
                   className="hidden"
                   id="banner-image-upload"
+                  aria-invalid={photo.error ? true : undefined}
+                  aria-describedby={photo.error || photo.isPreparing ? photo.feedbackId : undefined}
                 />
-                <label
-                  htmlFor="banner-image-upload"
-                  className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 cursor-pointer transition-all shadow-2xs"
+                {/* Sous-lot P : vrai bouton (focalisable, Entrée et Espace) qui ouvre le champ masqué */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-11 shrink-0 font-semibold"
+                  leftIcon={<Upload className="w-3.5 h-3.5 text-gray-500" aria-hidden="true" />}
+                  onClick={() => photo.inputRef.current?.click()}
+                  aria-describedby={photo.error || photo.isPreparing ? photo.feedbackId : undefined}
                 >
-                  <Upload className="w-3.5 h-3.5 text-gray-500" />
-                  <span>{previewUrl ? "Remplacer l'image" : "Sélectionner une photo"}</span>
-                </label>
-                <span className="text-[11px] text-gray-500">
+                  {previewUrl ? "Remplacer l'image" : "Sélectionner une photo"}
+                </Button>
+                <span className="text-xs text-gray-500">
                   Format recommandé : 1400×600 (JPG, PNG, WebP). Max 8 Mo.
                 </span>
               </div>
+              <PhotoUploadFeedback photo={photo} />
             </div>
           </div>
 
@@ -226,7 +225,7 @@ export default function AdminBannerModal({
                 type="number"
                 name="sortOrder"
                 defaultValue={banner?.sort_order ?? 0}
-                className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-hidden transition-all"
+                className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 text-sm outline-none transition-all"
               />
             </div>
 
@@ -257,12 +256,12 @@ export default function AdminBannerModal({
             <SubmitButton
               className="px-5 py-2.5 rounded-2xl bg-forest-700 hover:bg-forest-800 text-white font-bold text-xs shadow-xs"
               loadingText="Téléversement en cours..."
+              disabled={photo.isPreparing}
             >
               {isEditing ? "Enregistrer les modifications" : "Publier la bannière"}
             </SubmitButton>
           </div>
         </form>
-      </div>
-    </div>
+    </Drawer>
   );
 }

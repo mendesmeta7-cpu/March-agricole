@@ -2,8 +2,12 @@ import { getPublicProductionDetail } from "@/lib/queries/feed";
 import { getActiveCampaignByProductionId } from "@/lib/queries/campaigns";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { settleRead } from "@/lib/utils/settleRead";
+import { readRows } from "@/lib/utils/readErrors";
+import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
+import InfoRepliable from "@/components/ui/InfoRepliable";
 import ProductionStatusBadge from "@/components/productions/ProductionStatusBadge";
 import ResellerProductionDetailActions from "@/components/feed/ResellerProductionDetailActions";
 import {
@@ -15,13 +19,17 @@ import {
   Sprout,
   ImageOff,
   Sparkles,
-  Info,
   TrendingUp,
   ShoppingCart,
   Megaphone,
 } from "lucide-react";
 import Link from "next/link";
 import { formatProductionSeasonCalendar } from "@/lib/utils/seasonalMonths";
+import { formatQuantityWithUnit } from "@/lib/utils/numberFormat";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Détail de la production — Radiza" };
 
 interface ResellerProductionDetailPageProps {
   params: Promise<{
@@ -53,17 +61,24 @@ export default async function ResellerProductionDetailPage(props: ResellerProduc
   }
 
   // 2. Chargement conjoint production, provinces et campagne active avec éligibilité
-  const [production, provincesRes, activeCampaign] = await Promise.all([
+  // (Lot 2C : provinces et campagne sont des lectures isolées ; une campagne illisible
+  // n'est jamais présentée comme une absence de campagne)
+  const [production, provincesRead, campaignRead] = await Promise.all([
     getPublicProductionDetail(params.id, reseller),
-    supabase.from("provinces").select("id, country_id, code, name").order("name"),
-    getActiveCampaignByProductionId(params.id, reseller),
+    settleRead(
+      readRows(supabase.from("provinces").select("id, country_id, code, name").order("name"), "provinces"),
+      []
+    ),
+    settleRead(getActiveCampaignByProductionId(params.id, reseller), null),
   ]);
 
   if (!production) {
     notFound();
   }
 
-  const provinces = provincesRes.data || [];
+  const provinces = provincesRead.data;
+  const activeCampaign = campaignRead.data;
+  const campaignUnavailable = campaignRead.failed;
   const defaultProvinceId = reseller?.province_id || undefined;
 
   const { plantingPeriod, harvestPeriod, hasPlanting, hasHarvest } = formatProductionSeasonCalendar(production);
@@ -83,7 +98,7 @@ export default async function ResellerProductionDetailPage(props: ResellerProduc
           className="hover:text-forest-800 flex items-center gap-1 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Retour au flux des productions
+          Retour au tableau de bord
         </Link>
       </div>
 
@@ -100,7 +115,7 @@ export default async function ResellerProductionDetailPage(props: ResellerProduc
         <div className="lg:col-span-2 space-y-6">
           {/* Photo principale */}
           <div className="bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-2xs">
-            <div className="relative w-full aspect-16/10 sm:aspect-16/9 bg-gray-100">
+            <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] bg-gray-100">
               {production.main_image_url ? (
                 <img
                   src={production.main_image_url}
@@ -127,29 +142,22 @@ export default async function ResellerProductionDetailPage(props: ResellerProduc
             <div className="p-5 sm:p-6 space-y-3">
               <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
                 <Sprout className="w-4 h-4 text-forest-700" />
-                Présentation de la culture
+                Présentation de la production
               </h3>
               <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
                 {production.description ||
-                  "Aucune note spécifique ou description complémentaire n'a été fournie par le producteur pour ce cycle cultural."}
+                  "Aucune note spécifique ou description complémentaire n'a été fournie par la société pour ce cycle cultural."}
               </p>
             </div>
           </div>
 
           {/* Note d'information revendeur (Règle d'Or 3) */}
-          <Card padding="md" className="bg-amber-50/50 border-amber-200/80">
-            <div className="flex items-start gap-3 text-amber-900 text-xs sm:text-sm">
-              <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <span className="font-bold block">
-                  Engagement commercial & Disponibilité physique :
-                </span>
-                <p className="text-amber-800 text-xs leading-relaxed">
-                  Cette fiche constitue une déclaration de culture. Vous pouvez formuler une <strong>demande d&apos;approvisionnement directe</strong> pour signaler votre intérêt au producteur et l&apos;aider à calibrer son offre.
-                </p>
-              </div>
-            </div>
-          </Card>
+          {/* Explication générale, repliée par défaut (Lot 6B, TXT-04) */}
+          <InfoRepliable summary="Engagement commercial & Disponibilité physique" tone="amber">
+            <p>
+              Cette fiche constitue une déclaration de production. Vous pouvez formuler une <strong>demande d&apos;approvisionnement directe</strong> pour signaler votre intérêt à la société et l&apos;aider à calibrer son offre.
+            </p>
+          </InfoRepliable>
         </div>
 
         {/* Colonne droite : Exploitation & Métriques */}
@@ -168,20 +176,39 @@ export default async function ResellerProductionDetailPage(props: ResellerProduc
                 {activeCampaign ? (
                   <>
                     <Megaphone className="w-4 h-4 text-emerald-700" />
-                    Offre Commerciale Ferme Ouverte
+                    Campagne ouverte
+                  </>
+                ) : campaignUnavailable ? (
+                  <>
+                    <Megaphone className="w-4 h-4 text-emerald-700" />
+                    Campagne
                   </>
                 ) : (
                   <>
                     <TrendingUp className="w-4 h-4 text-emerald-700" />
-                    Expression de besoin directe
+                    Demande directe
                   </>
                 )}
               </div>
-              <p className="text-xs text-gray-600 leading-relaxed">
-                {activeCampaign
-                  ? "Une campagne de vente ferme est actuellement ouverte sur cette production. Vous pouvez passer commande et réserver vos volumes immédiatement."
-                  : "Vous souhaitez réserver ou acheter une partie de cette récolte ? Transmettez vos volumes cibles et votre province au producteur."}
-              </p>
+              {campaignUnavailable ? (
+                <DataUnavailableNotice title="Campagne non vérifiée">
+                  Nous n&apos;avons pas pu vérifier si une campagne est ouverte sur cette
+                  production. Réessayez pour voir la campagne et, le cas échéant, commander. Vous
+                  pouvez tout de même formuler une demande.
+                </DataUnavailableNotice>
+              ) : (
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  {activeCampaign
+                    ? "Une campagne est actuellement ouverte sur cette production. Vous pouvez passer commande et réserver vos volumes immédiatement."
+                    : "Vous souhaitez réserver ou acheter une partie de cette récolte ? Transmettez vos volumes cibles et votre province à la société."}
+                </p>
+              )}
+              {provincesRead.failed && (
+                <DataUnavailableNotice title="Liste des provinces indisponible">
+                  La liste des provinces n&apos;a pas pu être chargée. Réessayez avant de formuler une
+                  demande.
+                </DataUnavailableNotice>
+              )}
 
               <ResellerProductionDetailActions
                 production={{
@@ -216,7 +243,7 @@ export default async function ResellerProductionDetailPage(props: ResellerProduc
           <Card padding="md">
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-forest-700" />
-              Exploitation Productrice
+              Société
             </h3>
 
             <div className="space-y-4">
@@ -247,16 +274,23 @@ export default async function ResellerProductionDetailPage(props: ResellerProduc
               </Link>
 
               <div className="pt-3 border-t border-gray-100 space-y-3">
-                <span className="text-xs text-forest-700 bg-forest-50 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 font-medium border border-forest-200/60">
-                  <Sparkles className="w-3.5 h-3.5 text-forest-600" />
-                  Producteur vérifié sur la plateforme
-                </span>
+                {/* Lot 6A-1 (D2) : badge fondé sur le vrai statut (BR-ADM-01) ; tout autre statut, absent ou inconnu : libellé neutre */}
+                {production.company.verification_status === "verified" ? (
+                  <span className="text-xs text-forest-700 bg-forest-50 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 font-medium border border-forest-200/60">
+                    <Sparkles className="w-3.5 h-3.5 text-forest-600" />
+                    Société vérifiée
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-600 bg-gray-50 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 font-medium border border-gray-200">
+                    Société inscrite sur la plateforme
+                  </span>
+                )}
 
                 <Link
                   href={`/dashboard/reseller/companies/${production.company.id}`}
                   className="w-full inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-forest-50 text-forest-800 hover:bg-forest-700 hover:text-white transition-all duration-150 border border-forest-200/80"
                 >
-                  <span>Consulter le profil de l&apos;exploitation</span>
+                  <span>Consulter le profil de la société</span>
                   <span aria-hidden="true">&rarr;</span>
                 </Link>
               </div>
@@ -272,8 +306,8 @@ export default async function ResellerProductionDetailPage(props: ResellerProduc
 
             <div className="space-y-4 text-xs sm:text-sm">
               <div>
-                <span className="text-[11px] text-gray-400 block uppercase font-medium">
-                  Denrée / Produit
+                <span className="text-[11px] text-gray-500 block uppercase font-medium">
+                  Produit
                 </span>
                 <span className="font-bold text-gray-900 block mt-0.5">
                   {production.product.name}
@@ -285,12 +319,12 @@ export default async function ResellerProductionDetailPage(props: ResellerProduc
                   Quantité planifiée
                 </span>
                 <span className="text-base font-extrabold text-forest-950 block mt-0.5">
-                  {production.expected_quantity.toLocaleString("fr-FR")} {production.unit}
+                  {formatQuantityWithUnit(production.expected_quantity, production.unit)}
                 </span>
               </div>
 
               <div>
-                <span className="text-[11px] text-gray-400 block uppercase font-medium">
+                <span className="text-[11px] text-gray-500 block uppercase font-medium">
                   Calendrier saisonnier
                 </span>
                 <div className="mt-1.5 space-y-1.5 text-gray-800">
@@ -315,14 +349,14 @@ export default async function ResellerProductionDetailPage(props: ResellerProduc
                   {!hasPlanting && !hasHarvest && (
                     <span className="text-xs text-gray-400 italic">Calendrier non renseigné</span>
                   )}
-                  <p className="text-[10px] text-gray-400 italic mt-1">
+                  <p className="text-xs text-gray-500 italic mt-1">
                     Cycle récurrent — valable chaque année
                   </p>
                 </div>
               </div>
 
               <div className="pt-3 border-t border-gray-100">
-                <span className="text-[11px] text-gray-400 block uppercase font-medium">
+                <span className="text-[11px] text-gray-500 block uppercase font-medium">
                   Implantation géographique
                 </span>
                 <div className="flex items-start gap-1.5 mt-1 text-gray-800">

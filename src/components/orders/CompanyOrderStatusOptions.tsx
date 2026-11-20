@@ -14,7 +14,7 @@ import { canCompanyCancel, getNextCompanyStatuses } from "@/lib/utils/orderRules
 
 export const COMPANY_ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   pending: "En attente de confirmation",
-  confirmed: "Confirmée par l'exploitation",
+  confirmed: "Confirmée par la société",
   preparing: "En cours de préparation",
   ready: "Prête pour retrait / expédition",
   delivered: "Livrée",

@@ -126,7 +126,7 @@ export default function RouteErrorView({
         </div>
 
         {error.digest && (
-          <p className="mt-6 text-[11px] text-gray-500">
+          <p className="mt-6 text-xs text-gray-500">
             Référence de l&apos;incident : <span className="font-mono">{error.digest}</span>
           </p>
         )}

@@ -4,10 +4,12 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import SkipLink, { MAIN_CONTENT_ID } from "@/components/ui/SkipLink";
 import { loginAction } from "@/lib/actions/auth";
 import SubmitButton from "@/components/SubmitButton";
 import { AlertCircle, CheckCircle2, Lock, Mail } from "lucide-react";
 import BrandLogo from "@/components/ui/BrandLogo";
+import PasswordField from "@/components/ui/PasswordField";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 
 function getUrlErrorMessage(errorKey: string | null): string {
@@ -109,7 +111,7 @@ function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="nom@domaine.com"
-              className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none text-sm"
+              className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none text-sm"
             />
           </div>
         </div>
@@ -118,20 +120,20 @@ function LoginForm() {
           <label htmlFor="login-password" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
             Mot de passe
           </label>
-          <div className="relative">
-            <div aria-hidden="true" className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-              <Lock className="w-4 h-4" />
-            </div>
-            <input
-              id="login-password"
-              type="password"
-              name="password"
-              autoComplete="current-password"
-              required
-              placeholder="••••••••"
-              className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none text-sm"
-            />
-          </div>
+          {/* AUT-01 (Lot UX/UI 5B) : mot de passe affichable */}
+          <PasswordField
+            id="login-password"
+            name="password"
+            autoComplete="current-password"
+            required
+            placeholder="••••••••"
+            className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-forest-600 focus:border-transparent transition-all outline-none text-sm"
+            leftAddon={
+              <div aria-hidden="true" className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                <Lock className="w-4 h-4" />
+              </div>
+            }
+          />
         </div>
 
         <div className="flex justify-end -mt-1 mb-1">
@@ -152,7 +154,7 @@ function LoginForm() {
       </form>
 
       <div className="mt-6 pt-5 border-t border-gray-100 text-center">
-        <p className="text-[11px] text-gray-500 leading-relaxed">
+        <p className="text-xs text-gray-500 leading-relaxed">
           Plateforme B2B de mise en relation agricole — Vos données et vos transactions sont protégées.
         </p>
       </div>
@@ -163,6 +165,8 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 bg-forest-50/50">
+      <SkipLink />
+      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="focus:outline-none">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <Link
           href="/"
@@ -187,6 +191,7 @@ export default function LoginPage() {
           <LoginForm />
         </Suspense>
       </div>
+      </main>
     </div>
   );
 }

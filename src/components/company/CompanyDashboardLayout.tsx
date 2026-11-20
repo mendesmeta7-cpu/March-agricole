@@ -5,6 +5,7 @@ import CompanySidebar from "@/components/company/CompanySidebar";
 import CompanyHeader from "@/components/company/CompanyHeader";
 import CompanyBottomNav from "@/components/company/CompanyBottomNav";
 import Drawer from "@/components/ui/Drawer";
+import SkipLink, { MAIN_CONTENT_ID } from "@/components/ui/SkipLink";
 
 export interface CompanyDashboardLayoutProps {
   children: React.ReactNode;
@@ -31,6 +32,8 @@ export default function CompanyDashboardLayout({
 
   return (
     <div className="min-h-screen bg-[#f9faf9] flex flex-col lg:flex-row antialiased text-gray-900">
+      {/* Lot 6B (A11-07) : lien d'évitement, premier arrêt de tabulation */}
+      <SkipLink />
       {/* 1. Sidebar Desktop permanente (écrans >= lg) avec les 8 sections officielles */}
       <aside className="hidden lg:flex lg:flex-shrink-0 sticky top-0 h-screen z-30">
         <CompanySidebar
@@ -51,8 +54,8 @@ export default function CompanyDashboardLayout({
         side="left"
         size="sm"
         showCloseButton={false}
-        className="p-0 max-w-[288px] w-full"
-        bodyClassName="p-0 overflow-hidden h-full"
+        className="!p-0 !max-w-[288px] w-full"
+        bodyClassName="!p-0 overflow-hidden h-full"
       >
         <CompanySidebar
           entityName={entityName}
@@ -79,7 +82,7 @@ export default function CompanyDashboardLayout({
         />
 
         {/* Contenu principal avec compensation d'espacement pour la Bottom Navigation */}
-        <main className="flex-1 px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-7xl w-full mx-auto pb-28 lg:pb-12">
+        <main id={MAIN_CONTENT_ID} tabIndex={-1} className="flex-1 px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-7xl w-full mx-auto pb-28 lg:pb-12 focus:outline-none">
           {children}
         </main>
       </div>

@@ -309,7 +309,7 @@ export function SkeletonButton({
     xs: "h-7",
     sm: "h-8 sm:h-9",
     md: "h-10 sm:h-11",
-    lg: "h-12 sm:h-13",
+    lg: "h-12 sm:h-[52px]",
   };
 
   return <Skeleton className={`${heightStyles[size]} ${width} rounded-xl ${className}`} />;

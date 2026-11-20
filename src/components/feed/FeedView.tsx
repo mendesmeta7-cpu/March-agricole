@@ -180,6 +180,10 @@ export default function FeedView({
   const isBusy = isPending || isFiltering;
 
   return (
+    <>
+    {/* Lot 6B (A11-04) : titre unique de la page ; l'en-tête n'en porte plus. Nom de la rubrique (Lot 6A-1),
+        masqué visuellement et hors du conteneur espacé, pour garder la recherche en tête du fil. */}
+    <h1 className="sr-only">Tableau de bord</h1>
     <div className="space-y-6">
       {/* 1. Barre de recherche principale positionnée en haut */}
       <div className="pt-1">
@@ -264,7 +268,7 @@ export default function FeedView({
       ) : loadError && !isBusy ? (
         <EmptyState
           title="Impossible de charger les productions"
-          description="Le flux n'a pas pu être récupéré. Vérifiez votre connexion puis réessayez."
+          description="Le tableau de bord n'a pas pu être chargé. Vérifiez votre connexion puis réessayez."
           icon={<AlertTriangle className="w-8 h-8 text-earth-700" />}
           action={
             <button
@@ -325,7 +329,7 @@ export default function FeedView({
                 )}
                 <span>{isLoadingMore ? "Chargement…" : "Charger plus de productions"}</span>
               </button>
-              <span className="text-[11px] text-gray-500">
+              <span className="text-xs text-gray-500">
                 {items.length} sur {total} affichées
               </span>
             </div>
@@ -341,7 +345,7 @@ export default function FeedView({
           description={
             hasActiveFilters
               ? "Essayez de modifier votre recherche textuelle ou d'élargir la catégorie de produit."
-              : "Les exploitations agricoles partenaires n'ont pas encore publié de nouvelles productions. Revenez régulièrement pour découvrir les prochaines récoltes."
+              : "Les sociétés partenaires n'ont pas encore publié de nouvelles productions. Revenez régulièrement pour découvrir les prochaines récoltes."
           }
           icon={
             hasActiveFilters ? (
@@ -370,10 +374,11 @@ export default function FeedView({
         <div className="space-y-0.5">
           <span className="font-bold block">Transparence des données réelles :</span>
           <p className="text-forest-800/90 leading-relaxed">
-            Toutes les productions affichées proviennent d&apos;enregistrements authentiques effectués par les exploitations agricoles partenaires. Les réservations fermes s&apos;effectuent lors du passage de commande sur les campagnes ouvertes.
+            Toutes les productions affichées proviennent d&apos;enregistrements authentiques effectués par les sociétés partenaires. Les réservations fermes s&apos;effectuent lors du passage de commande sur les campagnes ouvertes.
           </p>
         </div>
       </div>
     </div>
+    </>
   );
 }

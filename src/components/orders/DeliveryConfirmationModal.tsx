@@ -1,23 +1,20 @@
 "use client";
 
-import { useEffect, useState, useTransition, useRef } from "react";
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import { useEffect, useState, useTransition } from "react";
+import { Dialog } from "@/components/ui/Dialog";
 import { LookupDeliveryOrderResult, confirmOrderDeliveryAction } from "@/lib/actions/orders";
 import OrderStatusBadge from "./OrderStatusBadge";
 import { canConfirmDelivery } from "@/lib/utils/orderRules";
 import {
-  X,
   CheckCircle2,
   AlertTriangle,
   Building2,
-  ShoppingBag,
   Calendar,
   MapPin,
   Truck,
-  ShieldCheck,
   Layers,
-  ArrowRight,
 } from "lucide-react";
+import { formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 interface DeliveryConfirmationModalProps {
   order: LookupDeliveryOrderResult | null;
@@ -51,13 +48,6 @@ export default function DeliveryConfirmationModal({
     setErrorMessage(null);
     setSuccessData(null);
   }, [currentOrderId]);
-
-  const panelRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(panelRef, {
-    isOpen: isOpen && !!order,
-    onEscape: onClose,
-    escapeEnabled: !isPending,
-  });
 
   if (!isOpen || !order) return null;
 
@@ -103,42 +93,30 @@ export default function DeliveryConfirmationModal({
       }).format(new Date(order.delivered_at))
     : null;
 
+  // Lot UX/UI 5B : Dialog partagé (focus, Échap bloqué pendant la confirmation, verrouillage compté).
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div
-        ref={panelRef}
-        className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-in zoom-in-95 duration-200"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Confirmation de livraison de la commande ${order.order_number}`}
-      >
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-forest-900/5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-forest-800 text-white flex items-center justify-center shadow-xs">
-              <Truck className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-bold text-gray-900 font-mono">
-                  {order.order_number}
-                </h3>
-              </div>
-              <p className="text-[11px] text-gray-500">Vérification de la commande & confirmation</p>
-            </div>
-          </div>
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      size="lg"
+      isDismissable={!isPending}
+      showCloseButton={!isPending}
+      icon={<Truck className="w-5 h-5" />}
+      title={order.order_number}
+      description="Vérification de la commande & confirmation de livraison"
+      footer={
+        !successData ? (
           <button
             type="button"
-            aria-label="Fermer"
             onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-white/80 transition-colors"
+            className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900 rounded-xl hover:bg-gray-200/60 transition-colors"
           >
-            <X className="w-5 h-5" />
+            Fermer
           </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+        ) : undefined
+      }
+    >
+        <div className="space-y-4">
           {successData ? (
             /* Écran de succès */
             <div className="p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
@@ -157,7 +135,7 @@ export default function DeliveryConfirmationModal({
                 </p>
               </div>
               <p className="text-xs text-gray-500 bg-forest-50/60 p-3 rounded-2xl border border-forest-100 max-w-sm mx-auto leading-relaxed">
-                Le statut de la commande est désormais passé à <strong>« Livrée »</strong>. L&apos;acheteur et vos indicateurs ont été mis à jour instantanément.
+                Le statut de la commande est désormais passé à <strong>« Livrée »</strong>. Le revendeur et vos indicateurs ont été mis à jour instantanément.
               </p>
               <div className="pt-2">
                 <button
@@ -187,7 +165,7 @@ export default function DeliveryConfirmationModal({
                     <span>Cette commande a déjà été livrée.</span>
                   </div>
                   {formattedDeliveredDate && (
-                    <p className="text-[11px] text-emerald-800 pl-6">
+                    <p className="text-xs text-emerald-800 pl-6">
                       Date de livraison : <strong>{formattedDeliveredDate}</strong>
                       {order.delivered_quantity && (
                         <> • Volume remis : <strong>{order.delivered_quantity} {order.unit}</strong></>
@@ -195,7 +173,7 @@ export default function DeliveryConfirmationModal({
                     </p>
                   )}
                   {order.delivery_notes && (
-                    <p className="text-[11px] text-emerald-700 pl-6 italic">
+                    <p className="text-xs text-emerald-700 pl-6 italic">
                       Notes : « {order.delivery_notes} »
                     </p>
                   )}
@@ -214,8 +192,8 @@ export default function DeliveryConfirmationModal({
                     <Building2 className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <span className="text-[10px] uppercase font-bold text-gray-400 block">
-                      Acheteur / Revendeur
+                    <span className="text-[11px] uppercase font-bold text-gray-500 block">
+                      Revendeur
                     </span>
                     <h4 className="text-xs font-bold text-gray-900 truncate">
                       {order.reseller_business_name}
@@ -225,7 +203,7 @@ export default function DeliveryConfirmationModal({
 
                 {/* Produits & Quantités */}
                 <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 block">
+                  <span className="text-[11px] uppercase font-bold text-gray-500 block">
                     Produit(s) commandé(s)
                   </span>
                   {order.items.length > 0 ? (
@@ -237,7 +215,7 @@ export default function DeliveryConfirmationModal({
                         >
                           <span className="font-semibold text-gray-800">{item.product_name}</span>
                           <span className="font-extrabold text-forest-900">
-                            {item.quantity.toLocaleString("fr-FR")} {item.unit}
+                            {formatQuantityWithUnit(item.quantity, item.unit)}
                           </span>
                         </div>
                       ))}
@@ -306,7 +284,7 @@ export default function DeliveryConfirmationModal({
                           <p className="font-bold">
                             Confirmer que cette commande a bien été remise et livrée ?
                           </p>
-                          <p className="text-[11px] text-amber-800">
+                          <p className="text-xs text-amber-800">
                             Cette action basculera définitivement la commande au statut « Livrée » et confirmera la réservation de {order.total_ordered_quantity} {order.unit}.
                           </p>
                         </div>
@@ -344,7 +322,7 @@ export default function DeliveryConfirmationModal({
                   ) : (
                     <div className="space-y-3">
                       <div className="space-y-1">
-                        <label className="block text-[11px] font-semibold text-gray-700">
+                        <label className="block text-xs font-semibold text-gray-700">
                           Observations / Notes de remise (facultatif)
                         </label>
                         <input
@@ -352,14 +330,14 @@ export default function DeliveryConfirmationModal({
                           value={deliveryNotes}
                           onChange={(e) => setDeliveryNotes(e.target.value)}
                           placeholder="Ex: Marchandise contrôlée et remise au transporteur..."
-                          className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden"
+                          className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-none"
                         />
                       </div>
 
                       <button
                         type="button"
                         onClick={() => setIsConfirmingStep(true)}
-                        className="w-full py-3 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 active:scale-98 rounded-2xl transition-all shadow-sm flex items-center justify-center gap-2"
+                        className="w-full py-3 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] rounded-2xl transition-all shadow-sm flex items-center justify-center gap-2"
                       >
                         <CheckCircle2 className="w-4 h-4" />
                         CONFIRMER LA LIVRAISON
@@ -371,20 +349,6 @@ export default function DeliveryConfirmationModal({
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        {!successData && (
-          <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900 rounded-xl hover:bg-gray-200/60 transition-colors"
-            >
-              Fermer
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+    </Dialog>
   );
 }

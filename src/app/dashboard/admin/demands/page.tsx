@@ -18,6 +18,10 @@ import {
   parseAdminListParams,
   type AdminDemandRow,
 } from "@/lib/queries/admin";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Administration · Demandes — Radiza" };
 
 export const dynamic = "force-dynamic";
 
@@ -90,7 +94,7 @@ export default async function AdminDemandsPage(props: PageProps) {
       <AdminBackLink />
 
       <PageHeader
-        title="Supervision des Demandes du Marché"
+        title="Demandes"
         description="Consultez les demandes exprimées par les revendeurs, leur territoire et leur statut. Liste en lecture seule."
         badge={<Badge variant="neutral">Lecture seule</Badge>}
       />

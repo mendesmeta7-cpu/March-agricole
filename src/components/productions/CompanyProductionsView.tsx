@@ -11,27 +11,22 @@ import {
 } from "@/lib/actions/productions";
 import ProductionCard from "./ProductionCard";
 import { PRODUCTION_LOCK_MESSAGES } from "@/lib/utils/productionRules";
-import ProductionDrawer from "./ProductionDrawer";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/Toast";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
-import Card from "@/components/ui/Card";
+import PageHeader from "@/components/ui/PageHeader";
 import Select from "@/components/ui/Select";
+import FiltresActifs, { type CritereActif } from "@/components/ui/FiltresActifs";
 import {
   Tractor,
   Plus,
   Search,
   Filter,
-  ArrowLeft,
-  CheckCircle2,
-  Clock,
-  Sprout,
   Package,
-  Megaphone,
   X,
   RefreshCw,
-  Scale,
+  ChevronDown,
 } from "lucide-react";
 
 interface CompanyProductionsViewProps {
@@ -54,10 +49,6 @@ export default function CompanyProductionsView({
   const [productFilter, setProductFilter] = useState<string>("all");
   const [quickFilter, setQuickFilter] = useState<"all" | "growing" | "harvested" | "with_campaign">("all");
 
-  // Tiroir de création / modification
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [editingProduction, setEditingProduction] = useState<ProductionItem | null>(null);
-
   // Dialog de suppression sécurisée
   const [deletingProduction, setDeletingProduction] = useState<ProductionItem | null>(null);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
@@ -69,7 +60,7 @@ export default function CompanyProductionsView({
   const [isPending, startTransition] = useTransition();
 
   // Synchronisation avec les données serveur si initialProductions évolue
-  if (initialProductions !== productions && !isDrawerOpen && !isDeleteLoading && !isArchiveLoading) {
+  if (initialProductions !== productions && !isDeleteLoading && !isArchiveLoading) {
     setProductions(initialProductions);
   }
 
@@ -92,7 +83,7 @@ export default function CompanyProductionsView({
 
   const productFilterOptions = useMemo(
     () => [
-      { value: "all", label: "Toutes les cultures" },
+      { value: "all", label: "Tous les produits" },
       ...activeCompanyProducts.map((cp) => ({
         value: cp.product.id,
         label: cp.custom_name || cp.product.name,
@@ -133,6 +124,28 @@ export default function CompanyProductionsView({
     });
   }, [productions, searchQuery, statusFilter, productFilter, quickFilter]);
 
+  // NAV-06 (arbitrage C) : sous 640 px, statut et produit sont repliés derrière « Filtres » ;
+  // les critères actifs restent rappelés et retirables (FiltresActifs).
+  const [filtresOuverts, setFiltresOuverts] = useState(false);
+  const filtresActifs: CritereActif[] = [
+    ...(statusFilter !== "all"
+      ? [{
+          cle: "statut",
+          libelle: "Statut",
+          valeur: statusFilterOptions.find((o) => o.value === statusFilter)?.label ?? statusFilter,
+          retirer: () => setStatusFilter("all"),
+        }]
+      : []),
+    ...(productFilter !== "all"
+      ? [{
+          cle: "produit",
+          libelle: "Produit",
+          valeur: productFilterOptions.find((o) => o.value === productFilter)?.label ?? productFilter,
+          retirer: () => setProductFilter("all"),
+        }]
+      : []),
+  ];
+
   // Statistiques calculées exclusivement sur les données réelles (0 mock data)
   const stats = useMemo(() => {
     return {
@@ -143,14 +156,13 @@ export default function CompanyProductionsView({
     };
   }, [productions]);
 
+  // Lot UX/UI 5B : création et modification sur pages dédiées
   const handleOpenCreate = () => {
-    setEditingProduction(null);
-    setIsDrawerOpen(true);
+    router.push("/dashboard/company/productions/new");
   };
 
   const handleOpenEdit = (production: ProductionItem) => {
-    setEditingProduction(production);
-    setIsDrawerOpen(true);
+    router.push(`/dashboard/company/productions/${production.id}/edit`);
   };
 
   // Suppression physique sécurisée (rejetée si historique transactionnel)
@@ -184,7 +196,7 @@ export default function CompanyProductionsView({
       if (res.error) {
         toast.error("Erreur d'archivage", res.error);
       } else {
-        toast.success("Production archivée", "La production est passée en statut annulé et retirée du flux public.");
+        toast.success("Production archivée", "La production est passée en statut annulé et retirée du tableau de bord des revendeurs.");
         setProductions((prev) =>
           prev.map((p) =>
             p.id === archivingProduction.id
@@ -203,122 +215,88 @@ export default function CompanyProductionsView({
 
   return (
     <div className="space-y-6">
-      {/* Navigation fil d'Ariane */}
-      <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
-        <Link
-          href="/dashboard/company"
-          className="hover:text-forest-800 flex items-center gap-1.5 transition-colors font-medium"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Tableau de bord</span>
-        </Link>
-        <span>/</span>
-        <span className="text-gray-900 font-semibold">Productions & Récoltes</span>
-      </div>
+      {/* En-tête commun (Lot 6B, NAV-02) */}
+      <PageHeader
+        breadcrumb={[{ href: "/dashboard/company", label: "Tableau de bord" }]}
+        title="Productions & récoltes"
+        badge={
+          <span className="text-[11px] font-bold text-forest-800 bg-forest-50 px-2.5 py-0.5 rounded-full border border-forest-100">
+            {productions.length} enregistrée(s)
+          </span>
+        }
+        description={`Suivez vos cycles culturaux réels pour la société « ${companyName} ».`}
+        action={
+          <Button
+            variant="primary"
+            leftIcon={<Plus className="w-4 h-4" />}
+            onClick={handleOpenCreate}
+            className="shadow-xs w-full sm:w-auto"
+          >
+            Nouvelle production
+          </Button>
+        }
+      />
 
-      {/* En-tête de section moderne */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-gray-100 shadow-2xs">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-forest-50 text-forest-700 flex items-center justify-center shadow-2xs">
-              <Tractor className="w-5 h-5 text-forest-700" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg sm:text-xl font-bold text-gray-950">
-                  Productions & Récoltes
-                </h1>
-                <span className="text-[11px] font-bold text-forest-800 bg-forest-50 px-2.5 py-0.5 rounded-full border border-forest-100">
-                  {productions.length} enregistrée(s)
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-gray-500">
-                Suivez vos cycles culturaux réels pour l&apos;exploitation « {companyName} ».
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <Button
-          variant="primary"
-          leftIcon={<Plus className="w-4 h-4" />}
-          onClick={handleOpenCreate}
-          className="shadow-xs"
-        >
-          Nouvelle production
-        </Button>
-      </div>
-
-      {/* Cartouches de statistiques réelles (0 mock data) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-3.5 sm:p-4 border-gray-100 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-forest-50 text-forest-700 flex items-center justify-center shrink-0">
-            <Tractor className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-medium">Total des cycles</p>
-            <p className="text-lg sm:text-xl font-extrabold text-gray-900">{stats.total}</p>
-          </div>
-        </Card>
-
-        <Card className="p-3.5 sm:p-4 border-gray-100 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-            <Sprout className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-medium">En culture</p>
-            <p className="text-lg sm:text-xl font-extrabold text-gray-900">{stats.growing}</p>
-          </div>
-        </Card>
-
-        <Card className="p-3.5 sm:p-4 border-gray-100 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-medium">Récoltées</p>
-            <p className="text-lg sm:text-xl font-extrabold text-gray-900">{stats.harvested}</p>
-          </div>
-        </Card>
-
-        <Card className="p-3.5 sm:p-4 border-gray-100 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-earth-50 text-earth-800 flex items-center justify-center shrink-0">
-            <Megaphone className="w-5 h-5 text-earth-700" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-medium">Campagnes actives</p>
-            <p className="text-lg sm:text-xl font-extrabold text-gray-900">{stats.withCampaign}</p>
-          </div>
-        </Card>
-      </div>
+      {/* Correctif NAV-06 (Lot 6B, arbitrage A) : les quatre cartes de compteurs (Total des cycles,
+          En culture, Récoltées, Campagnes actives) répétaient exactement les nombres des puces
+          « Accès rapide » ci-dessous, toujours visibles ; elles sont retirées. Calculs inchangés (stats). */}
 
       {/* Barre de Recherche, Filtres & Segmented Control */}
       {productions.length > 0 && (
-        <div className="p-3.5 sm:p-4 bg-white rounded-2xl border border-gray-100 shadow-2xs space-y-3">
+        <div className="p-3 sm:p-4 bg-white rounded-2xl border border-gray-100 shadow-2xs space-y-3">
           <div className="flex flex-col md:flex-row gap-3">
-            {/* Recherche textuelle */}
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
-              <input
-                type="text"
-                placeholder="Rechercher par titre, culture, variété, localisation..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-9 py-2 text-xs sm:text-sm rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-forest-600 transition-all bg-gray-50/50 focus:bg-white"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+            {/* Recherche textuelle + accès aux filtres sur une ligne sous 640 px (NAV-06, arbitrage C) */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  aria-label="Rechercher par titre, produit, variété, localisation"
+                  type="text"
+                  placeholder="Rechercher par titre, produit, variété, localisation..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-9 py-2 text-xs sm:text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-forest-600 transition-all bg-gray-50/50 focus:bg-white"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setFiltresOuverts((v) => !v)}
+                aria-expanded={filtresOuverts}
+                aria-controls="productions-filtres"
+                className={`sm:hidden inline-flex items-center gap-1.5 min-h-11 px-3 rounded-xl border text-xs font-bold shrink-0 transition-colors ${
+                  filtresActifs.length > 0
+                    ? "border-forest-300 bg-forest-50 text-forest-900"
+                    : "border-gray-200 bg-gray-50 text-gray-700"
+                }`}
+              >
+                <Filter className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Filtres</span>
+                {filtresActifs.length > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-forest-700 text-white text-[11px] flex items-center justify-center font-bold">
+                    {filtresActifs.length}
+                  </span>
+                )}
+                <ChevronDown
+                  className={`w-3.5 h-3.5 motion-safe:transition-transform ${filtresOuverts ? "rotate-180" : ""}`}
+                  aria-hidden="true"
+                />
+              </button>
             </div>
 
-            {/* Filtre par statut */}
-            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+            {/* Filtre par statut (replié sous 640 px, toujours visible au-delà) */}
+            <div
+              id="productions-filtres"
+              className={`${filtresOuverts ? "flex" : "hidden"} sm:flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto`}
+            >
               <div className="w-full sm:w-48">
                 <Select
                   value={statusFilter}
@@ -342,9 +320,12 @@ export default function CompanyProductionsView({
             </div>
           </div>
 
+          {/* Critères actifs rappelés quand le panneau est replié (sous 640 px) */}
+          {!filtresOuverts && <FiltresActifs criteres={filtresActifs} className="sm:hidden" />}
+
           {/* Filtres rapides segmentés */}
           <div className="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar">
-            <span className="text-[11px] font-semibold text-gray-400 mr-1 shrink-0">Accès rapide :</span>
+            <span className="text-xs font-semibold text-gray-500 mr-1 shrink-0">Accès rapide :</span>
             <button
               type="button"
               onClick={() => setQuickFilter("all")}
@@ -387,7 +368,7 @@ export default function CompanyProductionsView({
                   : "bg-earth-50 text-earth-800 hover:bg-earth-100"
               }`}
             >
-              📢 Avec offre ({stats.withCampaign})
+              📢 Avec campagne ({stats.withCampaign})
             </button>
           </div>
         </div>
@@ -398,7 +379,7 @@ export default function CompanyProductionsView({
         activeCompanyProducts.length === 0 ? (
           <EmptyState
             title="Configurez d'abord votre catalogue produits"
-            description="Avant de déclarer une récolte ou un cycle cultural, votre exploitation doit enregistrer les produits qu'elle cultive dans son catalogue."
+            description="Avant de déclarer une récolte ou un cycle cultural, votre société doit enregistrer les produits qu'elle cultive dans son catalogue."
             icon={<Package className="w-8 h-8 text-amber-600" />}
             action={
               <Link
@@ -413,7 +394,7 @@ export default function CompanyProductionsView({
         ) : (
           <EmptyState
             title="Aucune production enregistrée pour le moment."
-            description="Déclarez votre première récolte pour suivre l'avancement de vos cultures en champ et préparer vos futures campagnes de vente."
+            description="Déclarez votre première récolte pour suivre l'avancement de vos cultures en champ et préparer vos futures campagnes."
             icon={<Tractor className="w-8 h-8 text-forest-700" />}
             action={
               <Button
@@ -466,22 +447,13 @@ export default function CompanyProductionsView({
         </div>
       )}
 
-      {/* Tiroir Moderne de Création / Modification (R1) */}
-      <ProductionDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        companyProducts={companyProducts}
-        editingProduction={editingProduction}
-        onSuccess={() => router.refresh()}
-      />
-
       {/* Dialogue de Confirmation de Suppression Sécurisée */}
       <ConfirmDialog
         isOpen={Boolean(deletingProduction)}
         onClose={() => setDeletingProduction(null)}
         onConfirm={confirmDelete}
         title="Supprimer ce cycle de production ?"
-        description={`Êtes-vous certain de vouloir supprimer définitivement « ${deletingProduction?.title} » ? Cette action est irréversible. Si des offres, commandes ou demandes y sont rattachées, la suppression sera automatiquement rejetée pour préserver l'historique.`}
+        description={`Êtes-vous certain de vouloir supprimer définitivement « ${deletingProduction?.title} » ? Cette action est irréversible. Si des campagnes, commandes ou demandes y sont rattachées, la suppression sera automatiquement rejetée pour préserver l'historique.`}
         confirmText="Supprimer définitivement"
         cancelText="Conserver la production"
         variant="destructive"
@@ -494,7 +466,7 @@ export default function CompanyProductionsView({
         onClose={() => setArchivingProduction(null)}
         onConfirm={confirmArchive}
         title="Archiver cette production ?"
-        description={`La production « ${archivingProduction?.title} » sera retirée du flux public des revendeurs et son statut passera à annulé. L'historique des commandes et demandes antérieures restera intact.`}
+        description={`La production « ${archivingProduction?.title} » sera retirée du tableau de bord des revendeurs et son statut passera à annulé. L'historique des commandes et demandes antérieures restera intact.`}
         confirmText="Archiver la production"
         cancelText="Annuler"
         variant="warning"

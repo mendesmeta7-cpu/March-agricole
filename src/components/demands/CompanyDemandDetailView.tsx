@@ -7,6 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Select from "@/components/ui/Select";
+import DataUnavailableNotice from "@/components/ui/DataUnavailableNotice";
 import { DEMAND_STATUS_LABELS } from "@/components/admin/adminFormat";
 import {
   ArrowLeft,
@@ -29,6 +30,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { formatMoney, formatQuantity, formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 interface CompanyProductionOption {
   id: string;
@@ -75,8 +77,8 @@ const PROPOSAL_STATUS_DISPLAY: Record<
     showTerms: true,
   },
   refused: {
-    title: "Demande Déclinée",
-    badge: "Vous avez décliné cette demande",
+    title: "Demande refusée",
+    badge: "Vous avez refusé cette demande",
     badgeVariant: "neutral",
     cardClass: "border-gray-200 bg-gray-50",
     showTerms: false,
@@ -94,6 +96,10 @@ interface CompanyDemandDetailViewProps {
   demand: DemandItem;
   companyProductions: CompanyProductionOption[];
   myProposal?: DemandResponseItem | null;
+  /** Lot 2C : proposition existante illisible — formulaire de nouvelle proposition bloqué. */
+  proposalUnavailable?: boolean;
+  /** Lot 2C : productions illisibles — jamais présentées comme « aucune production ». */
+  productionsUnavailable?: boolean;
   companyName: string;
   resellerInfo?: {
     business_name?: string;
@@ -106,6 +112,8 @@ export default function CompanyDemandDetailView({
   demand,
   companyProductions,
   myProposal = null,
+  proposalUnavailable = false,
+  productionsUnavailable = false,
   companyName,
   resellerInfo,
 }: CompanyDemandDetailViewProps) {
@@ -221,7 +229,7 @@ export default function CompanyDemandDetailView({
           className="hover:text-forest-800 flex items-center gap-1 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Retour aux opportunités &amp; demandes
+          Retour aux demandes du marché
         </Link>
         <span>/</span>
         <span className="text-gray-900 font-medium">Examen de la demande #{demand.id.slice(0, 8)}</span>
@@ -229,12 +237,12 @@ export default function CompanyDemandDetailView({
 
       {/* 2. En-tête de page */}
       <PageHeader
-        title={`Demande de ${demand.product?.name || "Denrée agricole"}`}
-        description={`Expression de besoin reçue pour ${demand.quantity.toLocaleString("fr-FR")} ${demand.unit} à destination de ${demand.province?.name || "Région"}.`}
+        title={`Demande de ${demand.product?.name || "Produit agricole"}`}
+        description={`Demande reçue pour ${formatQuantityWithUnit(demand.quantity, demand.unit)} à destination de ${demand.province?.name || "Région"}.`}
         badge={
           <Badge variant={demand.status === "active" ? "forest" : "neutral"}>
             {demand.status === "active"
-              ? "Demande en attente d'offres"
+              ? "Demande en attente de propositions"
               : `Statut : ${DEMAND_STATUS_LABELS[demand.status]}`}
           </Badge>
         }
@@ -298,7 +306,7 @@ export default function CompanyDemandDetailView({
                     Quantité demandée
                   </span>
                   <span className="text-lg font-black text-forest-950">
-                    {demand.quantity.toLocaleString("fr-FR")}{" "}
+                    {formatQuantity(demand.quantity)}{" "}
                     <span className="text-xs font-normal text-forest-700">{demand.unit}</span>
                   </span>
                 </div>
@@ -316,7 +324,7 @@ export default function CompanyDemandDetailView({
                     {demand.province?.name}
                     {demand.city ? ` (${demand.city})` : ""}
                   </span>
-                  <span className="text-[10px] text-earth-700 font-medium">
+                  <span className="text-xs text-earth-700 font-medium">
                     {demand.country?.name || "RDC"}
                   </span>
                 </div>
@@ -352,19 +360,19 @@ export default function CompanyDemandDetailView({
             <div className="pt-4 border-t border-gray-100">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
                 <Building2 className="w-4 h-4 text-forest-700" />
-                Profil de l&apos;Acheteur
+                Profil du revendeur
               </h3>
               <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div>
                   <span className="font-bold text-gray-900 block">
-                    {resellerInfo?.business_name || "Acheteur professionnel"}
+                    {resellerInfo?.business_name || "Revendeur"}
                   </span>
-                  <span className="text-gray-500 text-[11px]">
+                  <span className="text-gray-500 text-xs">
                     Localité : {resellerInfo?.city || demand.city || demand.province?.name}
                   </span>
                 </div>
                 <Badge variant="earth" size="sm">
-                  {resellerTypeLabels[resellerInfo?.reseller_type || "wholesaler"] || "Acheteur vérifié"}
+                  {resellerTypeLabels[resellerInfo?.reseller_type || "wholesaler"] || "Revendeur"}
                 </Badge>
               </div>
             </div>
@@ -394,21 +402,21 @@ export default function CompanyDemandDetailView({
                 <div className="flex justify-between items-center py-1 border-b border-emerald-100/60">
                   <span className="text-gray-600">Quantité proposée</span>
                   <span className="font-bold text-emerald-950">
-                    {currentProposal.proposed_quantity.toLocaleString("fr-FR")} {currentProposal.unit}
+                    {formatQuantityWithUnit(currentProposal.proposed_quantity, currentProposal.unit)}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1 border-b border-emerald-100/60">
                   <span className="text-gray-600">Prix unitaire</span>
                   <span className="font-bold text-emerald-950 text-sm">
-                    {currentProposal.unit_price.toLocaleString("fr-FR")} {currentProposal.currency}/{currentProposal.unit}
+                    {formatMoney(currentProposal.unit_price, currentProposal.currency)}/{currentProposal.unit}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1.5 border-b border-emerald-100/60 bg-emerald-100/50 px-2 rounded-lg">
                   <span className="text-emerald-900 font-semibold text-xs">Montant total</span>
                   <span className="font-extrabold text-emerald-950 text-sm">
-                    {(currentProposal.proposed_quantity * currentProposal.unit_price).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currentProposal.currency}
+                    {formatMoney(currentProposal.proposed_quantity * currentProposal.unit_price, currentProposal.currency)}
                   </span>
                 </div>
 
@@ -416,16 +424,16 @@ export default function CompanyDemandDetailView({
                 )}
 
                 {!hasTerms && (
-                  <p className="text-[11px] text-gray-600 leading-relaxed">
+                  <p className="text-xs text-gray-600 leading-relaxed">
                     {currentProposal.status === "refused"
-                      ? "Aucune offre n'a été transmise au revendeur pour cette demande."
+                      ? "Aucune proposition n'a été transmise au revendeur pour cette demande."
                       : "Cette proposition n'est plus active."}
                   </p>
                 )}
 
                 {hasTerms && currentProposal.production && (
                   <div className="py-1">
-                    <span className="text-gray-500 text-[11px] block">Production associée</span>
+                    <span className="text-gray-500 text-xs block">Production associée</span>
                     <span className="font-semibold text-gray-900">
                       {currentProposal.production.title}
                     </span>
@@ -447,6 +455,12 @@ export default function CompanyDemandDetailView({
             </Card>
               );
             })()
+          ) : proposalUnavailable ? (
+            <DataUnavailableNotice title="Proposition existante non vérifiée">
+              Nous n&apos;avons pas pu vérifier si votre société a déjà répondu à cette demande.
+              Pour éviter une proposition en double, le formulaire est bloqué : réessayez dans un
+              instant.
+            </DataUnavailableNotice>
           ) : (
             <Card className="p-5 space-y-4 border-earth-200 bg-white shadow-xs">
               <div className="flex items-center gap-2 text-earth-950 font-bold text-sm border-b border-gray-100 pb-3">
@@ -454,13 +468,18 @@ export default function CompanyDemandDetailView({
                 Formuler une Proposition
               </div>
 
-              {matchingProductions.length === 0 ? (
+              {productionsUnavailable ? (
+                <DataUnavailableNotice title="Vos productions sont indisponibles">
+                  Vos productions n&apos;ont pas pu être chargées. Réessayez pour formuler une
+                  proposition.
+                </DataUnavailableNotice>
+              ) : matchingProductions.length === 0 ? (
                 <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
                   <p className="font-bold flex items-center gap-1.5">
                     <Info className="w-4 h-4 text-amber-700" />
                     Aucune production disponible pour ce produit
                   </p>
-                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                  <p className="text-xs text-amber-800 leading-relaxed">
                     Vous n&apos;avez actuellement aucune récolte enregistrée pour « {demand.product?.name} ». Enregistrez une production pour pouvoir formuler une proposition ferme.
                   </p>
                   <Link
@@ -475,7 +494,7 @@ export default function CompanyDemandDetailView({
                   {/* Sélection de la production réelle */}
                   <div className="space-y-1.5">
                     <label className="font-bold text-gray-700 block">
-                      Production de votre exploitation <span className="text-rose-500">*</span>
+                      Production de votre société <span className="text-rose-600">*</span>
                     </label>
                     <Select
                       value={selectedProductionId}
@@ -491,7 +510,7 @@ export default function CompanyDemandDetailView({
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1.5">
                       <label className="font-bold text-gray-700 block">
-                        Volume proposé ({unitOfSale}) <span className="text-rose-500">*</span>
+                        Volume proposé ({unitOfSale}) <span className="text-rose-600">*</span>
                       </label>
                       <input
                         type="number"
@@ -519,7 +538,7 @@ export default function CompanyDemandDetailView({
                   <div className="grid grid-cols-3 gap-2">
                     <div className="col-span-2 space-y-1.5">
                       <label className="font-bold text-gray-700 block">
-                        Prix unitaire ({currency}/{unitOfSale}) <span className="text-rose-500">*</span>
+                        Prix unitaire ({currency}/{unitOfSale}) <span className="text-rose-600">*</span>
                       </label>
                       <input
                         type="number"
@@ -553,11 +572,11 @@ export default function CompanyDemandDetailView({
                       <div className="flex items-center justify-between">
                         <span className="text-emerald-900 font-semibold">Montant total estimé :</span>
                         <span className="text-sm font-extrabold text-emerald-800">
-                          {calculatedTotal.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
+                          {formatMoney(calculatedTotal, currency)}
                         </span>
                       </div>
-                      <p className="text-[11px] text-emerald-700">
-                        {numProposedQty.toLocaleString("fr-FR")} {unitOfSale} × {numUnitPrice.toLocaleString("fr-FR")} {currency}/{unitOfSale}
+                      <p className="text-xs text-emerald-700">
+                        {formatQuantityWithUnit(numProposedQty, unitOfSale)} × {formatMoney(numUnitPrice, currency)}/{unitOfSale}
                       </p>
                     </div>
                   ) : (
@@ -584,7 +603,7 @@ export default function CompanyDemandDetailView({
                   <button
                     type="submit"
                     disabled={isPending || !selectedProductionId || !unitPrice}
-                    className="w-full py-3 px-4 rounded-xl bg-forest-800 hover:bg-forest-900 active:scale-98 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full py-3 px-4 rounded-xl bg-forest-800 hover:bg-forest-900 active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <Send className="w-4 h-4" />
                     {isPending ? "Transmission en cours..." : "Envoyer la proposition"}

@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from "react";
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import { useState, useEffect } from "react";
+import { Drawer } from "@/components/ui/Drawer";
 import { useToast } from "@/components/ui/Toast";
 import { Select } from "@/components/ui/Select";
 import { ResellerCampaignItem } from "@/lib/queries/campaigns";
@@ -8,18 +8,16 @@ import { isResellerEligibleForCampaign } from "@/lib/services/campaignEligibilit
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  X,
   ShoppingBag,
-  Tag,
   Layers,
   MapPin,
-  Building2,
   AlertCircle,
   CheckCircle2,
   ShieldCheck,
   Calendar,
   TrendingUp,
 } from "lucide-react";
+import { formatMoney, formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 interface OrderFormModalProps {
   isOpen: boolean;
@@ -101,13 +99,6 @@ export default function OrderFormModal({
     }
   }, [isOpen, campaign, matchingDestination, defaultCity, defaultAddress]);
 
-  const panelRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(panelRef, {
-    isOpen: isOpen && !!campaign,
-    onEscape: onClose,
-    escapeEnabled: !submitting,
-  });
-
   if (!isOpen || !campaign) return null;
 
   const currentDestination = matchingDestination || null;
@@ -136,7 +127,7 @@ export default function OrderFormModal({
     setErrorMessage(null);
 
     if (!isTerritoriallyEligible) {
-      setErrorMessage(eligibility.message || "Cette offre commerciale n'est pas disponible dans votre région de rattachement.");
+      setErrorMessage(eligibility.message || "Cette campagne n'est pas disponible dans votre région de rattachement.");
       return;
     }
 
@@ -149,7 +140,7 @@ export default function OrderFormModal({
     }
 
     if (!canOrder || availableQty === null) {
-      setErrorMessage(eligibility.message || "Cette offre n'est pas ouverte à la commande actuellement.");
+      setErrorMessage(eligibility.message || "Cette campagne n'est pas ouverte à la commande actuellement.");
       return;
     }
 
@@ -159,7 +150,7 @@ export default function OrderFormModal({
     }
 
     if (quantity < minQty) {
-      setErrorMessage(`La quantité minimale pour cette offre est de ${minQty} ${campaign.unit}.`);
+      setErrorMessage(`La quantité minimale pour cette campagne est de ${minQty} ${campaign.unit}.`);
       return;
     }
 
@@ -211,40 +202,63 @@ export default function OrderFormModal({
     }
   };
 
+  // Lot UX/UI 5B (MOB-09) : grand tiroir, plein écran sur mobile ; montant total et validation
+  // toujours visibles dans le pied fixe. Échap et fermeture bloqués pendant la réservation.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs overflow-y-auto">
-      <div
-        ref={panelRef}
-        className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-8 animate-in fade-in zoom-in duration-200"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="order-form-title"
-      >
-        {/* En-tête du Modal */}
-        <div className="px-6 py-5 bg-gradient-to-r from-forest-900 to-forest-800 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 id="order-form-title" className="text-base font-bold">Passer une Commande Ferme</h2>
-              <span className="text-xs text-forest-200">
-                {campaign.company.name} • {campaign.product.name}
-              </span>
-            </div>
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      size="xl"
+      isDismissable={!submitting}
+      showCloseButton={!submitting}
+      icon={<ShoppingBag className="w-5 h-5" />}
+      title="Passer une commande"
+      description={`${campaign.company.name} • ${campaign.product.name}`}
+      footer={
+        <div className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <span className="block text-xs font-semibold text-gray-600">Montant total de la commande</span>
+            <span className="block text-lg font-extrabold text-forest-950 whitespace-nowrap">
+              {formatMoney(totalAmount, campaign.currency)}
+            </span>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={submitting}
-            aria-label="Fermer le formulaire de commande"
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
-          >
-            <X className="w-4 h-4" aria-hidden="true" />
-          </button>
-        </div>
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="px-4 py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-800 rounded-xl hover:bg-gray-100 transition-colors"
+            >
+              Annuler
+            </button>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            <button
+              type="submit"
+              form="order-form"
+              disabled={submitting || availableQty === null || availableQty <= 0 || !canOrder}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-forest-700 text-white text-xs font-bold hover:bg-forest-800 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Réservation en cours...</span>
+                </>
+              ) : !isTerritoriallyEligible ? (
+                <span>Non disponible dans votre région</span>
+              ) : !canOrder ? (
+                <span>Commande indisponible</span>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Confirmer la commande</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      }
+    >
+        <form id="order-form" onSubmit={handleSubmit} className="space-y-5">
           {/* Alerte si non éligible régionalement */}
           {!isTerritoriallyEligible ? (
             <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 space-y-2 text-xs">
@@ -252,8 +266,8 @@ export default function OrderFormModal({
                 <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
                 <span>Cette campagne n&apos;est pas disponible dans votre région ({targetProvinceName})</span>
               </div>
-              <p className="text-[11px] text-amber-800 leading-relaxed">
-                Le producteur ne dessert pas actuellement votre région de rattachement pour cette offre commerciale. Vous pouvez toutefois formuler une demande d&apos;achat pour ce produit.
+              <p className="text-xs text-amber-800 leading-relaxed">
+                La société ne dessert pas actuellement votre région de rattachement pour cette campagne. Vous pouvez toutefois formuler une demande d&apos;achat pour ce produit.
               </p>
               <div className="pt-1">
                 <Link
@@ -261,7 +275,7 @@ export default function OrderFormModal({
                   className="inline-flex items-center gap-1.5 font-bold text-earth-800 hover:text-earth-950 underline underline-offset-2"
                 >
                   <TrendingUp className="w-3.5 h-3.5" />
-                  Exprimer une demande sur cette denrée &rarr;
+                  Exprimer une demande sur ce produit &rarr;
                 </Link>
               </div>
             </div>
@@ -289,18 +303,18 @@ export default function OrderFormModal({
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-gray-700">{campaign.title}</span>
               <span className="text-xs font-bold text-forest-800">
-                {campaign.unit_price.toLocaleString("fr-FR")} {campaign.currency} / {campaign.unit}
+                {formatMoney(campaign.unit_price, campaign.currency)} / {campaign.unit}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 pt-2 border-t border-gray-200/60">
+            <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 pt-2 border-t border-gray-200/60">
               <div className="flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-earth-700" />
                 {availableQty === null || isAvailabilityUnknown ? (
                   <span className="text-amber-800 font-semibold">Disponibilité momentanément indisponible</span>
                 ) : (
                   <span>
-                    Stock restant réel : <strong>{availableQty.toLocaleString("fr-FR")} {campaign.unit}</strong>
+                    Stock restant réel : <strong>{formatQuantityWithUnit(availableQty, campaign.unit)}</strong>
                   </span>
                 )}
               </div>
@@ -330,35 +344,35 @@ export default function OrderFormModal({
                 placeholder={`Minimum : ${minQty} ${campaign.unit}`}
                 required
                 disabled={!canOrder}
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 focus:border-forest-500 outline-hidden font-semibold disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 focus:border-forest-500 outline-none font-semibold disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
               <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-medium">
                 {campaign.unit}
               </span>
             </div>
-            <div className="flex items-center justify-between text-[11px] text-gray-500">
+            <div className="flex items-center justify-between text-xs text-gray-500">
               <span>Minimum requis : {minQty} {campaign.unit}</span>
               <span>
                 {availableQty === null || isAvailabilityUnknown
                   ? "Max disponible : momentanément indisponible"
-                  : `Max disponible : ${availableQty.toLocaleString("fr-FR")} ${campaign.unit}`}
+                  : `Max disponible : ${formatQuantityWithUnit(availableQty, campaign.unit)}`}
               </span>
             </div>
           </div>
 
           {/* Prévisualisation contractuelle du total */}
-          <div className="p-4 rounded-2xl bg-forest-50/70 border border-forest-200/80 flex items-center justify-between">
+          <div className="p-4 rounded-2xl bg-forest-50/70 border border-forest-200/80 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <span className="text-xs font-semibold text-forest-900 block">
                 Montant total de la commande
               </span>
-              <span className="text-[11px] text-forest-700">
-                {numQty.toLocaleString("fr-FR")} {campaign.unit} × {campaign.unit_price.toLocaleString("fr-FR")} {campaign.currency}/{campaign.unit}
+              <span className="text-xs text-forest-700">
+                {formatQuantityWithUnit(numQty, campaign.unit)} × {formatMoney(campaign.unit_price, campaign.currency)}/{campaign.unit}
               </span>
             </div>
-            <div className="text-right">
-              <span className="text-lg font-extrabold text-forest-950">
-                {totalAmount.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {campaign.currency}
+            <div className="sm:text-right">
+              <span className="text-lg font-extrabold text-forest-950 whitespace-nowrap">
+                {formatMoney(totalAmount, campaign.currency)}
               </span>
             </div>
           </div>
@@ -375,7 +389,7 @@ export default function OrderFormModal({
                 {/* Destination assignée automatiquement (non modifiable vers une autre région) */}
                 <div className="flex items-center justify-between p-3 rounded-xl bg-white border border-gray-200 text-xs">
                   <div className="space-y-0.5">
-                    <span className="text-[10px] uppercase font-bold text-gray-400 block">
+                    <span className="text-[11px] uppercase font-bold text-gray-500 block">
                       Destination assignée à votre territoire
                     </span>
                     <span className="font-bold text-gray-900 text-sm">
@@ -383,7 +397,7 @@ export default function OrderFormModal({
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] text-forest-700 block font-medium">
+                    <span className="text-xs text-forest-700 block font-medium">
                       Date d&apos;arrivée prévue
                     </span>
                     <span className="font-bold text-forest-950 flex items-center gap-1 justify-end">
@@ -429,11 +443,11 @@ export default function OrderFormModal({
                   <div className="p-3 rounded-xl bg-white border border-gray-200 text-xs space-y-1.5">
                     <div className="flex items-center justify-between font-bold text-gray-900 border-b border-gray-100 pb-1">
                       <span>{currentDepot.name}</span>
-                      <span className="text-[11px] font-normal text-gray-500">
+                      <span className="text-xs font-normal text-gray-500">
                         Commune : <strong>{currentDepot.commune}</strong>
                       </span>
                     </div>
-                    <div className="text-[11px] text-gray-600 space-y-0.5">
+                    <div className="text-xs text-gray-600 space-y-0.5">
                       {currentDepot.quartier && (
                         <div>
                           Quartier : <strong>{currentDepot.quartier}</strong>
@@ -456,7 +470,7 @@ export default function OrderFormModal({
               <div className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label htmlFor="order-city" className="block text-[11px] font-medium text-gray-700">
+                    <label htmlFor="order-city" className="block text-xs font-medium text-gray-700">
                       Ville / Siège de livraison
                     </label>
                     <input
@@ -467,12 +481,12 @@ export default function OrderFormModal({
                       onChange={(e) => setDeliveryCity(e.target.value)}
                       placeholder="Ex: Kinshasa, Matadi..."
                       disabled={!canOrder}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-none"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label htmlFor="order-province" className="block text-[11px] font-medium text-gray-700">
+                    <label htmlFor="order-province" className="block text-xs font-medium text-gray-700">
                       Province de rattachement
                     </label>
                     <input
@@ -486,7 +500,7 @@ export default function OrderFormModal({
                 </div>
 
                 <div className="space-y-1">
-                  <label htmlFor="order-address" className="block text-[11px] font-medium text-gray-700">
+                  <label htmlFor="order-address" className="block text-xs font-medium text-gray-700">
                     Adresse ou Entrepôt de livraison
                   </label>
                   <input
@@ -497,15 +511,15 @@ export default function OrderFormModal({
                     onChange={(e) => setDeliveryAddress(e.target.value)}
                     placeholder="Ex: Hangar N°4, Marché Central..."
                     disabled={!canOrder}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-none"
                   />
                 </div>
               </div>
             )}
 
             <div className="space-y-1">
-              <label htmlFor="order-notes" className="block text-[11px] font-medium text-gray-700">
-                Instructions particulières / Notes pour l&apos;exploitation (Optionnel)
+              <label htmlFor="order-notes" className="block text-xs font-medium text-gray-700">
+                Instructions particulières / Notes pour la société (Optionnel)
               </label>
               <textarea
                 id="order-notes"
@@ -514,7 +528,7 @@ export default function OrderFormModal({
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Précisions de conditionnement, créneau horaire souhaité..."
                 disabled={!canOrder}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-hidden resize-none"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-forest-500 outline-none resize-none"
               />
             </div>
           </div>
@@ -523,45 +537,11 @@ export default function OrderFormModal({
           <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100 flex items-start gap-2 text-blue-900 text-[11px] leading-relaxed">
             <ShieldCheck className="w-4 h-4 text-blue-700 flex-shrink-0 mt-0.5" />
             <span>
-              <strong>Stock réservé et garanti</strong> : La validation de cette commande bloque immédiatement les {numQty} {campaign.unit} dans les stocks du producteur, garantissant votre réservation exclusive.
+              <strong>Stock réservé</strong> : la validation de cette commande réserve les {numQty} {campaign.unit} sur le stock de la société, pour votre commande.
             </span>
           </div>
 
-          {/* Boutons d'action */}
-          <div className="pt-3 flex items-center justify-end gap-3 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={submitting}
-              className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-800 rounded-xl hover:bg-gray-100 transition-colors"
-            >
-              Annuler
-            </button>
-
-            <button
-              type="submit"
-              disabled={submitting || availableQty === null || availableQty <= 0 || !canOrder}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-forest-700 text-white text-xs font-bold hover:bg-forest-800 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Réservation en cours...</span>
-                </>
-              ) : !isTerritoriallyEligible ? (
-                <span>Non disponible dans votre région</span>
-              ) : !canOrder ? (
-                <span>Commande indisponible</span>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Confirmer la Commande Ferme</span>
-                </>
-              )}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+    </Drawer>
   );
 }

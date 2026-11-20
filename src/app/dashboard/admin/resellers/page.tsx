@@ -12,6 +12,10 @@ import {
   parseAdminListParams,
   type AdminResellerRow,
 } from "@/lib/queries/admin";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Administration · Revendeurs — Radiza" };
 
 export const dynamic = "force-dynamic";
 
@@ -68,8 +72,8 @@ export default async function AdminResellersPage(props: PageProps) {
       <AdminBackLink />
 
       <PageHeader
-        title="Supervision des Revendeurs"
-        description="Consultez les acheteurs professionnels inscrits, leur typologie et leur territoire. Liste en lecture seule."
+        title="Revendeurs"
+        description="Consultez les revendeurs inscrits, leur typologie et leur territoire. Liste en lecture seule."
         badge={<Badge variant="neutral">Lecture seule</Badge>}
       />
 
@@ -92,7 +96,7 @@ export default async function AdminResellersPage(props: PageProps) {
         columns={columns}
         getRowKey={(row) => row.id}
         emptyTitle="Aucun revendeur inscrit pour le moment"
-        emptyDescription="Les acheteurs professionnels apparaîtront ici dès leur inscription via le parcours officiel."
+        emptyDescription="Les revendeurs apparaîtront ici dès leur inscription via le parcours officiel."
         icon={<Store className="w-8 h-8 text-earth-700" />}
       />
     </div>

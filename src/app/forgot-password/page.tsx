@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Suspense } from "react";
+import SkipLink, { MAIN_CONTENT_ID } from "@/components/ui/SkipLink";
 import { requestPasswordResetAction } from "@/lib/actions/auth";
 import SubmitButton from "@/components/SubmitButton";
 import { AlertCircle, CheckCircle2, Mail, ArrowLeft } from "lucide-react";
@@ -108,7 +109,8 @@ function ForgotPasswordForm() {
 export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 py-10">
-      <div className="w-full max-w-md">
+      <SkipLink />
+      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="w-full max-w-md focus:outline-none">
         <div className="flex justify-center mb-6">
           <Link href="/" aria-label="Retour à l'accueil Radiza">
             <BrandLogo variant="horizontal" className="h-9 w-auto" />
@@ -127,7 +129,7 @@ export default function ForgotPasswordPage() {
         <Suspense>
           <ForgotPasswordForm />
         </Suspense>
-      </div>
+      </main>
     </div>
   );
 }

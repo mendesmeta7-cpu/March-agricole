@@ -3,6 +3,10 @@ import CompanyAccountMissing from "@/components/company/CompanyAccountMissing";
 import { redirect, notFound } from "next/navigation";
 import { getCompanyOrderById } from "@/lib/queries/orders";
 import CompanyOrderDetailView from "@/components/orders/CompanyOrderDetailView";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Détail de la commande — Radiza" };
 
 interface CompanyOrderDetailPageProps {
   params: Promise<{

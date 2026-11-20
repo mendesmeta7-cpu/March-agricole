@@ -33,6 +33,7 @@ import {
   Building,
   Clock,
 } from "lucide-react";
+import { formatQuantity, formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 export interface FormDepot {
   id?: string;
@@ -95,7 +96,7 @@ export default function CampaignFormModal({
       label:
         prod.available_quantity === null
           ? `${prod.title} — ${prod.product_name} (disponibilité illisible)`
-          : `${prod.title} — ${prod.product_name} (disponible : ${prod.available_quantity.toLocaleString("fr-FR")} ${prod.unit})`,
+          : `${prod.title} — ${prod.product_name} (disponible : ${formatQuantityWithUnit(prod.available_quantity, prod.unit)})`,
     }));
     if (campaignToEdit && !options.some((o) => o.value === campaignToEdit.production_id)) {
       options.unshift({
@@ -479,7 +480,7 @@ export default function CampaignFormModal({
 
     if (marketableQuantity > maxAllowedQuantity) {
       setErrorMessage(
-        `La quantité mise en vente (${marketableQuantity.toLocaleString("fr-FR")} ${currentUnit}) dépasse le volume disponible pour cette campagne (${maxAllowedQuantity.toLocaleString("fr-FR")} ${currentUnit}).`
+        `La quantité mise en vente (${formatQuantityWithUnit(marketableQuantity, currentUnit)}) dépasse le volume disponible pour cette campagne (${formatQuantityWithUnit(maxAllowedQuantity, currentUnit)}).`
       );
       return;
     }
@@ -509,7 +510,7 @@ export default function CampaignFormModal({
 
     // Validation stricte des destinations
     if (destinations.length === 0) {
-      setErrorMessage("Veuillez sélectionner au moins une destination à desservir pour cette offre commerciale.");
+      setErrorMessage("Veuillez sélectionner au moins une destination à desservir pour cette campagne.");
       return;
     }
 
@@ -614,10 +615,10 @@ export default function CampaignFormModal({
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
           <div>
             <h2 id={titleId} className="text-lg sm:text-xl font-bold text-gray-900">
-              {isEditing ? "Modifier l'Offre Commerciale" : "Nouvelle Campagne Commerciale"}
+              {isEditing ? "Modifier la campagne" : "Nouvelle campagne"}
             </h2>
             <p className="text-xs text-gray-500">
-              Définissez votre offre de vente, vos prix, périodes et configurez vos destinations d&apos;arrivée.
+              Définissez votre campagne, vos prix, périodes et configurez vos destinations d&apos;arrivée.
             </p>
           </div>
           <button
@@ -681,14 +682,14 @@ export default function CampaignFormModal({
                         Disponible pour cette campagne :
                       </span>
                       <span className="font-extrabold text-forest-950">
-                        {availabilityInfo.available.toLocaleString("fr-FR")} {currentUnit}
+                        {formatQuantityWithUnit(availabilityInfo.available, currentUnit)}
                       </span>
                     </div>
                     {availabilityInfo.committed !== null && availabilityInfo.expected !== null && (
-                      <p className="text-[11px] text-forest-800/80">
+                      <p className="text-xs text-forest-800/80">
                         Déjà engagé sur d&apos;autres campagnes ou commandes :{" "}
-                        {availabilityInfo.committed.toLocaleString("fr-FR")} {currentUnit} sur un volume déclaré de{" "}
-                        {availabilityInfo.expected.toLocaleString("fr-FR")} {currentUnit}.
+                        {formatQuantityWithUnit(availabilityInfo.committed, currentUnit)} sur un volume déclaré de{" "}
+                        {formatQuantityWithUnit(availabilityInfo.expected, currentUnit)}.
                       </p>
                     )}
                   </>
@@ -700,7 +701,7 @@ export default function CampaignFormModal({
           {/* 2. Titre de la campagne */}
           <div className="space-y-1.5">
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
-              Titre de l&apos;Offre Commerciale *
+              Titre de la campagne *
             </label>
             <input
               type="text"
@@ -708,7 +709,7 @@ export default function CampaignFormModal({
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ex: Maïs Blanc Séché - Arrivage Kinshasa Octobre"
               required
-              className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 focus:border-forest-500 outline-hidden"
+              className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 focus:border-forest-500 outline-none"
             />
           </div>
 
@@ -736,20 +737,20 @@ export default function CampaignFormModal({
                   placeholder={
                     maxAllowedQuantity === null
                       ? "Disponibilité en cours de vérification"
-                      : `Max : ${maxAllowedQuantity.toLocaleString("fr-FR")}`
+                      : `Max : ${formatQuantity(maxAllowedQuantity)}`
                   }
                   required
                   aria-invalid={isQuantityOverMax || undefined}
                   aria-describedby="campaign-marketable-quantity-hint campaign-production-availability"
-                  className={`w-full px-3.5 py-2 rounded-xl border text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden ${
+                  className={`w-full px-3.5 py-2 rounded-xl border text-gray-900 focus:ring-2 focus:ring-forest-500 outline-none ${
                     isQuantityOverMax ? "border-rose-400 bg-rose-50" : "border-gray-300"
                   }`}
                 />
               </div>
-              <span id="campaign-marketable-quantity-hint" className="text-[11px] text-gray-500 block">
+              <span id="campaign-marketable-quantity-hint" className="text-xs text-gray-500 block">
                 {maxAllowedQuantity === null
                   ? "Le volume disponible doit être vérifié avant l'enregistrement."
-                  : `Doit être ≤ au volume disponible pour cette campagne (${maxAllowedQuantity.toLocaleString("fr-FR")} ${currentUnit}).`}
+                  : `Doit être ≤ au volume disponible pour cette campagne (${formatQuantityWithUnit(maxAllowedQuantity, currentUnit)}).`}
               </span>
             </div>
 
@@ -769,7 +770,7 @@ export default function CampaignFormModal({
                   }
                   placeholder="Ex: 450"
                   required
-                  className="flex-1 px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden"
+                  className="flex-1 px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-none"
                 />
                 <div className="w-28">
                   <Select
@@ -780,7 +781,7 @@ export default function CampaignFormModal({
                   />
                 </div>
               </div>
-              <span className="text-[11px] text-gray-500 block">
+              <span className="text-xs text-gray-500 block">
                 Prix par {currentUnit}
               </span>
             </div>
@@ -798,7 +799,7 @@ export default function CampaignFormModal({
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 required
-                className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden"
+                className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-none"
               />
             </div>
 
@@ -811,9 +812,9 @@ export default function CampaignFormModal({
                 min={startDate && startDate > todayStr ? startDate : todayStr}
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden"
+                className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-none"
               />
-              <span className="text-[11px] text-gray-500 block">
+              <span className="text-xs text-gray-500 block">
                 À cette date, la campagne sera automatiquement clôturée.
               </span>
             </div>
@@ -830,7 +831,7 @@ export default function CampaignFormModal({
                 value={availabilityPeriod}
                 onChange={(e) => setAvailabilityPeriod(e.target.value)}
                 placeholder="Ex: Enlèvement sous 48h, bord champ"
-                className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden"
+                className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-none"
               />
             </div>
 
@@ -843,7 +844,7 @@ export default function CampaignFormModal({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Conditionnement en sacs de 50kg, etc."
-                className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-hidden"
+                className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-gray-900 focus:ring-2 focus:ring-forest-500 outline-none"
               />
             </div>
           </div>
@@ -860,7 +861,7 @@ export default function CampaignFormModal({
                     <MapPin className="w-4 h-4 text-forest-700" />
                     Destinations Desservies ({destinations.length} sélectionnée{destinations.length > 1 ? "s" : ""}) *
                   </label>
-                  <p className="text-[11px] text-gray-500">
+                  <p className="text-xs text-gray-500">
                     Cochez les territoires que vous desservez dans cette campagne. Chaque territoire sélectionné génère automatiquement son bloc de configuration.
                   </p>
                 </div>
@@ -910,9 +911,9 @@ export default function CampaignFormModal({
                       </div>
 
                       {demand && (
-                        <span className="mt-1 text-[10px] text-amber-700 bg-amber-50/80 border border-amber-200/60 px-1.5 py-0.5 rounded-md flex items-center gap-1 font-medium w-fit">
+                        <span className="mt-1 text-[11px] text-amber-700 bg-amber-50/80 border border-amber-200/60 px-1.5 py-0.5 rounded-md flex items-center gap-1 font-medium w-fit">
                           <TrendingUp className="w-2.5 h-2.5 text-amber-600" />
-                          {Number(demand.total_demanded_quantity).toLocaleString("fr-FR")} {demand.unit}
+                          {formatQuantityWithUnit(demand.total_demanded_quantity, demand.unit)}
                         </span>
                       )}
                     </label>
@@ -927,7 +928,7 @@ export default function CampaignFormModal({
                 <p className="text-xs font-semibold text-gray-600">
                   Aucune destination sélectionnée pour cette campagne.
                 </p>
-                <p className="text-[11px] text-gray-400">
+                <p className="text-xs text-gray-500">
                   Cochez au moins un territoire ci-dessus pour définir sa date d&apos;arrivée prévue et ses dépôts de retrait.
                 </p>
               </div>
@@ -958,7 +959,7 @@ export default function CampaignFormModal({
                           <h4 className="font-extrabold text-gray-900 text-sm tracking-wide">
                             {dest.city_name}
                           </h4>
-                          <span className="text-[10px] text-forest-700 font-medium">
+                          <span className="text-xs text-forest-700 font-medium">
                             Territoire de destination
                           </span>
                         </div>
@@ -988,7 +989,7 @@ export default function CampaignFormModal({
                           value={dest.expected_arrival_date}
                           onChange={(e) => handleUpdateDestinationDate(destIdx, e.target.value)}
                           required
-                          className="w-full px-3 py-2 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-hidden bg-white"
+                          className="w-full px-3 py-2 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-none bg-white"
                         />
                       </div>
 
@@ -1003,9 +1004,9 @@ export default function CampaignFormModal({
                           min={todayStr}
                           value={dest.order_deadline_date || ""}
                           onChange={(e) => handleUpdateDestinationDeadline(destIdx, e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-hidden bg-white"
+                          className="w-full px-3 py-2 rounded-xl border border-gray-300 text-gray-900 text-xs focus:ring-2 focus:ring-forest-500 outline-none bg-white"
                         />
-                        <span className="text-[10px] text-gray-500 block">
+                        <span className="text-xs text-gray-500 block">
                           Fermera automatiquement les commandes pour {dest.city_name}.
                         </span>
                       </div>
@@ -1034,7 +1035,7 @@ export default function CampaignFormModal({
                           >
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-gray-800 text-xs flex items-center gap-1.5">
-                                <span className="w-4 h-4 rounded-full bg-forest-100 text-forest-800 flex items-center justify-center text-[10px] font-bold">
+                                <span className="w-4 h-4 rounded-full bg-forest-100 text-forest-800 flex items-center justify-center text-[11px] font-bold">
                                   {depIdx + 1}
                                 </span>
                                 Dépôt #{depIdx + 1} ({dest.city_name})
@@ -1052,7 +1053,7 @@ export default function CampaignFormModal({
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                               <div>
-                                <label className="block text-[10px] uppercase font-bold text-gray-600 mb-0.5">
+                                <label className="block text-[11px] uppercase font-bold text-gray-600 mb-0.5">
                                   Nom du Dépôt
                                 </label>
                                 <input
@@ -1060,11 +1061,11 @@ export default function CampaignFormModal({
                                   value={dep.name}
                                   onChange={(e) => handleUpdateDepot(destIdx, depIdx, "name", e.target.value)}
                                   placeholder="Ex: Dépôt Central Lemba"
-                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden bg-white"
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 focus:ring-2 focus:ring-forest-500 outline-none bg-white"
                                 />
                               </div>
                               <div>
-                                <label className="block text-[10px] uppercase font-bold text-gray-600 mb-0.5">
+                                <label className="block text-[11px] uppercase font-bold text-gray-600 mb-0.5">
                                   Commune *
                                 </label>
                                 <input
@@ -1073,14 +1074,14 @@ export default function CampaignFormModal({
                                   onChange={(e) => handleUpdateDepot(destIdx, depIdx, "commune", e.target.value)}
                                   placeholder="Ex: Lemba, Limete..."
                                   required
-                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden bg-white"
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 focus:ring-2 focus:ring-forest-500 outline-none bg-white"
                                 />
                               </div>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                               <div>
-                                <label className="block text-[10px] uppercase font-bold text-gray-600 mb-0.5">
+                                <label className="block text-[11px] uppercase font-bold text-gray-600 mb-0.5">
                                   Quartier
                                 </label>
                                 <input
@@ -1088,11 +1089,11 @@ export default function CampaignFormModal({
                                   value={dep.quartier}
                                   onChange={(e) => handleUpdateDepot(destIdx, depIdx, "quartier", e.target.value)}
                                   placeholder="Ex: Quartier 1"
-                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden bg-white"
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 focus:ring-2 focus:ring-forest-500 outline-none bg-white"
                                 />
                               </div>
                               <div>
-                                <label className="block text-[10px] uppercase font-bold text-gray-600 mb-0.5">
+                                <label className="block text-[11px] uppercase font-bold text-gray-600 mb-0.5">
                                   Rue / Avenue / Marché *
                                 </label>
                                 <input
@@ -1101,11 +1102,11 @@ export default function CampaignFormModal({
                                   onChange={(e) => handleUpdateDepot(destIdx, depIdx, "address", e.target.value)}
                                   placeholder="Ex: 1ère Rue, Marché central"
                                   required
-                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden bg-white"
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 focus:ring-2 focus:ring-forest-500 outline-none bg-white"
                                 />
                               </div>
                               <div>
-                                <label className="block text-[10px] uppercase font-bold text-gray-600 mb-0.5">
+                                <label className="block text-[11px] uppercase font-bold text-gray-600 mb-0.5">
                                   Repère / Complément
                                 </label>
                                 <input
@@ -1113,7 +1114,7 @@ export default function CampaignFormModal({
                                   value={dep.complement}
                                   onChange={(e) => handleUpdateDepot(destIdx, depIdx, "complement", e.target.value)}
                                   placeholder="Ex: En face de la station"
-                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 outline-hidden bg-white"
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-900 focus:ring-2 focus:ring-forest-500 outline-none bg-white"
                                 />
                               </div>
                             </div>
@@ -1134,8 +1135,8 @@ export default function CampaignFormModal({
                 <span className="font-bold text-gray-900 block text-xs">Statut initial</span>
                 <span className="text-xs text-gray-500 block">
                   {status === "active"
-                    ? "L'offre sera directement visible pour les revendeurs."
-                    : "L'offre sera enregistrée en brouillon privé."}
+                    ? "La campagne sera directement visible pour les revendeurs."
+                    : "La campagne sera enregistrée en brouillon privé."}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -1196,7 +1197,7 @@ export default function CampaignFormModal({
               }
               className="px-5 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white font-semibold transition-all shadow-xs disabled:opacity-50 flex items-center gap-2"
             >
-              {isPending ? "Enregistrement..." : isEditing ? "Mettre à jour l'offre" : "Enregistrer la campagne"}
+              {isPending ? "Enregistrement..." : isEditing ? "Mettre à jour la campagne" : "Enregistrer la campagne"}
             </button>
           </div>
         </form>

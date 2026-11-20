@@ -17,6 +17,8 @@ import Alert from "@/components/ui/Alert";
 import Badge from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
 import SubmitButton from "@/components/SubmitButton";
+import { usePhotoForUpload } from "@/components/ui/usePhotoForUpload";
+import PhotoUploadFeedback from "@/components/ui/PhotoUploadFeedback";
 import {
   Edit3,
   Lock,
@@ -68,6 +70,8 @@ export default function EditProductDrawer({
   const [removeCustomImage, setRemoveCustomImage] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const photo = usePhotoForUpload();
+  const clearPhoto = photo.clear;
 
   useEffect(() => {
     if (productItem) {
@@ -75,32 +79,34 @@ export default function EditProductDrawer({
       setRemoveCustomImage(false);
       setErrorMsg(null);
     }
-  }, [productItem, isOpen]);
+    clearPhoto();
+  }, [productItem, isOpen, clearPhoto]);
 
   if (!productItem) return null;
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { file, error } = await photo.onInputChange(e);
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("La photo personnalisée ne doit pas dépasser 5 Mo.");
-        return;
-      }
       setRemoveCustomImage(false);
       setImagePreview(URL.createObjectURL(file));
+    } else if (error && !removeCustomImage) {
+      setImagePreview(productItem.image_url || null);
     }
   };
 
   const handleRemoveCustomImage = () => {
+    photo.clear();
     setImagePreview(null);
     setRemoveCustomImage(true);
     toast.info("Le visuel sera réinitialisé à l'image officielle lors de l'enregistrement.");
   };
 
   async function handleSubmit(formData: FormData) {
+    if (photo.isPreparing) return;
     setIsSubmitting(true);
     setErrorMsg(null);
     formData.set("removeCustomImage", removeCustomImage.toString());
+    photo.applyTo(formData, "customImage");
 
     try {
       const res = await updateCompanyProductAction(null, formData);
@@ -140,7 +146,7 @@ export default function EditProductDrawer({
       }
       description={
         <span>
-          Personnalisation d'exploitation pour{" "}
+          Personnalisation propre à votre société pour{" "}
           <strong className="text-gray-900">{productItem.product.name}</strong>
         </span>
       }
@@ -197,8 +203,8 @@ export default function EditProductDrawer({
 
         {/* Dénomination spécifique à votre ferme */}
         <FormField
-          label="Dénomination spécifique à votre exploitation"
-          description="Nom commercial ou appellation locale propre à votre ferme (ex: Maïs de Matadi, Pastèque de la Vallée...)."
+          label="Dénomination spécifique à votre société"
+          description="Nom commercial ou appellation locale propre à votre société (ex: Maïs de Matadi, Pastèque de la Vallée...)."
         >
           <Input
             name="customName"
@@ -209,9 +215,9 @@ export default function EditProductDrawer({
 
         {/* Unité d'exploitation */}
         <FormField
-          label="Unité de mesure principale de l'exploitation"
+          label="Unité de mesure principale de la société"
           required
-          description="Unité de référence retenue pour vos déclarations de récoltes et offres de vente."
+          description="Unité de référence retenue pour vos déclarations de récoltes et campagnes."
         >
           <Select
             name="unit"
@@ -235,21 +241,21 @@ export default function EditProductDrawer({
 
         {/* Notes internes d'exploitation */}
         <FormField
-          label="Notes d'exploitation (internes, confidentielles)"
-          description="Notes d'exploitation réservées à votre entreprise (parcelles dédiées, matériel, entreposage)."
+          label="Notes internes (confidentielles)"
+          description="Notes internes réservées à votre société (parcelles dédiées, matériel, entreposage)."
         >
           <Textarea
             name="notes"
             rows={2}
             defaultValue={productItem.notes || ""}
-            placeholder="Notes d'exploitation, consignes d'entreposage..."
+            placeholder="Notes internes, consignes d'entreposage..."
           />
         </FormField>
 
         {/* Photo personnalisée */}
         <div className="space-y-2">
           <label className="block text-xs font-semibold text-gray-700">
-            Photo personnalisée de votre exploitation
+            Photo personnalisée de votre société
           </label>
           <div className="p-3.5 rounded-2xl border border-gray-200 bg-gray-50/60 space-y-3">
             <div className="flex items-center gap-3">
@@ -273,12 +279,12 @@ export default function EditProductDrawer({
               <div className="min-w-0 flex-1 text-xs">
                 <p className="font-semibold text-gray-900">
                   {imagePreview
-                    ? "Photo propre à votre exploitation"
+                    ? "Photo propre à votre société"
                     : catalogFallbackImage
                     ? "Photo officielle du catalogue utilisée par défaut"
                     : "Aucune photo configurée"}
                 </p>
-                <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
+                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
                   {imagePreview
                     ? "Ce visuel apparaît sur vos récoltes sans modifier l'image officielle du catalogue commun."
                     : "L'image du catalogue commun s'applique tant qu'aucune photo propre n'est téléversée."}
@@ -288,10 +294,13 @@ export default function EditProductDrawer({
 
             <div className="flex items-center justify-between pt-2 border-t border-gray-200 gap-2">
               <input
+                ref={photo.inputRef}
                 type="file"
                 name="customImage"
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleImageChange}
+                aria-invalid={photo.error ? true : undefined}
+                aria-describedby={photo.error || photo.isPreparing ? photo.feedbackId : undefined}
                 className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-forest-700 file:text-white hover:file:bg-forest-800 cursor-pointer"
               />
               {imagePreview && (
@@ -305,6 +314,7 @@ export default function EditProductDrawer({
                 </button>
               )}
             </div>
+            <PhotoUploadFeedback photo={photo} />
           </div>
         </div>
 
@@ -356,6 +366,7 @@ export default function EditProductDrawer({
             <SubmitButton
               className="px-5 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white text-sm font-semibold shadow-xs"
               loadingText="Enregistrement..."
+              disabled={photo.isPreparing}
             >
               Enregistrer
             </SubmitButton>

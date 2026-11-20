@@ -9,6 +9,9 @@ import OrderFormModal from "@/components/orders/OrderFormModal";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
+import PageHeader from "@/components/ui/PageHeader";
+import InfoRepliable from "@/components/ui/InfoRepliable";
+import FiltresActifs, { type CritereActif } from "@/components/ui/FiltresActifs";
 import Link from "next/link";
 import {
   Megaphone,
@@ -16,9 +19,7 @@ import {
   Filter,
   CheckCircle2,
   PackageOpen,
-  Info,
   TrendingUp,
-  ArrowLeft,
   ShoppingBag,
   SlidersHorizontal,
   X,
@@ -94,6 +95,16 @@ export default function ResellerCampaignsView({
   const hasActiveFilters =
     searchQuery.trim() !== "" || selectedCategory !== "all" || eligibleOnly;
 
+  // Critères du tiroir rappelés sous 640 px (NAV-06, arbitrage C) ; la recherche reste visible dans son champ
+  const filtresActifs: CritereActif[] = [
+    ...(selectedCategory !== "all"
+      ? [{ cle: "categorie", libelle: "Catégorie", valeur: selectedCategory, retirer: () => setSelectedCategory("all") }]
+      : []),
+    ...(eligibleOnly
+      ? [{ cle: "region", libelle: "Éligibilité", valeur: "Desservant ma région", retirer: () => setEligibleOnly(false) }]
+      : []),
+  ];
+
   const handleResetFilters = () => {
     setSearchQuery("");
     setSelectedCategory("all");
@@ -102,87 +113,51 @@ export default function ResellerCampaignsView({
 
   return (
     <div className="space-y-6">
-      {/* 1. Fil d'Ariane & Navigation contextuelle */}
-      <div className="flex items-center justify-between gap-3">
-        <Link
-          href="/dashboard/reseller"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-forest-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-600 rounded-lg py-1 px-1.5 -ml-1.5"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Retour à l&apos;accueil revendeur</span>
-        </Link>
-
-        {/* Badges d'état temps réel */}
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-forest-50 border border-forest-200/80 text-forest-800 text-xs font-bold shadow-2xs">
-            <Megaphone className="w-3.5 h-3.5 text-forest-700" />
-            <span>{campaigns.length} offres ouvertes</span>
-          </span>
-          {resellerProvinceName && (
-            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-bold shadow-2xs">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{eligibleCount} dans ma région</span>
+      {/* 1. En-tête commun (Lot 6B, NAV-02) */}
+      <PageHeader
+        breadcrumb={[{ href: "/dashboard/reseller", label: "Tableau de bord" }]}
+        title="Campagnes"
+        badge={
+          <>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-forest-50 border border-forest-200/80 text-forest-800 text-xs font-bold shadow-2xs">
+              <Megaphone className="w-3.5 h-3.5 text-forest-700" aria-hidden="true" />
+              <span>{campaigns.length} campagnes ouvertes</span>
             </span>
-          )}
-        </div>
-      </div>
-
-      {/* 2. En-tête de section moderne */}
-      <div className="bg-white rounded-3xl border border-gray-200/80 p-5 sm:p-7 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-2xl">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-forest-100 text-forest-800 flex items-center justify-center shrink-0">
-                <Megaphone className="w-5 h-5" />
-              </div>
-              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-gray-950">
-                Offres Commerciales
-              </h1>
-            </div>
-            <p className="text-xs sm:text-sm text-gray-500 leading-relaxed">
-              Consultez les productions agricoles mises en vente active par les exploitations partenaires avec prix fermes, volumes garantis et contrôle d&apos;éligibilité territoriale.
-            </p>
-          </div>
-
-          {/* Raccourci vers Demandes d'Achat */}
+            {resellerProvinceName && (
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-bold shadow-2xs">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+                <span>{eligibleCount} dans ma région</span>
+              </span>
+            )}
+          </>
+        }
+        description="Consultez les productions agricoles mises en vente active par les sociétés partenaires avec prix affichés, volumes disponibles et contrôle d'éligibilité territoriale."
+        action={
+          /* Raccourci vers Demandes d'Achat */
           <Link
             href="/dashboard/reseller/demands"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-forest-50 text-gray-700 hover:text-forest-800 border border-gray-200 hover:border-forest-200 text-xs font-bold transition-all shadow-2xs shrink-0 self-start md:self-auto"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 max-sm:min-h-11 rounded-xl bg-gray-50 hover:bg-forest-50 text-gray-700 hover:text-forest-800 border border-gray-200 hover:border-forest-200 text-xs font-bold transition-all shadow-2xs shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-600"
           >
-            <TrendingUp className="w-4 h-4 text-forest-700" />
+            <TrendingUp className="w-4 h-4 text-forest-700" aria-hidden="true" />
             <span>Mes demandes d&apos;achat</span>
           </Link>
-        </div>
+        }
+      />
 
-        {/* Cartouches d'aide et transparence territoriale */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-5 mt-5 border-t border-gray-100">
-          <div className="p-3.5 rounded-2xl bg-forest-50/50 border border-forest-100 flex items-start gap-2.5">
-            <Info className="w-4 h-4 text-forest-700 shrink-0 mt-0.5" />
-            <div className="text-xs text-forest-900 leading-relaxed">
-              <strong>Éligibilité ({resellerProvinceName || "Votre province"}) :</strong> Les offres sont réservées selon les zones de livraison déclarées par les producteurs. Cliquez sur <strong>Commander</strong> pour bloquer un stock ferme si votre province est couverte.
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-earth-50/50 border border-earth-100 flex items-start gap-2.5">
-            <TrendingUp className="w-4 h-4 text-earth-700 shrink-0 mt-0.5" />
-            <div className="text-xs text-earth-900 leading-relaxed">
-              <strong>Offre non disponible ?</strong> Si une production vous intéresse mais ne dessert pas votre province, exprimez un besoin d&apos;approvisionnement pour signaler votre intérêt solvable au producteur.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Barre de Recherche et Filtres */}
-      <div className="bg-white rounded-2xl border border-gray-200/80 p-3 sm:p-4 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      {/* 3. Barre de Recherche et Filtres. Correctif NAV-06 (arbitrage C) : sous 640 px, recherche et bouton
+          « Filtres » sur une même ligne, sans cadre ; les critères choisis dans le tiroir restent rappelés. */}
+      <div className="space-y-2">
+      <div className="sm:bg-white sm:rounded-2xl sm:border sm:border-gray-200/80 sm:p-4 sm:shadow-2xs flex flex-row flex-wrap md:flex-nowrap items-center justify-between gap-2 sm:gap-3">
         {/* Recherche textuelle */}
-        <div className="relative flex-1 min-w-0 max-w-lg">
+        <div className="relative flex-1 min-w-0 sm:min-w-[12rem] max-w-lg">
           <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
+            aria-label="Rechercher par produit, variété, société"
             type="text"
-            placeholder="Rechercher par culture, variété, exploitation..."
+            placeholder="Rechercher par produit, variété, société..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-9 py-2 text-xs sm:text-sm rounded-xl border border-gray-200 bg-gray-50/50 text-gray-900 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-forest-600 focus:border-forest-600 outline-none transition-all"
+            className="w-full pl-10 pr-9 py-2 text-xs sm:text-sm rounded-xl border border-gray-200 bg-gray-50/50 text-gray-900 placeholder-gray-500 focus:bg-white focus:ring-2 focus:ring-forest-600 focus:border-forest-600 outline-none transition-all"
           />
           {searchQuery && (
             <button
@@ -235,28 +210,33 @@ export default function ResellerCampaignsView({
         </div>
 
         {/* Bouton Filtres Mobile */}
-        <div className="sm:hidden flex items-center justify-between gap-2">
+        <div className="sm:hidden flex items-center shrink-0">
           <button
             type="button"
             onClick={() => setMobileFiltersOpen(true)}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-gray-800 active:bg-gray-100"
+            className="inline-flex items-center justify-center gap-2 min-h-11 px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-gray-800 active:bg-gray-100"
           >
             <SlidersHorizontal className="w-4 h-4 text-forest-700" />
             <span>
               Filtres {hasActiveFilters && "• Actifs"}
             </span>
           </button>
-
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl border border-red-100"
-            >
-              Effacer
-            </button>
-          )}
         </div>
+      </div>
+
+      {/* Critères actifs rappelés sous 640 px (le tiroir les cache) et effacement global */}
+      {hasActiveFilters && (
+        <div className="sm:hidden flex flex-wrap items-center gap-1.5">
+          <FiltresActifs criteres={filtresActifs} />
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            className="min-h-11 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl border border-red-100"
+          >
+            Effacer
+          </button>
+        </div>
+      )}
       </div>
 
       {/* 4. Grille des Offres ou État Vide */}
@@ -268,14 +248,14 @@ export default function ResellerCampaignsView({
 
           <h3 className="text-base sm:text-lg font-bold text-gray-950 mb-1">
             {hasActiveFilters
-              ? "Aucune offre ne correspond à vos filtres"
-              : "Aucune offre commerciale ouverte pour le moment"}
+              ? "Aucune campagne ne correspond à vos filtres"
+              : "Aucune campagne ouverte pour le moment"}
           </h3>
 
           <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto mb-6 leading-relaxed">
             {hasActiveFilters
               ? "Essayez de modifier votre recherche textuelle, d'élargir la catégorie ou de désactiver le filtre régional."
-              : "Les exploitations agricoles partenaires n'ont pas de campagnes de vente active actuellement. Vous pouvez exprimer un besoin d'approvisionnement pour solliciter les producteurs."}
+              : "Les sociétés partenaires n'ont pas de campagne active actuellement. Vous pouvez exprimer une demande d'approvisionnement pour solliciter les sociétés."}
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -295,7 +275,7 @@ export default function ResellerCampaignsView({
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white font-bold text-xs sm:text-sm transition-all shadow-xs"
             >
               <TrendingUp className="w-4 h-4" />
-              <span>Exprimer un besoin d&apos;approvisionnement</span>
+              <span>Exprimer une demande d&apos;approvisionnement</span>
             </Link>
           </div>
         </div>
@@ -312,12 +292,23 @@ export default function ResellerCampaignsView({
         </div>
       )}
 
+      {/* Explications générales, repliées par défaut (Lot 6B, TXT-04), placées après la liste
+          (correctif NAV-06, arbitrage D) : texte inchangé, toujours consultable. */}
+      <InfoRepliable summary={`Éligibilité (${resellerProvinceName || "Votre province"}) et campagnes non disponibles`}>
+        <p>
+          <strong>Éligibilité ({resellerProvinceName || "Votre province"}) :</strong> Les campagnes sont accessibles selon les zones de livraison déclarées par les sociétés. Cliquez sur <strong>Commander</strong> pour bloquer un stock ferme si votre province est couverte.
+        </p>
+        <p>
+          <strong>Campagne non disponible ?</strong> Si une production vous intéresse mais ne dessert pas votre province, exprimez une demande d&apos;approvisionnement pour signaler votre intérêt à la société.
+        </p>
+      </InfoRepliable>
+
       {/* 5. Tiroir Drawer de filtres sur Mobile */}
       <Drawer
         isOpen={mobileFiltersOpen}
         onClose={() => setMobileFiltersOpen(false)}
         side="bottom"
-        title="Filtres des Offres Commerciales"
+        title="Filtres des campagnes"
         description="Affinez les campagnes selon vos critères d'approvisionnement."
         footer={
           <div className="w-full flex items-center justify-between gap-3">
@@ -372,8 +363,8 @@ export default function ResellerCampaignsView({
                 <span className="font-bold text-gray-900 block">
                   Desservant ma province ({resellerProvinceName || "Ma région"})
                 </span>
-                <span className="text-gray-500 text-[11px]">
-                  Afficher uniquement les {eligibleCount} offre(s) livrables sur mon territoire.
+                <span className="text-gray-500 text-xs">
+                  Afficher uniquement les {eligibleCount} campagne(s) livrable(s) sur mon territoire.
                 </span>
               </div>
             </label>

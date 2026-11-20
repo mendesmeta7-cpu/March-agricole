@@ -9,6 +9,7 @@ import {
   getCampaignDestinationsSummary,
 } from "@/lib/utils/campaignStatus";
 import { isConsumingReservation } from "@/lib/utils/stockRules";
+import { isMalformedIdError } from "@/lib/utils/readErrors";
 import {
   AVAILABILITY_UNAVAILABLE_MESSAGE,
   CampaignAvailabilityLookup,
@@ -539,8 +540,13 @@ export async function getCompanyCampaignById(
     .eq("company_id", companyId)
     .maybeSingle();
 
-  if (error || !data) {
-    if (error) console.error("Erreur récupération détail campagne entreprise:", error);
+  // Lot UX/UI 5B (page de modification) : une panne de lecture n'est jamais présentée comme une
+  // campagne introuvable (règle du Lot 2C) ; seul un identifiant mal formé vaut absence.
+  if (error && !isMalformedIdError(error)) {
+    console.error("Erreur récupération détail campagne entreprise:", error);
+    throw new Error("Lecture de la campagne impossible");
+  }
+  if (!data) {
     return null;
   }
 
@@ -790,6 +796,26 @@ export async function getActiveCampaignByProductionId(
   productionId: string,
   resellerOrProvinceId?: ResellerLocationContext | string | null
 ): Promise<ResellerCampaignItem | null> {
+  return readActiveResellerCampaign("production_id", productionId, resellerOrProvinceId);
+}
+
+/**
+ * Récupère une campagne active par son identifiant, avec l'éligibilité du revendeur (Lot UX/UI 5B :
+ * commande depuis la page de consultation /campaigns/[id]). Même lecture, même éligibilité et même
+ * disponibilité que la fiche production revendeur ; null si la campagne n'est pas active.
+ */
+export async function getResellerCampaignById(
+  campaignId: string,
+  resellerOrProvinceId?: ResellerLocationContext | string | null
+): Promise<ResellerCampaignItem | null> {
+  return readActiveResellerCampaign("id", campaignId, resellerOrProvinceId);
+}
+
+async function readActiveResellerCampaign(
+  column: "production_id" | "id",
+  value: string,
+  resellerOrProvinceId?: ResellerLocationContext | string | null
+): Promise<ResellerCampaignItem | null> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -877,16 +903,23 @@ export async function getActiveCampaignByProductionId(
         )
       )
     `)
-    .eq("production_id", productionId)
+    .eq(column, value)
     .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (error || !data) {
-    if (error) console.error("Erreur récupération campagne active par production:", error);
+  // Identifiant de campagne mal formé dans une adresse : campagne introuvable, pas une panne.
+  if (error && column === "id" && isMalformedIdError(error)) {
     return null;
   }
+
+  // Lot 2C : une panne n'est jamais présentée comme « aucune campagne » (lecture isolée par la page)
+  if (error) {
+    console.error("Erreur récupération campagne active par production:", error);
+    throw new Error("Lecture de la campagne active impossible");
+  }
+  if (!data) return null;
 
   const rawItem = data as any;
 

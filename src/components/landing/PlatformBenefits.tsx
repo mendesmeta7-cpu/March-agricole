@@ -82,7 +82,7 @@ export default function PlatformBenefits() {
                   <div className="w-11 h-11 rounded-xl bg-forest-50 group-hover:bg-forest-700 text-forest-700 group-hover:text-white flex items-center justify-center transition-colors duration-300 shadow-2xs">
                     <Icon className="w-5 h-5" />
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-forest-50 text-forest-700 border border-forest-200/50">
+                  <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-forest-50 text-forest-700 border border-forest-200/50">
                     {item.badge}
                   </span>
                 </div>
@@ -99,7 +99,7 @@ export default function PlatformBenefits() {
               </div>
 
               {/* Ligne d'accent végétale discrète en bas de carte */}
-              <div className="mt-5 pt-3 border-t border-forest-50 flex items-center gap-1.5 text-[11px] font-semibold text-forest-700/70 group-hover:text-forest-800">
+              <div className="mt-5 pt-3 border-t border-forest-50 flex items-center gap-1.5 text-xs font-semibold text-forest-700/70 group-hover:text-forest-800">
                 <span className="w-1.5 h-1.5 rounded-full bg-forest-400 group-hover:bg-forest-600 transition-colors" />
                 <span>Garantie plateforme</span>
               </div>

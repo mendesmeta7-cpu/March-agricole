@@ -15,6 +15,7 @@ import PlatformBenefits from "@/components/landing/PlatformBenefits";
 import ScrollRevealObserver from "@/components/landing/ScrollRevealObserver";
 import StickyHeader from "@/components/landing/StickyHeader";
 import HeroDynamicTitle from "@/components/landing/HeroDynamicTitle";
+import SkipLink, { MAIN_CONTENT_ID } from "@/components/ui/SkipLink";
 
 export const metadata: Metadata = {
   title: "Radiza — Bienvenue",
@@ -27,9 +28,13 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#f8fbf9] via-[#f2f7f4] to-white text-forest-950 overflow-x-hidden pt-16 sm:pt-20">
       {/* Observateur d'animation au scroll (IntersectionObserver) — composant léger sans rendu visuel */}
       <ScrollRevealObserver />
+      {/* Lot 6B (A11-07) : lien d'évitement, premier arrêt de tabulation */}
+      <SkipLink />
       {/* 1. Header Fixe avec comportement scroll intelligent */}
       <StickyHeader />
 
+      {/* Lot 6B (A11-07) : repère du contenu principal, entre l'en-tête et le pied de page */}
+      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="flex flex-col focus:outline-none">
       {/* 2. Section HERO — Titre dynamique multilingue, Vocation & 2 Boutons Exclusifs */}
       <section className="relative pt-8 pb-10 sm:pt-14 sm:pb-16 lg:pt-16 lg:pb-20 text-center px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
         {/* Titre Principal Dynamique Multilingue */}
@@ -69,7 +74,7 @@ export default function HomePage() {
         </div>
 
         {/* Reassurance text */}
-        <p className="text-[11px] sm:text-xs text-forest-700/70 mt-4">
+        <p className="text-xs sm:text-xs text-forest-700 mt-4">
           Accès dédié et sécurisé pour les professionnels de l&apos;agriculture et du commerce
         </p>
       </section>
@@ -147,6 +152,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      </main>
 
       {/* 11. Footer Minimaliste & Discret — Signature « Développé par Synapta » et liens juridiques */}
       <footer className="w-full py-6 px-4 border-t border-forest-800/80 bg-forest-950 text-white">
@@ -165,8 +171,8 @@ export default function HomePage() {
                 Synapta
               </span>
             </div>
-            <span className="text-forest-400/80 hidden xs:inline">•</span>
-            <span className="text-forest-300/80 hidden xs:inline">© 2026 Radiza</span>
+            <span className="text-forest-400/80">•</span>
+            <span className="text-forest-300/80">© 2026 Radiza</span>
           </div>
 
           <div className="flex items-center justify-center gap-4 text-xs text-forest-200/80">

@@ -250,7 +250,7 @@ function ToastCard({
           {toast.title}
         </h4>
         {toast.description && (
-          <p className="text-[11px] sm:text-xs text-gray-600 leading-relaxed">
+          <p className="text-xs sm:text-xs text-gray-600 leading-relaxed">
             {toast.description}
           </p>
         )}

@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 import CompanyProfileView from "@/components/company/profile/CompanyProfileView";
 import CompanyAccountMissing from "@/components/company/CompanyAccountMissing";
 import { getCurrentCompanyId, getCurrentUser } from "@/lib/auth/currentCompany";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Profil de la société — Radiza" };
 
 export default async function CompanyProfilePage() {
   const supabase = await createClient();
@@ -22,7 +26,7 @@ export default async function CompanyProfilePage() {
   // 2. Exploitation agricole rattachée (membre ou créateur) — helper mutualisé (FUN-18)
   const companyId = await getCurrentCompanyId();
 
-  const { data: company } = companyId
+  const { data: company, error: companyError } = companyId
     ? await supabase
         .from("companies")
         .select(
@@ -30,7 +34,14 @@ export default async function CompanyProfilePage() {
         )
         .eq("id", companyId)
         .maybeSingle()
-    : { data: null };
+    : { data: null, error: null };
+
+  // Lot 7 : une panne de lecture ne doit pas s'afficher comme un compte sans société.
+  // Même traitement que le tableau de bord : écran d'erreur de l'espace avec « Réessayer ».
+  if (companyError) {
+    console.error("Erreur chargement société (profil):", companyError);
+    throw new Error("Lecture de la société impossible");
+  }
 
   // Aucune entreprise trouvée : message explicite, sans redirection (évite les boucles).
   if (!company) {
@@ -53,9 +64,11 @@ export default async function CompanyProfilePage() {
       .eq("company_id", company.id),
   ]);
 
-  const productionsCount = productionsRes.count || 0;
-  const campaignsCount = campaignsRes.count || 0;
-  const ordersCount = ordersRes.count || 0;
+  // Lot 7 : un compteur dont la lecture échoue est transmis comme indisponible (null), jamais
+  // comme 0 ; 0 n'est affiché que si une lecture réussie le confirme. Requêtes inchangées.
+  const productionsCount = productionsRes.error ? null : (productionsRes.count ?? 0);
+  const campaignsCount = campaignsRes.error ? null : (campaignsRes.count ?? 0);
+  const ordersCount = ordersRes.error ? null : (ordersRes.count ?? 0);
 
   return (
     <CompanyProfileView

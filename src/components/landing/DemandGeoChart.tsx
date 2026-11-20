@@ -128,7 +128,7 @@ export default function DemandGeoChart() {
                           <p className="text-sm font-bold text-forest-950 truncate">
                             {region.name}
                           </p>
-                          <p className="text-[11px] text-forest-600 truncate">
+                          <p className="text-xs text-forest-600 truncate">
                             {region.subRegion}
                           </p>
                         </div>
@@ -138,7 +138,7 @@ export default function DemandGeoChart() {
                         <span className="text-xs sm:text-sm font-extrabold text-forest-950">
                           {region.indicativeVolume} t
                         </span>
-                        <span className="text-[11px] text-forest-600 font-semibold ml-1.5">
+                        <span className="text-xs text-forest-600 font-semibold ml-1.5">
                           ({region.percentage}%)
                         </span>
                       </div>
@@ -160,7 +160,7 @@ export default function DemandGeoChart() {
               })}
             </div>
 
-            <p className="text-[11px] text-forest-600/80 italic pt-1">
+            <p className="text-xs text-forest-600/80 italic pt-1">
               * Cliquez sur une région pour consulter le type d&apos;acheteurs et de besoins identifiés.
             </p>
           </div>
@@ -214,7 +214,7 @@ export default function DemandGeoChart() {
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-forest-200/50 text-[11px] text-forest-700/80 leading-relaxed">
+            <div className="mt-6 pt-4 border-t border-forest-200/50 text-xs text-forest-700/80 leading-relaxed">
               En rapprochant les producteurs des bassins de consommation précis, la plateforme réduit les coûts logistiques d&apos;intermédiation et limite les invendus.
             </div>
           </div>

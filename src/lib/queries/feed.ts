@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isMalformedIdError } from "@/lib/utils/readErrors";
 import { ProductionStatus } from "@/lib/queries/productions";
 import {
   isResellerEligibleForCampaign,
@@ -33,6 +34,8 @@ export interface FeedCompany {
   province_id: string;
   provinces?: { name: string } | null;
   countries?: { name: string } | null;
+  /** Lu seulement par le détail public (Lot 6A-1, D2) : « pending », « verified » ou « rejected » (BR-ADM-01). */
+  verification_status?: string | null;
 }
 
 export interface FeedCampaignSummary {
@@ -360,6 +363,7 @@ export async function getPublicProductionDetail(
         city,
         country_id,
         province_id,
+        verification_status,
         provinces (name),
         countries (name)
       ),
@@ -382,10 +386,12 @@ export async function getPublicProductionDetail(
     .in("status", ["planned", "growing", "harvested"])
     .maybeSingle();
 
-  if (error || !data) {
-    if (error) console.error("Erreur récupération détail public production:", error);
-    return null;
+  // Lot 2C : panne ≠ « introuvable » (identifiant mal formé = absence réelle)
+  if (error && !isMalformedIdError(error)) {
+    console.error("Erreur récupération détail public production:", error);
+    throw new Error("Lecture du détail de la production impossible");
   }
+  if (!data) return null;
 
   const rawItem = data as any;
   const rawCompany = Array.isArray(rawItem.company) ? rawItem.company[0] : rawItem.company;

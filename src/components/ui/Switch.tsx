@@ -29,7 +29,7 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
               </span>
             )}
             {description && (
-              <span className="text-[11px] sm:text-xs text-gray-500 block leading-relaxed">
+              <span className="text-xs sm:text-xs text-gray-500 block leading-relaxed">
                 {description}
               </span>
             )}

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import { useScrollLock } from "@/components/ui/useScrollLock";
 import AppSidebar from "@/components/dashboard/AppSidebar";
 import AppHeader from "@/components/dashboard/AppHeader";
 import { X } from "lucide-react";
+import SkipLink, { MAIN_CONTENT_ID } from "@/components/ui/SkipLink";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -29,17 +31,8 @@ export default function DashboardLayout({
 }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Verrouillage du scroll sur le body lorsque le menu mobile est ouvert
-  useEffect(() => {
-    if (mobileMenuOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [mobileMenuOpen]);
+  // Verrouillage du défilement de la page, compté avec les autres surfaces (Lot UX/UI 5B)
+  useScrollLock(mobileMenuOpen);
 
   // Focus retenu dans le menu mobile, Échap et retour au bouton d'ouverture
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -50,6 +43,8 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row antialiased">
+      {/* Lot 6B (A11-07) : lien d'évitement, premier arrêt de tabulation */}
+      <SkipLink />
       {/* 1. Sidebar Desktop permanente (écrans >= lg) */}
       <aside className="hidden lg:flex lg:flex-shrink-0 sticky top-0 h-screen z-30">
         <AppSidebar
@@ -113,7 +108,7 @@ export default function DashboardLayout({
           onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
         />
 
-        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <main id={MAIN_CONTENT_ID} tabIndex={-1} className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto focus:outline-none">
           {children}
         </main>
       </div>

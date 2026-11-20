@@ -1,0 +1,45 @@
+-- ============================================================================
+-- ⚠️  MIGRATION NON APPLIQUÉE — AUTORISATION EXPLICITE REQUISE AVANT TOUTE EXÉCUTION
+-- ============================================================================
+-- Préparée le 2026-11-18 (Lot UX/UI 5B, ADR-058 option A retenue, ADR-061).
+-- Rangée volontairement dans supabase/pending/ et NON dans supabase/migrations/ :
+-- `supabase db push` et `supabase migration up` ne lisent que supabase/migrations/,
+-- elle ne peut donc pas partir avec les autres migrations par accident.
+--
+-- Pour l'appliquer, une fois l'autorisation donnée (procédure complète : ADR-061) :
+--   1. lire les droits réels (requête R1 ci-dessous, lecture seule) et conserver le résultat ;
+--   2. déplacer ce fichier dans supabase/migrations/ sans changer son nom, puis l'appliquer
+--      par la procédure habituelle du projet ;
+--   3. relire les droits (R1) : `anon` ne doit plus avoir SELECT sur campaign_depots ;
+--   4. exécuter supabase/tests/campaign_depots_anon_test.sql sur l'environnement de test ;
+--   5. vérifier par l'API publique (clé anon, sans session) que la lecture est refusée,
+--      puis qu'un revendeur connecté voit toujours les dépôts dans son espace et sa commande.
+--
+-- Objet : un visiteur non connecté peut aujourd'hui lire, par l'API PostgREST et avec la
+-- clé anon publique, toutes les colonnes des dépôts des campagnes actives (nom, commune,
+-- quartier, adresse, repère). La migration 030 a retiré à `anon` l'écriture sur toutes les
+-- tables, mais pas la lecture de campaign_depots ; la politique RLS campaign_depots_select
+-- ouvre les dépôts de toute campagne active, sans condition de rôle.
+--
+-- Effet : seul le rôle `anon` perd la lecture de la table (et, par voie de conséquence, de
+-- chacune de ses colonnes). Inchangés : politiques RLS, droits du rôle `authenticated`,
+-- fonctions SECURITY DEFINER (commande, réservation), parcours de commande. Les revendeurs,
+-- sociétés et administrateurs connectés gardent l'accès prévu par la RLS.
+-- Aucune page publique ne lit les dépôts (la page /campaigns/[id] ne les interroge pas).
+--
+-- Retour arrière (si nécessaire, sur autorisation) :
+--   GRANT SELECT ON public.campaign_depots TO anon;
+--
+-- R1 — droits réels, lecture seule (à exécuter avant et après) :
+--   SELECT grantee, privilege_type
+--     FROM information_schema.role_table_grants
+--    WHERE table_schema = 'public' AND table_name = 'campaign_depots'
+--    ORDER BY grantee, privilege_type;
+--   SELECT grantee, column_name, privilege_type
+--     FROM information_schema.column_privileges
+--    WHERE table_schema = 'public' AND table_name = 'campaign_depots' AND grantee = 'anon';
+-- Attendu après application : aucune ligne SELECT pour `anon` dans les deux requêtes ;
+-- `authenticated` conserve SELECT.
+-- ============================================================================
+
+REVOKE SELECT ON public.campaign_depots FROM anon;

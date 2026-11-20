@@ -4,8 +4,10 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import { registerResellerAction } from "@/lib/actions/auth";
 import SubmitButton from "@/components/SubmitButton";
+import PasswordField from "@/components/ui/PasswordField";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import { Store, AlertCircle, ArrowLeft, MapPin, MailCheck } from "lucide-react";
+import SkipLink, { MAIN_CONTENT_ID } from "@/components/ui/SkipLink";
 
 export default function RegisterResellerPage() {
   const [state, formAction] = useActionState(registerResellerAction, null);
@@ -18,7 +20,8 @@ export default function RegisterResellerPage() {
   if (state?.emailSent) {
     return (
       <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-earth-50/50 flex flex-col justify-center">
-        <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-earth-100 p-8 text-center">
+        <SkipLink />
+        <main id={MAIN_CONTENT_ID} tabIndex={-1} className="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-earth-100 p-8 text-center focus:outline-none">
           <div className="w-16 h-16 bg-earth-100 text-earth-700 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <MailCheck className="w-8 h-8" />
           </div>
@@ -27,8 +30,8 @@ export default function RegisterResellerPage() {
             Nous vous avons envoyé un email contenant un lien pour confirmer la création de votre compte professionnel.
           </p>
           <div className="p-4 bg-gray-50 rounded-xl mb-8">
-            <p className="text-xs text-gray-500 font-medium">Sécurité propulsée par</p>
-            <p className="text-sm font-bold text-slate-800 tracking-wider">SYNAPTA Identity</p>
+            <p className="text-xs text-gray-500 font-medium">Plateforme éditée par</p>
+            <p className="text-sm font-bold text-slate-800 tracking-wider">Synapta SARL</p>
           </div>
           <Link
             href="/login"
@@ -36,14 +39,15 @@ export default function RegisterResellerPage() {
           >
             Aller à la page de connexion
           </Link>
-        </div>
+        </main>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-earth-50/50">
-      <div className="max-w-2xl mx-auto">
+      <SkipLink />
+      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="max-w-2xl mx-auto focus:outline-none">
         <Link
           href="/register"
           className="inline-flex items-center gap-2 text-sm font-medium text-earth-800 hover:text-earth-950 mb-6 transition-colors"
@@ -70,7 +74,7 @@ export default function RegisterResellerPage() {
           <div className="mb-6 p-4 rounded-xl bg-earth-50/60 border border-earth-200/60 text-xs text-earth-900 flex items-start gap-3 leading-relaxed">
             <MapPin className="w-4 h-4 text-earth-700 flex-shrink-0 mt-0.5" />
             <div>
-              <strong>Étape 1 sur 2 :</strong> Créez votre accès acheteur. La sélection de votre territoire d&apos;opération (pays, province) et de votre profil s&apos;effectue lors de l&apos;activation de votre compte.
+              <strong>Étape 1 sur 2 :</strong> Créez votre accès revendeur. La sélection de votre territoire d&apos;opération (pays, province) et de votre profil s&apos;effectue lors de l&apos;activation de votre compte.
             </div>
           </div>
 
@@ -99,7 +103,7 @@ export default function RegisterResellerPage() {
           <form action={formAction} className="space-y-5">
             <div>
               <label htmlFor="register-reseller-fullName" className="block text-sm font-medium text-gray-700 mb-1">
-                Nom et prénom <span className="text-red-500">*</span>
+                Nom et prénom <span className="text-red-600">*</span>
               </label>
               <input
                 id="register-reseller-fullName"
@@ -110,7 +114,7 @@ export default function RegisterResellerPage() {
                 onChange={(e) => setFullName(e.target.value)}
                 required
                 placeholder="Ex: Alain Kalombo"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
               />
             </div>
 
@@ -126,13 +130,13 @@ export default function RegisterResellerPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Ex: +243 810 000 000"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
               />
             </div>
 
             <div>
               <label htmlFor="register-reseller-email" className="block text-sm font-medium text-gray-700 mb-1">
-                Adresse email <span className="text-red-500">*</span>
+                Adresse email <span className="text-red-600">*</span>
               </label>
               <input
                 id="register-reseller-email"
@@ -143,23 +147,23 @@ export default function RegisterResellerPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="alain@distribution-vivres.cd"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
               />
             </div>
 
             <div>
               <label htmlFor="register-reseller-password" className="block text-sm font-medium text-gray-700 mb-1">
-                Mot de passe <span className="text-red-500">*</span>
+                Mot de passe <span className="text-red-600">*</span>
               </label>
-              <input
+              {/* AUT-01 (Lot UX/UI 5B) : mot de passe affichable */}
+              <PasswordField
                 id="register-reseller-password"
-                type="password"
                 name="password"
                 autoComplete="new-password"
                 required
                 minLength={6}
                 placeholder="Au moins 6 caractères"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-earth-600 focus:border-transparent transition-all outline-none"
               />
             </div>
 
@@ -180,7 +184,7 @@ export default function RegisterResellerPage() {
             </p>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

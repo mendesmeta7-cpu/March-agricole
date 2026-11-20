@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
+import { formatAmount, formatMoney, formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 interface CompanyOrderCardProps {
   order: OrderDetail;
@@ -106,7 +107,7 @@ export default function CompanyOrderCard({
             <span className="font-mono text-xs text-gray-500 font-medium block">
               Réf. {order.order_number}
             </span>
-            <span className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
+            <span className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
               <Calendar className="w-3 h-3 text-gray-400" />
               {formattedDate}
             </span>
@@ -126,7 +127,7 @@ export default function CompanyOrderCard({
             <span className="font-bold text-xs text-gray-900 block truncate">
               {order.reseller.business_name}
             </span>
-            <span className="text-[10px] text-gray-500 block truncate">
+            <span className="text-xs text-gray-500 block truncate">
               {order.reseller.city ? `${order.reseller.city}, ` : ""}
               {order.reseller.provinces?.name || order.delivery_province?.name || "RDC"}
             </span>
@@ -152,16 +153,16 @@ export default function CompanyOrderCard({
             <h4 className="font-bold text-xs sm:text-sm text-gray-900 truncate">
               {mainItem?.product?.name || mainItem?.product_name_snapshot || "Produit agricole"}
             </h4>
-            <p className="text-[11px] text-gray-500 truncate mt-0.5">
-              Offre : {order.campaign?.title || order.campaign_title_snapshot || "Offre commerciale"}
+            <p className="text-xs text-gray-500 truncate mt-0.5">
+              Campagne : {order.campaign?.title || order.campaign_title_snapshot || "Campagne"}
             </p>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <span className="inline-flex items-center gap-1 text-xs font-black text-gray-900 bg-forest-50/80 px-2 py-0.5 rounded-lg border border-forest-100/60">
                 <Layers className="w-3 h-3 text-forest-700" />
-                {itemQty.toLocaleString("fr-FR")} {itemUnit}
+                {formatQuantityWithUnit(itemQty, itemUnit)}
               </span>
-              <span className="text-[11px] text-gray-400">
-                {itemPrice.toLocaleString("fr-FR")} {order.currency}/{itemUnit}
+              <span className="text-xs text-gray-500">
+                {formatMoney(itemPrice, order.currency)}/{itemUnit}
               </span>
             </div>
           </div>
@@ -179,7 +180,7 @@ export default function CompanyOrderCard({
                 <span className="text-gray-500"> • Arrivée : {formattedArrivalDate}</span>
               )}
               {(order.depot_name_snapshot || order.depot?.name) && (
-                <span className="block text-[10px] text-gray-500 truncate">
+                <span className="block text-xs text-gray-500 truncate">
                   Point : {order.depot?.name || order.depot_name_snapshot}
                 </span>
               )}
@@ -196,10 +197,10 @@ export default function CompanyOrderCard({
         )}
 
         {/* 7. Montant Total & Ligne financière */}
-        <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-          <span className="text-[11px] text-gray-500 font-medium">Montant total</span>
-          <span className="text-sm sm:text-base font-black text-forest-950 font-mono">
-            {order.total_amount.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}{" "}
+        <div className="pt-2 border-t border-gray-100 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <span className="text-xs text-gray-500 font-medium">Montant total</span>
+          <span className="text-sm sm:text-base font-black text-forest-950 font-mono whitespace-nowrap">
+            {formatAmount(order.total_amount)}{" "}
             {order.currency}
           </span>
         </div>

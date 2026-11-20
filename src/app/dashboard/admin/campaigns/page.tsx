@@ -16,6 +16,10 @@ import {
   parseAdminListParams,
   type AdminCampaignRow,
 } from "@/lib/queries/admin";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Administration · Campagnes — Radiza" };
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +47,7 @@ export default async function AdminCampaignsPage(props: PageProps) {
     },
     {
       key: "company",
-      header: "Entreprise",
+      header: "Société",
       cell: (row) => row.companyName ?? <span className="text-gray-400">—</span>,
     },
     {
@@ -53,7 +57,7 @@ export default async function AdminCampaignsPage(props: PageProps) {
         <div className="inline-flex flex-col items-end md:items-start gap-1">
           <CampaignStatusBadge status={row.effectiveStatus} />
           {row.effectiveStatus !== row.storedStatus && (
-            <span className="text-[11px] text-gray-500">
+            <span className="text-xs text-gray-500">
               Échéances dépassées (statut enregistré : actif)
             </span>
           )}
@@ -90,8 +94,8 @@ export default async function AdminCampaignsPage(props: PageProps) {
       <AdminBackLink />
 
       <PageHeader
-        title="Supervision des Campagnes Commerciales"
-        description="Consultez les offres de vente publiées par les entreprises. Le statut affiché tient compte des dates de fin et des dates limites de commande. Liste en lecture seule."
+        title="Campagnes"
+        description="Consultez les campagnes publiées par les sociétés. Le statut affiché tient compte des dates de fin et des dates limites de commande. Liste en lecture seule."
         badge={<Badge variant="neutral">Lecture seule</Badge>}
       />
 
@@ -111,7 +115,7 @@ export default async function AdminCampaignsPage(props: PageProps) {
         columns={columns}
         getRowKey={(row) => row.id}
         emptyTitle="Aucune campagne publiée pour le moment"
-        emptyDescription="Les campagnes commerciales apparaîtront ici dès qu'une entreprise en créera depuis son espace."
+        emptyDescription="Les campagnes commerciales apparaîtront ici dès qu'une société en créera depuis son espace."
         icon={<Megaphone className="w-8 h-8 text-amber-600" />}
       />
     </div>

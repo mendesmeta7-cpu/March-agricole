@@ -140,7 +140,7 @@ export default function ResellerEditLocationDrawer({
           label="Province de Rattachement Principale"
           htmlFor="edit-loc-province"
           required
-          description="Conditionne l'accès direct aux offres des producteurs desservant cette région."
+          description="Conditionne l'accès direct aux campagnes des sociétés desservant cette région."
         >
           <Select
             id="edit-loc-province"
@@ -195,9 +195,9 @@ export default function ResellerEditLocationDrawer({
             <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
             <span>Règle d&apos;intégrité historique et d&apos;éligibilité</span>
           </div>
-          <p className="text-[11px] text-amber-800 leading-relaxed">
+          <p className="text-xs text-amber-800 leading-relaxed">
             Modifier votre province de rattachement mettra immédiatement à jour le catalogue
-            d&apos;offres commerciales que vous pouvez commander. Vos <strong>commandes déjà passées</strong>{" "}
+            de campagnes que vous pouvez commander. Vos <strong>commandes déjà passées</strong>{" "}
             restent strictement scellées avec leur destination, leurs prix et leur historique d&apos;origine.
           </p>
 

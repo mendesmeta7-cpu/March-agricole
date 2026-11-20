@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getResellerCampaigns } from "@/lib/queries/campaigns";
 import ResellerCampaignsView from "@/components/campaigns/ResellerCampaignsView";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Campagnes — Radiza" };
 
 export default async function ResellerCampaignsPage() {
   const supabase = await createClient();

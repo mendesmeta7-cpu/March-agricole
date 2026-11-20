@@ -34,6 +34,7 @@ import {
   Check,
   ExternalLink,
 } from "lucide-react";
+import { formatAmount, formatMoney, formatQuantity, formatQuantityWithUnit, unitLabel } from "@/lib/utils/numberFormat";
 
 interface ResellerOrderDetailViewProps {
   order: OrderDetail;
@@ -160,7 +161,7 @@ export default function ResellerOrderDetailView({
           className="hover:text-forest-800 flex items-center gap-1.5 transition-colors font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Mes Commandes</span>
+          <span>Mes commandes</span>
         </Link>
         <span>/</span>
         <span className="text-gray-900 font-semibold font-mono">{order.order_number}</span>
@@ -191,7 +192,7 @@ export default function ResellerOrderDetailView({
                 title="Copier le numéro de commande"
               >
                 {copied ? (
-                  <span className="inline-flex items-center text-[11px] font-bold text-emerald-600 gap-1">
+                  <span className="inline-flex items-center text-xs font-bold text-emerald-600 gap-1">
                     <Check className="w-3.5 h-3.5" /> Copié
                   </span>
                 ) : (
@@ -247,16 +248,16 @@ export default function ResellerOrderDetailView({
               <p className="text-emerald-800">
                 {formattedDeliveryDate
                   ? `Livraison confirmée le ${formattedDeliveryDate}`
-                  : "Livraison validée par l'exploitation agricole."}
+                  : "Livraison validée par la société."}
                 {order.delivered_quantity !== null && order.delivered_quantity !== undefined && (
                   <span className="font-bold">
-                    {" "}• Quantité livrée : {order.delivered_quantity.toLocaleString("fr-FR")}{" "}
-                    {order.campaign.unit}
+                    {" "}• Quantité livrée : {formatQuantity(order.delivered_quantity)}{" "}
+                    {unitLabel(order.campaign.unit, order.delivered_quantity)}
                   </span>
                 )}
               </p>
               {order.delivered_by && (
-                <p className="text-emerald-700 text-[11px]">
+                <p className="text-emerald-700 text-xs">
                   Validé par : <strong>{order.delivered_by}</strong>
                 </p>
               )}
@@ -277,30 +278,43 @@ export default function ResellerOrderDetailView({
             Suivi du Cycle de Vie
           </span>
 
+          {/* Lot 6B (MOB-11) : étapes empilées verticalement sous 400 px, en ligne au-delà. */}
           <div className="relative">
-            <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200 -z-0" />
+            <div aria-hidden="true" className="hidden min-[400px]:block absolute top-4 left-4 right-4 h-0.5 bg-gray-200 -z-0" />
             {currentStepIndex >= 0 && (
               <div
-                className="absolute top-4 left-4 h-0.5 bg-forest-600 transition-all duration-500 -z-0"
+                aria-hidden="true"
+                className="hidden min-[400px]:block absolute top-4 left-4 h-0.5 bg-forest-600 motion-safe:transition-all motion-safe:duration-500 -z-0"
                 style={{
                   width: `${(currentStepIndex / (STEPS.length - 1)) * 100}%`,
                 }}
               />
             )}
 
-            <div className="relative z-10 flex justify-between">
+            <ol className="relative z-10 flex flex-col gap-3 min-[400px]:flex-row min-[400px]:justify-between min-[400px]:gap-0">
               {STEPS.map((step, idx) => {
                 const isPassed = currentStepIndex >= idx;
                 const isCurrent = currentStepIndex === idx;
                 const StepIcon = step.icon;
 
                 return (
-                  <div
+                  <li
                     key={step.status}
-                    className="flex flex-col items-center text-center max-w-[80px]"
+                    aria-current={isCurrent ? "step" : undefined}
+                    className="relative flex flex-row items-center gap-3 text-left min-[400px]:flex-col min-[400px]:gap-0 min-[400px]:text-center min-[400px]:max-w-[80px]"
                   >
+                    {/* Trait vertical vers l'étape suivante (sous 400 px seulement) */}
+                    {idx < STEPS.length - 1 && (
+                      <span
+                        aria-hidden="true"
+                        className={`min-[400px]:hidden absolute left-[17px] top-9 h-3 w-0.5 ${
+                          currentStepIndex > idx ? "bg-forest-600" : "bg-gray-200"
+                        }`}
+                      />
+                    )}
                     <div
-                      className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                      aria-hidden="true"
+                      className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                         isCurrent
                           ? "bg-forest-700 text-white ring-4 ring-forest-100 shadow-xs"
                           : isPassed
@@ -311,20 +325,20 @@ export default function ResellerOrderDetailView({
                       <StepIcon className="w-4 h-4" />
                     </div>
                     <span
-                      className={`text-[11px] mt-2 font-medium leading-tight ${
+                      className={`text-xs min-[400px]:mt-2 font-medium leading-tight ${
                         isCurrent
                           ? "font-bold text-forest-900"
                           : isPassed
                           ? "text-gray-800"
-                          : "text-gray-400"
+                          : "text-gray-500"
                       }`}
                     >
                       {step.label}
                     </span>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ol>
           </div>
         </div>
       ) : (
@@ -334,7 +348,7 @@ export default function ResellerOrderDetailView({
             <h4 className="text-sm font-bold text-rose-950">Commande Annulée</h4>
             <p className="text-rose-800">
               La commande est annulée et la quantité réservée a été remise à disposition des autres
-              acheteurs.
+              revendeurs.
             </p>
           </div>
         </div>
@@ -376,30 +390,30 @@ export default function ResellerOrderDetailView({
                         {item.product.name}
                       </span>
                       <span className="text-xs text-gray-500 block">
-                        {item.product.category} • Réf. Offre : {order.campaign.title}
+                        {item.product.category} • Campagne : {order.campaign.title}
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between sm:justify-end gap-6 text-xs sm:text-right">
                     <div>
-                      <span className="text-gray-500 block text-[11px]">Prix au moment de la commande</span>
+                      <span className="text-gray-500 block text-xs">Prix au moment de la commande</span>
                       <span className="font-semibold text-gray-800">
-                        {item.unit_price.toLocaleString("fr-FR")} {order.currency}/{item.unit}
+                        {formatMoney(item.unit_price, order.currency)}/{item.unit}
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-gray-500 block text-[11px]">Quantité</span>
+                      <span className="text-gray-500 block text-xs">Quantité</span>
                       <span className="font-bold text-gray-900">
-                        {item.quantity.toLocaleString("fr-FR")} {item.unit}
+                        {formatQuantityWithUnit(item.quantity, item.unit)}
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-gray-500 block text-[11px]">Sous-total</span>
-                      <span className="font-extrabold text-forest-900">
-                        {item.subtotal.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}{" "}
+                      <span className="text-gray-500 block text-xs">Sous-total</span>
+                      <span className="font-extrabold text-forest-900 whitespace-nowrap">
+                        {formatAmount(item.subtotal)}{" "}
                         {order.currency}
                       </span>
                     </div>
@@ -409,17 +423,17 @@ export default function ResellerOrderDetailView({
             </div>
 
             {/* Total général */}
-            <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between bg-forest-50/60 p-4 rounded-2xl">
+            <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between bg-forest-50/60 p-4 rounded-2xl">
               <div>
                 <span className="text-xs font-bold text-forest-900 block">
                   Montant Total Contractuel
                 </span>
-                <span className="text-[11px] text-forest-700">
+                <span className="text-xs text-forest-700">
                   Prix ferme immuable enregistré lors de la validation
                 </span>
               </div>
-              <span className="text-xl font-black text-forest-950 font-display">
-                {order.total_amount.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}{" "}
+              <span className="text-xl font-black text-forest-950 font-display whitespace-nowrap">
+                {formatAmount(order.total_amount)}{" "}
                 {order.currency}
               </span>
             </div>
@@ -431,11 +445,11 @@ export default function ResellerOrderDetailView({
               <ShieldCheck className="w-5 h-5 text-blue-700 shrink-0 mt-0.5" />
               <div className="space-y-1.5 flex-1">
                 <span className="font-bold text-blue-950 block">
-                  Garantie de Disponibilité du Stock
+                  Réservation du stock
                 </span>
                 <p className="text-blue-900 text-xs leading-relaxed">
                   Le volume de {order.order_items[0]?.quantity || 0}{" "}
-                  {order.campaign.unit} est fermement réservé auprès de la ferme et
+                  {order.campaign.unit} est réservé auprès de la société et
                   vous est exclusivement attribué.
                 </p>
                 <div className="pt-2 flex items-center gap-4 text-xs font-semibold text-blue-800">
@@ -443,7 +457,7 @@ export default function ResellerOrderDetailView({
                     Réservation : <strong>Confirmée</strong>
                   </span>
                   <span>
-                    Volume garanti :{" "}
+                    Volume réservé :{" "}
                     <strong>
                       {order.stock_reservation?.quantity || order.order_items[0]?.quantity || 0}{" "}
                       {order.campaign.unit}
@@ -461,7 +475,7 @@ export default function ResellerOrderDetailView({
           <div className="p-5 rounded-3xl bg-white border border-gray-200/80 shadow-xs space-y-3">
             <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-forest-700" />
-              <span>Exploitation Vendeuse</span>
+              <span>Société vendeuse</span>
             </h3>
 
             <div className="flex items-center gap-3">
@@ -494,7 +508,7 @@ export default function ResellerOrderDetailView({
                 href={`/dashboard/reseller/companies/${order.company_id}`}
                 className="text-xs font-bold text-forest-700 hover:text-forest-900 hover:underline inline-flex items-center gap-1"
               >
-                <span>Consulter le profil public de l&apos;exploitation</span>
+                <span>Consulter le profil public de la société</span>
                 <ExternalLink className="w-3 h-3" />
               </Link>
             </div>
@@ -513,7 +527,7 @@ export default function ResellerOrderDetailView({
 
               <div className="space-y-2.5 text-xs text-gray-800">
                 <div>
-                  <span className="text-gray-500 text-[11px] block">Ville d&apos;arrivée prévue :</span>
+                  <span className="text-gray-500 text-xs block">Ville d&apos;arrivée prévue :</span>
                   <span className="font-bold text-gray-950 text-sm flex items-center gap-1 mt-0.5">
                     <MapPin className="w-3.5 h-3.5 text-forest-600" />
                     {order.destination_city_snapshot ||
@@ -524,13 +538,13 @@ export default function ResellerOrderDetailView({
 
                 {formattedArrivalDate && (
                   <div>
-                    <span className="text-gray-500 text-[11px] block">Date prévue d&apos;arrivée :</span>
+                    <span className="text-gray-500 text-xs block">Date prévue d&apos;arrivée :</span>
                     <span className="font-bold text-forest-800 flex items-center gap-1 mt-0.5">
                       <Calendar className="w-3.5 h-3.5 text-forest-600" />
                       {formattedArrivalDate}
                     </span>
                     {previousArrivalDate && (
-                      <span className="text-[10px] text-amber-800 block mt-0.5 line-through">
+                      <span className="text-xs text-amber-800 block mt-0.5 line-through">
                         Date initiale : {previousArrivalDate}
                       </span>
                     )}
@@ -539,12 +553,12 @@ export default function ResellerOrderDetailView({
 
                 {(order.depot_name_snapshot || order.depot) && (
                   <div className="pt-2 border-t border-forest-100">
-                    <span className="text-gray-500 text-[11px] block">Point de dépôt / retrait :</span>
+                    <span className="text-gray-500 text-xs block">Point de dépôt / retrait :</span>
                     <span className="font-bold text-gray-900 block mt-0.5">
                       {order.depot?.name || order.depot_name_snapshot}
                     </span>
                     {order.depot && (
-                      <p className="text-[11px] text-gray-600 mt-1 leading-relaxed">
+                      <p className="text-xs text-gray-600 mt-1 leading-relaxed">
                         Commune {order.depot.commune}
                         {order.depot.quartier && `, Quartier ${order.depot.quartier}`}
                         <br />
@@ -562,28 +576,28 @@ export default function ResellerOrderDetailView({
           <div className="p-5 rounded-3xl bg-white border border-gray-200/80 shadow-xs space-y-3">
             <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-forest-700" />
-              <span>Territoire de l&apos;Acheteur</span>
+              <span>Territoire du revendeur</span>
             </h3>
 
             <div className="space-y-2 text-xs text-gray-700">
               <div>
-                <span className="text-gray-500 text-[11px] block">Province :</span>
+                <span className="text-gray-500 text-xs block">Province :</span>
                 <span className="font-semibold text-gray-900">
                   {order.delivery_province?.name || "Non spécifié"}
                 </span>
               </div>
 
               <div>
-                <span className="text-gray-500 text-[11px] block">Ville / Territoire :</span>
+                <span className="text-gray-500 text-xs block">Ville / Territoire :</span>
                 <span className="font-semibold text-gray-900">
                   {order.delivery_city || "Non spécifié"}
                 </span>
               </div>
 
               <div>
-                <span className="text-gray-500 text-[11px] block">Adresse / Entrepôt :</span>
+                <span className="text-gray-500 text-xs block">Adresse / Entrepôt :</span>
                 <span className="text-gray-800">
-                  {order.delivery_address || "Adresse par défaut de l'acheteur"}
+                  {order.delivery_address || "Adresse par défaut du revendeur"}
                 </span>
               </div>
             </div>
@@ -640,7 +654,7 @@ export default function ResellerOrderDetailView({
           <div className="space-y-3 pt-1">
             <p className="text-xs text-gray-600 leading-relaxed">
               Êtes-vous sûr de vouloir annuler la commande <strong>{order.order_number}</strong> ?
-              Le volume réservé sera instantanément réintégré aux stocks disponibles de l&apos;offre commerciale.
+              Le volume réservé sera instantanément réintégré aux stocks disponibles de la campagne.
             </p>
 
             {cancelError && (
@@ -650,7 +664,7 @@ export default function ResellerOrderDetailView({
             )}
 
             <div className="space-y-1">
-              <label className="block text-[11px] font-medium text-gray-700">
+              <label className="block text-xs font-medium text-gray-700">
                 Motif de l&apos;annulation (Optionnel)
               </label>
               <textarea
@@ -658,7 +672,7 @@ export default function ResellerOrderDetailView({
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 placeholder="Ex: Changement de prévisions d'achat..."
-                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:ring-1 focus:ring-rose-500 outline-hidden resize-none"
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:ring-1 focus:ring-rose-500 outline-none resize-none"
               />
             </div>
           </div>

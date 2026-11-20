@@ -182,7 +182,7 @@ export default function MarketDistributionChart() {
                     <p className="text-2xl sm:text-3xl font-extrabold text-forest-950 my-0.5">
                       1 200 t
                     </p>
-                    <p className="text-[11px] text-forest-700/75">
+                    <p className="text-xs text-forest-700/75">
                       4 filières majeures
                     </p>
                   </>
@@ -190,7 +190,7 @@ export default function MarketDistributionChart() {
               </div>
             </div>
 
-            <p className="text-[11px] text-forest-600 mt-3 text-center">
+            <p className="text-xs text-forest-600 mt-3 text-center">
               Survolez ou touchez un secteur pour détailler la filière.
             </p>
           </div>
@@ -238,7 +238,7 @@ export default function MarketDistributionChart() {
                       <span className="text-sm font-extrabold text-forest-950 block">
                         {cat.percentage}%
                       </span>
-                      <span className="text-[11px] text-forest-600 font-medium">
+                      <span className="text-xs text-forest-600 font-medium">
                         {cat.indicativeTonnage} t
                       </span>
                     </div>

@@ -82,7 +82,7 @@ export default function ResellerEditProfileDrawer({
       }
 
       toast.success("Profil mis à jour", {
-        description: "Vos informations d'acheteur professionnel ont été enregistrées.",
+        description: "Vos informations de revendeur ont été enregistrées.",
       });
 
       onClose();
@@ -174,10 +174,10 @@ export default function ResellerEditProfileDrawer({
 
         {/* 3. Typologie d'achat */}
         <FormField
-          label="Typologie d'Acheteur"
+          label="Typologie de revendeur"
           htmlFor="edit-reseller-type"
           required
-          description="Définit votre mode d'approvisionnement auprès des producteurs agricoles."
+          description="Définit votre mode d'approvisionnement auprès des sociétés."
         >
           <Select
             id="edit-reseller-type"
@@ -218,11 +218,11 @@ export default function ResellerEditProfileDrawer({
             </span>
             <div className="flex items-center justify-between text-xs text-gray-700">
               <span className="font-medium text-gray-900">{userEmail}</span>
-              <span className="text-[10px] text-gray-500 bg-gray-200/60 px-2 py-0.5 rounded-md font-medium">
+              <span className="text-[11px] text-gray-600 bg-gray-200/60 px-2 py-0.5 rounded-md font-medium">
                 Non modifiable
               </span>
             </div>
-            <p className="text-[11px] text-gray-500 pt-0.5">
+            <p className="text-xs text-gray-500 pt-0.5">
               Cette adresse e-mail sert d&apos;identifiant de connexion sécurisé pour votre compte.
             </p>
           </div>

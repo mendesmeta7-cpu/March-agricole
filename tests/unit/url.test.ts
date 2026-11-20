@@ -6,6 +6,9 @@ import { sanitizeRedirectPath } from "../../src/lib/utils/url.ts";
 test("accepte les chemins internes autorisés", () => {
   assert.equal(sanitizeRedirectPath("/dashboard/company"), "/dashboard/company");
   assert.equal(sanitizeRedirectPath("/dashboard/reseller/orders/abc"), "/dashboard/reseller/orders/abc");
+  // Lot UX/UI 5B : retour à la page publique d'une campagne après connexion
+  assert.equal(sanitizeRedirectPath("/campaigns/abc"), "/campaigns/abc");
+  assert.equal(sanitizeRedirectPath("/campaignsx", "/"), "/");
 });
 
 test("rejette les redirections externes et dangereuses", () => {

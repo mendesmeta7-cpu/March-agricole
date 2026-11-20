@@ -14,6 +14,7 @@ import {
   PackageOpen,
 } from "lucide-react";
 import { formatProductionSeasonCalendar } from "@/lib/utils/seasonalMonths";
+import { formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 interface CompanyPublicProductionsListProps {
   productions: CompanyPublicProductionItem[];
@@ -32,7 +33,7 @@ export default function CompanyPublicProductionsList({
           Aucune production publique disponible
         </h3>
         <p className="text-sm text-gray-500 max-w-md mx-auto">
-          Cette entreprise n&apos;a encore aucune production publique.
+          Cette société n&apos;a encore aucune production publique.
         </p>
       </div>
     );
@@ -55,13 +56,13 @@ function ProductionItemCard({ production }: { production: CompanyPublicProductio
   return (
     <div className="group bg-white rounded-2xl border border-gray-200/80 hover:border-forest-300 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col overflow-hidden">
       {/* 1. Photo principale */}
-      <div className="relative w-full aspect-16/10 sm:aspect-16/9 bg-gray-100 overflow-hidden">
+      <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] bg-gray-100 overflow-hidden">
         {production.main_image_url && !imgError ? (
           <img
             src={production.main_image_url}
             alt={production.title}
             onError={() => setImgError(true)}
-            className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
+            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
             loading="lazy"
           />
         ) : (
@@ -94,7 +95,7 @@ function ProductionItemCard({ production }: { production: CompanyPublicProductio
             </h3>
             <div className="flex items-center gap-1.5 text-xs text-forest-800 font-semibold mt-0.5">
               <Sprout className="w-3.5 h-3.5 text-forest-600 flex-shrink-0" />
-              <span className="truncate">Culture : {production.product.name}</span>
+              <span className="truncate">Produit : {production.product.name}</span>
             </div>
           </div>
 
@@ -126,7 +127,7 @@ function ProductionItemCard({ production }: { production: CompanyPublicProductio
             </span>
             <span className="text-sm font-extrabold text-forest-900 flex items-center gap-1">
               <Tractor className="w-4 h-4 text-forest-600 inline-block" />
-              {production.expected_quantity.toLocaleString("fr-FR")} {production.unit}
+              {formatQuantityWithUnit(production.expected_quantity, production.unit)}
             </span>
           </div>
 

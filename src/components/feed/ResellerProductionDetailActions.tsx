@@ -6,6 +6,7 @@ import { ResellerCampaignItem } from "@/lib/queries/campaigns";
 import ProductionDemandModal from "@/components/demands/ProductionDemandModal";
 import OrderFormModal from "@/components/orders/OrderFormModal";
 import { TrendingUp, CheckCircle2, ShoppingCart, Clock, AlertTriangle } from "lucide-react";
+import { formatMoney, formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 interface ResellerProductionDetailActionsProps {
   production: {
@@ -139,7 +140,7 @@ export default function ResellerProductionDetailActions({
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-emerald-900">Prix unitaire</span>
               <span className="font-extrabold text-emerald-950 text-sm">
-                {activeCampaign.unit_price} {activeCampaign.currency} / {activeCampaign.unit}
+                {formatMoney(activeCampaign.unit_price, activeCampaign.currency)} / {activeCampaign.unit}
               </span>
             </div>
             <div className="flex items-center justify-between text-xs">
@@ -150,7 +151,7 @@ export default function ResellerProductionDetailActions({
                 </span>
               ) : (
                 <span className="font-bold text-gray-900">
-                  {availableQty.toLocaleString("fr-FR")} {activeCampaign.unit}
+                  {formatQuantityWithUnit(availableQty, activeCampaign.unit)}
                 </span>
               )}
             </div>
@@ -180,7 +181,7 @@ export default function ResellerProductionDetailActions({
                         : `${deadlineInfo.daysLeft} jour${deadlineInfo.daysLeft > 1 ? "s" : ""} restant${deadlineInfo.daysLeft > 1 ? "s" : ""}`
                       }
                     </span>
-                    <span className="text-[11px] font-normal opacity-85">
+                    <span className="text-xs font-normal opacity-85">
                       — {hasSpecificDestinationDeadline
                         ? `Commandes${destinationCityName ? ` à ${destinationCityName}` : ""} jusqu'au ${deadlineInfo.formattedDate}`
                         : `Fin de campagne le ${deadlineInfo.formattedDate}`
@@ -196,7 +197,7 @@ export default function ResellerProductionDetailActions({
             <button
               type="button"
               onClick={() => setIsOrderModalOpen(true)}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold rounded-xl bg-forest-800 text-white hover:bg-forest-900 active:scale-98 transition-all shadow-sm cursor-pointer"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold rounded-xl bg-forest-800 text-white hover:bg-forest-900 active:scale-[0.98] transition-all shadow-sm cursor-pointer"
             >
               <ShoppingCart className="w-4 h-4" />
               Commander sur cette production
@@ -204,8 +205,8 @@ export default function ResellerProductionDetailActions({
           ) : isEligible && isAvailabilityUnknown && !isDeadlineExpired && eligibilityReason !== "CAMPAIGN_NOT_OPEN" ? (
             <div role="status" className="p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl space-y-1">
               <span className="font-bold block">Disponibilité momentanément indisponible</span>
-              <p className="text-[11px] text-amber-800 leading-relaxed">
-                Le stock disponible de cette offre ne peut pas être vérifié pour le moment. La commande est
+              <p className="text-xs text-amber-800 leading-relaxed">
+                Le stock disponible de cette campagne ne peut pas être vérifié pour le moment. La commande est
                 temporairement désactivée ; veuillez réessayer plus tard.
               </p>
             </div>
@@ -214,17 +215,17 @@ export default function ResellerProductionDetailActions({
               <span className="font-bold block">
                 ⚠️ Période de commande terminée{destinationCityName ? ` à ${destinationCityName}` : ` pour ${resellerInfo?.provinceName || "votre région"}`}
               </span>
-              <p className="text-[11px] text-orange-800 leading-relaxed">
+              <p className="text-xs text-orange-800 leading-relaxed">
                 {eligibilityMessage || "La date limite de commande pour votre destination est dépassée. Vos commandes existantes restent valides. Vous pouvez formuler une demande ci-dessous."}
               </p>
             </div>
           ) : isOutOfStock ? (
             <div className="p-3 bg-gray-50 border border-gray-200 text-gray-800 text-xs rounded-xl space-y-1">
               <span className="font-bold block">
-                Stock disponible épuisé sur cette offre
+                Stock disponible épuisé sur cette campagne
               </span>
-              <p className="text-[11px] text-gray-600 leading-relaxed">
-                Le volume commercialisable de cette offre a été entièrement réservé. Vous pouvez toutefois formuler une demande spécifique ci-dessous.
+              <p className="text-xs text-gray-600 leading-relaxed">
+                Le volume commercialisable de cette campagne a été entièrement réservé. Vous pouvez toutefois formuler une demande spécifique ci-dessous.
               </p>
             </div>
           ) : (
@@ -232,8 +233,8 @@ export default function ResellerProductionDetailActions({
               <span className="font-bold block">
                 Non disponible dans votre région ({resellerInfo?.provinceName || "votre province"})
               </span>
-              <p className="text-[11px] text-amber-800 leading-relaxed">
-                Cette offre commerciale dessert d&apos;autres destinations. Vous pouvez toutefois formuler une demande spécifique ci-dessous.
+              <p className="text-xs text-amber-800 leading-relaxed">
+                Cette campagne dessert d&apos;autres destinations. Vous pouvez toutefois formuler une demande spécifique ci-dessous.
               </p>
             </div>
           )}
@@ -245,7 +246,7 @@ export default function ResellerProductionDetailActions({
               className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-forest-700 hover:text-forest-900 hover:bg-forest-50/50 rounded-lg transition-colors cursor-pointer"
             >
               <TrendingUp className="w-3.5 h-3.5" />
-              {isEligible ? "Ou formuler une demande spécifique" : "Formuler une demande sur cette denrée"}
+              {isEligible ? "Ou formuler une demande spécifique" : "Formuler une demande sur ce produit"}
             </button>
           )}
         </div>
@@ -254,14 +255,14 @@ export default function ResellerProductionDetailActions({
           <button
             type="button"
             onClick={() => setIsDemandModalOpen(true)}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold rounded-xl bg-emerald-700 text-white hover:bg-emerald-800 active:scale-98 transition-all shadow-sm cursor-pointer"
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold rounded-xl bg-emerald-700 text-white hover:bg-emerald-800 active:scale-[0.98] transition-all shadow-sm cursor-pointer"
           >
             <TrendingUp className="w-4 h-4" />
             Faire une demande sur cette production
           </button>
         ) : (
           <div className="p-3 bg-gray-50 rounded-xl text-xs text-gray-500 text-center border border-gray-100">
-            Cette production n&apos;est pas encore ouverte aux expressions de besoin (statut : {production.status}).
+            Cette production n&apos;est pas encore ouverte aux demandes (statut : {production.status}).
           </div>
         )
       )}

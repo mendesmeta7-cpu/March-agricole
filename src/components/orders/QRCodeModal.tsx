@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, useId } from "react";
-import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import { useEffect, useRef, useState } from "react";
+import { Dialog } from "@/components/ui/Dialog";
 import QRCode from "qrcode";
-import { X, QrCode, Copy, Check, ShieldCheck, AlertCircle } from "lucide-react";
+import { Copy, Check, ShieldCheck, AlertCircle } from "lucide-react";
+import { formatQuantityWithUnit } from "@/lib/utils/numberFormat";
 
 interface QRCodeModalProps {
   isOpen: boolean;
@@ -59,13 +60,6 @@ export default function QRCodeModal({
     }
   }, [isOpen, qrCodeToken]);
 
-  const panelRef = useRef<HTMLDivElement>(null);
-  const titleId = useId();
-  useFocusTrap(panelRef, {
-    isOpen: isOpen,
-    onEscape: onClose,
-    escapeEnabled: true,
-  });
 
   if (!isOpen) return null;
 
@@ -79,38 +73,30 @@ export default function QRCodeModal({
     }
   };
 
+  // Lot UX/UI 5B : surface partagée Dialog (focus, Échap, verrouillage compté du défilement).
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div
-        ref={panelRef}
-        className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        {/* Header */}
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-forest-900/5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-forest-800 text-white flex items-center justify-center shadow-xs">
-              <QrCode className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 id={titleId} className="text-sm font-bold text-gray-900">QR Code de Livraison</h3>
-              <p className="text-[11px] text-gray-500">Pour retrait & vérification</p>
-            </div>
-          </div>
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      size="sm"
+      isDismissable={true}
+      showCloseButton={true}
+      title={"QR Code de Livraison"}
+      description={"Pour retrait & vérification"}
+      footer={
+        <>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fermer le QR code"
-            className="p-1.5 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-white/80 transition-colors"
+            className="w-full py-2.5 text-xs font-bold text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors shadow-2xs"
           >
-            <X className="w-5 h-5" />
+            Fermer
           </button>
-        </div>
-
+        </>
+      }
+    >
         {/* Corps de la modal */}
-        <div className="p-6 text-center space-y-4">
+        <div className="text-center space-y-4">
           <p className="text-xs text-gray-600 leading-relaxed">
             Présentez ce QR code à la société{" "}
             {companyName ? <strong className="text-gray-900">« {companyName} »</strong> : "agricole"}{" "}
@@ -130,7 +116,7 @@ export default function QRCodeModal({
 
           {/* Numéro de commande lisible */}
           <div className="space-y-1 pt-1">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400 block">
+            <span className="text-[11px] uppercase font-bold tracking-wider text-gray-500 block">
               Numéro de commande lisible
             </span>
             <div className="flex items-center justify-center gap-2">
@@ -153,31 +139,19 @@ export default function QRCodeModal({
             <div className="text-xs text-gray-600 bg-gray-50/80 p-2.5 rounded-xl border border-gray-100">
               {productName && <span className="font-bold text-gray-900 block">{productName}</span>}
               {displayQty !== undefined && (
-                <span className="text-gray-500 block text-[11px] mt-0.5">
-                  Volume : <strong className="text-forest-900">{displayQty.toLocaleString("fr-FR")} {unit || "tonne"}</strong>
+                <span className="text-gray-500 block text-xs mt-0.5">
+                  Volume : <strong className="text-forest-900">{formatQuantityWithUnit(displayQty, unit || "tonne")}</strong>
                 </span>
               )}
             </div>
           )}
 
           {/* Note de sécurité */}
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
+          <div className="pt-2 border-t border-gray-100 flex items-center justify-center gap-1.5 text-xs text-gray-500">
             <ShieldCheck className="w-3.5 h-3.5 text-forest-600" />
             <span>Jeton sécurisé vérifié exclusivement par la société vendeuse</span>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="p-4 bg-gray-50 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full py-2.5 text-xs font-bold text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors shadow-2xs"
-          >
-            Fermer
-          </button>
-        </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

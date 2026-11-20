@@ -1,21 +1,18 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { sumByUnit } from "@/lib/utils/currencyTotals";
 import {
   CompanyCampaignItem,
-  EligibleProductionOption,
   CampaignStatus,
 } from "@/lib/queries/campaigns";
 import {
   getEffectiveCampaignStatus,
 } from "@/lib/utils/campaignStatus";
 
-import { Province } from "@/lib/queries/geography";
-import { AggregatedDemandItem } from "@/lib/queries/demands";
 import CompanyCampaignCard from "./CompanyCampaignCard";
 import CompanyCampaignDetailDrawer from "./CompanyCampaignDetailDrawer";
-import CampaignFormModal from "./CampaignFormModal";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -27,39 +24,32 @@ import {
   CheckCircle2,
   FileEdit,
   PackageOpen,
-  ArrowLeft,
   Filter,
   X,
   TrendingUp,
   Clock,
-  Info,
 } from "lucide-react";
-import Link from "next/link";
+import InfoRepliable from "@/components/ui/InfoRepliable";
+import { formatQuantity } from "@/lib/utils/numberFormat";
 
 interface CompanyCampaignsViewProps {
   initialCampaigns: CompanyCampaignItem[];
-  eligibleProductions: EligibleProductionOption[];
-  provinces: Province[];
-  marketDemands: AggregatedDemandItem[];
-  initialModalOpen?: boolean;
-  defaultProductionId?: string;
+  /** Campagne dont le tiroir de détail s'ouvre à l'arrivée (redirection de /campaigns/[id]) */
+  initialDetailCampaignId?: string;
 }
 
 export default function CompanyCampaignsView({
   initialCampaigns,
-  eligibleProductions,
-  provinces,
-  marketDemands,
-  initialModalOpen = false,
-  defaultProductionId,
+  initialDetailCampaignId,
 }: CompanyCampaignsViewProps) {
+  const router = useRouter();
   const [campaigns, setCampaigns] = useState<CompanyCampaignItem[]>(initialCampaigns);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [isModalOpen, setIsModalOpen] = useState(initialModalOpen);
-  const [campaignToEdit, setCampaignToEdit] = useState<CompanyCampaignItem | null>(null);
-  const [detailCampaign, setDetailCampaign] = useState<CompanyCampaignItem | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailCampaign, setDetailCampaign] = useState<CompanyCampaignItem | null>(
+    () => (initialDetailCampaignId ? initialCampaigns.find((c) => c.id === initialDetailCampaignId) ?? null : null)
+  );
+  const [isDetailOpen, setIsDetailOpen] = useState(() => detailCampaign !== null);
 
   // FUN-08 : resynchronisation avec les données serveur après router.refresh()
   // (création, modification, changement de statut), y compris la campagne ouverte dans le tiroir.
@@ -111,16 +101,15 @@ export default function CompanyCampaignsView({
     return { total, active, draft, completed, activeVolumeByUnit };
   }, [campaigns, campaignsWithEffectiveStatus]);
 
+  // Lot UX/UI 5B : création et modification sur pages dédiées
   const handleOpenCreate = () => {
-    setCampaignToEdit(null);
-    setIsModalOpen(true);
+    router.push("/dashboard/company/campaigns/new");
   };
 
   const handleOpenEdit = (camp: CompanyCampaignItem) => {
-    setCampaignToEdit(camp);
     setDetailCampaign(null);
     setIsDetailOpen(false);
-    setIsModalOpen(true);
+    router.push(`/dashboard/company/campaigns/${camp.id}/edit`);
   };
 
   const handleViewDetail = (camp: CompanyCampaignItem) => {
@@ -141,151 +130,88 @@ export default function CompanyCampaignsView({
   return (
     <ToastProvider>
       <div className="space-y-6">
-        {/* 1. Fil d'Ariane */}
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Link
-            href="/dashboard/company"
-            className="hover:text-forest-800 flex items-center gap-1 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Retour au tableau de bord
-          </Link>
-        </div>
+        {/* 1. En-tête commun (Lot 6B, NAV-02) : les compteurs du bandeau sombre faisaient
+            double emploi avec les cartes ci-dessous (NAV-06) ; seules les cartes restent. */}
+        <PageHeader
+          breadcrumb={[{ href: "/dashboard/company", label: "Tableau de bord" }]}
+          title="Campagnes"
+          description="Publiez vos campagnes, fixez vos prix par unité et délimitez précisément les provinces éligibles à la livraison."
+        />
 
-        {/* 2. En-tête héro */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-forest-900 via-forest-800 to-earth-900 p-6 sm:p-8 text-white shadow-xl">
-          {/* Motif de fond décoratif */}
-          <div className="absolute inset-0 opacity-5 pointer-events-none">
-            <div className="absolute top-0 right-0 w-64 h-64 rounded-full border-[40px] border-white -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full border-[30px] border-white translate-y-1/2 -translate-x-1/2" />
-          </div>
-          <div className="relative">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/80 text-xs font-semibold uppercase tracking-wider mb-3">
-              <Megaphone className="w-3.5 h-3.5" />
-              Espace Société — Offres Commerciales
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
-              Campagnes de Vente
-            </h1>
-            <p className="text-white/70 text-sm sm:text-base max-w-xl leading-relaxed">
-              Publiez vos offres fermes, fixez vos prix par unité et délimitez précisément
-              les provinces éligibles à la livraison.
-            </p>
-            <div className="flex items-center gap-4 mt-5">
-              <div className="text-center">
-                <span className="block text-2xl font-extrabold">{metrics.active}</span>
-                <span className="block text-white/60 text-xs">Active{metrics.active > 1 ? "s" : ""}</span>
-              </div>
-              <div className="w-px h-8 bg-white/20" />
-              <div className="text-center">
-                <span className="block text-2xl font-extrabold">{metrics.total}</span>
-                <span className="block text-white/60 text-xs">Total</span>
-              </div>
-              {metrics.activeVolumeByUnit.map(([unit, qty]) => (
-                <div key={unit} className="flex items-center gap-4">
-                  <div className="w-px h-8 bg-white/20" />
-                  <div className="text-center">
-                    <span className="block text-2xl font-extrabold">
-                      {qty.toLocaleString("fr-FR")}
-                    </span>
-                    <span className="block text-white/60 text-xs">{unit} actif(s)</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* 3. Métriques détaillées */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card padding="md">
+        {/* 2. Compteurs (un seul niveau). Correctif NAV-06 (arbitrage B) : cartes plus basses sous 640 px,
+            mêmes intitulés et mêmes valeurs ; présentation inchangée au-delà. */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <Card padding="none" className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
                   Total
                 </span>
-                <span className="text-2xl font-extrabold text-gray-900 mt-1 block">
+                <span className="text-xl sm:text-2xl font-extrabold text-gray-900 mt-0.5 sm:mt-1 block">
                   {metrics.total}
                 </span>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-forest-50 text-forest-700 flex items-center justify-center">
+              <div className="hidden sm:flex w-10 h-10 rounded-xl bg-forest-50 text-forest-700 items-center justify-center">
                 <Megaphone className="w-5 h-5" />
               </div>
             </div>
           </Card>
 
-          <Card padding="md">
+          <Card padding="none" className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
                   Actives
                 </span>
-                <span className="text-2xl font-extrabold text-emerald-700 mt-1 block">
+                <span className="text-xl sm:text-2xl font-extrabold text-emerald-700 mt-0.5 sm:mt-1 block">
                   {metrics.active}
                 </span>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <div className="hidden sm:flex w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 items-center justify-center">
                 <CheckCircle2 className="w-5 h-5" />
               </div>
             </div>
           </Card>
 
-          <Card padding="md">
+          <Card padding="none" className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
                   Volume actif
                 </span>
                 {metrics.activeVolumeByUnit.length === 0 ? (
-                  <span className="text-2xl font-extrabold text-forest-950 mt-1 block">0</span>
+                  <span className="text-xl sm:text-2xl font-extrabold text-forest-950 mt-0.5 sm:mt-1 block">0</span>
                 ) : (
                   metrics.activeVolumeByUnit.map(([unit, qty]) => (
-                    <span key={unit} className="text-xl font-extrabold text-forest-950 mt-1 block">
-                      {qty.toLocaleString("fr-FR")}
+                    <span key={unit} className="text-lg sm:text-xl font-extrabold text-forest-950 mt-0.5 sm:mt-1 block">
+                      {formatQuantity(qty)}
                       <span className="text-xs font-normal text-gray-500 ml-1">{unit}</span>
                     </span>
                   ))
                 )}
               </div>
-              <div className="w-10 h-10 rounded-xl bg-forest-50 text-forest-800 flex items-center justify-center">
+              <div className="hidden sm:flex w-10 h-10 rounded-xl bg-forest-50 text-forest-800 items-center justify-center">
                 <Layers className="w-5 h-5" />
               </div>
             </div>
           </Card>
 
-          <Card padding="md">
+          <Card padding="none" className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
                   Brouillons
                 </span>
-                <span className="text-2xl font-extrabold text-gray-700 mt-1 block">
+                <span className="text-xl sm:text-2xl font-extrabold text-gray-700 mt-0.5 sm:mt-1 block">
                   {metrics.draft}
                 </span>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center">
+              <div className="hidden sm:flex w-10 h-10 rounded-xl bg-gray-100 text-gray-600 items-center justify-center">
                 <FileEdit className="w-5 h-5" />
               </div>
             </div>
           </Card>
         </div>
-
-        {/* 4. Note pédagogique */}
-        <Card padding="md" className="bg-amber-50/50 border-amber-200/80">
-          <div className="flex items-start gap-3 text-amber-900 text-xs sm:text-sm">
-            <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <span className="font-bold block">
-                Rappel de fonctionnement :
-              </span>
-              <p className="text-amber-800 text-xs leading-relaxed">
-                Une campagne commerciale matérialise une offre ferme adossée à une production.
-                Elle ne génère aucune réservation tant qu&apos;une commande n&apos;est pas confirmée.
-                Une destination arrivée à échéance reste commandable dans les autres destinations encore actives.
-              </p>
-            </div>
-          </div>
-        </Card>
 
         {/* 5. Barre Filtres + Recherche + Bouton Créer */}
         <div className="flex flex-col gap-3">
@@ -294,11 +220,12 @@ export default function CompanyCampaignsView({
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
+                aria-label="Rechercher par titre, produit, production"
                 type="text"
                 placeholder="Rechercher par titre, produit, production..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-9 py-2.5 text-xs rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-forest-500 outline-hidden shadow-xs"
+                className="w-full pl-9 pr-9 py-2.5 text-xs rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-forest-500 outline-none shadow-xs"
               />
               {searchQuery && (
                 <button
@@ -323,7 +250,7 @@ export default function CompanyCampaignsView({
           </div>
 
           {/* Ligne 2 : Onglets de statut */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
             {statusTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -338,10 +265,10 @@ export default function CompanyCampaignsView({
                 {tab.label}
                 {tab.count !== null && tab.count > 0 && (
                   <span
-                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold ${
                       selectedStatus === tab.id
                         ? "bg-white/20 text-white"
-                        : "bg-gray-100 text-gray-500"
+                        : "bg-gray-100 text-gray-600"
                     }`}
                   >
                     {tab.count}
@@ -365,7 +292,7 @@ export default function CompanyCampaignsView({
             </h3>
             <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
               {campaigns.length === 0
-                ? "Aucune campagne n'a encore été créée pour votre exploitation. Créez votre première offre commerciale pour valoriser vos productions auprès des revendeurs."
+                ? "Aucune campagne n'a encore été créée pour votre société. Créez votre première campagne pour valoriser vos productions auprès des revendeurs."
                 : "Aucune campagne ne correspond aux filtres de recherche actuels. Modifiez les filtres ou effacez la recherche."}
             </p>
             {campaigns.length === 0 && (
@@ -375,7 +302,7 @@ export default function CompanyCampaignsView({
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-forest-700 text-white font-semibold text-xs hover:bg-forest-800 transition-colors shadow-xs"
               >
                 <Plus className="w-4 h-4" />
-                Lancer ma première offre
+                Lancer ma première campagne
               </button>
             )}
             {campaigns.length > 0 && (
@@ -402,23 +329,22 @@ export default function CompanyCampaignsView({
           </div>
         )}
 
+        {/* 7. Note pédagogique, repliée par défaut (Lot 6B, TXT-04), placée après la liste
+            (correctif NAV-06, arbitrage D) : texte inchangé, toujours consultable. */}
+        <InfoRepliable summary="Rappel de fonctionnement" tone="amber">
+          <p>
+            Une campagne met en vente tout ou partie d&apos;une production, à un prix et dans des conditions fixés.
+            Elle ne génère aucune réservation tant qu&apos;une commande n&apos;est pas confirmée.
+            Une destination arrivée à échéance reste commandable dans les autres destinations encore actives.
+          </p>
+        </InfoRepliable>
+
         {/* Drawer de détail */}
         <CompanyCampaignDetailDrawer
           campaign={detailCampaign}
           isOpen={isDetailOpen}
           onClose={() => { setIsDetailOpen(false); setDetailCampaign(null); }}
           onEdit={handleOpenEdit}
-        />
-
-        {/* Modale de création / modification */}
-        <CampaignFormModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          eligibleProductions={eligibleProductions}
-          provinces={provinces}
-          marketDemands={marketDemands}
-          campaignToEdit={campaignToEdit}
-          defaultProductionId={defaultProductionId}
         />
       </div>
     </ToastProvider>

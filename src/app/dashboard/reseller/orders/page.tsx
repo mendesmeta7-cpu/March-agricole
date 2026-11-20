@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getResellerOrders } from "@/lib/queries/orders";
 import ResellerOrdersView from "@/components/orders/ResellerOrdersView";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Mes commandes — Radiza" };
 
 export default async function ResellerOrdersPage() {
   const supabase = await createClient();

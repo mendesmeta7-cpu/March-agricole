@@ -20,6 +20,10 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
+import type { Metadata } from "next";
+
+// Lot UX/UI 6B (NAV-04) : titre d'onglet propre à la page.
+export const metadata: Metadata = { title: "Administration · Tableau de bord — Radiza" };
 
 type CountResult = { count: number | null; error: unknown };
 
@@ -120,13 +124,13 @@ export default async function AdminDashboardPage() {
   const companiesHelper =
     companiesCount !== null && companiesCount > 0 && pendingCompaniesCount !== null && pendingCompaniesCount > 0
       ? `${pendingCompaniesCount} en attente de vérification`
-      : plural(companiesCount, "exploitation", "exploitations", "Aucune exploitation inscrite");
+      : plural(companiesCount, "société", "sociétés", "Aucune société inscrite");
 
   return (
     <div className="space-y-8">
       {/* En-tête */}
       <PageHeader
-        title="Supervision de la Plateforme"
+        title="Tableau de bord"
         description="Vue d'ensemble de l'écosystème agricole V1 : statistiques issues de la base de données et accès aux listes de supervision."
         badge={<Badge variant="forest">Super-Admin</Badge>}
       />
@@ -141,21 +145,21 @@ export default async function AdminDashboardPage() {
       {/* Cartes Métriques Réelles */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
-          label="Entreprises Agricoles"
+          label="Sociétés"
           value={display(companiesCount)}
           helper={companiesHelper}
           icon={<Building2 className="w-5 h-5 text-forest-700" />}
           variant="forest"
         />
         <StatCard
-          label="Revendeurs Inscrits"
+          label="Revendeurs inscrits"
           value={display(resellersCount)}
-          helper={plural(resellersCount, "acheteur", "acheteurs", "Aucun acheteur inscrit")}
+          helper={plural(resellersCount, "revendeur", "revendeurs", "Aucun revendeur inscrit")}
           icon={<Store className="w-5 h-5 text-earth-700" />}
           variant="earth"
         />
         <StatCard
-          label="Catalogue Produits"
+          label="Catalogue produits"
           value={display(productsCount)}
           helper={plural(productsCount, "produit", "produits", "Aucun produit référencé")}
           icon={<Package className="w-5 h-5 text-gray-700" />}
@@ -177,7 +181,7 @@ export default async function AdminDashboardPage() {
           <Card padding="md">
             <h2 className="text-base font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100 flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-forest-700" aria-hidden="true" />
-              Indicateurs de flux métier
+              Indicateurs d&apos;activité
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -187,7 +191,7 @@ export default async function AdminDashboardPage() {
                   <Tractor className="w-4 h-4 text-forest-600" aria-hidden="true" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{display(productionsCount)}</span>
-                <span className="block text-[11px] text-gray-500 mt-1">Tous statuts confondus</span>
+                <span className="block text-xs text-gray-500 mt-1">Tous statuts confondus</span>
               </div>
 
               <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
@@ -196,7 +200,7 @@ export default async function AdminDashboardPage() {
                   <TrendingUp className="w-4 h-4 text-earth-600" aria-hidden="true" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{display(demandsCount)}</span>
-                <span className="block text-[11px] text-gray-500 mt-1">Tous statuts confondus</span>
+                <span className="block text-xs text-gray-500 mt-1">Tous statuts confondus</span>
               </div>
 
               <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
@@ -205,7 +209,7 @@ export default async function AdminDashboardPage() {
                   <Megaphone className="w-4 h-4 text-amber-600" aria-hidden="true" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">{display(activeCampaignsCount)}</span>
-                <span className="block text-[11px] text-gray-500 mt-1">
+                <span className="block text-xs text-gray-500 mt-1">
                   Actives à ce jour (échéances prises en compte)
                 </span>
               </div>
@@ -215,7 +219,7 @@ export default async function AdminDashboardPage() {
               <div className="mt-6 pt-4 border-t border-gray-100">
                 <EmptyState
                   title="Aucun compte professionnel inscrit pour le moment"
-                  description="Les entreprises agricoles et les revendeurs apparaîtront ici dès leur inscription via les formulaires officiels."
+                  description="Les sociétés et les revendeurs apparaîtront ici dès leur inscription via les formulaires officiels."
                   icon={<CheckCircle2 className="w-8 h-8 text-forest-700" />}
                 />
               </div>
@@ -237,9 +241,9 @@ export default async function AdminDashboardPage() {
                   aria-hidden="true"
                 />
               </div>
-              <h3 className="font-bold text-gray-900 text-sm">Supervision des Entreprises</h3>
+              <h3 className="font-bold text-gray-900 text-sm">Sociétés</h3>
               <p className="text-xs text-gray-500 mt-1">
-                Liste des entreprises inscrites et validation du badge de vérification.
+                Liste des sociétés inscrites et validation du badge de vérification.
               </p>
             </Link>
 
@@ -256,9 +260,9 @@ export default async function AdminDashboardPage() {
                   aria-hidden="true"
                 />
               </div>
-              <h3 className="font-bold text-gray-900 text-sm">Supervision des Revendeurs</h3>
+              <h3 className="font-bold text-gray-900 text-sm">Revendeurs</h3>
               <p className="text-xs text-gray-500 mt-1">
-                Liste des acheteurs professionnels, de leur typologie et de leur territoire.
+                Liste des revendeurs, de leur typologie et de leur territoire.
               </p>
             </Link>
           </div>
@@ -293,8 +297,8 @@ export default async function AdminDashboardPage() {
             </ul>
 
             <p className="mt-4 text-xs text-gray-500 leading-relaxed">
-              Les listes des entreprises, revendeurs, productions, demandes, campagnes et commandes
-              sont en lecture seule, à l&apos;exception de la vérification des entreprises.
+              Les listes des sociétés, revendeurs, productions, demandes, campagnes et commandes
+              sont en lecture seule, à l&apos;exception de la vérification des sociétés.
             </p>
           </Card>
         </div>
